@@ -2,16 +2,21 @@ package utils
 
 import (
 	"encoding/json"
-	"fmt"
+	"expense-tracker/types"
+	"io"
 
 	"github.com/gin-gonic/gin"
 )
 
 func ParseJSON(c *gin.Context, payload any) error {
-	if c.Request.Body == nil {
-		return fmt.Errorf("missing request body")
+	err := json.NewDecoder(c.Request.Body).Decode(payload)
+	if err == io.EOF {
+		return types.ErrEmptyRequestBody
 	}
-	return json.NewDecoder(c.Request.Body).Decode(payload)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func WriteJSON(c *gin.Context, status int, obj any) {

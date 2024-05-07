@@ -25,7 +25,8 @@ func (s *APIServer) Run() error {
 	router := gin.New()
 	subrouter := router.Group("/api/v0")
 
-	userHandler := user.NewHandler()
+	userStore := user.NewStore(s.db)
+	userHandler := user.NewHandler(userStore)
 	userHandler.RegisterRoutes(subrouter)
 
 	log.Println("Listening on", s.addr)

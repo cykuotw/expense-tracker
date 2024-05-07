@@ -15,7 +15,7 @@ func main() {
 	cfg := config.Envs
 
 	psqlInfo := fmt.Sprintf("postgresql://%s:%s@%s:%s/%s?sslmode=disable",
-		cfg.DB.User, cfg.DB.Password, cfg.DB.PublicHost, cfg.DB.Port, cfg.DB.DBName)
+		cfg.DBUser, cfg.DBPassword, cfg.DBPublicHost, cfg.DBPort, cfg.DBName)
 
 	m, err := migrate.New(
 		"file://cmd/migrate/migrations",

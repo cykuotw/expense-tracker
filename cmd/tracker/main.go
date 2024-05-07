@@ -10,7 +10,7 @@ import (
 func main() {
 	cfg := config.Envs
 
-	db, err := db.NewPostgreSQLStorage(cfg.DB)
+	db, err := db.NewPostgreSQLStorage(cfg)
 	if err != nil {
 		log.Fatal(err)
 	}

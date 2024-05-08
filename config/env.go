@@ -12,12 +12,6 @@ type Config struct {
 	DBUser       string
 	DBPassword   string
 	DBName       string
-
-	TestDBPublicHost string
-	TestDBPort       string
-	TestDBUser       string
-	TestDBPassword   string
-	TestDBName       string
 }
 
 var Envs = initConfig()
@@ -31,12 +25,6 @@ func initConfig() Config {
 		DBUser:       getEnv("DB_USER", "tracker"),
 		DBPassword:   getEnv("DB_PASSWORD", "mypassword"),
 		DBName:       getEnv("DB_NAME", "mydb"),
-
-		TestDBPublicHost: getEnv("DB_TEST_HOST", "localhost"),
-		TestDBPort:       getEnv("DB_TEST_PORT", "5432"),
-		TestDBUser:       getEnv("DB_TEST_USER", "trackertest"),
-		TestDBPassword:   getEnv("DB_TEST_PASSWORD", "mytestpassword"),
-		TestDBName:       getEnv("DB_TEST_NAME", "mytestdb"),
 	}
 }
 

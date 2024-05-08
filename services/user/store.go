@@ -17,18 +17,19 @@ func NewStore(db *sql.DB) *Store {
 }
 
 func (s *Store) GetUserByEmail(email string) (*types.User, error) {
-	rows, err := s.db.Query(
-		"SELECT * FROM users WHERE email = ?",
-		email,
-	)
+	statement := fmt.Sprintf("SELECT * FROM users WHERE email = '%s';", email)
+	rows, err := s.db.Query(statement)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	user, err := scanRowIntoUser(rows)
-	if err != nil {
-		return nil, err
+	user := new(types.User)
+	for rows.Next() {
+		user, err = scanRowIntoUser(rows)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	if user.ID == uuid.Nil {
@@ -39,18 +40,19 @@ func (s *Store) GetUserByEmail(email string) (*types.User, error) {
 }
 
 func (s *Store) GetUserByUsername(username string) (*types.User, error) {
-	rows, err := s.db.Query(
-		"SELECT * FROM users WHERE username = ?",
-		username,
-	)
+	statement := fmt.Sprintf("SELECT * FROM users WHERE username = '%s';", username)
+	rows, err := s.db.Query(statement)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	user, err := scanRowIntoUser(rows)
-	if err != nil {
-		return nil, err
+	user := new(types.User)
+	for rows.Next() {
+		user, err = scanRowIntoUser(rows)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	if user.ID == uuid.Nil {
@@ -61,18 +63,19 @@ func (s *Store) GetUserByUsername(username string) (*types.User, error) {
 }
 
 func (s *Store) GetUserByID(id string) (*types.User, error) {
-	rows, err := s.db.Query(
-		"SELECT * FROM users WHERE id = ?",
-		id,
-	)
+	statement := fmt.Sprintf("SELECT * FROM users WHERE id = '%s';", id)
+	rows, err := s.db.Query(statement)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	user, err := scanRowIntoUser(rows)
-	if err != nil {
-		return nil, err
+	user := new(types.User)
+	for rows.Next() {
+		user, err = scanRowIntoUser(rows)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	if user.ID == uuid.Nil {

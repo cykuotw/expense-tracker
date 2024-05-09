@@ -32,11 +32,11 @@ type RegisterUserPayload struct {
 	Firstname string `json:"firstname" validate:"required"`
 	Lastname  string `json:"lastname" validate:"required"`
 	Email     string `json:"email" validate:"required,email"`
-	Password  string `json:"password" validate:"required,min=8,max=130"`
+	Password  string `json:"password" validate:"required,min=8"`
 }
 
 type LoginUserPayload struct {
-	Username string `json:"username"`
-	Email    string `json:"email"`
-	Password string `json:"password"`
+	Username string `json:"username" validate:"required_without=Email,excluded_with=Email"`
+	Email    string `json:"email" validate:"required_without=Username,excluded_with=Username,email"`
+	Password string `json:"password" validate:"required,min=8"`
 }

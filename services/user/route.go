@@ -1,6 +1,7 @@
 package user
 
 import (
+	"expense-tracker/config"
 	"expense-tracker/services/auth"
 	"expense-tracker/types"
 	"expense-tracker/utils"
@@ -87,7 +88,42 @@ func (h *Handler) handleRegister(c *gin.Context) {
 }
 
 func (h *Handler) handleLogin(c *gin.Context) {
-	c.JSON(200, gin.H{
-		"message": "login handler",
-	})
+	// get json payload
+	var payload types.LoginUserPayload
+	if err := utils.ParseJSON(c, &payload); err != nil {
+		utils.WriteError(c, http.StatusBadRequest, err)
+		return
+	}
+
+	if err := utils.Validate.Struct(payload); err != nil {
+		errors := err.(validator.ValidationErrors)
+		utils.WriteError(c, http.StatusBadRequest,
+			fmt.Errorf("invalid payload %v", errors))
+		return
+	}
+
+	var user *types.User
+	var err error
+	if payload.Username == "" {
+		user, err = h.store.GetUserByEmail(payload.Email)
+	} else if payload.Email == "" {
+		user, err = h.store.GetUserByUsername(payload.Username)
+	}
+	if err != nil {
+		utils.WriteError(c, http.StatusInternalServerError, err)
+		return
+	}
+
+	if !auth.ValidatePassword(user.PasswordHashed, payload.Password) {
+		utils.WriteError(c, http.StatusBadRequest, types.ErrPasswordNotMatch)
+		return
+	}
+
+	secret := []byte(config.Envs.JWTSecret)
+	token, err := auth.CreateJWT(secret, user.ID)
+	if err != nil {
+		utils.WriteError(c, http.StatusInternalServerError, err)
+		return
+	}
+	utils.WriteJSON(c, http.StatusOK, map[string]string{"token": token})
 }

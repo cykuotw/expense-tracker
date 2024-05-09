@@ -6,7 +6,10 @@ import (
 	"io"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-playground/validator/v10"
 )
+
+var Validate = validator.New()
 
 func ParseJSON(c *gin.Context, payload any) error {
 	err := json.NewDecoder(c.Request.Body).Decode(payload)

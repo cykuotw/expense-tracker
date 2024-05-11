@@ -21,6 +21,10 @@ func (s *Store) GetGroupByID(id string) (*types.Group, error) {
 	return nil, nil
 }
 
+func (s *Store) GetGroupByIDAndUser(groupID string, userID string) (*types.Group, error) {
+	return nil, nil
+}
+
 func (s *Store) GetGroupListByUser(userID string) ([]*types.Group, error) {
 	return nil, nil
 }

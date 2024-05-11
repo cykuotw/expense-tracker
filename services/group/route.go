@@ -25,8 +25,8 @@ func NewHandler(store types.GroupStore, userStore types.UserStore) *Handler {
 
 func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 	router.POST("/create_group", h.handleCreateGroup)
-	router.GET("/group/:groupID", h.handleGetGroup)
-	router.GET("/group_list", h.handleGetGroupList)
+	router.GET("/group/:groupid", h.handleGetGroup)
+	router.GET("/groups", h.handleGetGroupList)
 	router.PUT("/group_member/:action/:userId", h.handleUpdateGroupMember)
 	router.PUT("/archive_group/:groupId", h.handleArchiveGroup)
 }
@@ -77,14 +77,21 @@ func (h *Handler) handleCreateGroup(c *gin.Context) {
 
 func (h *Handler) handleGetGroup(c *gin.Context) {
 	// get group id
-	groupId := c.Param("groupID")
+	groupId := c.Param("groupid")
 	if groupId == "" {
 		utils.WriteError(c, http.StatusBadRequest, types.ErrGroupNotExist)
 		return
 	}
 
+	// get user id from jwt
+	userID, err := auth.ExtractJWTClaim(c, "userID")
+	if err != nil {
+		utils.WriteError(c, http.StatusInternalServerError, err)
+		return
+	}
+
 	// get group detail by id
-	group, err := h.store.GetGroupByID(groupId)
+	group, err := h.store.GetGroupByIDAndUser(groupId, userID)
 	if err != nil {
 		utils.WriteError(c, http.StatusBadRequest, err)
 		return

@@ -37,6 +37,6 @@ type RegisterUserPayload struct {
 
 type LoginUserPayload struct {
 	Username string `json:"username" validate:"required_without=Email,excluded_with=Email"`
-	Email    string `json:"email" validate:"required_without=Username,excluded_with=Username,email"`
+	Email    string `json:"email" validate:"required_without=Username,excluded_with=Username"`
 	Password string `json:"password" validate:"required,min=8"`
 }

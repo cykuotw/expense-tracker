@@ -84,7 +84,7 @@ func (h *Handler) handleRegister(c *gin.Context) {
 		return
 	}
 
-	utils.ParseJSON(c, nil)
+	utils.WriteJSON(c, http.StatusCreated, nil)
 }
 
 func (h *Handler) handleLogin(c *gin.Context) {

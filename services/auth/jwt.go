@@ -30,22 +30,7 @@ func CreateJWT(secret []byte, userID uuid.UUID) (string, error) {
 }
 
 func ValidateJWT(c *gin.Context) error {
-	bearerToken := c.Request.Header.Get("Authorization")
-	if bearerToken == "" {
-		return types.ErrInvalidToken
-	}
-	tks := strings.Split(bearerToken, " ")
-	if len(tks) != 2 {
-		return types.ErrInvalidToken
-	}
-	tokenStr := tks[1]
-
-	token, err := jwt.Parse(tokenStr, func(t *jwt.Token) (interface{}, error) {
-		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("Unexpected signing method: %v", t.Header["alg"])
-		}
-		return []byte(config.Envs.JWTSecret), nil
-	})
+	token, err := extractToken(c)
 
 	if err != nil || !token.Valid {
 		return types.ErrInvalidToken
@@ -64,4 +49,40 @@ func JWTAuthMiddleware() gin.HandlerFunc {
 		}
 		c.Next()
 	}
+}
+
+func ExtractJWTClaim(c *gin.Context, key string) (string, error) {
+	token, err := extractToken(c)
+	if err != nil || !token.Valid {
+		return "", types.ErrInvalidToken
+	}
+
+	claims := token.Claims.(jwt.MapClaims)
+	claim := claims[key].(string)
+
+	return claim, nil
+}
+
+func extractToken(c *gin.Context) (*jwt.Token, error) {
+	bearerToken := c.Request.Header.Get("Authorization")
+	if bearerToken == "" {
+		return nil, types.ErrInvalidToken
+	}
+	tks := strings.Split(bearerToken, " ")
+	if len(tks) != 2 {
+		return nil, types.ErrInvalidToken
+	}
+	tokenStr := tks[1]
+
+	token, err := jwt.Parse(tokenStr, func(t *jwt.Token) (interface{}, error) {
+		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("Unexpected signing method: %v", t.Header["alg"])
+		}
+		return []byte(config.Envs.JWTSecret), nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return token, nil
 }

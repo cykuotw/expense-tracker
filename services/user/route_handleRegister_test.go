@@ -12,8 +12,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestUserServiceRegister(t *testing.T) {
-	userStore := &mockUserStore{}
+func TestServiceRegister(t *testing.T) {
+	userStore := &mockStoreRegister{}
 	handler := NewHandler(userStore)
 
 	t.Run("valid", func(t *testing.T) {
@@ -36,7 +36,7 @@ func TestUserServiceRegister(t *testing.T) {
 
 		router.ServeHTTP(rr, req)
 
-		assert.Equal(t, http.StatusOK, rr.Code)
+		assert.Equal(t, http.StatusCreated, rr.Code)
 	})
 
 	t.Run("invalid payload", func(t *testing.T) {
@@ -63,17 +63,17 @@ func TestUserServiceRegister(t *testing.T) {
 	})
 }
 
-type mockUserStore struct{}
+type mockStoreRegister struct{}
 
-func (m *mockUserStore) GetUserByEmail(email string) (*types.User, error) {
+func (m *mockStoreRegister) GetUserByEmail(email string) (*types.User, error) {
 	return nil, types.ErrUserNotExist
 }
-func (m *mockUserStore) GetUserByUsername(username string) (*types.User, error) {
+func (m *mockStoreRegister) GetUserByUsername(username string) (*types.User, error) {
 	return nil, types.ErrUserNotExist
 }
-func (m *mockUserStore) GetUserByID(id string) (*types.User, error) {
+func (m *mockStoreRegister) GetUserByID(id string) (*types.User, error) {
 	return nil, nil
 }
-func (m *mockUserStore) CreateUser(user types.User) error {
+func (m *mockStoreRegister) CreateUser(user types.User) error {
 	return nil
 }

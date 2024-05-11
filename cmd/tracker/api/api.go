@@ -3,6 +3,7 @@ package api
 import (
 	"database/sql"
 	"expense-tracker/services/auth"
+	"expense-tracker/services/group"
 	"expense-tracker/services/user"
 	"log"
 	"net/http"
@@ -30,8 +31,12 @@ func (s *APIServer) Run() error {
 	userHandler := user.NewHandler(userStore)
 	userHandler.RegisterRoutes(subrouter)
 
-	protected := subrouter.Group("/p")
-	protected.Use(auth.JWTAuthMiddleware()) // use jwt middleware
+	protected := subrouter.Group("")
+	protected.Use(auth.JWTAuthMiddleware())
+
+	groupStore := group.NewStore(s.db)
+	groupHandler := group.NewHandler(groupStore, userStore)
+	groupHandler.RegisterRoutes(protected)
 
 	log.Println("Listening on", s.addr)
 

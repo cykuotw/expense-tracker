@@ -27,7 +27,7 @@ func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 	router.POST("/create_group", h.handleCreateGroup)
 	router.GET("/group/:groupid", h.handleGetGroup)
 	router.GET("/groups", h.handleGetGroupList)
-	router.PUT("/group_member/:action/:userId", h.handleUpdateGroupMember)
+	router.PUT("/group_member/", h.handleUpdateGroupMember)
 	router.PUT("/archive_group/:groupId", h.handleArchiveGroup)
 }
 
@@ -153,22 +153,46 @@ func (h *Handler) handleGetGroupList(c *gin.Context) {
 }
 
 func (h *Handler) handleUpdateGroupMember(c *gin.Context) {
-	// get param from path
-	action := c.Param("action")
-	userId := c.Param("userId")
+	// get payload
+	var payload types.UpdateGroupMemberPayload
+	if err := utils.ParseJSON(c, &payload); err != nil {
+		utils.WriteError(c, http.StatusBadRequest, err)
+		return
+	}
 
-	if action != "add" && action != "delete" {
+	// validate payload
+	if payload.Action != "add" && payload.Action != "delete" {
 		utils.WriteError(c, http.StatusBadRequest, types.ErrInvalidAction)
 		return
 	}
-	_, err := h.userStore.GetUserByID(userId)
+	_, err := h.userStore.GetUserByID(payload.UserID)
+	if err != nil {
+		utils.WriteError(c, http.StatusBadRequest, types.ErrUserNotExist)
+		return
+	}
+	_, err = h.store.GetGroupByID(payload.GroupID)
 	if err != nil {
 		utils.WriteError(c, http.StatusBadRequest, types.ErrUserNotExist)
 		return
 	}
 
+	// get requester user id from jwt
+	userID, err := auth.ExtractJWTClaim(c, "userID")
+	if err != nil {
+		utils.WriteError(c, http.StatusInternalServerError, err)
+		return
+	}
+
+	// check requester belongs to the group
+	_, err = h.store.GetGroupByIDAndUser(payload.GroupID, userID)
+	if err != nil {
+		utils.WriteError(c, http.StatusForbidden, err)
+		return
+	}
+
 	// update group member
-	if err := h.store.UpdateGroupMember(action, userId); err != nil {
+	err = h.store.UpdateGroupMember(payload.Action, payload.UserID, payload.GroupID)
+	if err != nil {
 		utils.WriteError(c, http.StatusInternalServerError, err)
 		return
 	}

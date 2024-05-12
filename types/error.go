@@ -15,6 +15,7 @@ var (
 	ErrInvalidToken = errors.New("invalid token")
 
 	// group
-	ErrGroupNotExist = errors.New("invalid group")
-	ErrInvalidAction = errors.New("invalid actions")
+	ErrGroupNotExist    = errors.New("invalid group")
+	ErrInvalidAction    = errors.New("invalid actions")
+	ErrUserNotPermitted = errors.New("user has no permission")
 )

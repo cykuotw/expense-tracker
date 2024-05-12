@@ -13,7 +13,7 @@ type GroupStore interface {
 	GetGroupListByUser(userid string) ([]*Group, error)
 	GetGroupMemberByGroupID(groupId string) ([]*User, error)
 
-	UpdateGroupMember(action string, userid string) error
+	UpdateGroupMember(action string, userid string, groupID string) error
 	UpdateGroupStatus(groupid string, isActive bool) error
 	GetGroupByIDAndUser(groupID string, userID string) (*Group, error)
 }
@@ -30,6 +30,12 @@ type Group struct {
 type CreateGroupPayload struct {
 	GroupName   string `json:"groupName"`
 	Description string `json:"description"`
+}
+
+type UpdateGroupMemberPayload struct {
+	Action  string `json:"action"`
+	UserID  string `json:"userId"`
+	GroupID string `json:"groupId"`
 }
 
 type GetGroupResponse struct {

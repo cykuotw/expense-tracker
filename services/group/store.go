@@ -33,7 +33,7 @@ func (s *Store) GetGroupMemberByGroupID(groupID string) ([]*types.User, error) {
 	return nil, nil
 }
 
-func (s *Store) UpdateGroupMember(action string, userID string) error {
+func (s *Store) UpdateGroupMember(action string, userID string, groupID string) error {
 	return nil
 }
 

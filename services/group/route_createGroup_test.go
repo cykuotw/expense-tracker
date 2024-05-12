@@ -96,9 +96,8 @@ func (m *mockCreateGroupStore) GetGroupListByUser(userid string) ([]*types.Group
 }
 func (m *mockCreateGroupStore) GetGroupMemberByGroupID(groupId string) ([]*types.User, error) {
 	return nil, nil
-
 }
-func (m *mockCreateGroupStore) UpdateGroupMember(action string, userid string) error {
+func (m *mockCreateGroupStore) UpdateGroupMember(action string, userid string, groupid string) error {
 	return nil
 }
 func (m *mockCreateGroupStore) UpdateGroupStatus(groupid string, isActive bool) error {

@@ -112,7 +112,7 @@ func (m *mockGetGroupListStore) GetGroupListByUser(userid string) ([]*types.Grou
 func (m *mockGetGroupListStore) GetGroupMemberByGroupID(groupId string) ([]*types.User, error) {
 	return nil, nil
 }
-func (m *mockGetGroupListStore) UpdateGroupMember(action string, userid string) error {
+func (m *mockGetGroupListStore) UpdateGroupMember(action string, userid string, groupid string) error {
 	return nil
 }
 func (m *mockGetGroupListStore) UpdateGroupStatus(groupid string, isActive bool) error {

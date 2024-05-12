@@ -27,7 +27,7 @@ func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 	router.POST("/create_group", h.handleCreateGroup)
 	router.GET("/group/:groupid", h.handleGetGroup)
 	router.GET("/groups", h.handleGetGroupList)
-	router.PUT("/group_member/", h.handleUpdateGroupMember)
+	router.PUT("/group_member", h.handleUpdateGroupMember)
 	router.PUT("/archive_group/:groupId", h.handleArchiveGroup)
 }
 
@@ -172,7 +172,7 @@ func (h *Handler) handleUpdateGroupMember(c *gin.Context) {
 	}
 	_, err = h.store.GetGroupByID(payload.GroupID)
 	if err != nil {
-		utils.WriteError(c, http.StatusBadRequest, types.ErrUserNotExist)
+		utils.WriteError(c, http.StatusBadRequest, types.ErrGroupNotExist)
 		return
 	}
 

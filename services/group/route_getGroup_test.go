@@ -47,7 +47,11 @@ func TestGetGroup(t *testing.T) {
 
 		router.ServeHTTP(rr, req)
 
+		var rsp types.GetGroupResponse
+		err = json.NewDecoder(rr.Body).Decode(&rsp)
+
 		assert.Equal(t, http.StatusOK, rr.Code)
+		assert.Equal(t, mockMemberNum, len(rsp.Members))
 	})
 	t.Run("invalid userid", func(t *testing.T) {
 		payload := types.GetGroupResponse{
@@ -110,6 +114,7 @@ func TestGetGroup(t *testing.T) {
 }
 
 var mockGroupId = uuid.New()
+var mockMemberNum = 5
 
 type mockGetGroupStore struct{}
 
@@ -133,7 +138,15 @@ func (m *mockGetGroupStore) GetGroupListByUser(userid string) ([]*types.Group, e
 	return nil, nil
 }
 func (m *mockGetGroupStore) GetGroupMemberByGroupID(groupId string) ([]*types.User, error) {
-	return nil, nil
+	var users []*types.User
+	for i := 0; i < mockMemberNum; i++ {
+		user := types.User{
+			ID:       uuid.New(),
+			Username: uuid.New().String(),
+		}
+		users = append(users, &user)
+	}
+	return users, nil
 }
 func (m *mockGetGroupStore) UpdateGroupMember(action string, userid string) error {
 	return nil

@@ -234,6 +234,12 @@ func (s *Store) UpdateGroupMember(action string, userID string, groupID string) 
 }
 
 func (s *Store) UpdateGroupStatus(groupid string, isActive bool) error {
+	query := fmt.Sprintf("UPDATE groups SET is_active='%t' WHERE id='%s';",
+		isActive, groupid)
+	_, err := s.db.Exec(query)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 

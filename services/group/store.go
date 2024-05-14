@@ -17,6 +17,7 @@ func NewStore(db *sql.DB) *Store {
 }
 
 func (s *Store) CreateGroup(group types.Group) error {
+	// create group
 	createTime := group.CreateTime.UTC().Format("2006-01-02 15:04:05-0700")
 	statement := fmt.Sprintf(
 		"INSERT INTO groups ("+
@@ -31,6 +32,19 @@ func (s *Store) CreateGroup(group types.Group) error {
 	if err != nil {
 		return err
 	}
+
+	// add user into group_member
+	statement = fmt.Sprintf(
+		"INSERT INTO group_member ("+
+			"id, group_id, user_id"+
+			") VALUES ('%s', '%s', '%s');",
+		uuid.NewString(), group.ID, group.CreateByUser,
+	)
+	_, err = s.db.Exec(statement)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -58,7 +72,49 @@ func (s *Store) GetGroupByID(id string) (*types.Group, error) {
 }
 
 func (s *Store) GetGroupByIDAndUser(groupID string, userID string) (*types.Group, error) {
-	return nil, nil
+	// check group id exist
+	group, err := s.GetGroupByID(groupID)
+	if err != nil {
+		return nil, types.ErrGroupNotExist
+	}
+	// check user id exist
+	statement := fmt.Sprintf("SELECT COUNT(*) FROM users WHERE id = '%s';", userID)
+	rows, err := s.db.Query(statement)
+	if err != nil {
+		return nil, err
+	}
+	var count int
+	for rows.Next() {
+		if err := rows.Scan(&count); err != nil {
+			return nil, err
+		}
+	}
+	rows.Close()
+	if count != 1 {
+		return nil, types.ErrUserNotExist
+	}
+
+	// check user is group member
+	statement = fmt.Sprintf(
+		"SELECT COUNT(*) FROM group_member WHERE group_id='%s' "+
+			"AND user_id='%s';",
+		groupID, userID,
+	)
+	rows, err = s.db.Query(statement)
+	if err != nil {
+		return nil, err
+	}
+	for rows.Next() {
+		if err := rows.Scan(&count); err != nil {
+			return nil, err
+		}
+	}
+	rows.Close()
+	if count != 1 {
+		return nil, types.ErrUserNotPermitted
+	}
+
+	return group, nil
 }
 
 func (s *Store) GetGroupListByUser(userID string) ([]*types.Group, error) {

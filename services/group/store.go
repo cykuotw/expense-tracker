@@ -3,6 +3,7 @@ package group
 import (
 	"database/sql"
 	"expense-tracker/types"
+	"fmt"
 )
 
 type Store struct {
@@ -14,6 +15,20 @@ func NewStore(db *sql.DB) *Store {
 }
 
 func (s *Store) CreateGroup(group types.Group) error {
+	createTime := group.CreateTime.UTC().Format("2006-01-02 15:04:05-0700")
+	statement := fmt.Sprintf(
+		"INSERT INTO groups ("+
+			"id, group_name, description, "+
+			"create_time_utc, is_active, create_by_user_id"+
+			") VALUES ('%s', '%s', '%s', '%s', '%t', '%s');",
+		group.ID, group.GroupName, group.Description,
+		createTime, group.IsActive, group.CreateByUser,
+	)
+
+	_, err := s.db.Exec(statement)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 

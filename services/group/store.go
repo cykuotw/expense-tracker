@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"expense-tracker/types"
 	"fmt"
+
+	"github.com/google/uuid"
 )
 
 type Store struct {
@@ -33,7 +35,26 @@ func (s *Store) CreateGroup(group types.Group) error {
 }
 
 func (s *Store) GetGroupByID(id string) (*types.Group, error) {
-	return nil, nil
+	statement := fmt.Sprintf("SELECT * FROM groups WHERE id='%s';", id)
+	rows, err := s.db.Query(statement)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	group := new(types.Group)
+	for rows.Next() {
+		group, err = scanRowIntoGroup(rows)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if group.ID == uuid.Nil {
+		return nil, types.ErrGroupNotExist
+	}
+
+	return group, nil
 }
 
 func (s *Store) GetGroupByIDAndUser(groupID string, userID string) (*types.Group, error) {
@@ -54,4 +75,21 @@ func (s *Store) UpdateGroupMember(action string, userID string, groupID string) 
 
 func (s *Store) UpdateGroupStatus(groupid string, isActive bool) error {
 	return nil
+}
+
+func scanRowIntoGroup(rows *sql.Rows) (*types.Group, error) {
+	group := new(types.Group)
+
+	err := rows.Scan(
+		&group.ID,
+		&group.GroupName,
+		&group.Description,
+		&group.CreateTime,
+		&group.IsActive,
+		&group.CreateByUser,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return group, nil
 }

@@ -118,7 +118,48 @@ func (s *Store) GetGroupByIDAndUser(groupID string, userID string) (*types.Group
 }
 
 func (s *Store) GetGroupListByUser(userID string) ([]*types.Group, error) {
-	return nil, nil
+	// get group id where user is member
+	statement := fmt.Sprintf("SELECT group_id FROM group_member WHERE user_id='%s';", userID)
+	rowsMember, err := s.db.Query(statement)
+	if err != nil {
+		return nil, err
+	}
+	defer rowsMember.Close()
+
+	var groupIds []string
+	for rowsMember.Next() {
+		var id string
+		err := rowsMember.Scan(&id)
+		if err != nil {
+			return nil, err
+		}
+		groupIds = append(groupIds, id)
+	}
+
+	// get group details
+	var groups []*types.Group
+
+	for _, id := range groupIds {
+		statement = fmt.Sprintf("SELECT * FROM groups WHERE id='%s';", id)
+		rows, err := s.db.Query(statement)
+		if err != nil {
+			return nil, err
+		}
+		defer rows.Close()
+
+		for rows.Next() {
+			group, err := scanRowIntoGroup(rows)
+			if err != nil {
+				return nil, err
+			}
+			if group.ID == uuid.Nil {
+				continue
+			}
+			groups = append(groups, group)
+		}
+	}
+
+	return groups, nil
 }
 
 func (s *Store) GetGroupMemberByGroupID(groupID string) ([]*types.User, error) {

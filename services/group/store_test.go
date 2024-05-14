@@ -54,6 +54,61 @@ func TestCreateGroup(t *testing.T) {
 	}
 }
 
+func TestGetGroupByID(t *testing.T) {
+	// prepare test data
+	cfg := config.Envs
+	db, _ := db.NewPostgreSQLStorage(cfg)
+	mockGroupID := uuid.New()
+	mockGroup := types.Group{
+		ID:           mockGroupID,
+		GroupName:    "test group",
+		Description:  "test desc",
+		CreateTime:   time.Now(),
+		IsActive:     true,
+		CreateByUser: uuid.New(),
+	}
+	insertGroup(db, mockGroup)
+	defer deleteGroup(db, mockGroupID)
+
+	// define test cases
+	type testcase struct {
+		name        string
+		mockID      string
+		expectFail  bool
+		expectError error
+	}
+	subtests := []testcase{
+		{
+			name:        "valid",
+			mockID:      mockGroupID.String(),
+			expectFail:  false,
+			expectError: nil,
+		},
+		{
+			name:        "invalid id",
+			mockID:      uuid.NewString(),
+			expectFail:  true,
+			expectError: types.ErrGroupNotExist,
+		},
+	}
+
+	store := group.NewStore(db)
+	for _, test := range subtests {
+		t.Run(test.name, func(t *testing.T) {
+			group, err := store.GetGroupByID(test.mockID)
+
+			if test.expectFail {
+				assert.Nil(t, group)
+				assert.Equal(t, test.expectError, err)
+			} else {
+				assert.NotNil(t, group)
+				assert.Equal(t, test.mockID, group.ID.String())
+				assert.Nil(t, err)
+			}
+		})
+	}
+}
+
 func insertGroup(db *sql.DB, group types.Group) {
 	createTime := group.CreateTime.UTC().Format("2006-01-02 15:04:05-0700")
 	statement := fmt.Sprintf(

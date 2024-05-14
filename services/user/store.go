@@ -17,8 +17,8 @@ func NewStore(db *sql.DB) *Store {
 }
 
 func (s *Store) GetUserByEmail(email string) (*types.User, error) {
-	statement := fmt.Sprintf("SELECT * FROM users WHERE email = '%s';", email)
-	rows, err := s.db.Query(statement)
+	query := fmt.Sprintf("SELECT * FROM users WHERE email = '%s';", email)
+	rows, err := s.db.Query(query)
 	if err != nil {
 		return nil, err
 	}
@@ -40,8 +40,8 @@ func (s *Store) GetUserByEmail(email string) (*types.User, error) {
 }
 
 func (s *Store) GetUserByUsername(username string) (*types.User, error) {
-	statement := fmt.Sprintf("SELECT * FROM users WHERE username = '%s';", username)
-	rows, err := s.db.Query(statement)
+	query := fmt.Sprintf("SELECT * FROM users WHERE username = '%s';", username)
+	rows, err := s.db.Query(query)
 	if err != nil {
 		return nil, err
 	}
@@ -63,8 +63,8 @@ func (s *Store) GetUserByUsername(username string) (*types.User, error) {
 }
 
 func (s *Store) GetUserByID(id string) (*types.User, error) {
-	statement := fmt.Sprintf("SELECT * FROM users WHERE id = '%s';", id)
-	rows, err := s.db.Query(statement)
+	query := fmt.Sprintf("SELECT * FROM users WHERE id = '%s';", id)
+	rows, err := s.db.Query(query)
 	if err != nil {
 		return nil, err
 	}
@@ -87,7 +87,7 @@ func (s *Store) GetUserByID(id string) (*types.User, error) {
 
 func (s *Store) CreateUser(user types.User) error {
 	createTime := user.CreateTime.UTC().Format("2006-01-02 15:04:05-0700")
-	statement := fmt.Sprintf(
+	query := fmt.Sprintf(
 		"INSERT INTO users ("+
 			"id, username, firstname, lastname, "+
 			"email, password_hash, "+
@@ -99,7 +99,7 @@ func (s *Store) CreateUser(user types.User) error {
 		user.ExternalType, user.ExternalID,
 		createTime, user.IsActive,
 	)
-	_, err := s.db.Exec(statement)
+	_, err := s.db.Exec(query)
 	if err != nil {
 		return err
 	}

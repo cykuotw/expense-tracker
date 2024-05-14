@@ -19,7 +19,7 @@ func NewStore(db *sql.DB) *Store {
 func (s *Store) CreateGroup(group types.Group) error {
 	// create group
 	createTime := group.CreateTime.UTC().Format("2006-01-02 15:04:05-0700")
-	statement := fmt.Sprintf(
+	query := fmt.Sprintf(
 		"INSERT INTO groups ("+
 			"id, group_name, description, "+
 			"create_time_utc, is_active, create_by_user_id"+
@@ -28,19 +28,19 @@ func (s *Store) CreateGroup(group types.Group) error {
 		createTime, group.IsActive, group.CreateByUser,
 	)
 
-	_, err := s.db.Exec(statement)
+	_, err := s.db.Exec(query)
 	if err != nil {
 		return err
 	}
 
 	// add user into group_member
-	statement = fmt.Sprintf(
+	query = fmt.Sprintf(
 		"INSERT INTO group_member ("+
 			"id, group_id, user_id"+
 			") VALUES ('%s', '%s', '%s');",
 		uuid.NewString(), group.ID, group.CreateByUser,
 	)
-	_, err = s.db.Exec(statement)
+	_, err = s.db.Exec(query)
 	if err != nil {
 		return err
 	}
@@ -49,8 +49,8 @@ func (s *Store) CreateGroup(group types.Group) error {
 }
 
 func (s *Store) GetGroupByID(id string) (*types.Group, error) {
-	statement := fmt.Sprintf("SELECT * FROM groups WHERE id='%s';", id)
-	rows, err := s.db.Query(statement)
+	query := fmt.Sprintf("SELECT * FROM groups WHERE id='%s';", id)
+	rows, err := s.db.Query(query)
 	if err != nil {
 		return nil, err
 	}
@@ -78,8 +78,8 @@ func (s *Store) GetGroupByIDAndUser(groupID string, userID string) (*types.Group
 		return nil, types.ErrGroupNotExist
 	}
 	// check user id exist
-	statement := fmt.Sprintf("SELECT COUNT(*) FROM users WHERE id = '%s';", userID)
-	rows, err := s.db.Query(statement)
+	query := fmt.Sprintf("SELECT COUNT(*) FROM users WHERE id = '%s';", userID)
+	rows, err := s.db.Query(query)
 	if err != nil {
 		return nil, err
 	}
@@ -95,12 +95,12 @@ func (s *Store) GetGroupByIDAndUser(groupID string, userID string) (*types.Group
 	}
 
 	// check user is group member
-	statement = fmt.Sprintf(
+	query = fmt.Sprintf(
 		"SELECT COUNT(*) FROM group_member WHERE group_id='%s' "+
 			"AND user_id='%s';",
 		groupID, userID,
 	)
-	rows, err = s.db.Query(statement)
+	rows, err = s.db.Query(query)
 	if err != nil {
 		return nil, err
 	}
@@ -119,8 +119,8 @@ func (s *Store) GetGroupByIDAndUser(groupID string, userID string) (*types.Group
 
 func (s *Store) GetGroupListByUser(userID string) ([]*types.Group, error) {
 	// get group id where user is member
-	statement := fmt.Sprintf("SELECT group_id FROM group_member WHERE user_id='%s';", userID)
-	rowsMember, err := s.db.Query(statement)
+	query := fmt.Sprintf("SELECT group_id FROM group_member WHERE user_id='%s';", userID)
+	rowsMember, err := s.db.Query(query)
 	if err != nil {
 		return nil, err
 	}
@@ -140,8 +140,8 @@ func (s *Store) GetGroupListByUser(userID string) ([]*types.Group, error) {
 	var groups []*types.Group
 
 	for _, id := range groupIds {
-		statement = fmt.Sprintf("SELECT * FROM groups WHERE id='%s';", id)
-		rows, err := s.db.Query(statement)
+		query = fmt.Sprintf("SELECT * FROM groups WHERE id='%s';", id)
+		rows, err := s.db.Query(query)
 		if err != nil {
 			return nil, err
 		}
@@ -163,7 +163,51 @@ func (s *Store) GetGroupListByUser(userID string) ([]*types.Group, error) {
 }
 
 func (s *Store) GetGroupMemberByGroupID(groupID string) ([]*types.User, error) {
-	return nil, nil
+	query := fmt.Sprintf(
+		"SELECT user_id FROM group_member WHERE group_id='%s';",
+		groupID)
+	rowsGroup, err := s.db.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	defer rowsGroup.Close()
+
+	var userIDs []string
+	for rowsGroup.Next() {
+		var id string
+		rowsGroup.Scan(&id)
+		userIDs = append(userIDs, id)
+	}
+
+	var users []*types.User
+	for _, id := range userIDs {
+		query := fmt.Sprintf("SELECT * FROM users WHERE id='%s';", id)
+		rows, err := s.db.Query(query)
+		if err != nil {
+			return nil, err
+		}
+		for rows.Next() {
+			user := new(types.User)
+			err := rows.Scan(
+				&user.ID,
+				&user.Username,
+				&user.Firstname,
+				&user.Lastname,
+				&user.Email,
+				&user.PasswordHashed,
+				&user.ExternalType,
+				&user.ExternalID,
+				&user.CreateTime,
+				&user.IsActive,
+			)
+			if err != nil {
+				return nil, err
+			}
+			users = append(users, user)
+		}
+	}
+
+	return users, nil
 }
 
 func (s *Store) UpdateGroupMember(action string, userID string, groupID string) error {

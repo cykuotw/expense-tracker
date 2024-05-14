@@ -295,6 +295,84 @@ func TestGetGroupListByUser(t *testing.T) {
 	}
 }
 
+func TestGetGroupMemberByGroupID(t *testing.T) {
+	// prepare test data
+	cfg := config.Envs
+	db, _ := db.NewPostgreSQLStorage(cfg)
+	mockGroupID := uuid.New()
+	mockGroup := types.Group{
+		ID: mockGroupID,
+	}
+	mockUserID := uuid.New()
+	mockUser := types.User{
+		ID: mockUserID,
+	}
+	mockUserID2 := uuid.New()
+	mockUser2 := types.User{
+		ID: mockUserID2,
+	}
+
+	insertUser(db, mockUser)
+	insertUser(db, mockUser2)
+	insertGroup(db, mockGroup)
+	insertGroupMember(db, mockGroupID, []uuid.UUID{mockUserID})
+	insertGroupMember(db, mockGroupID, []uuid.UUID{mockUserID2})
+	defer cleanUser(db, mockUserID)
+	defer cleanUser(db, mockUserID2)
+	defer deleteGroup(db, mockGroupID)
+	defer deleteGroupMember(db, mockGroupID, []uuid.UUID{mockUserID})
+	defer deleteGroupMember(db, mockGroupID, []uuid.UUID{mockUserID2})
+
+	// define test cases
+	type testcase struct {
+		name        string
+		mockGroupID string
+		expectFail  bool
+		expectUsers []*types.User
+		expectError error
+	}
+
+	subtests := []testcase{
+		{
+			name:        "valid",
+			mockGroupID: mockGroupID.String(),
+			expectFail:  false,
+			expectUsers: []*types.User{
+				{
+					ID: mockUserID,
+				},
+				{
+					ID: mockUserID2,
+				},
+			},
+			expectError: nil,
+		},
+		{
+			name:        "invalid group id",
+			mockGroupID: uuid.NewString(),
+			expectFail:  true,
+			expectUsers: nil,
+			expectError: nil,
+		},
+	}
+
+	store := group.NewStore(db)
+	for _, test := range subtests {
+		t.Run(test.name, func(t *testing.T) {
+			users, err := store.GetGroupMemberByGroupID(test.mockGroupID)
+
+			if test.expectFail {
+				assert.Nil(t, users)
+				assert.Equal(t, test.expectError, err)
+			} else {
+				assert.NotNil(t, users)
+				assert.Equal(t, len(test.expectUsers), len(users))
+				assert.Nil(t, err)
+			}
+		})
+	}
+}
+
 func insertGroup(db *sql.DB, group types.Group) {
 	createTime := group.CreateTime.UTC().Format("2006-01-02 15:04:05-0700")
 	statement := fmt.Sprintf(

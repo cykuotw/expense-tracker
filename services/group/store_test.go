@@ -440,6 +440,75 @@ func TestUpdateGroupMember(t *testing.T) {
 	}
 }
 
+func TestUpdateGroupStatus(t *testing.T) {
+	// prepare test data
+	cfg := config.Envs
+	db, _ := db.NewPostgreSQLStorage(cfg)
+	mockGroupIDT := uuid.New()
+	mockGroupT := types.Group{
+		ID:       mockGroupIDT,
+		IsActive: true,
+	}
+	mockGroupIDF := uuid.New()
+	mockGroupF := types.Group{
+		ID:       mockGroupIDF,
+		IsActive: true,
+	}
+
+	insertGroup(db, mockGroupT)
+	insertGroup(db, mockGroupF)
+	defer deleteGroup(db, mockGroupIDT)
+	defer deleteGroup(db, mockGroupIDF)
+
+	// define test cases
+	type testcase struct {
+		name        string
+		isActive    bool
+		groupID     string
+		expectFail  bool
+		expectError error
+	}
+
+	subtests := []testcase{
+		{
+			name:        "valid set to false",
+			isActive:    false,
+			groupID:     mockGroupIDT.String(),
+			expectFail:  false,
+			expectError: nil,
+		},
+		{
+			name:        "valid set to true",
+			isActive:    false,
+			groupID:     mockGroupIDF.String(),
+			expectFail:  false,
+			expectError: nil,
+		},
+		{
+			name:        "invalid group id",
+			isActive:    false,
+			groupID:     uuid.NewString(),
+			expectFail:  true,
+			expectError: nil,
+		},
+	}
+
+	store := group.NewStore(db)
+	for _, test := range subtests {
+		t.Run(test.name, func(t *testing.T) {
+			err := store.UpdateGroupStatus(test.groupID, test.isActive)
+
+			group := getGroup(db, uuid.MustParse(test.groupID))
+			if test.expectFail {
+				assert.Equal(t, group.ID, uuid.Nil)
+			} else {
+				assert.Nil(t, err)
+				assert.Equal(t, test.isActive, group.IsActive)
+			}
+		})
+	}
+}
+
 func insertGroup(db *sql.DB, group types.Group) {
 	createTime := group.CreateTime.UTC().Format("2006-01-02 15:04:05-0700")
 	query := fmt.Sprintf(
@@ -452,6 +521,24 @@ func insertGroup(db *sql.DB, group types.Group) {
 	)
 
 	db.Exec(query)
+}
+
+func getGroup(db *sql.DB, groupId uuid.UUID) types.Group {
+	query := fmt.Sprintf("SELECT * FROM groups WHERE id='%s';", groupId.String())
+	rows, _ := db.Query(query)
+
+	group := types.Group{}
+	for rows.Next() {
+		rows.Scan(
+			&group.ID,
+			&group.GroupName,
+			&group.Description,
+			&group.CreateTime,
+			&group.IsActive,
+			&group.CreateByUser,
+		)
+	}
+	return group
 }
 
 func deleteGroup(db *sql.DB, groupId uuid.UUID) {

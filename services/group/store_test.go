@@ -373,9 +373,76 @@ func TestGetGroupMemberByGroupID(t *testing.T) {
 	}
 }
 
+func TestUpdateGroupMember(t *testing.T) {
+	// prepare test data
+	cfg := config.Envs
+	db, _ := db.NewPostgreSQLStorage(cfg)
+	mockGroupID := uuid.New()
+	mockUserID := uuid.New()
+
+	// define test cases
+	type testcase struct {
+		name        string
+		action      string
+		mockGroupID string
+		mockUserID  string
+		expectFail  bool
+		expectError error
+	}
+
+	subtests := []testcase{
+		{
+			name:        "valid add",
+			action:      "add",
+			mockGroupID: mockGroupID.String(),
+			mockUserID:  mockUserID.String(),
+			expectFail:  false,
+			expectError: nil,
+		},
+		{
+			name:        "valid delete",
+			action:      "delete",
+			mockGroupID: mockGroupID.String(),
+			mockUserID:  mockUserID.String(),
+			expectFail:  false,
+			expectError: nil,
+		},
+	}
+
+	store := group.NewStore(db)
+	for _, test := range subtests {
+		t.Run(test.name, func(t *testing.T) {
+			if test.action == "delete" {
+				insertGroupMember(db, uuid.MustParse(test.mockGroupID), []uuid.UUID{uuid.MustParse(test.mockUserID)})
+			}
+			defer deleteGroupMember(db, uuid.MustParse(test.mockGroupID), []uuid.UUID{uuid.MustParse(test.mockUserID)})
+
+			err := store.UpdateGroupMember(test.action, test.mockUserID, test.mockGroupID)
+
+			if test.expectFail {
+				userid := getGroupMember(db, uuid.MustParse(test.mockGroupID), uuid.MustParse(test.mockUserID))
+				if test.action == "add" {
+					assert.Equal(t, test.mockUserID, userid)
+					defer deleteGroupMember(db, uuid.MustParse(test.mockGroupID), []uuid.UUID{uuid.MustParse(test.mockUserID)})
+				} else if test.action == "delete" {
+					assert.Equal(t, uuid.Nil, userid)
+				}
+			} else {
+				userid := getGroupMember(db, uuid.MustParse(test.mockGroupID), uuid.MustParse(test.mockUserID))
+				if test.action == "add" {
+					assert.Equal(t, test.mockUserID, userid.String())
+				} else if test.action == "delete" {
+					assert.Equal(t, uuid.Nil, userid)
+				}
+				assert.Nil(t, err)
+			}
+		})
+	}
+}
+
 func insertGroup(db *sql.DB, group types.Group) {
 	createTime := group.CreateTime.UTC().Format("2006-01-02 15:04:05-0700")
-	statement := fmt.Sprintf(
+	query := fmt.Sprintf(
 		"INSERT INTO groups ("+
 			"id, group_name, description, "+
 			"create_time_utc, is_active, create_by_user_id"+
@@ -384,40 +451,56 @@ func insertGroup(db *sql.DB, group types.Group) {
 		createTime, group.IsActive, group.CreateByUser,
 	)
 
-	db.Exec(statement)
+	db.Exec(query)
 }
 
 func deleteGroup(db *sql.DB, groupId uuid.UUID) {
-	statement := fmt.Sprintf("DELETE FROM groups WHERE id='%s';", groupId)
-	db.Exec(statement)
+	query := fmt.Sprintf("DELETE FROM groups WHERE id='%s';", groupId)
+	db.Exec(query)
 }
 
 func insertGroupMember(db *sql.DB, groupId uuid.UUID, userids []uuid.UUID) {
 	for _, id := range userids {
-		statement := fmt.Sprintf(
+		query := fmt.Sprintf(
 			"INSERT INTO group_member ("+
 				"id, group_id, user_id"+
 				") VALUES ('%s', '%s', '%s');",
 			uuid.NewString(), groupId, id,
 		)
-		db.Exec(statement)
+		db.Exec(query)
 	}
+}
+
+func getGroupMember(db *sql.DB, groupId uuid.UUID, userid uuid.UUID) uuid.UUID {
+	query := fmt.Sprintf(
+		"SELECT user_id FROM group_member WHERE group_id='%s' AND user_id='%s';",
+		groupId, userid,
+	)
+
+	rows, _ := db.Query(query)
+	defer rows.Close()
+
+	var id uuid.UUID
+	for rows.Next() {
+		rows.Scan(&id)
+	}
+	return id
 }
 
 func deleteGroupMember(db *sql.DB, groupId uuid.UUID, userids []uuid.UUID) {
 	for _, userid := range userids {
-		statement := fmt.Sprintf(
+		query := fmt.Sprintf(
 			"DELETE FROM group_member "+
 				"WHERE group_id='%s' AND user_id='%s';",
 			groupId, userid,
 		)
-		db.Exec(statement)
+		db.Exec(query)
 	}
 }
 
 func insertUser(db *sql.DB, user types.User) {
 	createTime := user.CreateTime.UTC().Format("2006-01-02 15:04:05-0700")
-	statement := fmt.Sprintf(
+	query := fmt.Sprintf(
 		"INSERT INTO users ("+
 			"id, username, firstname, lastname, "+
 			"email, password_hash, "+
@@ -429,10 +512,10 @@ func insertUser(db *sql.DB, user types.User) {
 		user.ExternalType, user.ExternalID,
 		createTime, user.IsActive,
 	)
-	db.Exec(statement)
+	db.Exec(query)
 }
 
 func cleanUser(db *sql.DB, id uuid.UUID) {
-	statement := fmt.Sprintf("DELETE FROM users WHERE id = '%s'", id)
-	db.Exec(statement)
+	query := fmt.Sprintf("DELETE FROM users WHERE id = '%s'", id)
+	db.Exec(query)
 }

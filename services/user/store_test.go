@@ -203,7 +203,7 @@ func TestGetUserByID(t *testing.T) {
 
 func insertUser(db *sql.DB, user types.User) {
 	createTime := user.CreateTime.UTC().Format("2006-01-02 15:04:05-0700")
-	statement := fmt.Sprintf(
+	query := fmt.Sprintf(
 		"INSERT INTO users ("+
 			"id, username, firstname, lastname, "+
 			"email, password_hash, "+
@@ -215,10 +215,10 @@ func insertUser(db *sql.DB, user types.User) {
 		user.ExternalType, user.ExternalID,
 		createTime, user.IsActive,
 	)
-	db.Exec(statement)
+	db.Exec(query)
 }
 
 func cleanUser(db *sql.DB, id uuid.UUID) {
-	statement := fmt.Sprintf("DELETE FROM users WHERE id = '%s'", id)
-	db.Exec(statement)
+	query := fmt.Sprintf("DELETE FROM users WHERE id = '%s'", id)
+	db.Exec(query)
 }

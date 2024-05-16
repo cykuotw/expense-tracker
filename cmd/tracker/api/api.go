@@ -3,6 +3,7 @@ package api
 import (
 	"database/sql"
 	"expense-tracker/services/auth"
+	"expense-tracker/services/expense"
 	"expense-tracker/services/group"
 	"expense-tracker/services/user"
 	"log"
@@ -37,6 +38,10 @@ func (s *APIServer) Run() error {
 	groupStore := group.NewStore(s.db)
 	groupHandler := group.NewHandler(groupStore, userStore)
 	groupHandler.RegisterRoutes(protected)
+
+	expenseStore := expense.NewStore(s.db)
+	expenseHandler := expense.NewHandler(expenseStore, userStore, groupStore)
+	expenseHandler.RegisterRoutes(protected)
 
 	log.Println("Listening on", s.addr)
 

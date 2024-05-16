@@ -10,6 +10,7 @@ require (
 	github.com/google/uuid v1.4.0
 	github.com/jackc/pgx/v5 v5.5.5
 	github.com/joho/godotenv v1.5.1
+	github.com/shopspring/decimal v1.4.0
 	github.com/stretchr/testify v1.9.0
 	golang.org/x/crypto v0.22.0
 )

@@ -18,4 +18,9 @@ var (
 	ErrGroupNotExist    = errors.New("invalid group")
 	ErrInvalidAction    = errors.New("invalid actions")
 	ErrUserNotPermitted = errors.New("user has no permission")
+
+	// expense
+	ErrExpenseNotExist     = errors.New("expense not exist")
+	ErrNoRemainingExpenses = errors.New("no remaining expenses in the list")
+	ErrProviderNotExist    = errors.New("provider not exist")
 )

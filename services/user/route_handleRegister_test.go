@@ -77,3 +77,6 @@ func (m *mockStoreRegister) GetUserByID(id string) (*types.User, error) {
 func (m *mockStoreRegister) CreateUser(user types.User) error {
 	return nil
 }
+func (m *mockStoreRegister) GetUsernameByID(userid string) (string, error) {
+	return "", nil
+}

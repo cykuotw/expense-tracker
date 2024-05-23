@@ -201,6 +201,70 @@ func TestGetUserByID(t *testing.T) {
 	}
 }
 
+func TestGetUsernameByID(t *testing.T) {
+	// prepare test data
+	cfg := config.Envs
+	db, _ := db.NewPostgreSQLStorage(cfg)
+
+	mockPassword, _ := auth.HashPassword("pword")
+	mockID := uuid.New()
+	mockUsername := "testusername"
+	mockUser := types.User{
+		ID:             mockID,
+		Username:       mockUsername,
+		Firstname:      "testfirstname",
+		Lastname:       "testlastname",
+		Email:          "a@test.com",
+		PasswordHashed: mockPassword,
+		ExternalType:   "",
+		ExternalID:     "",
+		CreateTime:     time.Now(),
+		IsActive:       true,
+	}
+	insertUser(db, mockUser)
+	defer cleanUser(db, mockUser.ID)
+
+	// define test cases
+	type testcase struct {
+		name         string
+		mockID       uuid.UUID
+		expectFail   bool
+		expectResult string
+		expectError  error
+	}
+
+	subtests := []testcase{
+		{
+			name:         "valid",
+			mockID:       mockID,
+			expectFail:   false,
+			expectResult: mockUsername,
+			expectError:  nil,
+		},
+		{
+			name:         "invalid userid",
+			mockID:       uuid.New(),
+			expectFail:   true,
+			expectResult: "",
+			expectError:  types.ErrUserNotExist,
+		},
+	}
+	store := user.NewStore(db)
+	for _, test := range subtests {
+		t.Run(test.name, func(t *testing.T) {
+			username, err := store.GetUsernameByID(test.mockID.String())
+
+			if test.expectFail {
+				assert.Equal(t, test.expectError, err)
+				assert.Zero(t, len(username))
+			} else {
+				assert.Equal(t, test.expectResult, username)
+				assert.Nil(t, err)
+			}
+		})
+	}
+}
+
 func insertUser(db *sql.DB, user types.User) {
 	createTime := user.CreateTime.UTC().Format("2006-01-02 15:04:05-0700")
 	query := fmt.Sprintf(

@@ -9,8 +9,9 @@ import (
 type UserStore interface {
 	GetUserByEmail(email string) (*User, error)
 	GetUserByUsername(username string) (*User, error)
-
 	GetUserByID(id string) (*User, error)
+	GetUsernameByID(userid string) (string, error)
+
 	CreateUser(user User) error
 }
 

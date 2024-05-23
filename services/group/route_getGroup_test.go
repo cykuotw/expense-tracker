@@ -172,3 +172,6 @@ func (m *mockGetGroupUserStore) GetUserByID(id string) (*types.User, error) {
 func (m *mockGetGroupUserStore) CreateUser(user types.User) error {
 	return nil
 }
+func (m *mockGetGroupUserStore) GetUsernameByID(userid string) (string, error) {
+	return "", nil
+}

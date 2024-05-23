@@ -104,3 +104,7 @@ func (m *mockStoreLogin) GetUserByID(id string) (*types.User, error) {
 func (m *mockStoreLogin) CreateUser(user types.User) error {
 	return nil
 }
+
+func (m *mockStoreLogin) GetUsernameByID(userid string) (string, error) {
+	return "", nil
+}

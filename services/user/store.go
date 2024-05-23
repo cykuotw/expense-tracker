@@ -85,6 +85,29 @@ func (s *Store) GetUserByID(id string) (*types.User, error) {
 	return user, nil
 }
 
+func (s *Store) GetUsernameByID(userid string) (string, error) {
+	query := fmt.Sprintf("SELECT username FROM users WHERE id='%s';", userid)
+	rows, err := s.db.Query(query)
+	if err != nil {
+		return "", err
+	}
+	defer rows.Close()
+
+	var username string
+	for rows.Next() {
+		err := rows.Scan(&username)
+		if err != nil {
+			return "", err
+		}
+	}
+
+	if username == "" {
+		return "", types.ErrUserNotExist
+	}
+
+	return username, nil
+}
+
 func (s *Store) CreateUser(user types.User) error {
 	createTime := user.CreateTime.UTC().Format("2006-01-02 15:04:05-0700")
 	query := fmt.Sprintf(

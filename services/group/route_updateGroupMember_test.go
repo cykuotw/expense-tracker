@@ -193,3 +193,6 @@ func (m *mockUpdateGroupMemberUserStore) GetUserByID(id string) (*types.User, er
 func (m *mockUpdateGroupMemberUserStore) CreateUser(user types.User) error {
 	return nil
 }
+func (m *mockUpdateGroupMemberUserStore) GetUsernameByID(userid string) (string, error) {
+	return "", nil
+}

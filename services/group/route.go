@@ -63,6 +63,7 @@ func (h *Handler) handleCreateGroup(c *gin.Context) {
 		Description:  payload.Description,
 		CreateTime:   time.Now(),
 		IsActive:     true,
+		Currency:     payload.Currency,
 		CreateByUser: user.ID,
 	}
 
@@ -117,6 +118,7 @@ func (h *Handler) handleGetGroup(c *gin.Context) {
 	response := types.GetGroupResponse{
 		GroupName:   group.GroupName,
 		Description: group.Description,
+		Currency:    group.Currency,
 		Members:     members,
 	}
 
@@ -145,6 +147,7 @@ func (h *Handler) handleGetGroupList(c *gin.Context) {
 			ID:          group.ID.String(),
 			GroupName:   group.GroupName,
 			Description: group.Description,
+			Currency:    group.Currency,
 		}
 		response = append(response, res)
 	}

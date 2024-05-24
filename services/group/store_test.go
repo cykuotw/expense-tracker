@@ -38,6 +38,7 @@ func TestCreateGroup(t *testing.T) {
 				Description:  "test desc",
 				CreateTime:   time.Now(),
 				IsActive:     true,
+				Currency:     "CAD",
 				CreateByUser: uuid.New(),
 			},
 			expectFail:  false,

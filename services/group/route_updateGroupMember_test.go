@@ -174,6 +174,9 @@ func (m *mockUpdateGroupMemberStore) UpdateGroupMember(action string, userid str
 func (m *mockUpdateGroupMemberStore) UpdateGroupStatus(groupid string, isActive bool) error {
 	return nil
 }
+func (m *mockUpdateGroupMemberStore) GetGroupCurrency(groupID string) (string, error) {
+	return "", nil
+}
 
 type mockUpdateGroupMemberUserStore struct{}
 

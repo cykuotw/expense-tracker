@@ -12,10 +12,11 @@ type GroupStore interface {
 	GetGroupByID(id string) (*Group, error)
 	GetGroupListByUser(userid string) ([]*Group, error)
 	GetGroupMemberByGroupID(groupId string) ([]*User, error)
+	GetGroupByIDAndUser(groupID string, userID string) (*Group, error)
+	GetGroupCurrency(groupID string) (string, error)
 
 	UpdateGroupMember(action string, userid string, groupID string) error
 	UpdateGroupStatus(groupid string, isActive bool) error
-	GetGroupByIDAndUser(groupID string, userID string) (*Group, error)
 }
 
 type Group struct {
@@ -24,12 +25,14 @@ type Group struct {
 	Description  string    `json:"description"`
 	CreateTime   time.Time `json:"createTime"`
 	IsActive     bool      `json:"isActive"`
+	Currency     string    `json:"currency"`
 	CreateByUser uuid.UUID `json:"createByUser"`
 }
 
 type CreateGroupPayload struct {
 	GroupName   string `json:"groupName"`
 	Description string `json:"description"`
+	Currency    string `json:"currency"`
 }
 
 type UpdateGroupMemberPayload struct {
@@ -41,6 +44,7 @@ type UpdateGroupMemberPayload struct {
 type GetGroupResponse struct {
 	GroupName   string        `json:"groupName"`
 	Description string        `json:"description"`
+	Currency    string        `json:"currency"`
 	Members     []GroupMember `json:"members"`
 }
 
@@ -53,4 +57,5 @@ type GetGroupListResponse struct {
 	ID          string `json:"id"`
 	GroupName   string `json:"groupName"`
 	Description string `json:"description"`
+	Currency    string `json:"currency"`
 }

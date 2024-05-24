@@ -373,6 +373,58 @@ func TestGetGroupMemberByGroupID(t *testing.T) {
 		})
 	}
 }
+func TestGetGroupCurrency(t *testing.T) {
+	cfg := config.Envs
+	db, _ := db.NewPostgreSQLStorage(cfg)
+	mockGroupID := uuid.New()
+	mockCurrency := "CAD"
+	mockGroup := types.Group{
+		ID:       mockGroupID,
+		Currency: mockCurrency,
+	}
+	insertGroup(db, mockGroup)
+	defer deleteGroup(db, mockGroupID)
+
+	// define test cases
+	type testcase struct {
+		name           string
+		mockGroupID    uuid.UUID
+		expectFail     bool
+		expectCurrency string
+		expectError    error
+	}
+
+	subtests := []testcase{
+		{
+			name:           "valid",
+			mockGroupID:    mockGroupID,
+			expectFail:     false,
+			expectCurrency: mockCurrency,
+			expectError:    nil,
+		},
+		{
+			name:           "invalid group id",
+			mockGroupID:    uuid.New(),
+			expectFail:     true,
+			expectCurrency: "",
+			expectError:    types.ErrGroupNotExist,
+		},
+	}
+
+	store := group.NewStore(db)
+	for _, test := range subtests {
+		currency, err := store.GetGroupCurrency(test.mockGroupID.String())
+
+		if test.expectFail {
+			assert.Zero(t, len(currency))
+			assert.Equal(t, test.expectError, err)
+		} else {
+			assert.Equal(t, test.expectCurrency, currency)
+			assert.Nil(t, err)
+		}
+
+	}
+}
 
 func TestUpdateGroupMember(t *testing.T) {
 	// prepare test data
@@ -515,10 +567,10 @@ func insertGroup(db *sql.DB, group types.Group) {
 	query := fmt.Sprintf(
 		"INSERT INTO groups ("+
 			"id, group_name, description, "+
-			"create_time_utc, is_active, create_by_user_id"+
-			") VALUES ('%s', '%s', '%s', '%s', '%t', '%s');",
+			"create_time_utc, is_active, create_by_user_id, currency"+
+			") VALUES ('%s', '%s', '%s', '%s', '%t', '%s', '%s');",
 		group.ID, group.GroupName, group.Description,
-		createTime, group.IsActive, group.CreateByUser,
+		createTime, group.IsActive, group.CreateByUser, group.Currency,
 	)
 
 	db.Exec(query)

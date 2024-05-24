@@ -1,0 +1,2 @@
+DROP TABLE IF EXISTS expense_type;
+DROP TABLE IF EXISTS category;

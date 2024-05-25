@@ -1,6 +1,8 @@
 package types
 
 import (
+	"time"
+
 	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
 )
@@ -29,6 +31,7 @@ type Expense struct {
 	GroupID        uuid.UUID
 	CreateByUserID uuid.UUID
 	ExpenseTypeID  uuid.UUID
+	CreateTime     time.Time
 	ProviderName   string
 	IsSettled      bool
 	SubTotal       decimal.Decimal

@@ -30,6 +30,7 @@ type Expense struct {
 	Description    string
 	GroupID        uuid.UUID
 	CreateByUserID uuid.UUID
+	PayByUserId    uuid.UUID
 	ExpenseTypeID  uuid.UUID
 	CreateTime     time.Time
 	ProviderName   string
@@ -57,6 +58,7 @@ type ExpensePayload struct {
 	Description    string          `json:"description"`
 	GroupID        string          `json:"groupId"`
 	CreateByUserID string          `json:"createByUserId"`
+	PayByUserId    string          `json:"payByUserId"`
 	ProviderName   string          `json:"providerName"`
 	ExpenseTypeID  string          `json:"expTypeId"`
 	SubTotal       decimal.Decimal `json:"subTotal"`

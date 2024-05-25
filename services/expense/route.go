@@ -78,6 +78,11 @@ func (h *Handler) handleCreateExpense(c *gin.Context) {
 		utils.WriteError(c, http.StatusInternalServerError, err)
 		return
 	}
+	payerID, err := uuid.Parse(payload.PayByUserId)
+	if err != nil {
+		utils.WriteError(c, http.StatusInternalServerError, err)
+		return
+	}
 	expTypeID, err := uuid.Parse(payload.ExpenseTypeID)
 	if err != nil {
 		utils.WriteError(c, http.StatusInternalServerError, err)
@@ -88,6 +93,7 @@ func (h *Handler) handleCreateExpense(c *gin.Context) {
 		Description:    payload.Description,
 		GroupID:        groupID,
 		CreateByUserID: creatorID,
+		PayByUserId:    payerID,
 		ExpenseTypeID:  expTypeID,
 		ProviderName:   payload.ProviderName,
 		IsSettled:      false,

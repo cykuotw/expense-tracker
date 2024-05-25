@@ -1,12 +1,50 @@
 CREATE TABLE IF NOT EXISTS expense_type(
     "id" UUID NOT NULL PRIMARY KEY,
-    "category_id" UUID NOT NULL,
-    "name" VARCHAR(32) NOT NULL
+    "name" VARCHAR(32) NOT NULL,
+    "category" VARCHAR(32) NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS category(
-    "id" UUID NOT NULL PRIMARY KEY,
-    "name" VARCHAR(32) NOT NULL
-);
-
--- insert default data
+INSERT INTO expense_type (id, name, category) VALUES
+    (gen_random_uuid(), 'Games', 'Entertainment'),
+    (gen_random_uuid(), 'Movies', 'Entertainment'),
+    (gen_random_uuid(), 'Music', 'Entertainment'),
+    (gen_random_uuid(), 'Other', 'Entertainment'),
+    (gen_random_uuid(), 'Sport', 'Entertainment'),
+    (gen_random_uuid(), 'Groceries', 'Food and Drink'),
+    (gen_random_uuid(), 'Dining out', 'Food and Drink'),
+    (gen_random_uuid(), 'Other', 'Food and Drink'),
+    (gen_random_uuid(), 'Liquor', 'Food and Drink'),
+    (gen_random_uuid(), 'Rent', 'Home'),
+    (gen_random_uuid(), 'Mortgage', 'Home'),
+    (gen_random_uuid(), 'Household Supplies', 'Home'),
+    (gen_random_uuid(), 'Furniture', 'Home'),
+    (gen_random_uuid(), 'Maintenance', 'Home'),
+    (gen_random_uuid(), 'Other', 'Home'),
+    (gen_random_uuid(), 'Pets', 'Home'),
+    (gen_random_uuid(), 'Services', 'Home'),
+    (gen_random_uuid(), 'Electronics', 'Home'),
+    (gen_random_uuid(), 'Insurance', 'Life'),
+    (gen_random_uuid(), 'Clothing', 'Life'),
+    (gen_random_uuid(), 'Gifts', 'Life'),
+    (gen_random_uuid(), 'Medical Expenses', 'Life'),
+    (gen_random_uuid(), 'Other', 'Life'),
+    (gen_random_uuid(), 'Taxes', 'Life'),
+    (gen_random_uuid(), 'Education', 'Life'),
+    (gen_random_uuid(), 'Childcare', 'Life'),
+    (gen_random_uuid(), 'Parking', 'Transportation'),
+    (gen_random_uuid(), 'Car', 'Transportation'),
+    (gen_random_uuid(), 'Bus/Train', 'Transportation'),
+    (gen_random_uuid(), 'Gas/Fuel', 'Transportation'),
+    (gen_random_uuid(), 'Other', 'Transportation'),
+    (gen_random_uuid(), 'Plane', 'Transportation'),
+    (gen_random_uuid(), 'Taxi', 'Transportation'),
+    (gen_random_uuid(), 'Bicycle', 'Transportation'),
+    (gen_random_uuid(), 'Hotel', 'Transportation'),
+    (gen_random_uuid(), 'General', 'Uncategorized'),
+    (gen_random_uuid(), 'Electricity', 'Utilities'),
+    (gen_random_uuid(), 'Heat/Gas', 'Utilities'),
+    (gen_random_uuid(), 'Water', 'Utilities'),
+    (gen_random_uuid(), 'TV/Phone/Internet', 'Utilities'),
+    (gen_random_uuid(), 'Other', 'Utilities'),
+    (gen_random_uuid(), 'Trash', 'Utilities'),
+    (gen_random_uuid(), 'Cleaning', 'Utilities');

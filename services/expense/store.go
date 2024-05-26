@@ -5,6 +5,8 @@ import (
 	"expense-tracker/types"
 	"fmt"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 type Store struct {
@@ -77,7 +79,26 @@ func (s *Store) CreateLedger(ledger types.Ledger) error {
 }
 
 func (s *Store) GetExpenseByID(expenseID string) (*types.Expense, error) {
-	return nil, nil
+	query := fmt.Sprintf("SELECT * FROM expense WHERE id='%s';", expenseID)
+	rows, err := s.db.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	expense := new(types.Expense)
+	for rows.Next() {
+		expense, err = scanRowIntoExpense(rows)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if expense.ID == uuid.Nil {
+		return nil, types.ErrExpenseNotExist
+	}
+
+	return expense, nil
 }
 
 func (s *Store) GetExpenseList(page int64) ([]*types.Expense, error) {
@@ -110,4 +131,29 @@ func (s *Store) UpdateItem(item types.Item) error {
 
 func (s *Store) UpdateLedger(ledger types.Ledger) error {
 	return nil
+}
+
+func scanRowIntoExpense(rows *sql.Rows) (*types.Expense, error) {
+	expense := new(types.Expense)
+
+	err := rows.Scan(
+		&expense.ID,
+		&expense.Description,
+		&expense.GroupID,
+		&expense.CreateByUserID,
+		&expense.PayByUserId,
+		&expense.ProviderName,
+		&expense.ExpenseTypeID,
+		&expense.IsSettled,
+		&expense.SubTotal,
+		&expense.TaxFeeTip,
+		&expense.Total,
+		&expense.Currency,
+		&expense.InvoicePicUrl,
+		&expense.CreateTime,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return expense, nil
 }

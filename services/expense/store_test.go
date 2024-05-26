@@ -142,9 +142,94 @@ func TestCreateLedger(t *testing.T) {
 	}
 }
 
+func TestGetExpenseByID(t *testing.T) {
+	// prepare test data
+	cfg := config.Envs
+	db, _ := db.NewPostgreSQLStorage(cfg)
+	store := expense.NewStore(db)
+	mockExpenseID := uuid.New()
+	mockExpense := types.Expense{
+		ID:             mockExpenseID,
+		Description:    "test desc",
+		GroupID:        mockGroupID,
+		CreateByUserID: mockCreatorID,
+		PayByUserId:    mockPayerID,
+		ExpenseTypeID:  uuid.New(),
+		CreateTime:     time.Now(),
+		ProviderName:   "test providder",
+		IsSettled:      false,
+		SubTotal:       decimal.NewFromFloat(10.28),
+		TaxFeeTip:      decimal.NewFromFloat(1.49),
+		Total:          decimal.NewFromFloat(11.77),
+		Currency:       "CAD",
+		InvoicePicUrl:  "https://test.com",
+	}
+	insertExpense(db, mockExpense)
+	defer deleteExpense(db, mockExpenseID)
+
+	// define test cases
+	type testcase struct {
+		name          string
+		mockExpenseID string
+		expectFail    bool
+		expectError   error
+	}
+
+	subtests := []testcase{
+		{
+			name:          "valid",
+			mockExpenseID: mockExpenseID.String(),
+			expectFail:    false,
+			expectError:   nil,
+		},
+		{
+			name:          "invalid id",
+			mockExpenseID: uuid.NewString(),
+			expectFail:    true,
+			expectError:   types.ErrExpenseNotExist,
+		},
+	}
+
+	for _, test := range subtests {
+		t.Run(test.name, func(t *testing.T) {
+			expense, err := store.GetExpenseByID(test.mockExpenseID)
+
+			if test.expectFail {
+				assert.Nil(t, expense)
+				assert.Equal(t, test.expectError, err)
+			} else {
+				assert.NotNil(t, expense)
+				assert.Equal(t, test.mockExpenseID, expense.ID.String())
+				assert.Nil(t, err)
+			}
+		})
+	}
+}
+
 var mockGroupID = uuid.New()
 var mockCreatorID = uuid.New()
 var mockPayerID = uuid.New()
+
+func insertExpense(db *sql.DB, expense types.Expense) {
+	createTime := expense.CreateTime.UTC().Format("2006-01-02 15:04:05-0700")
+	query := fmt.Sprintf(
+		"INSERT INTO expense ("+
+			"id, description, group_id, "+
+			"create_by_user_id, pay_by_user_id, provider_name, "+
+			"exp_type_id, is_settled, "+
+			"sub_total, tax_fee_tip, total, "+
+			"currency, invoice_pic_url, create_time_utc"+
+			") VALUES ('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%t', "+
+			"'%s', '%s', '%s', '%s', '%s', '%s')",
+		expense.ID, expense.Description, expense.GroupID,
+		expense.CreateByUserID, expense.PayByUserId, expense.ProviderName,
+		expense.ExpenseTypeID, false,
+		expense.SubTotal.String(), expense.TaxFeeTip.String(), expense.Total.String(),
+		expense.Currency, expense.InvoicePicUrl, createTime,
+	)
+
+	db.Exec(query)
+}
 
 func deleteExpense(db *sql.DB, expenseId uuid.UUID) {
 	query := fmt.Sprintf("DELETE FROM expense WHERE id='%s';", expenseId)

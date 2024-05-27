@@ -275,7 +275,7 @@ func TestGetExpenseList(t *testing.T) {
 			expectFail:         true,
 			expectExpenseCount: nil,
 			expectExpenseID:    nil,
-			expectError:        []error{nil},
+			expectError:        []error{types.ErrNoRemainingExpenses},
 		},
 	}
 

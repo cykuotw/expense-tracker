@@ -130,6 +130,10 @@ func (s *Store) GetExpenseList(groupID string, page int64) ([]*types.Expense, er
 		expenseList = append(expenseList, expense)
 	}
 
+	if len(expenseList) == 0 {
+		return nil, types.ErrNoRemainingExpenses
+	}
+
 	return expenseList, nil
 }
 

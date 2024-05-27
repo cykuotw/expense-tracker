@@ -138,7 +138,28 @@ func (s *Store) GetExpenseList(groupID string, page int64) ([]*types.Expense, er
 }
 
 func (s *Store) GetItemsByExpenseID(expenseID string) ([]*types.Item, error) {
-	return nil, nil
+	query := fmt.Sprintf("SELECT * FROM item WHERE expense_id='%s' ORDER BY id;", expenseID)
+	rows, err := s.db.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var itemList []*types.Item
+	for rows.Next() {
+		item := new(types.Item)
+		item, err := scanRowIntoItem(rows)
+		if err != nil {
+			return nil, err
+		}
+		itemList = append(itemList, item)
+	}
+
+	if len(itemList) == 0 {
+		return nil, types.ErrExpenseNotExist
+	}
+
+	return itemList, nil
 }
 
 func (s *Store) GetLedgersByExpenseID(expenseID string) ([]*types.Ledger, error) {
@@ -188,4 +209,21 @@ func scanRowIntoExpense(rows *sql.Rows) (*types.Expense, error) {
 		return nil, err
 	}
 	return expense, nil
+}
+
+func scanRowIntoItem(rows *sql.Rows) (*types.Item, error) {
+	item := new(types.Item)
+
+	err := rows.Scan(
+		&item.ID,
+		&item.ExpenseID,
+		&item.Name,
+		&item.Amount,
+		&item.Unit,
+		&item.UnitPrice,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return item, err
 }

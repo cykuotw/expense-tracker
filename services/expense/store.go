@@ -2,6 +2,7 @@ package expense
 
 import (
 	"database/sql"
+	"expense-tracker/config"
 	"expense-tracker/types"
 	"fmt"
 	"time"
@@ -101,8 +102,35 @@ func (s *Store) GetExpenseByID(expenseID string) (*types.Expense, error) {
 	return expense, nil
 }
 
-func (s *Store) GetExpenseList(page int64) ([]*types.Expense, error) {
-	return nil, nil
+func (s *Store) GetExpenseList(groupID string, page int64) ([]*types.Expense, error) {
+	offset := page * config.Envs.ExpensesPerPage
+	limit := config.Envs.ExpensesPerPage
+
+	query := fmt.Sprintf(
+		"SELECT * FROM expense "+
+			"WHERE group_id = '%s' "+
+			"ORDER BY create_time_utc ASC "+
+			"OFFSET '%d' LIMIT '%d';",
+		groupID, offset, limit,
+	)
+
+	rows, err := s.db.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var expenseList []*types.Expense
+	for rows.Next() {
+		expense := new(types.Expense)
+		expense, err = scanRowIntoExpense(rows)
+		if err != nil {
+			return nil, err
+		}
+		expenseList = append(expenseList, expense)
+	}
+
+	return expenseList, nil
 }
 
 func (s *Store) GetItemsByExpenseID(expenseID string) ([]*types.Item, error) {

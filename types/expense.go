@@ -13,7 +13,7 @@ type ExpenseStore interface {
 	CreateLedger(ledger Ledger) error
 
 	GetExpenseByID(expenseID string) (*Expense, error)
-	GetExpenseList(page int64) ([]*Expense, error)
+	GetExpenseList(groupID string, page int64) ([]*Expense, error)
 	GetItemsByExpenseID(expenseID string) ([]*Item, error)
 	GetLedgersByExpenseID(expenseID string) ([]*Ledger, error)
 	GetLedgerUnsettledFromGroup(expenseID string) ([]*Ledger, error)

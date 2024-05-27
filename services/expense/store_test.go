@@ -377,6 +377,77 @@ func TestGetItemsByExpenseID(t *testing.T) {
 	}
 }
 
+func TestGetLedgersByExpenseID(t *testing.T) {
+	// prepare test data
+	cfg := config.Envs
+	db, _ := db.NewPostgreSQLStorage(cfg)
+	store := expense.NewStore(db)
+
+	mockExpenseID := uuid.New()
+
+	testSetSize := 13
+	ledgerIDs := []uuid.UUID{}
+	for i := 0; i < testSetSize; i++ {
+		id := uuid.New()
+		ledger := types.Ledger{
+			ID:             id,
+			ExpenseID:      mockExpenseID,
+			LenderUserID:   uuid.New(),
+			BorrowerUesrID: uuid.New(),
+			Share:          decimal.NewFromFloat(5.33 + float64(i)),
+		}
+		insertLedger(db, ledger)
+		ledgerIDs = append(ledgerIDs, id)
+	}
+	defer deleteLedgers(db, ledgerIDs)
+
+	// prepare test case
+	type testcase struct {
+		name           string
+		expenseID      string
+		expectFail     bool
+		expectLength   int
+		expectLedgerID []uuid.UUID
+		expectError    error
+	}
+
+	subtests := []testcase{
+		{
+			name:           "valid",
+			expenseID:      mockExpenseID.String(),
+			expectFail:     false,
+			expectLength:   testSetSize,
+			expectLedgerID: ledgerIDs,
+			expectError:    nil,
+		},
+		{
+			name:           "invalid expense id",
+			expenseID:      uuid.NewString(),
+			expectFail:     true,
+			expectLength:   0,
+			expectLedgerID: nil,
+			expectError:    types.ErrExpenseNotExist,
+		},
+	}
+
+	for _, test := range subtests {
+		t.Run(test.name, func(t *testing.T) {
+			ledgerList, err := store.GetLedgersByExpenseID(test.expenseID)
+
+			if test.expectFail {
+				assert.Nil(t, ledgerList)
+				assert.Equal(t, test.expectError, err)
+			} else {
+				assert.NotNil(t, ledgerList)
+				assert.Equal(t, test.expectLength, len(ledgerList))
+				for i := 0; i < test.expectLength; i++ {
+					assert.Contains(t, test.expectLedgerID, ledgerList[i].ID)
+				}
+			}
+		})
+	}
+}
+
 var mockGroupID = uuid.New()
 var mockCreatorID = uuid.New()
 var mockPayerID = uuid.New()
@@ -410,8 +481,7 @@ func deleteExpense(db *sql.DB, expenseId uuid.UUID) {
 
 func deleteExpenses(db *sql.DB, expenseIds []uuid.UUID) {
 	for _, id := range expenseIds {
-		query := fmt.Sprintf("DELETE FROM expense WHERE id='%s';", id)
-		db.Exec(query)
+		deleteExpense(db, id)
 	}
 }
 
@@ -432,12 +502,27 @@ func deleteItem(db *sql.DB, itemID uuid.UUID) {
 
 func deleteItems(db *sql.DB, itemIDs []uuid.UUID) {
 	for _, id := range itemIDs {
-		query := fmt.Sprintf("DELETE FROM item WHERE id='%s';", id)
-		db.Exec(query)
+		deleteItem(db, id)
 	}
+}
+
+func insertLedger(db *sql.DB, ledger types.Ledger) {
+	query := fmt.Sprintf(
+		"INSERT INTO ledger ("+
+			"id, expense_id, lender_user_id, borrower_user_id, share"+
+			") VALUES ('%s', '%s', '%s', '%s', '%s');",
+		ledger.ID, ledger.ExpenseID, ledger.LenderUserID, ledger.BorrowerUesrID, ledger.Share,
+	)
+	db.Exec(query)
 }
 
 func deleteLedger(db *sql.DB, ledgerID uuid.UUID) {
 	query := fmt.Sprintf("DELETE FROM ledger WHERE id='%s';", ledgerID)
 	db.Exec(query)
+}
+
+func deleteLedgers(db *sql.DB, ledgerIDs []uuid.UUID) {
+	for _, id := range ledgerIDs {
+		deleteLedger(db, id)
+	}
 }

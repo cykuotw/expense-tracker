@@ -16,6 +16,8 @@ type Config struct {
 
 	JWTSecret              string
 	JWTExpirationInSeconds int64
+
+	ExpensesPerPage int64
 }
 
 var Envs = initConfig()
@@ -32,6 +34,8 @@ func initConfig() Config {
 
 		JWTSecret:              getEnv("JWT_SECRET", "secretstring"),
 		JWTExpirationInSeconds: getEnvInt("JWT_EXP", 3600*24*7),
+
+		ExpensesPerPage: getEnvInt("EXPENSES_PER_PAGE", 25),
 	}
 }
 

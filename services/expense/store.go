@@ -163,7 +163,29 @@ func (s *Store) GetItemsByExpenseID(expenseID string) ([]*types.Item, error) {
 }
 
 func (s *Store) GetLedgersByExpenseID(expenseID string) ([]*types.Ledger, error) {
-	return nil, nil
+	query := fmt.Sprintf(
+		"SELECT * FROM ledger WHERE expense_id='%s';", expenseID,
+	)
+	rows, err := s.db.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var ledgerList []*types.Ledger
+	for rows.Next() {
+		ledger, err := scanRowIntoLedger(rows)
+		if err != nil {
+			return nil, err
+		}
+		ledgerList = append(ledgerList, ledger)
+	}
+
+	if len(ledgerList) == 0 {
+		return nil, types.ErrExpenseNotExist
+	}
+
+	return ledgerList, nil
 }
 
 func (s *Store) GetLedgerUnsettledFromGroup(groupID string) ([]*types.Ledger, error) {
@@ -226,4 +248,20 @@ func scanRowIntoItem(rows *sql.Rows) (*types.Item, error) {
 		return nil, err
 	}
 	return item, err
+}
+
+func scanRowIntoLedger(rows *sql.Rows) (*types.Ledger, error) {
+	ledger := new(types.Ledger)
+
+	err := rows.Scan(
+		&ledger.ID,
+		&ledger.ExpenseID,
+		&ledger.LenderUserID,
+		&ledger.BorrowerUesrID,
+		&ledger.Share,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return ledger, err
 }

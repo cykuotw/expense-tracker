@@ -7,6 +7,7 @@ import (
 	"expense-tracker/services/expense"
 	"expense-tracker/types"
 	"fmt"
+	"strconv"
 	"testing"
 	"time"
 
@@ -206,9 +207,107 @@ func TestGetExpenseByID(t *testing.T) {
 	}
 }
 
+func TestGetExpenseList(t *testing.T) {
+	// prepare test data
+	cfg := config.Envs
+	db, _ := db.NewPostgreSQLStorage(cfg)
+	store := expense.NewStore(db)
+
+	testSetSize := 60
+
+	now := time.Now()
+	interval := 10 * time.Minute
+	idList := []uuid.UUID{}
+	for i := 0; i < testSetSize; i++ {
+		duration := time.Duration(i) * interval
+		t := now.Add(duration)
+
+		id := uuid.New()
+		idList = append(idList, id)
+
+		exp := types.Expense{
+			ID:             id,
+			Description:    "test desc " + strconv.Itoa(i),
+			GroupID:        mockGroupID,
+			CreateByUserID: mockCreatorID,
+			PayByUserId:    mockPayerID,
+			ExpenseTypeID:  mockExpenseTypeID,
+			CreateTime:     t,
+			IsSettled:      false,
+			Total:          decimal.NewFromFloat(10.112),
+			Currency:       "CAD",
+		}
+
+		insertExpense(db, exp)
+	}
+	defer deleteExpenses(db, idList)
+
+	// prepare test case
+	type testcase struct {
+		name               string
+		groupID            string
+		totalPage          int64
+		expectFail         bool
+		expectExpenseCount []int
+		expectExpenseID    [][]uuid.UUID
+		expectError        []error
+	}
+
+	subtests := []testcase{
+		{
+			name:               "valid",
+			groupID:            mockGroupID.String(),
+			totalPage:          4,
+			expectFail:         false,
+			expectExpenseCount: []int{25, 25, 10, 0},
+			expectExpenseID: [][]uuid.UUID{
+				idList[:25],
+				idList[25:50],
+				idList[50:60],
+				nil,
+			},
+			expectError: []error{nil, nil, nil, types.ErrNoRemainingExpenses},
+		},
+		{
+			name:               "invalid group id",
+			groupID:            uuid.NewString(),
+			totalPage:          1,
+			expectFail:         true,
+			expectExpenseCount: nil,
+			expectExpenseID:    nil,
+			expectError:        []error{nil},
+		},
+	}
+
+	for _, test := range subtests {
+		t.Run(test.name, func(t *testing.T) {
+			var page int64
+			for page = 0; page < test.totalPage; page++ {
+				expenseList, err := store.GetExpenseList(test.groupID, page)
+
+				if test.expectFail {
+					assert.Nil(t, expenseList)
+					assert.Equal(t, test.expectError[0], err)
+				} else {
+					if err == nil {
+						assert.Equal(t, test.expectExpenseCount[page], len(expenseList))
+					} else {
+						assert.Equal(t, test.expectError[page], err)
+					}
+
+					for i, exp := range expenseList {
+						assert.Equal(t, test.expectExpenseID[page][i], exp.ID)
+					}
+				}
+			}
+		})
+	}
+}
+
 var mockGroupID = uuid.New()
 var mockCreatorID = uuid.New()
 var mockPayerID = uuid.New()
+var mockExpenseTypeID = uuid.New()
 
 func insertExpense(db *sql.DB, expense types.Expense) {
 	createTime := expense.CreateTime.UTC().Format("2006-01-02 15:04:05-0700")
@@ -234,6 +333,13 @@ func insertExpense(db *sql.DB, expense types.Expense) {
 func deleteExpense(db *sql.DB, expenseId uuid.UUID) {
 	query := fmt.Sprintf("DELETE FROM expense WHERE id='%s';", expenseId)
 	db.Exec(query)
+}
+
+func deleteExpenses(db *sql.DB, expenseIds []uuid.UUID) {
+	for _, id := range expenseIds {
+		query := fmt.Sprintf("DELETE FROM expense WHERE id='%s';", id)
+		db.Exec(query)
+	}
 }
 
 func deleteItem(db *sql.DB, itemID uuid.UUID) {

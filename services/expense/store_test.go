@@ -579,10 +579,146 @@ func TestGetLedgerUnsettledFromGroup(t *testing.T) {
 	}
 }
 
+func TestUpdateExpenseSettleInGroup(t *testing.T) {
+	// prepare test data
+	cfg := config.Envs
+	db, _ := db.NewPostgreSQLStorage(cfg)
+	store := expense.NewStore(db)
+
+	toBeSettleExpCount := 5
+	toBeSettleGroupID := uuid.New()
+	toBeSettleExpenseIDs := []uuid.UUID{}
+
+	unsettledExpCount := 3
+	unsettledGroupID := uuid.New()
+	unsettledExpenseIDs := []uuid.UUID{}
+
+	for i := 0; i < toBeSettleExpCount; i++ {
+		id := uuid.New()
+		toBeSettleExpenseIDs = append(toBeSettleExpenseIDs, id)
+
+		expense := types.Expense{
+			ID:             id,
+			Description:    "to be settle " + strconv.Itoa(i),
+			GroupID:        toBeSettleGroupID,
+			CreateByUserID: mockCreatorID,
+			PayByUserId:    mockPayerID,
+			CreateTime:     time.Now(),
+			ExpenseTypeID:  mockExpenseTypeID,
+			IsSettled:      false,
+			Total:          decimal.NewFromFloat(99.37 + 0.37*float64(i)),
+			Currency:       "CAD",
+		}
+		insertExpense(db, expense)
+	}
+	// defer deleteExpenses(db, toBeSettleExpenseIDs)
+
+	for i := 0; i < unsettledExpCount; i++ {
+		id := uuid.New()
+		unsettledExpenseIDs = append(unsettledExpenseIDs, id)
+
+		expense := types.Expense{
+			ID:             id,
+			Description:    "unsettle " + strconv.Itoa(i),
+			GroupID:        unsettledGroupID,
+			CreateByUserID: mockCreatorID,
+			PayByUserId:    mockPayerID,
+			CreateTime:     time.Now(),
+			ExpenseTypeID:  mockExpenseTypeID,
+			IsSettled:      false,
+			Total:          decimal.NewFromFloat(99.37 + 0.37*float64(i)),
+			Currency:       "CAD",
+		}
+		insertExpense(db, expense)
+	}
+	// defer deleteExpenses(db, unsettledExpenseIDs)
+
+	// prepare test case
+	type testcase struct {
+		name                  string
+		groupID               string
+		expectFail            bool
+		expectSettledLength   int
+		expectUnsettledLength int
+		expectSettledIDs      []uuid.UUID
+		expectUnsettledIDs    []uuid.UUID
+	}
+
+	subtests := []testcase{
+		{
+			name:                  "valid",
+			groupID:               toBeSettleGroupID.String(),
+			expectFail:            false,
+			expectSettledLength:   toBeSettleExpCount,
+			expectUnsettledLength: unsettledExpCount,
+			expectSettledIDs:      toBeSettleExpenseIDs,
+			expectUnsettledIDs:    unsettledExpenseIDs,
+		},
+	}
+
+	for _, test := range subtests {
+		t.Run(test.name, func(t *testing.T) {
+			err := store.UpdateExpenseSettleInGroup(test.groupID)
+
+			assert.Nil(t, err)
+
+			expenseSettled := selectExpense(db, toBeSettleGroupID)
+			expenseUnsettled := selectExpense(db, unsettledGroupID)
+
+			assert.Equal(t, test.expectSettledLength, len(expenseSettled))
+			for _, exp := range expenseSettled {
+				assert.Contains(t, test.expectSettledIDs, exp.ID)
+			}
+
+			assert.Equal(t, test.expectUnsettledLength, len(expenseUnsettled))
+			for _, exp := range expenseUnsettled {
+				assert.Contains(t, test.expectUnsettledIDs, exp.ID)
+			}
+
+		})
+	}
+}
+
 var mockGroupID = uuid.New()
 var mockCreatorID = uuid.New()
 var mockPayerID = uuid.New()
 var mockExpenseTypeID = uuid.New()
+
+func selectExpense(db *sql.DB, groupID uuid.UUID) []*types.Expense {
+	query := fmt.Sprintf(
+		"SELECT * FROM expense "+
+			"WHERE group_id = '%s' "+
+			"ORDER BY create_time_utc ASC;",
+		groupID,
+	)
+	rows, _ := db.Query(query)
+	defer rows.Close()
+
+	expList := []*types.Expense{}
+
+	for rows.Next() {
+		expense := new(types.Expense)
+		rows.Scan(
+			&expense.ID,
+			&expense.Description,
+			&expense.GroupID,
+			&expense.CreateByUserID,
+			&expense.PayByUserId,
+			&expense.ProviderName,
+			&expense.ExpenseTypeID,
+			&expense.IsSettled,
+			&expense.SubTotal,
+			&expense.TaxFeeTip,
+			&expense.Total,
+			&expense.Currency,
+			&expense.InvoicePicUrl,
+			&expense.CreateTime,
+		)
+		expList = append(expList, expense)
+	}
+
+	return expList
+}
 
 func insertExpense(db *sql.DB, expense types.Expense) {
 	createTime := expense.CreateTime.UTC().Format("2006-01-02 15:04:05-0700")

@@ -259,17 +259,46 @@ func (s *Store) UpdateExpense(expense types.Expense) error {
 	)
 	_, err := s.db.Exec(query)
 	if err != nil {
-		return nil
+		return err
 	}
 
 	return nil
 }
 
 func (s *Store) UpdateItem(item types.Item) error {
+	query := fmt.Sprintf(
+		"UPDATE item SET "+
+			"expense_id = '%s', "+
+			"name = '%s', "+
+			"amount = '%s', "+
+			"unit = '%s', "+
+			"unit_price = '%s' "+
+			"WHERE id = '%s';",
+		item.ExpenseID, item.Name, item.Amount, item.Unit,
+		item.UnitPrice, item.ID,
+	)
+	_, err := s.db.Exec(query)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
 func (s *Store) UpdateLedger(ledger types.Ledger) error {
+	query := fmt.Sprintf(
+		"UPDATE item SET "+
+			"expense_id = '%s', "+
+			"lender_user_id = '%s', "+
+			"borrower_user_id = '%s', "+
+			"share = '%s' "+
+			"WHERE id = '%s';",
+		ledger.ExpenseID, ledger.LenderUserID, ledger.BorrowerUesrID,
+		ledger.Share, ledger.ID,
+	)
+	_, err := s.db.Exec(query)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 

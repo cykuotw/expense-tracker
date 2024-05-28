@@ -611,7 +611,7 @@ func TestUpdateExpenseSettleInGroup(t *testing.T) {
 		}
 		insertExpense(db, expense)
 	}
-	// defer deleteExpenses(db, toBeSettleExpenseIDs)
+	defer deleteExpenses(db, toBeSettleExpenseIDs)
 
 	for i := 0; i < unsettledExpCount; i++ {
 		id := uuid.New()
@@ -631,7 +631,7 @@ func TestUpdateExpenseSettleInGroup(t *testing.T) {
 		}
 		insertExpense(db, expense)
 	}
-	// defer deleteExpenses(db, unsettledExpenseIDs)
+	defer deleteExpenses(db, unsettledExpenseIDs)
 
 	// prepare test case
 	type testcase struct {
@@ -679,6 +679,61 @@ func TestUpdateExpenseSettleInGroup(t *testing.T) {
 	}
 }
 
+func TestUpdateExpense(t *testing.T) {
+	// prepare test data
+	cfg := config.Envs
+	db, _ := db.NewPostgreSQLStorage(cfg)
+	store := expense.NewStore(db)
+
+	mockExpense := types.Expense{
+		ID:             uuid.New(),
+		Description:    "original desc",
+		GroupID:        mockGroupID,
+		CreateByUserID: mockCreatorID,
+		PayByUserId:    mockPayerID,
+		CreateTime:     time.Now(),
+		ExpenseTypeID:  mockExpenseTypeID,
+		IsSettled:      false,
+		Total:          decimal.NewFromFloat(99.37 + 0.37*8.3),
+		Currency:       "CAD",
+	}
+	insertExpense(db, mockExpense)
+	defer deleteExpense(db, mockExpense.ID)
+
+	mockExpenseModified := mockExpense
+	mockExpenseModified.Description = "new desc"
+
+	// prepare test case
+	type testcase struct {
+		name          string
+		expense       types.Expense
+		expectFail    bool
+		expectExpense types.Expense
+		expectError   error
+	}
+
+	subtests := []testcase{
+		{
+			name:          "valid",
+			expense:       mockExpenseModified,
+			expectFail:    false,
+			expectExpense: mockExpenseModified,
+			expectError:   nil,
+		},
+	}
+
+	for _, test := range subtests {
+		t.Run(test.name, func(t *testing.T) {
+			err := store.UpdateExpense(test.expense)
+
+			assert.Nil(t, err)
+
+			expense := selectExpenseByID(db, test.expense.ID)
+			assert.Equal(t, test.expectExpense.Description, expense.Description)
+		})
+	}
+}
+
 var mockGroupID = uuid.New()
 var mockCreatorID = uuid.New()
 var mockPayerID = uuid.New()
@@ -718,6 +773,39 @@ func selectExpense(db *sql.DB, groupID uuid.UUID) []*types.Expense {
 	}
 
 	return expList
+}
+
+func selectExpenseByID(db *sql.DB, expenseID uuid.UUID) *types.Expense {
+	query := fmt.Sprintf(
+		"SELECT * FROM expense "+
+			"WHERE id = '%s';",
+		expenseID,
+	)
+	rows, _ := db.Query(query)
+	defer rows.Close()
+
+	expense := new(types.Expense)
+
+	for rows.Next() {
+		rows.Scan(
+			&expense.ID,
+			&expense.Description,
+			&expense.GroupID,
+			&expense.CreateByUserID,
+			&expense.PayByUserId,
+			&expense.ProviderName,
+			&expense.ExpenseTypeID,
+			&expense.IsSettled,
+			&expense.SubTotal,
+			&expense.TaxFeeTip,
+			&expense.Total,
+			&expense.Currency,
+			&expense.InvoicePicUrl,
+			&expense.CreateTime,
+		)
+	}
+
+	return expense
 }
 
 func insertExpense(db *sql.DB, expense types.Expense) {

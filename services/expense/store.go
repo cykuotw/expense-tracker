@@ -220,6 +220,16 @@ func (s *Store) GetLedgerUnsettledFromGroup(groupID string) ([]*types.Ledger, er
 }
 
 func (s *Store) UpdateExpenseSettleInGroup(groupID string) error {
+	// settle all expense with groupID
+	query := fmt.Sprintf(
+		"UPDATE expense SET is_settled=true "+
+			"WHERE group_id='%s' and is_settled=false;",
+		groupID,
+	)
+	_, err := s.db.Exec(query)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 

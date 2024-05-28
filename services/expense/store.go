@@ -234,6 +234,34 @@ func (s *Store) UpdateExpenseSettleInGroup(groupID string) error {
 }
 
 func (s *Store) UpdateExpense(expense types.Expense) error {
+	createTime := expense.CreateTime.UTC().Format("2006-01-02 15:04:05-0700")
+	query := fmt.Sprintf(
+		"UPDATE expense SET "+
+			"description = '%s', "+
+			"group_id = '%s', "+
+			"create_by_user_id = '%s', "+
+			"pay_by_user_id = '%s', "+
+			"create_time_utc = '%s', "+
+			"provider_name = '%s', "+
+			"exp_type_id = '%s', "+
+			"is_settled = '%t', "+
+			"sub_total = '%s', "+
+			"tax_fee_tip = '%s', "+
+			"total = '%s', "+
+			"currency = '%s', "+
+			"invoice_pic_url = '%s' "+
+			"WHERE id = '%s';",
+		expense.Description, expense.GroupID, expense.CreateByUserID,
+		expense.PayByUserId, createTime, expense.ProviderName,
+		expense.ExpenseTypeID, expense.IsSettled, expense.SubTotal,
+		expense.TaxFeeTip, expense.Total, expense.Currency,
+		expense.InvoicePicUrl, expense.ID,
+	)
+	_, err := s.db.Exec(query)
+	if err != nil {
+		return nil
+	}
+
 	return nil
 }
 

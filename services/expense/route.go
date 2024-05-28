@@ -412,7 +412,9 @@ func (h *Handler) handleUpdateExpense(c *gin.Context) {
 	}
 
 	// update expense
+	id := expense.ID
 	expense = &types.Expense{
+		ID:             id,
 		Description:    payload.Description,
 		GroupID:        payload.GroupID,
 		CreateByUserID: payload.CreateByUserID,

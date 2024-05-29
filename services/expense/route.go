@@ -492,7 +492,7 @@ func (h *Handler) handleGetUnsettledBalance(c *gin.Context) {
 		return
 	}
 
-	ledgersSimplified, err := debtSimplify(ledgers)
+	balanceSimplified, err := DebtSimplify(ledgers)
 
 	// make response
 	groupCurrency, err := h.groupStore.GetGroupCurrency(groupID)
@@ -500,29 +500,29 @@ func (h *Handler) handleGetUnsettledBalance(c *gin.Context) {
 		utils.WriteError(c, http.StatusInternalServerError, err)
 		return
 	}
-	var balances []types.BalanceResponse
-	for _, ledger := range ledgersSimplified {
-		borrowerUsername, err := h.userStore.GetUsernameByID(ledger.BorrowerUesrID.String())
+	var balances []types.BalanceRsp
+	for _, balance := range balanceSimplified {
+		senderUsername, err := h.userStore.GetUsernameByID(balance.SenderUserID.String())
 		if err != nil {
 			utils.WriteError(c, http.StatusInternalServerError, err)
 			return
 		}
-		lenderUsername, err := h.userStore.GetUsernameByID(ledger.LenderUserID.String())
+		receiverUsername, err := h.userStore.GetUsernameByID(balance.ReceiverUserID.String())
 		if err != nil {
 			utils.WriteError(c, http.StatusInternalServerError, err)
 			return
 		}
-		res := types.BalanceResponse{
-			BorrowerUesrID:   ledger.BorrowerUesrID,
-			BorrowerUesrname: borrowerUsername,
-			LenderUserID:     ledger.LenderUserID,
-			LenderUsername:   lenderUsername,
-			Balance:          ledger.Share,
+		res := types.BalanceRsp{
+			SenderUserID:     balance.SenderUserID,
+			SenderUesrname:   senderUsername,
+			ReceiverUserID:   balance.ReceiverUserID,
+			ReceiverUsername: receiverUsername,
+			Balance:          balance.Share,
 		}
 		balances = append(balances, res)
 	}
 
-	response := types.LedgerResponse{
+	response := types.BalanceResponse{
 		Currency: groupCurrency,
 		Balances: balances,
 	}

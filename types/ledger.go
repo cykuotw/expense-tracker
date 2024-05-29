@@ -24,16 +24,3 @@ type LedgerUpdatePayload struct {
 	ID uuid.UUID `json:"ledgerId"`
 	LedgerPayload
 }
-
-type LedgerResponse struct {
-	Currency string            `json:"currency"`
-	Balances []BalanceResponse `json:"balances"`
-}
-
-type BalanceResponse struct {
-	BorrowerUesrID   uuid.UUID       `json:"borrowerUserId"`
-	BorrowerUesrname string          `json:"borrowerUsername"`
-	LenderUserID     uuid.UUID       `json:"lenderUserId"`
-	LenderUsername   string          `json:"lenderUsername"`
-	Balance          decimal.Decimal `json:"balance"`
-}

@@ -203,6 +203,76 @@ func TestDebtSimplify(t *testing.T) {
 	})
 }
 
+func BenchmarkDebtSimplify(b *testing.B) {
+	GabeID := uuid.New()
+	FredID := uuid.New()
+	BobID := uuid.New()
+	CharlieID := uuid.New()
+	DavidID := uuid.New()
+	EmaID := uuid.New()
+
+	ledgers := []*types.Ledger{
+		// Gabe owes Bob $30
+		{
+			LenderUserID:   BobID,
+			BorrowerUesrID: GabeID,
+			Share:          decimal.NewFromInt(30),
+		},
+		// Gabe owes David $10
+		{
+			LenderUserID:   DavidID,
+			BorrowerUesrID: GabeID,
+			Share:          decimal.NewFromInt(10),
+		},
+		// Fred owes Bob $10
+		{
+			LenderUserID:   BobID,
+			BorrowerUesrID: FredID,
+			Share:          decimal.NewFromInt(10),
+		},
+		// Fred owes Charlie $30
+		{
+			LenderUserID:   CharlieID,
+			BorrowerUesrID: FredID,
+			Share:          decimal.NewFromInt(30),
+		},
+		// Fred owes David $10
+		{
+			LenderUserID:   DavidID,
+			BorrowerUesrID: FredID,
+			Share:          decimal.NewFromInt(10),
+		},
+		// Fred owes Ema $10
+		{
+			LenderUserID:   EmaID,
+			BorrowerUesrID: FredID,
+			Share:          decimal.NewFromInt(10),
+		},
+		// Bob owes Charlie $40
+		{
+			LenderUserID:   CharlieID,
+			BorrowerUesrID: BobID,
+			Share:          decimal.NewFromInt(40),
+		},
+		// Charlie owes David $20
+		{
+			LenderUserID:   DavidID,
+			BorrowerUesrID: CharlieID,
+			Share:          decimal.NewFromInt(20),
+		},
+		// David owes Ema $50
+		{
+			LenderUserID:   EmaID,
+			BorrowerUesrID: DavidID,
+			Share:          decimal.NewFromInt(50),
+		},
+	}
+
+	for i := 0; i < b.N; i++ {
+		expense.DebtSimplify(ledgers)
+	}
+}
+
 func matchBalance(expectBalance []*types.Balance, balance *types.Balance) bool {
 	result := false
 

@@ -87,6 +87,7 @@ func TestDebtSimplify(t *testing.T) {
 			},
 			expectFail: false,
 			expectBalance: []*types.Balance{
+				// all possible combinations
 				// Ema send Fred $60
 				{
 					SenderUserID:   EmaID,
@@ -102,6 +103,18 @@ func TestDebtSimplify(t *testing.T) {
 				// Gabe send David $20
 				{
 					SenderUserID:   CharlieID,
+					ReceiverUserID: DavidID,
+					Share:          decimal.NewFromInt(10),
+				},
+				// Gabe send David $50
+				{
+					SenderUserID:   CharlieID,
+					ReceiverUserID: GabeID,
+					Share:          decimal.NewFromInt(50),
+				},
+				// Gabe send David $10
+				{
+					SenderUserID:   GabeID,
 					ReceiverUserID: DavidID,
 					Share:          decimal.NewFromInt(10),
 				},
@@ -161,13 +174,10 @@ func TestDebtSimplify(t *testing.T) {
 	t.Run(subtests[0].name, func(t *testing.T) {
 		balanceList := expense.DebtSimplify(subtests[0].ledgers)
 
-		assert.Equal(t, len(subtests[0].expectBalance), len(balanceList))
-
 		for _, b := range balanceList {
-			expectBalance := findBalance(subtests[0].expectBalance, b.SenderUserID, b.ReceiverUserID)
+			matchResult := matchBalance(subtests[0].expectBalance, b)
 
-			assert.NotNil(t, expectBalance)
-			assert.True(t, expectBalance.Share.Equal(b.Share))
+			assert.True(t, matchResult)
 		}
 
 		// make sure Alice does not owe or be owed by anyone
@@ -185,22 +195,22 @@ func TestDebtSimplify(t *testing.T) {
 	t.Run(subtests[1].name, func(t *testing.T) {
 		balanceList := expense.DebtSimplify(subtests[0].ledgers)
 
-		assert.Equal(t, len(subtests[0].expectBalance), len(balanceList))
 		for _, b := range balanceList {
-			expectBalance := findBalance(subtests[0].expectBalance, b.SenderUserID, b.ReceiverUserID)
+			matchResult := matchBalance(subtests[0].expectBalance, b)
 
-			assert.NotNil(t, expectBalance)
-			assert.True(t, expectBalance.Share.Equal(b.Share))
+			assert.True(t, matchResult)
 		}
 	})
 }
 
-func findBalance(expectBalance []*types.Balance, senderID uuid.UUID, receiverID uuid.UUID) *types.Balance {
-	var result *types.Balance
+func matchBalance(expectBalance []*types.Balance, balance *types.Balance) bool {
+	result := false
 
 	for _, b := range expectBalance {
-		if b.SenderUserID == senderID && b.ReceiverUserID == receiverID {
-			result = b
+		if b.SenderUserID == balance.SenderUserID &&
+			b.ReceiverUserID == balance.ReceiverUserID &&
+			b.Share.Equal(balance.Share) {
+			result = true
 			break
 		}
 	}

@@ -492,7 +492,7 @@ func (h *Handler) handleGetUnsettledBalance(c *gin.Context) {
 		return
 	}
 
-	balanceSimplified, err := DebtSimplify(ledgers)
+	balanceSimplified := DebtSimplify(ledgers)
 
 	// make response
 	groupCurrency, err := h.groupStore.GetGroupCurrency(groupID)

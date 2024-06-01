@@ -28,5 +28,9 @@ func WriteJSON(c *gin.Context, status int, obj any) {
 }
 
 func WriteError(c *gin.Context, status int, err error) {
-	WriteJSON(c, status, map[string]string{"error": err.Error()})
+	if err == nil {
+		WriteJSON(c, status, nil)
+	} else {
+		WriteJSON(c, status, map[string]string{"error": err.Error()})
+	}
 }

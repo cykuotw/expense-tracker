@@ -49,7 +49,7 @@ func (h *Handler) handleCreateExpense(c *gin.Context) {
 		return
 	}
 	if userID != payload.CreateByUserID {
-		utils.WriteError(c, http.StatusForbidden, err)
+		utils.WriteError(c, http.StatusForbidden, types.ErrUserNotPermitted)
 		return
 	}
 

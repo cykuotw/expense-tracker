@@ -27,6 +27,7 @@ func NewHandler(store types.ExpenseStore, userStore types.UserStore, groupStore 
 
 func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 	router.POST("/create_expense", h.handleCreateExpense)
+	router.GET("/expense_list/:groupId", h.handleGetExpenseList)
 	router.GET("/expense_list/:groupId/:page", h.handleGetExpenseList)
 	router.GET("/expense/:expenseId", h.handleGetExpenseDetail)
 	router.PUT("/expense/:expenseId", h.handleUpdateExpense)

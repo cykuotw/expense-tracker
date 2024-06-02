@@ -63,7 +63,7 @@ func TestRouteUpdateExpenseDetail(t *testing.T) {
 			},
 			expenseID:        mockExpenseID.String(),
 			expectFail:       true,
-			expectStatusCode: http.StatusBadRequest,
+			expectStatusCode: http.StatusForbidden,
 		},
 	}
 

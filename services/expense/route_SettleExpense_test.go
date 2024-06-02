@@ -39,7 +39,7 @@ func TestRouteSettleExpense(t *testing.T) {
 			name:             "invalid group id",
 			groupID:          uuid.New().String(),
 			expectFail:       true,
-			expectStatusCode: http.StatusBadRequest,
+			expectStatusCode: http.StatusForbidden,
 		},
 	}
 

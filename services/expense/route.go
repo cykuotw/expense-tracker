@@ -15,13 +15,17 @@ type Handler struct {
 	store      types.ExpenseStore
 	userStore  types.UserStore
 	groupStore types.GroupStore
+
+	controller types.ExpenseController
 }
 
-func NewHandler(store types.ExpenseStore, userStore types.UserStore, groupStore types.GroupStore) *Handler {
+func NewHandler(store types.ExpenseStore, userStore types.UserStore, groupStore types.GroupStore, controller types.ExpenseController) *Handler {
 	return &Handler{
 		store:      store,
 		userStore:  userStore,
 		groupStore: groupStore,
+
+		controller: controller,
 	}
 }
 
@@ -499,7 +503,7 @@ func (h *Handler) handleGetUnsettledBalance(c *gin.Context) {
 		return
 	}
 
-	balanceSimplified := DebtSimplify(ledgers)
+	balanceSimplified := h.controller.DebtSimplify(ledgers)
 
 	// make response
 	groupCurrency, err := h.groupStore.GetGroupCurrency(groupID)

@@ -8,12 +8,18 @@ import (
 	"github.com/shopspring/decimal"
 )
 
+type Controller struct{}
+
+func NewController() *Controller {
+	return &Controller{}
+}
+
 type balance struct {
 	id    uuid.UUID
 	share decimal.Decimal // givers: share>0, receivers: share<0
 }
 
-func DebtSimplify(ledgers []*types.Ledger) []*types.Balance {
+func (c *Controller) DebtSimplify(ledgers []*types.Ledger) []*types.Balance {
 	balanceMap := map[uuid.UUID]decimal.Decimal{}
 
 	for _, ledger := range ledgers {

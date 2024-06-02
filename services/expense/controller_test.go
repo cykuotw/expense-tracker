@@ -26,6 +26,8 @@ func TestDebtSimplify(t *testing.T) {
 		expectBalance []*types.Balance
 	}
 
+	controller := expense.NewController()
+
 	subtests := []testcase{
 		{
 			name: "valid 1",
@@ -172,7 +174,7 @@ func TestDebtSimplify(t *testing.T) {
 
 	// first test case
 	t.Run(subtests[0].name, func(t *testing.T) {
-		balanceList := expense.DebtSimplify(subtests[0].ledgers)
+		balanceList := controller.DebtSimplify(subtests[0].ledgers)
 
 		for _, b := range balanceList {
 			matchResult := matchBalance(subtests[0].expectBalance, b)
@@ -193,7 +195,7 @@ func TestDebtSimplify(t *testing.T) {
 
 	// second test case
 	t.Run(subtests[1].name, func(t *testing.T) {
-		balanceList := expense.DebtSimplify(subtests[0].ledgers)
+		balanceList := controller.DebtSimplify(subtests[0].ledgers)
 
 		for _, b := range balanceList {
 			matchResult := matchBalance(subtests[0].expectBalance, b)
@@ -210,6 +212,8 @@ func BenchmarkDebtSimplify(b *testing.B) {
 	CharlieID := uuid.New()
 	DavidID := uuid.New()
 	EmaID := uuid.New()
+
+	controller := expense.NewController()
 
 	ledgers := []*types.Ledger{
 		// Gabe owes Bob $30
@@ -269,7 +273,7 @@ func BenchmarkDebtSimplify(b *testing.B) {
 	}
 
 	for i := 0; i < b.N; i++ {
-		expense.DebtSimplify(ledgers)
+		controller.DebtSimplify(ledgers)
 	}
 }
 

@@ -24,6 +24,10 @@ type ExpenseStore interface {
 	UpdateLedger(ledger Ledger) error
 }
 
+type ExpenseController interface {
+	DebtSimplify(ledgers []*Ledger) []*Balance
+}
+
 // DB structure
 type Expense struct {
 	ID             uuid.UUID

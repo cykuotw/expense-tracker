@@ -19,8 +19,9 @@ func TestRouteGetExpenseList(t *testing.T) {
 	store := &mockGetExpenseListStore{}
 	userStore := &mockGetExpenseListUserStore{}
 	groupStore := &mockGetExpenseListGroupStore{}
+	controller := &mockExpenseController{}
 
-	handler := NewHandler(store, userStore, groupStore)
+	handler := NewHandler(store, userStore, groupStore, controller)
 
 	type testcase struct {
 		name             string

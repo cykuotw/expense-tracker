@@ -20,8 +20,9 @@ func TestRouteCreateExpense(t *testing.T) {
 	store := &mockCreateExpenseStore{}
 	userStore := &mockCreateExpenseUserStore{}
 	groupStore := &mockCreateExpenseGroupStore{}
+	controller := &mockExpenseController{}
 
-	handler := NewHandler(store, userStore, groupStore)
+	handler := NewHandler(store, userStore, groupStore, controller)
 
 	type testcase struct {
 		name             string
@@ -193,4 +194,10 @@ func (m *mockCreateExpenseUserStore) CreateUser(user types.User) error {
 }
 func (m *mockCreateExpenseUserStore) GetUsernameByID(userid string) (string, error) {
 	return "", nil
+}
+
+type mockExpenseController struct{}
+
+func (m *mockExpenseController) DebtSimplify(ledgers []*types.Ledger) []*types.Balance {
+	return nil
 }

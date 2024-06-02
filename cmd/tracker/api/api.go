@@ -40,7 +40,8 @@ func (s *APIServer) Run() error {
 	groupHandler.RegisterRoutes(protected)
 
 	expenseStore := expense.NewStore(s.db)
-	expenseHandler := expense.NewHandler(expenseStore, userStore, groupStore)
+	expenseController := expense.NewController()
+	expenseHandler := expense.NewHandler(expenseStore, userStore, groupStore, expenseController)
 	expenseHandler.RegisterRoutes(protected)
 
 	log.Println("Listening on", s.addr)

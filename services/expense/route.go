@@ -340,6 +340,9 @@ func (h *Handler) handleUpdateExpense(c *gin.Context) {
 	if err == types.ErrPermissionDenied {
 		utils.WriteError(c, http.StatusForbidden, err)
 		return
+	} else if err == types.ErrGroupNotExist {
+		utils.WriteError(c, http.StatusBadRequest, err)
+		return
 	} else if err != nil {
 		utils.WriteError(c, http.StatusInternalServerError, err)
 		return
@@ -450,6 +453,9 @@ func (h *Handler) handleSettleExpense(c *gin.Context) {
 	_, err = h.groupStore.GetGroupByIDAndUser(groupID, userID)
 	if err == types.ErrPermissionDenied {
 		utils.WriteError(c, http.StatusForbidden, err)
+		return
+	} else if err == types.ErrGroupNotExist {
+		utils.WriteError(c, http.StatusBadRequest, err)
 		return
 	} else if err != nil {
 		utils.WriteError(c, http.StatusInternalServerError, err)

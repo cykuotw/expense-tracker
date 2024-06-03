@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"database/sql"
 	"expense-tracker/services/auth"
 	"expense-tracker/services/expense"
@@ -15,6 +16,8 @@ import (
 type APIServer struct {
 	addr string
 	db   *sql.DB
+
+	engine *http.Server
 }
 
 func NewAPIServer(addr string, db *sql.DB) *APIServer {
@@ -26,6 +29,7 @@ func NewAPIServer(addr string, db *sql.DB) *APIServer {
 
 func (s *APIServer) Run() error {
 	router := gin.New()
+
 	subrouter := router.Group("/api/v0")
 
 	userStore := user.NewStore(s.db)
@@ -44,7 +48,16 @@ func (s *APIServer) Run() error {
 	expenseHandler := expense.NewHandler(expenseStore, userStore, groupStore, expenseController)
 	expenseHandler.RegisterRoutes(protected)
 
-	log.Println("Listening on", s.addr)
+	log.Println("API Server Listening on", s.addr)
 
-	return http.ListenAndServe(s.addr, router)
+	s.engine = &http.Server{
+		Addr:    s.addr,
+		Handler: router,
+	}
+
+	return s.engine.ListenAndServe()
+}
+
+func (s *APIServer) Shutdown(ctx context.Context) error {
+	return s.engine.Shutdown(ctx)
 }

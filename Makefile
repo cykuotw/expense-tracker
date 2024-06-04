@@ -1,4 +1,14 @@
-build:
+css-watch:
+	@npx tailwindcss -i frontend/views/css/app.css -o frontend/public/styles.css --watch
+
+css:
+	@npx tailwindcss -i frontend/views/css/app.css -o frontend/public/styles.css
+
+templ:
+	@templ generate
+
+build: css templ
+	@go mod tidy
 	@go build -o bin/tracker cmd/tracker/main.go
 
 test: 

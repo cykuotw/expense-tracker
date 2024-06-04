@@ -9,7 +9,10 @@
 *.dylib
 
 # Binary files
-bin/*
+bin
+
+# Temporary files
+tmp
 
 # Env file
 .env
@@ -25,3 +28,6 @@ bin/*
 
 # Go workspace file
 go.work
+
+# frontend js modules
+node_modules

@@ -1,5 +1,13 @@
 package hello
 
+import (
+	"expense-tracker/frontend/views/layouts"
+)
+
 templ Hello(name string){
-    <div>Hello, { name }</div>
+    @layouts.Base(){
+        <div class="text-blue-700">
+        Hello, { name }
+        </div>
+    }
 }

@@ -29,7 +29,7 @@ func (s *FrontendServer) Run() error {
 	router.StaticFS("/public", frontend.Static())
 
 	// register frontend services
-	router.GET("/hello", hanlders.Make(hanlders.HandleHello))
+	router.GET("/login", hanlders.Make(hanlders.HandleAuth))
 
 	log.Println("Frontend Server Listening on", s.addr)
 

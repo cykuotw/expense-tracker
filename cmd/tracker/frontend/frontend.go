@@ -2,7 +2,8 @@ package frontend
 
 import (
 	"context"
-	frontend "expense-tracker/frontend/hanlders"
+	"expense-tracker/frontend"
+	"expense-tracker/frontend/hanlders"
 	"log"
 	"net/http"
 
@@ -24,8 +25,11 @@ func NewFrontendServer(addr string) *FrontendServer {
 func (s *FrontendServer) Run() error {
 	router := gin.New()
 
+	// embed public folder
+	router.StaticFS("/public", frontend.Static())
+
 	// register frontend services
-	router.GET("/hello", frontend.Make(frontend.HandleHello))
+	router.GET("/hello", hanlders.Make(hanlders.HandleHello))
 
 	log.Println("Frontend Server Listening on", s.addr)
 

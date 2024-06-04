@@ -8,6 +8,8 @@ import (
 )
 
 type Config struct {
+	APIPath string
+
 	DBPublicHost string
 	DBPort       string
 	DBUser       string
@@ -26,6 +28,8 @@ func initConfig() Config {
 	godotenv.Load()
 
 	return Config{
+		APIPath: getEnv("API_URL", ""),
+
 		DBPublicHost: getEnv("DB_PUBLIC_HOST", "localhost"),
 		DBPort:       getEnv("DB_PORT", "5432"),
 		DBUser:       getEnv("DB_USER", "tracker"),

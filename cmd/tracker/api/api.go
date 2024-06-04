@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"database/sql"
+	"expense-tracker/config"
 	"expense-tracker/services/auth"
 	"expense-tracker/services/expense"
 	"expense-tracker/services/group"
@@ -30,7 +31,7 @@ func NewAPIServer(addr string, db *sql.DB) *APIServer {
 func (s *APIServer) Run() error {
 	router := gin.New()
 
-	subrouter := router.Group("/api/v0")
+	subrouter := router.Group(config.Envs.APIPath)
 
 	userStore := user.NewStore(s.db)
 	userHandler := user.NewHandler(userStore)

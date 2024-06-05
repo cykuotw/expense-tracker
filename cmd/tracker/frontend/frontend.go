@@ -3,7 +3,7 @@ package frontend
 import (
 	"context"
 	"expense-tracker/frontend"
-	"expense-tracker/frontend/hanlders"
+	"expense-tracker/frontend/hanlders/auth"
 	"log"
 	"net/http"
 
@@ -29,7 +29,8 @@ func (s *FrontendServer) Run() error {
 	router.StaticFS("/public", frontend.Static())
 
 	// register frontend services
-	router.GET("/login", hanlders.Make(hanlders.HandleAuth))
+	authHandler := auth.NewHandler()
+	authHandler.RegisterRoutes(router)
 
 	log.Println("Frontend Server Listening on", s.addr)
 

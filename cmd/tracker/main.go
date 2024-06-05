@@ -28,14 +28,14 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	apiServer := api.NewAPIServer("localhost:8080", db)
+	apiServer := api.NewAPIServer(config.Envs.BackendURL, db)
 	go func() {
 		if err := apiServer.Run(); err != nil && err != http.ErrServerClosed {
 			log.Fatal(err)
 		}
 	}()
 
-	frontendServer := frontend.NewFrontendServer("localhost:8085")
+	frontendServer := frontend.NewFrontendServer(config.Envs.FrontendURL)
 	go func() {
 		if err := frontendServer.Run(); err != nil && err != http.ErrServerClosed {
 			log.Fatal(err)

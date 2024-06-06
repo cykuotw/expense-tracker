@@ -8,9 +8,14 @@ import (
 templ Index() {
 	@layouts.Base() {
 		@components.Navbar() {
-			<div class="flex justify-center items-center py-6">
-				This is index
-			</div>
+			// <div class="flex justify-center items-center py-6">
+			// 	This is index
+			// </div>
+			@components.NewGroup() {
+				// <div class="text-blue-600">
+				// 	This is group child
+				// </div>
+			}
 		}
 	}
 }

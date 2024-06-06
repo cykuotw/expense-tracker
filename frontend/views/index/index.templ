@@ -1,0 +1,16 @@
+package index
+
+import (
+	"expense-tracker/frontend/views/layouts"
+	"expense-tracker/frontend/views/components"
+)
+
+templ Index() {
+	@layouts.Base() {
+		@components.Navbar() {
+			<div class="flex justify-center items-center py-6">
+				This is index
+			</div>
+		}
+	}
+}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"expense-tracker/frontend"
 	"expense-tracker/frontend/hanlders/auth"
+	"expense-tracker/frontend/hanlders/index"
 	"log"
 	"net/http"
 
@@ -31,6 +32,9 @@ func (s *FrontendServer) Run() error {
 	// register frontend services
 	authHandler := auth.NewHandler()
 	authHandler.RegisterRoutes(router)
+
+	indexHandler := index.NewHandler()
+	indexHandler.RegisterRoutes(router)
 
 	log.Println("Frontend Server Listening on", s.addr)
 

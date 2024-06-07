@@ -5,23 +5,15 @@ templ Navbar() {
 		<div class="navbar-start">
 			<a class="btn btn-ghost text-2xl">Expense Tracker</a>
 		</div>
+		// middle to large screen top navbar
 		<div class="navbar-center hidden md:flex">
-			<ul class="menu menu-horizontal px-1 text-lg">
+			<ul class="menu menu-horizontal px-5 text-lg">
 				<li>
 					<details>
-						<summary>Groups</summary>
-						<ul class="p-2">
-							<li><a>Submenu 1</a></li>
-							<li><a>Submenu 2</a></li>
-						</ul>
-					</details>
-				</li>
-				<li>
-					<details>
-						<summary>Friends</summary>
-						<ul class="p-2">
-							<li><a>Submenu 1</a></li>
-							<li><a>Submenu 2</a></li>
+						<summary>Group</summary>
+						<ul class="p-2 w-max">
+							<li><a>Create New Group</a></li>
+							<li><a>Find a Group</a></li>
 						</ul>
 					</details>
 				</li>
@@ -51,6 +43,7 @@ templ Navbar() {
 			</div>
 		</div>
 	</div>
+	// small screen bottom navbar
 	<div class="btm-nav bg-primary text-primary-content text-lg flex md:hidden">
 		<button class="text-primary-content">
 			<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-people-fill" viewBox="0 0 16 16">

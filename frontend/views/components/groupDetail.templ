@@ -1,0 +1,37 @@
+package components
+
+import (
+	"strconv"
+	"expense-tracker/types"
+	"github.com/google/uuid"
+)
+
+templ GroupDetail() {
+	<div class="flex justify-center items-center py-5">
+		<div class="text-center">
+			<h1 class="text-3xl">Group Title</h1>
+			<p class="py-5">
+				You owe { "user-a $" + strconv.FormatFloat(33.33, 'f', -1, 32) }
+			</p>
+			<button class="btn btn-wide btn-warning py-5 text-primary-content">SETTLE UP</button>
+			<div class="py-3"></div>
+			<div id="unsettled-expenses">
+				for i:=0 ; i<5 ; i++ {
+					@ExpenseCard(types.ExpenseResponseBrief{
+						ExpenseID:   uuid.New(),
+						Description: "Desc " + strconv.Itoa(i),
+					})
+				}
+			</div>
+			<div id="settled-expenses">
+				// settled expenses
+			</div>
+			<div>
+				<div class="py-5">
+					<hr class="block md:hidden"/>
+					<button class="my-2 btn btn-ghost">More Settled Expenses</button>
+				</div>
+			</div>
+		</div>
+	</div>
+}

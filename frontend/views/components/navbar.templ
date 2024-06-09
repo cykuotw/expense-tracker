@@ -1,7 +1,7 @@
 package components
 
 templ Navbar() {
-	<div class="navbar bg-primary text-primary-content hidden md:flex">
+	<div class="navbar bg-primary text-primary-content hidden md:flex relative z-50">
 		<div class="navbar-start">
 			<a class="btn btn-ghost text-2xl">Expense Tracker</a>
 		</div>
@@ -11,9 +11,13 @@ templ Navbar() {
 				<li>
 					<details>
 						<summary>Group</summary>
-						<ul class="p-2 w-max">
+						<ul class="p-1 w-max">
 							<li><a>Create New Group</a></li>
 							<li><a>Find a Group</a></li>
+							<li class="menu-title pt-5">Most Recent</li>
+							<li><a>Group name 1</a></li>
+							<li><a>Group name 2</a></li>
+							<li><a>Group name 3</a></li>
 						</ul>
 					</details>
 				</li>
@@ -44,7 +48,7 @@ templ Navbar() {
 		</div>
 	</div>
 	// small screen bottom navbar
-	<div class="btm-nav bg-primary text-primary-content text-lg flex md:hidden">
+	<div class="btm-nav bg-primary text-primary-content text-lg flex md:hidden z-50">
 		<button class="text-primary-content">
 			<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-people-fill" viewBox="0 0 16 16">
 				<path d="M7 14s-1 0-1-1 1-4 5-4 5 3 5 4-1 1-1 1zm4-6a3 3 0 1 0 0-6 3 3 0 0 0 0 6m-5.784 6A2.24 2.24 0 0 1 5 13c0-1.355.68-2.75 1.936-3.72A6.3 6.3 0 0 0 5 9c-4 0-5 3-5 4s1 1 1 1zM4.5 8a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5"></path>

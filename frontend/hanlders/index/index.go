@@ -1,8 +1,6 @@
 package index
 
 import (
-	"fmt"
-
 	"expense-tracker/frontend/hanlders/common"
 	"expense-tracker/frontend/views/index"
 
@@ -20,6 +18,5 @@ func (h *Handler) RegisterRoutes(router *gin.Engine) {
 }
 
 func (h *Handler) handleIndexGet(c *gin.Context) error {
-	fmt.Println("This is index")
 	return common.Render(c.Writer, c.Request, index.Index())
 }

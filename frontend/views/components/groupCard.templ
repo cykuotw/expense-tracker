@@ -1,0 +1,44 @@
+package components
+
+import "strconv"
+
+templ GroupCard() {
+	<div class="h-screen">
+		<div class="flex flex-wrap justify-center items-center py-5 md:h-auto">
+			<div class="card w-full lg:w-1/5 md:w-1/3 bg-base-100 shadow-md m-2 mx-6 md:m-2">
+				<a href={ templ.URL("#" + strconv.Itoa(99)) }>
+					<div class="card-body">
+						<div class="card-title">
+							Title { strconv.Itoa(99) }
+						</div>
+						<p class="break-all">
+							This is a card { strconv.Itoa(99) } ASDFAEEGFfadsfasfasdfasdfasdfalkjsdhflkajnckjxnckuyorekmffmnc kjshort;iqkj394r873jndasdfasdADFGASDFSDCXVZ
+						</p>
+					</div>
+				</a>
+			</div>
+			for i := range 7 {
+				<div class="card w-full h-max lg:w-1/5 md:w-1/3 bg-base-100 shadow-md m-2 mx-6 md:m-2">
+					<a href={ templ.URL("#" + strconv.Itoa(i)) }>
+						<div class="card-body">
+							<div class="card-title">
+								Title { strconv.Itoa(i) }
+							</div>
+							<p class="break-all">
+								This is a card { strconv.Itoa(i) } ASDFAEEGFADFGASDFSDCXVZ
+							</p>
+						</div>
+					</a>
+				</div>
+			}
+		</div>
+		<div class="py-0 justify-center text-center text-gray-400 block md:hidden">
+			<hr/>
+			End of list
+		</div>
+		<div class="py-10 block md:hidden"></div>
+	</div>
+	<div>
+		{ children... }
+	</div>
+}

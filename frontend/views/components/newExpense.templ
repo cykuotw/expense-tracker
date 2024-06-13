@@ -57,15 +57,18 @@ templ NewExpense() {
 					/>
 				</label>
 			</div>
-			<button class="btn btn-wide text-lg font-light">
-				<svg
-					xmlns="http://www.w3.org/2000/svg"
-					viewBox="0 0 24 24"
-					class="w-6 h-6 opacity-70"
-					fill="currentColor"
-				><path d="M4,4H7L9,2H15L17,4H20A2,2 0 0,1 22,6V18A2,2 0 0,1 20,20H4A2,2 0 0,1 2,18V6A2,2 0 0,1 4,4M12,7A5,5 0 0,0 7,12A5,5 0 0,0 12,17A5,5 0 0,0 17,12A5,5 0 0,0 12,7M12,9A3,3 0 0,1 15,12A3,3 0 0,1 12,15A3,3 0 0,1 9,12A3,3 0 0,1 12,9Z"></path></svg>
-				Upload Receipt
-			</button>
+			<label style="display: inline-block;" class="w-2/3 h-12 border border-gray-400 rounded-full bg-base-100 hover:bg-base-300">
+				<input type="file" style="display: none;"/>
+				<div class="flex flex-row items-center justify-center h-full space-x-3">
+					<svg
+						xmlns="http://www.w3.org/2000/svg"
+						viewBox="0 0 24 24"
+						class="w-6 h-6 opacity-70"
+						fill="currentColor"
+					><path d="M4,4H7L9,2H15L17,4H20A2,2 0 0,1 22,6V18A2,2 0 0,1 20,20H4A2,2 0 0,1 2,18V6A2,2 0 0,1 4,4M12,7A5,5 0 0,0 7,12A5,5 0 0,0 12,17A5,5 0 0,0 17,12A5,5 0 0,0 12,7M12,9A3,3 0 0,1 15,12A3,3 0 0,1 12,15A3,3 0 0,1 9,12A3,3 0 0,1 12,9Z"></path></svg>
+					<p>Upload Receipt</p>
+				</div>
+			</label>
 			<div class="py-3"></div>
 			<button type="submit" class="btn btn-active btn-neutral btn-wide text-lg font-light">
 				<svg

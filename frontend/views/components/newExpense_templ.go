@@ -10,6 +10,11 @@ import "context"
 import "io"
 import "bytes"
 
+import (
+	"expense-tracker/types"
+	"github.com/google/uuid"
+)
+
 func NewExpense() templ.Component {
 	return templ.ComponentFunc(func(ctx context.Context, templ_7745c5c3_W io.Writer) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templ_7745c5c3_W.(*bytes.Buffer)
@@ -23,7 +28,31 @@ func NewExpense() templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"flex flex-row justify-center items-center py-5 w-screen\"><form class=\"flex flex-col justify-center items-center py-5 space-y-5 w-1/3\" hx-post=\"/#\" hx-target-error=\"#feedback\" hx-indicator=\"#indicator\"><div class=\"text-2xl\">Add Expense</div><select class=\"select select-bordered w-full text-base text-center\"><option selected>Group 1</option> <option>Group 2</option> <option>Another Group</option></select><div class=\"flex flex-row justify-start items-start w-full\"><select class=\"select select-bordered w-1/2 text-base text-center\" id=\"expenseType\" name=\"expenseType\"><option selected>Group 1</option> <option>Group 2</option> <option>Another Group</option></select> <label class=\"input input-bordered flex items-center w-full\"><input type=\"text\" id=\"description\" name=\"description\" class=\"grow\" placeholder=\"Description\"></label></div><div class=\"flex flex-row justify-start items-start w-full\"><select class=\"select select-bordered w-1/2 text-base text-center\" id=\"currency\" name=\"currency\"><option selected>Group 1</option> <option>Group 2</option> <option>Another Group</option></select> <label class=\"input input-bordered flex items-center w-full\"><input type=\"number\" id=\"total\" name=\"total\" class=\"grow\" step=\"0.001\" placeholder=\"0.00\"></label></div><label style=\"display: inline-block;\" class=\"w-2/3 h-12 border border-gray-400 rounded-full bg-base-100 hover:bg-base-300\"><input type=\"file\" style=\"display: none;\"><div class=\"flex flex-row items-center justify-center h-full space-x-3\"><svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\" class=\"w-6 h-6 opacity-70\" fill=\"currentColor\"><path d=\"M4,4H7L9,2H15L17,4H20A2,2 0 0,1 22,6V18A2,2 0 0,1 20,20H4A2,2 0 0,1 2,18V6A2,2 0 0,1 4,4M12,7A5,5 0 0,0 7,12A5,5 0 0,0 12,17A5,5 0 0,0 17,12A5,5 0 0,0 12,7M12,9A3,3 0 0,1 15,12A3,3 0 0,1 12,15A3,3 0 0,1 9,12A3,3 0 0,1 12,9Z\"></path></svg><p>Upload Receipt</p></div></label><div class=\"py-3\"></div><button type=\"submit\" class=\"btn btn-active btn-neutral btn-wide text-lg font-light\"><svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\" class=\"w-6 h-6 opacity-70\" fill=\"currentColor\"><path d=\"M9,20.42L2.79,14.21L5.62,11.38L9,14.77L18.88,4.88L21.71,7.71L9,20.42Z\"></path></svg> OK</button><div id=\"indicator\" class=\"htmx-indicator\"><div class=\"flex justify-center items-center w-full\"><span class=\"loading loading-spinner loading-md\"></span></div></div><div id=\"feedback\"></div></form></div>")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"flex flex-row justify-center items-center py-5 w-screen\"><form class=\"flex flex-col justify-center items-center py-5 space-y-5 w-1/3\" hx-post=\"/#\" hx-target-error=\"#feedback\" hx-indicator=\"#indicator\"><div class=\"text-2xl\">Add Expense</div><select class=\"select select-bordered w-full text-base text-center\"><option selected>Group 1</option> <option>Group 2</option> <option>Another Group</option></select><div class=\"flex flex-row justify-start items-start w-full\"><select class=\"select select-bordered w-1/2 text-base text-center\" id=\"expenseType\" name=\"expenseType\"><option selected>Group 1</option> <option>Group 2</option> <option>Another Group</option></select> <label class=\"input input-bordered flex items-center w-full\"><input type=\"text\" id=\"description\" name=\"description\" class=\"grow\" placeholder=\"Description\"></label></div><div class=\"flex flex-row justify-start items-start w-full\"><select class=\"select select-bordered w-1/2 text-base text-center\" id=\"currency\" name=\"currency\"><option selected>Group 1</option> <option>Group 2</option> <option>Another Group</option></select> <label class=\"input input-bordered flex items-center w-full\"><input type=\"number\" id=\"total\" name=\"total\" class=\"grow\" step=\"0.001\" placeholder=\"0.00\"></label></div><label style=\"display: inline-block;\" class=\"w-2/3 h-12 border border-gray-400 rounded-full bg-base-100 hover:bg-base-300\"><input type=\"file\" style=\"display: none;\"><div class=\"flex flex-row items-center justify-center h-full space-x-3\"><svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\" class=\"w-6 h-6 opacity-70\" fill=\"currentColor\"><path d=\"M4,4H7L9,2H15L17,4H20A2,2 0 0,1 22,6V18A2,2 0 0,1 20,20H4A2,2 0 0,1 2,18V6A2,2 0 0,1 4,4M12,7A5,5 0 0,0 7,12A5,5 0 0,0 12,17A5,5 0 0,0 17,12A5,5 0 0,0 12,7M12,9A3,3 0 0,1 15,12A3,3 0 0,1 12,15A3,3 0 0,1 9,12A3,3 0 0,1 12,9Z\"></path></svg><p>Upload Receipt</p></div></label><div id=\"splitRule\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = SplitRule(types.GroupMember{
+			UserID:   uuid.NewString(),
+			Username: "user me",
+		}, []types.GroupMember{
+			{
+				UserID:   uuid.NewString(),
+				Username: "user 1",
+			},
+			{
+				UserID:   uuid.NewString(),
+				Username: "user 2",
+			},
+			{
+				UserID:   uuid.NewString(),
+				Username: "user me",
+			},
+		}).Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</div><div id=\"items\"></div><div class=\"py-3\"></div><button type=\"submit\" class=\"btn btn-active btn-neutral btn-wide text-lg font-light\"><svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\" class=\"w-6 h-6 opacity-70\" fill=\"currentColor\"><path d=\"M9,20.42L2.79,14.21L5.62,11.38L9,14.77L18.88,4.88L21.71,7.71L9,20.42Z\"></path></svg> OK</button><div id=\"indicator\" class=\"htmx-indicator\"><div class=\"flex justify-center items-center w-full\"><span class=\"loading loading-spinner loading-md\"></span></div></div><div id=\"feedback\"></div></form></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

@@ -1,0 +1,65 @@
+package components
+
+import (
+	"expense-tracker/types"
+)
+
+templ SplitRule(user types.GroupMember, members []types.GroupMember) {
+	if len(members) == 2 {
+		if members[0].UserID == user.UserID {
+			@SplitRule2(user, members[1])
+		} else {
+			@SplitRule2(user, members[0])
+		}
+	} else {
+		@SplitRuleN(user, members)
+	}
+}
+
+templ SplitRule2(user types.GroupMember, member types.GroupMember) {
+	<select
+		class="select select-bordered w-full text-base"
+		id="splitRuleSelector"
+		name="splitRule"
+	>
+		<option>You paid, split equally</option>
+		<option>You are owed the full amount</option>
+		<option>{ member.Username } paid, split euqally</option>
+		<option>{ member.Username } is owed the full amount</option>
+	</select>
+}
+
+templ SplitRuleN(user types.GroupMember, members []types.GroupMember) {
+	<div class="flex flex-row justify-center items-center w-full space-x-2">
+		<p class="w-max">Paid by</p>
+		<select
+			class="select select-sm select-bordered w-max border-dashed"
+			id="payerSelector"
+			name="payer"
+		>
+			<option value={ user.UserID }>You</option>
+			for _, mem := range members {
+				if mem.UserID != user.UserID {
+					<option value={ mem.UserID }>{ mem.Username }</option>
+				}
+			}
+		</select>
+		<p class="w-max">and split</p>
+		<select
+			class="select select-sm select-bordered w-max border-dashed"
+			id="splitRuleSelector"
+			name="splitRule"
+		>
+			<option>Equally</option>
+			<option>Unequally</option>
+		</select>
+	</div>
+}
+
+templ AdjustSplit2() {
+	// TODO: group of 2, split unequally
+}
+
+templ AdjustSplitN() {
+	// TODO: group of >2, split unequally
+}

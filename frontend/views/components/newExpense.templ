@@ -1,5 +1,10 @@
 package components
 
+import (
+	"github.com/google/uuid"
+	"expense-tracker/types"
+)
+
 templ NewExpense() {
 	<div class="flex flex-row justify-center items-center py-5 w-screen">
 		<form
@@ -69,6 +74,26 @@ templ NewExpense() {
 					<p>Upload Receipt</p>
 				</div>
 			</label>
+			<div id="splitRule">
+				@SplitRule(types.GroupMember{
+					UserID:   uuid.NewString(),
+					Username: "user me",
+				}, []types.GroupMember{
+					{
+						UserID:   uuid.NewString(),
+						Username: "user 1",
+					},
+					{
+						UserID:   uuid.NewString(),
+						Username: "user 2",
+					},
+					{
+						UserID:   uuid.NewString(),
+						Username: "user me",
+					},
+				})
+			</div>
+			<div id="items"></div>
 			<div class="py-3"></div>
 			<button type="submit" class="btn btn-active btn-neutral btn-wide text-lg font-light">
 				<svg

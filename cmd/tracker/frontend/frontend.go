@@ -25,6 +25,7 @@ func NewFrontendServer(addr string) *FrontendServer {
 
 func (s *FrontendServer) Run() error {
 	router := gin.New()
+	router.Use(gin.Logger())
 
 	// embed public folder
 	router.StaticFS("/public", frontend.Static())

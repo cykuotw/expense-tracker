@@ -30,6 +30,7 @@ func NewAPIServer(addr string, db *sql.DB) *APIServer {
 
 func (s *APIServer) Run() error {
 	router := gin.New()
+	router.Use(gin.Logger())
 
 	subrouter := router.Group(config.Envs.APIPath)
 

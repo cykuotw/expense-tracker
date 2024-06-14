@@ -39,29 +39,6 @@ func (s *Store) GetUserByEmail(email string) (*types.User, error) {
 	return user, nil
 }
 
-func (s *Store) GetUserByUsername(username string) (*types.User, error) {
-	query := fmt.Sprintf("SELECT * FROM users WHERE username = '%s';", username)
-	rows, err := s.db.Query(query)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	user := new(types.User)
-	for rows.Next() {
-		user, err = scanRowIntoUser(rows)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	if user.ID == uuid.Nil {
-		return nil, types.ErrUserNotExist
-	}
-
-	return user, nil
-}
-
 func (s *Store) GetUserByID(id string) (*types.User, error) {
 	query := fmt.Sprintf("SELECT * FROM users WHERE id = '%s';", id)
 	rows, err := s.db.Query(query)
@@ -112,12 +89,12 @@ func (s *Store) CreateUser(user types.User) error {
 	createTime := user.CreateTime.UTC().Format("2006-01-02 15:04:05-0700")
 	query := fmt.Sprintf(
 		"INSERT INTO users ("+
-			"id, username, firstname, lastname, "+
+			"id, username, firstname, lastname, nickname, "+
 			"email, password_hash, "+
 			"external_type, external_id, "+
 			"create_time_utc, is_active"+
-			") VALUES ('%s','%s','%s','%s','%s','%s','%s','%s','%s',%t);",
-		user.ID, user.Username, user.Firstname, user.Lastname,
+			") VALUES ('%s','%s','%s','%s','%s','%s','%s','%s','%s','%s',%t);",
+		user.ID, user.Username, user.Firstname, user.Lastname, user.Nickname,
 		user.Email, user.PasswordHashed,
 		user.ExternalType, user.ExternalID,
 		createTime, user.IsActive,
@@ -143,6 +120,7 @@ func scanRowIntoUser(rows *sql.Rows) (*types.User, error) {
 		&user.ExternalID,
 		&user.CreateTime,
 		&user.IsActive,
+		&user.Nickname,
 	)
 	if err != nil {
 		return nil, err

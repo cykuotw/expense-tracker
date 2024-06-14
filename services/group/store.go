@@ -199,6 +199,7 @@ func (s *Store) GetGroupMemberByGroupID(groupID string) ([]*types.User, error) {
 				&user.ExternalID,
 				&user.CreateTime,
 				&user.IsActive,
+				&user.Nickname,
 			)
 			if err != nil {
 				return nil, err
@@ -276,6 +277,7 @@ func scanRowIntoGroup(rows *sql.Rows) (*types.Group, error) {
 		&group.CreateTime,
 		&group.IsActive,
 		&group.CreateByUser,
+		&group.Currency,
 	)
 	if err != nil {
 		return nil, err

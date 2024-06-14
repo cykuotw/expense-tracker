@@ -24,7 +24,8 @@ func TestGetUserByEmail(t *testing.T) {
 	mockEmail := "a@test.com"
 	mockUser := types.User{
 		ID:             uuid.New(),
-		Username:       "testusername",
+		Username:       "testnickname",
+		Nickname:       "testnickname",
 		Firstname:      "testfirstname",
 		Lastname:       "testlastname",
 		Email:          mockEmail,
@@ -77,68 +78,6 @@ func TestGetUserByEmail(t *testing.T) {
 	}
 }
 
-func TestGetUserByUsername(t *testing.T) {
-	// prepare test data
-	cfg := config.Envs
-	db, _ := db.NewPostgreSQLStorage(cfg)
-
-	mockPassword, _ := auth.HashPassword("pword")
-	mockUsername := "testusername"
-	mockUser := types.User{
-		ID:             uuid.New(),
-		Username:       mockUsername,
-		Firstname:      "testfirstname",
-		Lastname:       "testlastname",
-		Email:          "a@test.com",
-		PasswordHashed: mockPassword,
-		ExternalType:   "",
-		ExternalID:     "",
-		CreateTime:     time.Now(),
-		IsActive:       true,
-	}
-	insertUser(db, mockUser)
-	defer cleanUser(db, mockUser.ID)
-
-	// define test cases
-	type testcase struct {
-		name         string
-		mockUsername string
-		expectFail   bool
-		expectResult *types.User
-		expectError  error
-	}
-
-	subtests := []testcase{
-		{
-			name:         "valid",
-			mockUsername: mockUsername,
-			expectFail:   false,
-			expectResult: &mockUser,
-			expectError:  nil,
-		},
-		{
-			name:         "invalid user",
-			mockUsername: "invalidusername",
-			expectFail:   true,
-			expectResult: nil,
-			expectError:  types.ErrUserNotExist,
-		},
-	}
-	store := user.NewStore(db)
-	for _, test := range subtests {
-		t.Run(test.name, func(t *testing.T) {
-			user, err := store.GetUserByUsername(test.mockUsername)
-
-			if test.expectFail {
-				assert.Equal(t, test.expectError, err)
-			} else {
-				assert.Nil(t, err)
-				assert.Equal(t, test.expectResult.ID, user.ID)
-			}
-		})
-	}
-}
-
 func TestGetUserByID(t *testing.T) {
 	// prepare test data
 	cfg := config.Envs
@@ -148,7 +87,8 @@ func TestGetUserByID(t *testing.T) {
 	mockID := uuid.New()
 	mockUser := types.User{
 		ID:             mockID,
-		Username:       "testusername",
+		Username:       "testnickname",
+		Nickname:       "testnickname",
 		Firstname:      "testfirstname",
 		Lastname:       "testlastname",
 		Email:          "a@test.com",
@@ -212,6 +152,7 @@ func TestGetUsernameByID(t *testing.T) {
 	mockUser := types.User{
 		ID:             mockID,
 		Username:       mockUsername,
+		Nickname:       mockUsername,
 		Firstname:      "testfirstname",
 		Lastname:       "testlastname",
 		Email:          "a@test.com",
@@ -269,12 +210,12 @@ func insertUser(db *sql.DB, user types.User) {
 	createTime := user.CreateTime.UTC().Format("2006-01-02 15:04:05-0700")
 	query := fmt.Sprintf(
 		"INSERT INTO users ("+
-			"id, username, firstname, lastname, "+
+			"id, username, firstname, lastname, nickname, "+
 			"email, password_hash, "+
 			"external_type, external_id, "+
 			"create_time_utc, is_active"+
-			") VALUES ('%s','%s','%s','%s','%s','%s','%s','%s','%s',%t);",
-		user.ID, user.Username, user.Firstname, user.Lastname,
+			") VALUES ('%s','%s','%s','%s','%s','%s','%s','%s','%s','%s',%t);",
+		user.ID, user.Username, user.Firstname, user.Lastname, user.Nickname,
 		user.Email, user.PasswordHashed,
 		user.ExternalType, user.ExternalID,
 		createTime, user.IsActive,

@@ -19,27 +19,6 @@ func TestServiceLogin(t *testing.T) {
 
 	t.Run("valid-email", func(t *testing.T) {
 		payload := types.LoginUserPayload{
-			Username: "uname",
-			Password: "testpassword",
-		}
-		marshalled, _ := json.Marshal(payload)
-		req, err := http.NewRequest(http.MethodPost, "/login", bytes.NewBuffer(marshalled))
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		rr := httptest.NewRecorder()
-		gin.SetMode(gin.ReleaseMode)
-		router := gin.New()
-		router.POST("/login", handler.handleLogin)
-
-		router.ServeHTTP(rr, req)
-
-		assert.Equal(t, http.StatusOK, rr.Code)
-	})
-
-	t.Run("valid-username", func(t *testing.T) {
-		payload := types.LoginUserPayload{
 			Email:    "adsf@test.com",
 			Password: "testpassword",
 		}
@@ -61,7 +40,6 @@ func TestServiceLogin(t *testing.T) {
 
 	t.Run("invalid payload", func(t *testing.T) {
 		payload := types.LoginUserPayload{
-			Username: "uname",
 			Email:    "invalid",
 			Password: "pward",
 		}

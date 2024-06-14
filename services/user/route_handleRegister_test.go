@@ -18,7 +18,7 @@ func TestServiceRegister(t *testing.T) {
 
 	t.Run("valid", func(t *testing.T) {
 		payload := types.RegisterUserPayload{
-			Username:  "uname",
+			Nickname:  "nickname",
 			Firstname: "fname",
 			Lastname:  "lname",
 			Email:     "adsf@test.com",
@@ -41,7 +41,7 @@ func TestServiceRegister(t *testing.T) {
 
 	t.Run("invalid payload", func(t *testing.T) {
 		payload := types.RegisterUserPayload{
-			Username:  "uname",
+			Nickname:  "nickname",
 			Firstname: "fname",
 			Lastname:  "lname",
 			Email:     "invalid",

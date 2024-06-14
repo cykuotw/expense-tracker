@@ -52,14 +52,6 @@ func (h *Handler) handleRegister(c *gin.Context) {
 		return
 	}
 
-	// check if the username exist
-	_, err = h.store.GetUserByUsername(payload.Username)
-	if err == nil {
-		utils.WriteError(c, http.StatusBadRequest,
-			fmt.Errorf("username %s already exists.", payload.Email))
-		return
-	}
-
 	// if not, create new user
 	hashedPassword, err := auth.HashPassword(payload.Password)
 	if err != nil {
@@ -67,9 +59,15 @@ func (h *Handler) handleRegister(c *gin.Context) {
 		return
 	}
 
+	username := payload.Nickname
+	if username == "" {
+		username = payload.Firstname + " " + payload.Lastname
+	}
+
 	err = h.store.CreateUser(types.User{
 		ID:             uuid.New(),
-		Username:       payload.Username,
+		Username:       username,
+		Nickname:       payload.Nickname,
 		Firstname:      payload.Firstname,
 		Lastname:       payload.Lastname,
 		Email:          payload.Email,
@@ -104,11 +102,7 @@ func (h *Handler) handleLogin(c *gin.Context) {
 
 	var user *types.User
 	var err error
-	if payload.Username == "" {
-		user, err = h.store.GetUserByEmail(payload.Email)
-	} else if payload.Email == "" {
-		user, err = h.store.GetUserByUsername(payload.Username)
-	}
+	user, err = h.store.GetUserByEmail(payload.Email)
 	if err != nil {
 		utils.WriteError(c, http.StatusInternalServerError, err)
 		return

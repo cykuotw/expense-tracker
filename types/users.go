@@ -8,7 +8,6 @@ import (
 
 type UserStore interface {
 	GetUserByEmail(email string) (*User, error)
-	GetUserByUsername(username string) (*User, error)
 	GetUserByID(id string) (*User, error)
 	GetUsernameByID(userid string) (string, error)
 
@@ -21,6 +20,7 @@ type User struct {
 	Firstname      string    `json:"firstname"`
 	Lastname       string    `json:"lastname"`
 	Email          string    `json:"email"`
+	Nickname       string    `json:"nickname"`
 	PasswordHashed string    `json:"passwordHashed"`
 	ExternalType   string    `json:"externalType"`
 	ExternalID     string    `json:"externalId"`
@@ -29,7 +29,7 @@ type User struct {
 }
 
 type RegisterUserPayload struct {
-	Username  string `json:"username" validate:"required"`
+	Nickname  string `json:"nickname"`
 	Firstname string `json:"firstname" validate:"required"`
 	Lastname  string `json:"lastname" validate:"required"`
 	Email     string `json:"email" validate:"required,email"`
@@ -37,7 +37,6 @@ type RegisterUserPayload struct {
 }
 
 type LoginUserPayload struct {
-	Username string `json:"username" validate:"required_without=Email,excluded_with=Email"`
-	Email    string `json:"email" validate:"required_without=Username,excluded_with=Username"`
+	Email    string `json:"email" validate:"required"`
 	Password string `json:"password" validate:"required,min=8"`
 }

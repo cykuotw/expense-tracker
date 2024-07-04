@@ -34,8 +34,11 @@ func (s *FrontendServer) Run() error {
 	authHandler := auth.NewHandler()
 	authHandler.RegisterRoutes(router)
 
+	protected := router.Group("")
+	protected.Use(auth.JWTAuthMiddleware())
+
 	indexHandler := index.NewHandler()
-	indexHandler.RegisterRoutes(router)
+	indexHandler.RegisterRoutes(protected)
 
 	log.Println("Frontend Server Listening on", s.addr)
 

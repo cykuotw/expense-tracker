@@ -6,6 +6,7 @@ import (
 	"expense-tracker/config"
 	"expense-tracker/frontend/hanlders/common"
 	"expense-tracker/frontend/views/auth"
+	"expense-tracker/types"
 	"fmt"
 	"net/http"
 	"regexp"
@@ -37,24 +38,42 @@ func (h *Handler) handleRegisterGet(c *gin.Context) error {
 }
 
 func (h *Handler) handleRegisterPost(c *gin.Context) error {
-	time.Sleep(1500 * time.Millisecond)
-	firstname := c.PostForm("firstname")
-	lastname := c.PostForm("lastname")
-	nickname := c.PostForm("nickname")
-	email := c.PostForm("email")
-	password := c.PostForm("password")
+	apiUrl := "http://" + config.Envs.BackendURL + config.Envs.APIPath
 
-	fmt.Println("email:", email)
-	fmt.Println("firstname:", firstname)
-	fmt.Println("lastname:", lastname)
-	fmt.Println("nickname:", nickname)
-	fmt.Println("password:", password)
+	payload := types.RegisterUserPayload{
+		Nickname:  c.PostForm("nickname"),
+		Firstname: c.PostForm("firstname"),
+		Lastname:  c.PostForm("lastname"),
+		Email:     c.PostForm("email"),
+		Password:  c.PostForm("password"),
+	}
+	marshalled, err := json.Marshal(payload)
+	if err != nil {
+		c.Status(http.StatusInternalServerError)
+		return err
+	}
+	req, err := http.NewRequest(http.MethodPost, apiUrl+"/register", bytes.NewBuffer(marshalled))
+	if err != nil {
+		c.Status(http.StatusInternalServerError)
+		return err
+	}
 
-	apiUrl := config.Envs.BackendURL + config.Envs.APIPath
-	fmt.Println(apiUrl)
-	// req, err
+	req.Header.Add("Content-Type", "application/json")
 
-	// c.Header("HX-Redirect", "/register")
+	client := http.Client{}
+	res, err := client.Do(req)
+	if err != nil {
+		c.Status(http.StatusInternalServerError)
+		return err
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusCreated {
+		c.Status(http.StatusInternalServerError)
+		return err
+	}
+
+	c.Header("HX-Redirect", "/login")
 	c.Status(200)
 
 	return nil

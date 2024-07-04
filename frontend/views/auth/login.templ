@@ -11,7 +11,9 @@ templ Login() {
 				class="flex flex-col justify-center items-center gap-3 py-5"
 				hx-post="/login"
 				hx-target-error="#feedback"
+				hx-target="#feedback"
 				hx-indicator="#indicator"
+				hx-swap="innerHTML"
 			>
 				<div class="text-2xl">
 					Sign In
@@ -24,11 +26,11 @@ templ Login() {
 						class="w-4 h-4 opacity-70"
 					><path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM12.735 14c.618 0 1.093-.561.872-1.139a6.002 6.002 0 0 0-11.215 0c-.22.578.254 1.139.872 1.139h9.47Z"></path></svg>
 					<input
-						type="text"
-						id="username"
-						name="username"
+						type="email"
+						id="email"
+						name="email"
 						class="grow"
-						placeholder="Username"
+						placeholder="example@your.email"
 					/>
 				</label>
 				<label class="input input-bordered flex items-center gap-2 w-full">
@@ -49,12 +51,18 @@ templ Login() {
 				<button type="submit" class="btn btn-active btn-neutral btn-wide text-lg font-light">
 					Login
 				</button>
+				<div>
+					New here? 				
+					<a href="/register" class="link link-info">
+						Create an account 
+					</a>
+				</div>
 				<div id="indicator" class="htmx-indicator">
 					<div class="flex justify-center items-center w-full">
 						<span class="loading loading-spinner loading-md"></span>
 					</div>
 				</div>
-				<div id="feedback"></div>
+				<div id="feedback" class="text-red-500"></div>
 			</form>
 		</div>
 	}

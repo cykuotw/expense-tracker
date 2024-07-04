@@ -24,3 +24,7 @@ var (
 	ErrNoRemainingExpenses = errors.New("no remaining expenses in the list")
 	ErrProviderNotExist    = errors.New("provider not exist")
 )
+
+type ServerErr struct {
+	Error string `json:"error"`
+}

@@ -11,7 +11,6 @@ import (
 	"net/http"
 	"regexp"
 	"strings"
-	"time"
 	"unicode"
 
 	"github.com/gin-gonic/gin"
@@ -69,8 +68,14 @@ func (h *Handler) handleRegisterPost(c *gin.Context) error {
 	defer res.Body.Close()
 
 	if res.StatusCode != http.StatusCreated {
+		resErr := types.ServerErr{}
+		err = json.NewDecoder(res.Body).Decode(&resErr)
+		if err != nil {
+			c.Status(http.StatusInternalServerError)
+			return err
+		}
 		c.Status(http.StatusInternalServerError)
-		return err
+		return fmt.Errorf(resErr.Error)
 	}
 
 	c.Header("HX-Redirect", "/login")
@@ -239,14 +244,58 @@ func (h *Handler) handleLoginGet(c *gin.Context) error {
 }
 
 func (h *Handler) handleLoginPost(c *gin.Context) error {
-	time.Sleep(1500 * time.Millisecond)
-	username := c.PostForm("username")
-	password := c.PostForm("password")
+	apiUrl := "http://" + config.Envs.BackendURL + config.Envs.APIPath
 
-	fmt.Println("username:", username)
-	fmt.Println("password:", password)
+	payload := types.LoginUserPayload{
+		Email:    c.PostForm("email"),
+		Password: c.PostForm("password"),
+	}
+	marshalled, err := json.Marshal(payload)
+	if err != nil {
+		c.Status(http.StatusInternalServerError)
+		return err
+	}
+	req, err := http.NewRequest(
+		http.MethodPost, apiUrl+"/login", bytes.NewBuffer(marshalled))
+	if err != nil {
+		c.Status(http.StatusInternalServerError)
+		return err
+	}
+
+	req.Header.Add("Content-Type", "application/json")
+
+	client := http.Client{}
+	res, err := client.Do(req)
+	if err != nil {
+		c.Status(http.StatusInternalServerError)
+		return err
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		resErr := types.ServerErr{}
+		err = json.NewDecoder(res.Body).Decode(&resErr)
+		if err != nil {
+			c.Status(http.StatusInternalServerError)
+			return err
+		}
+		c.Writer.Write([]byte(resErr.Error))
+		c.Status(http.StatusInternalServerError)
+		return fmt.Errorf(resErr.Error)
+	}
+
+	token := types.LoginResponse{}
+	err = json.NewDecoder(res.Body).Decode(&token)
+	if err != nil {
+		c.Status(http.StatusInternalServerError)
+		return err
+	}
 
 	c.Header("HX-Redirect", "/")
+	c.SetCookie(
+		"access_token", token.Token,
+		int(config.Envs.JWTExpirationInSeconds),
+		"/", "localhost", false, true)
 	c.Status(200)
 
 	return nil

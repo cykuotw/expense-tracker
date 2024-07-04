@@ -80,3 +80,7 @@ func (m *mockStoreRegister) CreateUser(user types.User) error {
 func (m *mockStoreRegister) GetUsernameByID(userid string) (string, error) {
 	return "", nil
 }
+
+func (m *mockStoreRegister) CheckEmailExist(email string) (bool, error) {
+	return false, nil
+}

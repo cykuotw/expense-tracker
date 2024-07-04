@@ -243,3 +243,6 @@ func (m *mockGetExpenseListUserStore) CreateUser(user types.User) error {
 func (m *mockGetExpenseListUserStore) GetUsernameByID(userid string) (string, error) {
 	return "", nil
 }
+func (m *mockGetExpenseListUserStore) CheckEmailExist(email string) (bool, error) {
+	return false, nil
+}

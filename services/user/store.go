@@ -85,6 +85,28 @@ func (s *Store) GetUsernameByID(userid string) (string, error) {
 	return username, nil
 }
 
+func (s *Store) CheckEmailExist(email string) (bool, error) {
+	query := fmt.Sprintf("SELECT COUNT(*) FROM users WHERE email='%s';", email)
+	rows, err := s.db.Query(query)
+	if err != nil {
+		return false, err
+	}
+	defer rows.Close()
+
+	count := 0
+	for rows.Next() {
+		err := rows.Scan(&count)
+		if err != nil {
+			return false, err
+		}
+	}
+
+	if count == 0 {
+		return false, nil
+	}
+	return true, nil
+}
+
 func (s *Store) CreateUser(user types.User) error {
 	createTime := user.CreateTime.UTC().Format("2006-01-02 15:04:05-0700")
 	query := fmt.Sprintf(

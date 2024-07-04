@@ -3,6 +3,7 @@ package user
 import (
 	"expense-tracker/config"
 	"expense-tracker/services/auth"
+	"expense-tracker/services/common"
 	"expense-tracker/types"
 	"expense-tracker/utils"
 	"fmt"
@@ -27,6 +28,7 @@ func NewHandler(store types.UserStore) *Handler {
 func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 	router.POST("/register", h.handleRegister)
 	router.POST("/login", h.handleLogin)
+	router.POST("/checkEmail", common.Make(h.handleCheckEmail))
 }
 
 func (h *Handler) handleRegister(c *gin.Context) {
@@ -120,4 +122,25 @@ func (h *Handler) handleLogin(c *gin.Context) {
 		return
 	}
 	utils.WriteJSON(c, http.StatusOK, map[string]string{"token": token})
+}
+
+func (h *Handler) handleCheckEmail(c *gin.Context) error {
+	type emailRequest struct {
+		Email string `json:"email"`
+	}
+	var payload emailRequest
+	if err := utils.ParseJSON(c, &payload); err != nil {
+		utils.WriteError(c, http.StatusBadRequest, err)
+		return nil
+	}
+
+	exist, err := h.store.CheckEmailExist(payload.Email)
+	if err != nil {
+		utils.WriteError(c, http.StatusInternalServerError, err)
+		return nil
+	}
+
+	utils.WriteJSON(c, http.StatusOK, map[string]bool{"exist": exist})
+
+	return nil
 }

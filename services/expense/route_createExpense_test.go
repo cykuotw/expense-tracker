@@ -195,6 +195,9 @@ func (m *mockCreateExpenseUserStore) CreateUser(user types.User) error {
 func (m *mockCreateExpenseUserStore) GetUsernameByID(userid string) (string, error) {
 	return "", nil
 }
+func (m *mockCreateExpenseUserStore) CheckEmailExist(email string) (bool, error) {
+	return false, nil
+}
 
 type mockExpenseController struct{}
 

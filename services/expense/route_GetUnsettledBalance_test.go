@@ -231,6 +231,9 @@ func (m *mockGetUnsettledBalanceUserStore) CreateUser(user types.User) error {
 func (m *mockGetUnsettledBalanceUserStore) GetUsernameByID(userid string) (string, error) {
 	return "test", nil
 }
+func (m *mockGetUnsettledBalanceUserStore) CheckEmailExist(email string) (bool, error) {
+	return false, nil
+}
 
 type mockGetUnsettledBalanceController struct{}
 

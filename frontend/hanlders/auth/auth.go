@@ -115,7 +115,6 @@ func verifyEmail(email string) (bool, error) {
 	apiUrl := "http://" + config.Envs.BackendURL + config.Envs.APIPath
 
 	marshalled, _ := json.Marshal(payload)
-	fmt.Println(apiUrl + "/checkEmail")
 	req, err := http.NewRequest(http.MethodPost, apiUrl+"/checkEmail", bytes.NewBuffer(marshalled))
 	if err != nil {
 		fmt.Println(err)

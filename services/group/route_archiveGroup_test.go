@@ -113,3 +113,6 @@ func (m *mockArchiveGroupUserStore) CreateUser(user types.User) error {
 func (m *mockArchiveGroupUserStore) GetUsernameByID(userid string) (string, error) {
 	return "", nil
 }
+func (m *mockArchiveGroupUserStore) CheckEmailExist(email string) (bool, error) {
+	return false, nil
+}

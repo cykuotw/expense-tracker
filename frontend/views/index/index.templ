@@ -8,9 +8,9 @@ import (
 templ Index() {
 	@layouts.Base() {
 		@components.Navbar() {
-			// @components.NewGroup()
-			// @components.GroupCard()
-			@components.GroupDetail()
+			<div id="main-content">
+				@components.GroupCard()
+			</div>
 		}
 	}
 }

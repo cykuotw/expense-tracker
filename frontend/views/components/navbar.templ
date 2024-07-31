@@ -27,7 +27,12 @@ templ Navbar() {
 			<div class="flex-none">
 				<ul class="menu menu-horizontal px-1">
 					<li>
-						<details>
+						<details 
+							id="account-dropdown"
+							hx-get="/userInfo"
+							hx-target="#account-dropdown"
+							hx-swap="outerHTML"
+						>
 							<summary>
 								<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor" class="bi bi-person-fill" viewBox="0 0 16 16">
 									<path d="M3 14s-1 0-1-1 1-4 6-4 6 3 6 4-1 1-1 1zm5-6a3 3 0 1 0 0-6 3 3 0 0 0 0 6"></path>
@@ -38,8 +43,6 @@ templ Navbar() {
 								</div>
 							</summary>
 							<ul class="p-2 bg-base-100 rounded-t-none">
-								<li><a>Link 1</a></li>
-								<li><a>Link 2</a></li>
 							</ul>
 						</details>
 					</li>

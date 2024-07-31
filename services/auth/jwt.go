@@ -56,7 +56,6 @@ func ExtractJWTClaim(c *gin.Context, key string) (string, error) {
 	if err != nil || !token.Valid {
 		return "", types.ErrInvalidToken
 	}
-
 	claims := token.Claims.(jwt.MapClaims)
 	claim := claims[key].(string)
 

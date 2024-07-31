@@ -41,6 +41,9 @@ func (s *APIServer) Run() error {
 	protected := subrouter.Group("")
 	protected.Use(auth.JWTAuthMiddleware())
 
+	userProtectedHandler := user.NewProtectedHandler(userStore)
+	userProtectedHandler.RegisterRoutes(protected)
+
 	groupStore := group.NewStore(s.db)
 	groupHandler := group.NewHandler(groupStore, userStore)
 	groupHandler.RegisterRoutes(protected)

@@ -4,7 +4,7 @@ templ NewGroup() {
 	<div class="flex justify-center items-center py-5 h-screen md:h-auto">
 		<form
 			class="flex flex-col justify-center items-center"
-			hx-post="/new_group"
+			hx-post="/create_group"
 			hx-target-error="#feedback"
 			hx-indicator="#indicator"
 		>
@@ -19,6 +19,7 @@ templ NewGroup() {
 					type="text"
 					id="groupname"
 					name="groupname"
+					required
 					class="grow input input-bordered flex items-center w-full"
 					placeholder="ie: My Group"
 				/>
@@ -43,12 +44,16 @@ templ NewGroup() {
 					type="text"
 					id="currency"
 					name="currency"
+					required
 					class="grow input input-bordered flex items-center w-full"
-					placeholder="USD"
+					placeholder="CAD"
 				/>
 			</div>
 			<div class="w-full py-5">
-				<button type="submit" class="btn btn-active btn-neutral btn-wide text-lg font-light">
+				<button 
+					type="submit" 
+					class="btn btn-active btn-neutral btn-wide text-lg font-light"
+					>
 					Create Group
 				</button>
 			</div>
@@ -59,8 +64,5 @@ templ NewGroup() {
 			</div>
 			<div id="feedback"></div>
 		</form>
-	</div>
-	<div>
-		{ children... }
 	</div>
 }

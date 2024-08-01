@@ -12,7 +12,7 @@ templ Navbar() {
 					<details>
 						<summary>Group</summary>
 						<ul class="p-1 w-max">
-							<li><a>Create New Group</a></li>
+							<li><a href="create_group">Create New Group</a></li>
 							<li><a>Find a Group</a></li>
 							<li class="menu-title pt-5">Most Recent</li>
 							<li><a>Group name 1</a></li>
@@ -73,7 +73,7 @@ templ Navbar() {
 			<span class="btm-nav-label">Account</span>
 		</button>
 	</div>
-	<div>
+	<div id="main-content">
 		{ children... }
 	</div>
 }

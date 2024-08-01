@@ -20,7 +20,7 @@ func NewProtectedHandler(store types.UserStore) *HandlerProtected {
 }
 
 func (h *HandlerProtected) RegisterRoutes(router *gin.RouterGroup) {
-	router.GET("/userInfo", h.handleUserInfo)
+	router.GET("/user_info", h.handleUserInfo)
 }
 
 func (h *HandlerProtected) handleUserInfo(c *gin.Context) {

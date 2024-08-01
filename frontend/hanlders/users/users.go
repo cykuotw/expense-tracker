@@ -17,12 +17,12 @@ func NewHandler() *Handler {
 }
 
 func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
-	router.GET("/userInfo", common.Make(h.handleGetUserInfo))
+	router.GET("/user-info", common.Make(h.handleGetUserInfo))
 }
 
 func (h *Handler) handleGetUserInfo(c *gin.Context) error {
 	apiUrl := "http://" + config.Envs.BackendURL + config.Envs.APIPath
-	req, err := http.NewRequest(http.MethodGet, apiUrl+"/userInfo", nil)
+	req, err := http.NewRequest(http.MethodGet, apiUrl+"/user_info", nil)
 	if err != nil {
 		c.Status(http.StatusInternalServerError)
 		return err

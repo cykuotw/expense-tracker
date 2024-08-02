@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/a-h/templ"
 	"github.com/gin-gonic/gin"
 )
 
@@ -115,8 +114,6 @@ func (h *Handler) handleGetGroupList(c *gin.Context) error {
 
 	html := ""
 	for _, payload := range payloadList {
-		fmt.Println("/group/" + payload.ID)
-		fmt.Println(templ.URL("/group/" + payload.ID))
 		html += `
 			<div class="card w-full lg:w-1/5 md:w-1/3 bg-base-100 shadow-md m-2 mx-6 md:m-2">
 				<a href="/group/` +

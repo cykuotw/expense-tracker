@@ -17,7 +17,7 @@ func NewHandler() *Handler {
 }
 
 func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
-	router.GET("/user-info", common.Make(h.handleGetUserInfo))
+	router.GET("/user_info", common.Make(h.handleGetUserInfo))
 }
 
 func (h *Handler) handleGetUserInfo(c *gin.Context) error {

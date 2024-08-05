@@ -2,7 +2,6 @@ package users
 
 import (
 	"encoding/json"
-	"expense-tracker/config"
 	"expense-tracker/frontend/hanlders/common"
 	"expense-tracker/types"
 	"net/http"
@@ -21,23 +20,14 @@ func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 }
 
 func (h *Handler) handleGetUserInfo(c *gin.Context) error {
-	apiUrl := "http://" + config.Envs.BackendURL + config.Envs.APIPath
-	req, err := http.NewRequest(http.MethodGet, apiUrl+"/user_info", nil)
-	if err != nil {
-		c.Status(http.StatusInternalServerError)
-		return err
-	}
-	req.Header.Add("Content-Type", "application/json")
 	token, err := c.Cookie("access_token")
 	if err != nil {
 		c.Status(http.StatusUnauthorized)
 		c.Writer.Write([]byte("Unauthorized"))
 		return err
 	}
-	req.Header.Add("Authorization", "Bearer "+token)
 
-	client := http.Client{}
-	res, err := client.Do(req)
+	res, err := common.MakeBackendHTTPRequest(http.MethodGet, "/user_info", token, nil)
 	if err != nil {
 		c.Status(http.StatusInternalServerError)
 		return err

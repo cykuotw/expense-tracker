@@ -1,7 +1,6 @@
 package auth
 
 import (
-	"bytes"
 	"encoding/json"
 	"expense-tracker/config"
 	"expense-tracker/frontend/hanlders/common"
@@ -37,8 +36,6 @@ func (h *Handler) handleRegisterGet(c *gin.Context) error {
 }
 
 func (h *Handler) handleRegisterPost(c *gin.Context) error {
-	apiUrl := "http://" + config.Envs.BackendURL + config.Envs.APIPath
-
 	payload := types.RegisterUserPayload{
 		Nickname:  c.PostForm("nickname"),
 		Firstname: c.PostForm("firstname"),
@@ -46,21 +43,8 @@ func (h *Handler) handleRegisterPost(c *gin.Context) error {
 		Email:     c.PostForm("email"),
 		Password:  c.PostForm("password"),
 	}
-	marshalled, err := json.Marshal(payload)
-	if err != nil {
-		c.Status(http.StatusInternalServerError)
-		return err
-	}
-	req, err := http.NewRequest(http.MethodPost, apiUrl+"/register", bytes.NewBuffer(marshalled))
-	if err != nil {
-		c.Status(http.StatusInternalServerError)
-		return err
-	}
 
-	req.Header.Add("Content-Type", "application/json")
-
-	client := http.Client{}
-	res, err := client.Do(req)
+	res, err := common.MakeBackendHTTPRequest(http.MethodPost, "/register", "", payload)
 	if err != nil {
 		c.Status(http.StatusInternalServerError)
 		return err
@@ -136,17 +120,8 @@ func verifyEmail(email string) (bool, error) {
 	payload := emailRequest{
 		Email: email,
 	}
-	apiUrl := "http://" + config.Envs.BackendURL + config.Envs.APIPath
 
-	marshalled, _ := json.Marshal(payload)
-	req, err := http.NewRequest(http.MethodPost, apiUrl+"/checkEmail", bytes.NewBuffer(marshalled))
-	if err != nil {
-		fmt.Println(err)
-		return false, err
-	}
-	req.Header.Add("Content-Type", "application/json")
-	client := &http.Client{}
-	res, err := client.Do(req)
+	res, err := common.MakeBackendHTTPRequest(http.MethodPost, "/checkEmail", "", payload)
 	if err != nil {
 		return false, err
 	}
@@ -244,28 +219,12 @@ func (h *Handler) handleLoginGet(c *gin.Context) error {
 }
 
 func (h *Handler) handleLoginPost(c *gin.Context) error {
-	apiUrl := "http://" + config.Envs.BackendURL + config.Envs.APIPath
-
 	payload := types.LoginUserPayload{
 		Email:    c.PostForm("email"),
 		Password: c.PostForm("password"),
 	}
-	marshalled, err := json.Marshal(payload)
-	if err != nil {
-		c.Status(http.StatusInternalServerError)
-		return err
-	}
-	req, err := http.NewRequest(
-		http.MethodPost, apiUrl+"/login", bytes.NewBuffer(marshalled))
-	if err != nil {
-		c.Status(http.StatusInternalServerError)
-		return err
-	}
 
-	req.Header.Add("Content-Type", "application/json")
-
-	client := http.Client{}
-	res, err := client.Do(req)
+	res, err := common.MakeBackendHTTPRequest(http.MethodPost, "/login", "", payload)
 	if err != nil {
 		c.Status(http.StatusInternalServerError)
 		return err

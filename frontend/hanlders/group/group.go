@@ -1,9 +1,7 @@
 package group
 
 import (
-	"bytes"
 	"encoding/json"
-	"expense-tracker/config"
 	"expense-tracker/frontend/hanlders/common"
 	"expense-tracker/frontend/views/index"
 	"expense-tracker/types"
@@ -30,7 +28,12 @@ func (h *Handler) handleCreateNewGroupGet(c *gin.Context) error {
 }
 
 func (h *Handler) handleCreateNewGroup(c *gin.Context) error {
-	apiUrl := "http://" + config.Envs.BackendURL + config.Envs.APIPath
+	token, err := c.Cookie("access_token")
+	if err != nil {
+		c.Status(http.StatusUnauthorized)
+		c.Writer.Write([]byte("Unauthorized"))
+		return err
+	}
 
 	payload := types.CreateGroupPayload{
 		GroupName:   c.PostForm("groupname"),
@@ -38,28 +41,7 @@ func (h *Handler) handleCreateNewGroup(c *gin.Context) error {
 		Currency:    c.PostForm("currency"),
 	}
 
-	marshalled, err := json.Marshal(payload)
-	if err != nil {
-		c.Status(http.StatusInternalServerError)
-		return err
-	}
-	req, err := http.NewRequest(http.MethodPost, apiUrl+"/create_group", bytes.NewBuffer(marshalled))
-	if err != nil {
-		c.Status(http.StatusInternalServerError)
-		return err
-	}
-
-	req.Header.Add("Content-Type", "application/json")
-	token, err := c.Cookie("access_token")
-	if err != nil {
-		c.Status(http.StatusUnauthorized)
-		c.Writer.Write([]byte("Unauthorized"))
-		return err
-	}
-	req.Header.Add("Authorization", "Bearer "+token)
-
-	client := http.Client{}
-	res, err := client.Do(req)
+	res, err := common.MakeBackendHTTPRequest(http.MethodPost, "/create_group", token, payload)
 	if err != nil {
 		c.Status(http.StatusInternalServerError)
 		return err
@@ -84,25 +66,14 @@ func (h *Handler) handleCreateNewGroup(c *gin.Context) error {
 }
 
 func (h *Handler) handleGetGroupList(c *gin.Context) error {
-	apiUrl := "http://" + config.Envs.BackendURL + config.Envs.APIPath
-
-	req, err := http.NewRequest(http.MethodGet, apiUrl+"/groups", nil)
-	if err != nil {
-		c.Status(http.StatusInternalServerError)
-		return err
-	}
-
-	req.Header.Add("Content-Type", "application/json")
 	token, err := c.Cookie("access_token")
 	if err != nil {
 		c.Status(http.StatusUnauthorized)
 		c.Writer.Write([]byte("Unauthorized"))
 		return err
 	}
-	req.Header.Add("Authorization", "Bearer "+token)
 
-	client := http.Client{}
-	res, err := client.Do(req)
+	res, err := common.MakeBackendHTTPRequest(http.MethodGet, "/groups", token, nil)
 	if err != nil {
 		c.Status(http.StatusInternalServerError)
 		return err

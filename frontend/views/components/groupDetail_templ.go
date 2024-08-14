@@ -12,11 +12,9 @@ import "bytes"
 
 import (
 	"expense-tracker/types"
-	"github.com/google/uuid"
-	"strconv"
 )
 
-func GroupDetail() templ.Component {
+func GroupDetail(title string, balance types.BalanceResponse, expenseList []types.ExpenseResponseBrief) templ.Component {
 	return templ.ComponentFunc(func(ctx context.Context, templ_7745c5c3_W io.Writer) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templ_7745c5c3_W.(*bytes.Buffer)
 		if !templ_7745c5c3_IsBuffer {
@@ -29,33 +27,108 @@ func GroupDetail() templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"flex justify-center items-center py-5\"><div class=\"text-center\"><h1 class=\"text-3xl\">Group Title</h1><p class=\"py-5\">You owe ")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"flex justify-center items-center py-5\"><div class=\"text-center\"><h1 class=\"text-3xl\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var2 string
-		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs("user-a $" + strconv.FormatFloat(33.33, 'f', -1, 32))
+		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(title)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/components/groupDetail.templ`, Line: 14, Col: 66}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/components/groupDetail.templ`, Line: 10, Col: 30}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</p><button class=\"btn btn-wide btn-warning py-5 text-primary-content\">SETTLE UP</button><div class=\"py-3\"></div><div id=\"unsettled-expenses\">")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</h1><p class=\"py-5\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		for i := 0; i < 5; i++ {
+		for _, b := range balance.Balances {
+			if b.SenderUserID.String() == balance.CurrentUser {
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("You owe ")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				var templ_7745c5c3_Var3 string
+				templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(b.ReceiverUsername + " $ " + b.Balance.StringFixed(2) + " " + balance.Currency)
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/components/groupDetail.templ`, Line: 14, Col: 94}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(" ")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			if b.ReceiverUserID.String() == balance.CurrentUser {
+				var templ_7745c5c3_Var4 string
+				templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(b.SenderUesrname)
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/components/groupDetail.templ`, Line: 17, Col: 24}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(" owes you $ ")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				var templ_7745c5c3_Var5 string
+				templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(b.Balance.StringFixed(2) + " " + balance.Currency)
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/components/groupDetail.templ`, Line: 17, Col: 90}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(" ")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+			}
+		}
+		if len(balance.Balances) == 0 {
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("All Balanced!")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</p><button class=\"btn btn-wide btn-info py-5 text-primary-content\"><a href=\"/create_expense\">ADD EXPENSE</a></button><div class=\"py-1 md:hidden\"></div><button class=\"btn btn-wide btn-warning py-5 text-primary-content\">SETTLE UP</button><div class=\"py-3\"></div><div id=\"unsettled-expenses\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		for _, expense := range expenseList {
 			templ_7745c5c3_Err = ExpenseCard(types.ExpenseResponseBrief{
-				ExpenseID:   uuid.New(),
-				Description: "Desc " + strconv.Itoa(i),
+				ExpenseID:   expense.ExpenseID,
+				Description: expense.Description,
 			}).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</div><div id=\"settled-expenses\"></div><div><div class=\"py-5\"><hr class=\"block md:hidden\"><button class=\"my-2 btn btn-ghost\">More Settled Expenses</button></div></div></div></div>")
+		if len(expenseList) == 0 {
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("No Expenses For Now")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</div><div id=\"settled-expenses\"></div><div><div class=\"py-5\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		if len(expenseList) != 0 {
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<hr class=\"block md:hidden\"><button class=\"my-2 btn btn-ghost\">More Settled Expenses</button>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</div></div></div></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

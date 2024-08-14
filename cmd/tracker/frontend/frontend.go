@@ -4,6 +4,7 @@ import (
 	"context"
 	"expense-tracker/frontend"
 	"expense-tracker/frontend/hanlders/auth"
+	"expense-tracker/frontend/hanlders/expense"
 	"expense-tracker/frontend/hanlders/group"
 	"expense-tracker/frontend/hanlders/index"
 	"expense-tracker/frontend/hanlders/users"
@@ -47,6 +48,9 @@ func (s *FrontendServer) Run() error {
 
 	groupHandler := group.NewHandler()
 	groupHandler.RegisterRoutes(protected)
+
+	expenseHandler := expense.NewHandler()
+	expenseHandler.RegisterRoutes(protected)
 
 	log.Println("Frontend Server Listening on", s.addr)
 

@@ -212,10 +212,6 @@ func (s *Store) GetLedgerUnsettledFromGroup(groupID string) ([]*types.Ledger, er
 		ledgerList = append(ledgerList, ledger)
 	}
 
-	if len(ledgerList) == 0 {
-		return nil, types.ErrGroupNotExist
-	}
-
 	return ledgerList, nil
 }
 

@@ -21,6 +21,7 @@ func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 	router.GET("/create_group", common.Make(h.handleCreateNewGroupGet))
 	router.POST("/create_group", common.Make(h.handleCreateNewGroup))
 	router.GET("/groups", common.Make(h.handleGetGroupList))
+	router.GET("/group/:groupId", common.Make(h.handleGetGroup))
 }
 
 func (h *Handler) handleCreateNewGroupGet(c *gin.Context) error {
@@ -107,4 +108,65 @@ func (h *Handler) handleGetGroupList(c *gin.Context) error {
 	c.Writer.Write([]byte(html))
 
 	return nil
+}
+
+func (h *Handler) handleGetGroup(c *gin.Context) error {
+	// get group details
+	groupId := c.Param("groupId")
+
+	token, err := c.Cookie("access_token")
+	if err != nil {
+		c.Status(http.StatusUnauthorized)
+		c.Writer.Write([]byte("Unauthorized"))
+		return err
+	}
+
+	resGroup, err := common.MakeBackendHTTPRequest(http.MethodGet, "/group/"+groupId, token, nil)
+	if err != nil {
+		c.Status(http.StatusInternalServerError)
+		return err
+	}
+	defer resGroup.Body.Close()
+
+	payloadGroup := types.GetGroupResponse{}
+	err = json.NewDecoder(resGroup.Body).Decode(&payloadGroup)
+	if err != nil {
+		c.Status(http.StatusInternalServerError)
+		return err
+	}
+
+	// get balance
+	resBalance, err := common.MakeBackendHTTPRequest(http.MethodGet, "/balance/"+groupId, token, nil)
+	if err != nil {
+		c.Status(http.StatusInternalServerError)
+		return err
+	}
+	defer resBalance.Body.Close()
+
+	payloadBalance := types.BalanceResponse{}
+	err = json.NewDecoder(resBalance.Body).Decode(&payloadBalance)
+	if err != nil {
+		c.Status(http.StatusInternalServerError)
+		return err
+	}
+
+	// get expenses list
+	resExpenseList, err := common.MakeBackendHTTPRequest(http.MethodGet, "/expense_list/"+groupId, token, nil)
+	if err != nil {
+		c.Status(http.StatusInternalServerError)
+		return err
+	}
+	defer resExpenseList.Body.Close()
+
+	payloadExpenseList := []types.ExpenseResponseBrief{}
+	if resExpenseList.StatusCode == http.StatusOK {
+		err = json.NewDecoder(resExpenseList.Body).Decode(&payloadExpenseList)
+		if err != nil {
+			c.Status(http.StatusInternalServerError)
+			return err
+		}
+	}
+
+	return common.Render(c.Writer, c.Request,
+		index.GroupDetail(payloadGroup.GroupName, payloadBalance, payloadExpenseList))
 }

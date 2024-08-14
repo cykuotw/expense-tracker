@@ -524,12 +524,16 @@ func (h *Handler) handleGetUnsettledBalance(c *gin.Context) {
 			ReceiverUsername: receiverUsername,
 			Balance:          balance.Share,
 		}
-		balances = append(balances, res)
+
+		if res.SenderUserID.String() == userID || res.ReceiverUserID.String() == userID {
+			balances = append(balances, res)
+		}
 	}
 
 	response := types.BalanceResponse{
-		Currency: groupCurrency,
-		Balances: balances,
+		Currency:    groupCurrency,
+		CurrentUser: userID,
+		Balances:    balances,
 	}
 
 	utils.WriteJSON(c, http.StatusOK, response)

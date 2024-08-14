@@ -20,6 +20,7 @@ type BalanceRsp struct {
 }
 
 type BalanceResponse struct {
-	Currency string       `json:"currency"`
-	Balances []BalanceRsp `json:"balances"`
+	Currency    string       `json:"currency"`
+	CurrentUser string       `json:"currentUser"`
+	Balances    []BalanceRsp `json:"balances"`
 }

@@ -31,7 +31,7 @@ func Base() templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</body></html>")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</body><script type=\"text/javascript\">\n\t\t\twindow.addEventListener('click', function(e) {\n\t\t\t\tdocument.querySelectorAll('.dropdown').forEach(function(dropdown) {\n\t\t\t\t\tif (!dropdown.contains(e.target)) {\n\t\t\t\t\t// Click was outside the dropdown, close it\n\t\t\t\t\tdropdown.open = false;\n\t\t\t\t\t}\n\t\t\t\t});\n\t\t\t});\n\t\t</script></html>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

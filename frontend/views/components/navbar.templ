@@ -11,7 +11,7 @@ templ Navbar() {
 		<div class="navbar-center hidden md:flex">
 			<ul class="menu menu-horizontal px-5 text-lg">
 				<li>
-					<details>
+					<details class="dropdown">
 						<summary>Group</summary>
 						<ul class="p-1 w-max">
 							<li><a href="create_group">Create New Group</a></li>
@@ -30,6 +30,7 @@ templ Navbar() {
 				<ul class="menu menu-horizontal px-1">
 					<li>
 						<details 
+							class="dropdown"
 							id="account-dropdown"
 							hx-get="/user_info"
 							hx-target="#account-dropdown"

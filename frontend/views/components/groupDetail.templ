@@ -4,7 +4,7 @@ import (
 	"expense-tracker/types"
 )
 
-templ GroupDetail(title string, balance types.BalanceResponse, expenseList []types.ExpenseResponseBrief) {
+templ GroupDetail(groupID string, title string, balance types.BalanceResponse, expenseList []types.ExpenseResponseBrief) {
 	<div class="flex justify-center items-center py-5">
 		<div class="text-center">
 			<h1 class="text-3xl">{title}</h1>
@@ -22,7 +22,7 @@ templ GroupDetail(title string, balance types.BalanceResponse, expenseList []typ
 				}
 			</p>
 			<button class="btn btn-wide btn-info py-5 text-primary-content">
-				<a href="/create_expense">ADD EXPENSE</a>
+				<a href={ templ.URL("/create_expense?g=" + groupID) }>ADD EXPENSE</a>
 			</button>
 			<div class="py-1 md:hidden"></div>
 			<button class="btn btn-wide btn-warning py-5 text-primary-content">SETTLE UP</button>

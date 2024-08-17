@@ -6,10 +6,10 @@ import (
 	"expense-tracker/types"
 )
 
-templ GroupDetail(title string, balance types.BalanceResponse, expenseList []types.ExpenseResponseBrief) {
+templ GroupDetail(groupId string, title string, balance types.BalanceResponse, expenseList []types.ExpenseResponseBrief) {
 	@layouts.Base() {
 		@components.Navbar() {
-			@components.GroupDetail(title, balance, expenseList)
+			@components.GroupDetail(groupId, title, balance, expenseList)
 		}
 	}
 }

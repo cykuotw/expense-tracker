@@ -14,7 +14,7 @@ import (
 	"expense-tracker/types"
 )
 
-func GroupDetail(title string, balance types.BalanceResponse, expenseList []types.ExpenseResponseBrief) templ.Component {
+func GroupDetail(groupID string, title string, balance types.BalanceResponse, expenseList []types.ExpenseResponseBrief) templ.Component {
 	return templ.ComponentFunc(func(ctx context.Context, templ_7745c5c3_W io.Writer) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templ_7745c5c3_W.(*bytes.Buffer)
 		if !templ_7745c5c3_IsBuffer {
@@ -99,7 +99,16 @@ func GroupDetail(title string, balance types.BalanceResponse, expenseList []type
 				return templ_7745c5c3_Err
 			}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</p><button class=\"btn btn-wide btn-info py-5 text-primary-content\"><a href=\"/create_expense\">ADD EXPENSE</a></button><div class=\"py-1 md:hidden\"></div><button class=\"btn btn-wide btn-warning py-5 text-primary-content\">SETTLE UP</button><div class=\"py-3\"></div><div id=\"unsettled-expenses\">")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</p><button class=\"btn btn-wide btn-info py-5 text-primary-content\"><a href=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var6 templ.SafeURL = templ.URL("/create_expense?g=" + groupID)
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(string(templ_7745c5c3_Var6)))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("\">ADD EXPENSE</a></button><div class=\"py-1 md:hidden\"></div><button class=\"btn btn-wide btn-warning py-5 text-primary-content\">SETTLE UP</button><div class=\"py-3\"></div><div id=\"unsettled-expenses\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

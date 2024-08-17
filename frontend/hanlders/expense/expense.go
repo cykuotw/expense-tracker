@@ -18,5 +18,7 @@ func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 }
 
 func (h *Handler) handleCreateNewExpenseGet(c *gin.Context) error {
-	return common.Render(c.Writer, c.Request, index.NewExpense())
+	groupId := c.Query("g")
+
+	return common.Render(c.Writer, c.Request, index.NewExpense(groupId))
 }

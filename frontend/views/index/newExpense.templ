@@ -5,10 +5,10 @@ import (
 	"expense-tracker/frontend/views/components"
 )
 
-templ NewExpense() {
+templ NewExpense(groupId string) {
 	@layouts.Base() {
 		@components.Navbar() {
-			@components.NewExpense()
+			@components.NewExpense(groupId)
 		}
 	}
 }

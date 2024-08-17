@@ -168,5 +168,5 @@ func (h *Handler) handleGetGroup(c *gin.Context) error {
 	}
 
 	return common.Render(c.Writer, c.Request,
-		index.GroupDetail(payloadGroup.GroupName, payloadBalance, payloadExpenseList))
+		index.GroupDetail(groupId, payloadGroup.GroupName, payloadBalance, payloadExpenseList))
 }

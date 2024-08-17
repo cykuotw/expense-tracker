@@ -16,7 +16,7 @@ import (
 	"expense-tracker/types"
 )
 
-func GroupDetail(title string, balance types.BalanceResponse, expenseList []types.ExpenseResponseBrief) templ.Component {
+func GroupDetail(groupId string, title string, balance types.BalanceResponse, expenseList []types.ExpenseResponseBrief) templ.Component {
 	return templ.ComponentFunc(func(ctx context.Context, templ_7745c5c3_W io.Writer) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templ_7745c5c3_W.(*bytes.Buffer)
 		if !templ_7745c5c3_IsBuffer {
@@ -41,7 +41,7 @@ func GroupDetail(title string, balance types.BalanceResponse, expenseList []type
 					templ_7745c5c3_Buffer = templ.GetBuffer()
 					defer templ.ReleaseBuffer(templ_7745c5c3_Buffer)
 				}
-				templ_7745c5c3_Err = components.GroupDetail(title, balance, expenseList).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = components.GroupDetail(groupId, title, balance, expenseList).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}

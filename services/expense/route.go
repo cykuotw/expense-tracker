@@ -33,6 +33,7 @@ func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 	router.POST("/create_expense", h.handleCreateExpense)
 	router.GET("/expense_list/:groupId", h.handleGetExpenseList)
 	router.GET("/expense_list/:groupId/:page", h.handleGetExpenseList)
+	router.GET("/expense_types", h.handleGetExpenseType)
 	router.GET("/expense/:expenseId", h.handleGetExpenseDetail)
 	router.PUT("/expense/:expenseId", h.handleUpdateExpense)
 	router.PUT("/settle_expense/:groupId", h.handleSettleExpense)
@@ -244,6 +245,24 @@ func (h *Handler) handleGetExpenseList(c *gin.Context) {
 			Total:          expense.Total,
 			PayerUserIDs:   payerUserIDs,
 			PayerUsernames: payerUsernames,
+		}
+		response = append(response, res)
+	}
+
+	utils.WriteJSON(c, http.StatusOK, response)
+}
+func (h *Handler) handleGetExpenseType(c *gin.Context) {
+	expenseTypes, err := h.store.GetExpenseType()
+	if err != nil {
+		utils.WriteError(c, http.StatusInternalServerError, err)
+		return
+	}
+
+	var response []types.ExpenseTypeResponse
+	for _, expexpenseType := range expenseTypes {
+		res := types.ExpenseTypeResponse{
+			Category: expexpenseType.Category,
+			Name:     expexpenseType.Name,
 		}
 		response = append(response, res)
 	}

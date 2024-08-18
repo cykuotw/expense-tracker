@@ -171,6 +171,9 @@ func (s *mockGetExpenseListStore) GetExpenseList(groupID string, page int64) ([]
 	}
 	return expense, nil
 }
+func (s *mockGetExpenseListStore) GetExpenseType() ([]*types.ExpenseType, error) {
+	return nil, nil
+}
 func (s *mockGetExpenseListStore) GetItemsByExpenseID(expenseID string) ([]*types.Item, error) {
 	return nil, nil
 }

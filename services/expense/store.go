@@ -137,6 +137,29 @@ func (s *Store) GetExpenseList(groupID string, page int64) ([]*types.Expense, er
 	return expenseList, nil
 }
 
+func (s *Store) GetExpenseType() ([]*types.ExpenseType, error) {
+	query := fmt.Sprintf(
+		"SELECT id, name, category " +
+			"FROM expense_type " +
+			"ORDER BY category, name;",
+	)
+
+	rows, err := s.db.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var expenseTypes []*types.ExpenseType
+	for rows.Next() {
+		expenseType := new(types.ExpenseType)
+		rows.Scan(&expenseType.ID, &expenseType.Name, &expenseType.Category)
+		expenseTypes = append(expenseTypes, expenseType)
+	}
+
+	return expenseTypes, nil
+}
+
 func (s *Store) GetItemsByExpenseID(expenseID string) ([]*types.Item, error) {
 	query := fmt.Sprintf("SELECT * FROM item WHERE expense_id='%s' ORDER BY id;", expenseID)
 	rows, err := s.db.Query(query)

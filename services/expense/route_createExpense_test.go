@@ -132,6 +132,10 @@ func (s *mockCreateExpenseStore) GetLedgersByExpenseID(expenseID string) ([]*typ
 func (s *mockCreateExpenseStore) GetLedgerUnsettledFromGroup(expenseID string) ([]*types.Ledger, error) {
 	return nil, nil
 }
+func (s *mockCreateExpenseStore) GetExpenseType() ([]*types.ExpenseType, error) {
+	return nil, nil
+}
+
 func (s *mockCreateExpenseStore) UpdateExpense(expense types.Expense) error {
 	return nil
 }

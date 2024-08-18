@@ -5,24 +5,28 @@ import (
 )
 
 templ SplitRule(user types.GroupMember, members []types.GroupMember) {
-	if len(members) == 2 {
-		if members[0].UserID == user.UserID {
-			@SplitRule2(user, members[1])
-		} else {
-			@SplitRule2(user, members[0])
-		}
+	if len(members) <= 1 {
+		<div></div>
 	} else {
-		@SplitRuleN(user, members)
+		if len(members) == 2 {
+			if members[0].UserID == user.UserID {
+				@SplitRule2(user, members[1])
+			} else {
+				@SplitRule2(user, members[0])
+			}
+		} else {
+			@SplitRuleN(user, members)
+		}
 	}
 }
 
 templ SplitRule2(user types.GroupMember, member types.GroupMember) {
 	<select
-		class="select select-bordered w-full text-base"
+		class="select select-bordered w-full text-base text-center"
 		id="splitRuleSelector"
 		name="splitRule"
 	>
-		<option>You paid, split equally</option>
+		<option selected>You paid, split equally</option>
 		<option>You are owed the full amount</option>
 		<option>{ member.Username } paid, split euqally</option>
 		<option>{ member.Username } is owed the full amount</option>

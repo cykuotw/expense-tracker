@@ -151,6 +151,9 @@ func (s *mockGetUnsettledBalanceStore) GetExpenseByID(expenseID string) (*types.
 func (s *mockGetUnsettledBalanceStore) GetExpenseList(groupID string, page int64) ([]*types.Expense, error) {
 	return nil, nil
 }
+func (s *mockGetUnsettledBalanceStore) GetExpenseType() ([]*types.ExpenseType, error) {
+	return nil, nil
+}
 func (s *mockGetUnsettledBalanceStore) GetItemsByExpenseID(expenseID string) ([]*types.Item, error) {
 	return mockItems, nil
 }

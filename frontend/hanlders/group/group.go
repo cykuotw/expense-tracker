@@ -22,6 +22,7 @@ func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 	router.POST("/create_group", common.Make(h.handleCreateNewGroup))
 	router.GET("/groups", common.Make(h.handleGetGroupList))
 	router.GET("/group/:groupId", common.Make(h.handleGetGroup))
+	router.GET("/groupSelect/:groupId", common.Make(h.handleGetGroupSelect))
 }
 
 func (h *Handler) handleCreateNewGroupGet(c *gin.Context) error {
@@ -169,4 +170,47 @@ func (h *Handler) handleGetGroup(c *gin.Context) error {
 
 	return common.Render(c.Writer, c.Request,
 		index.GroupDetail(groupId, payloadGroup.GroupName, payloadBalance, payloadExpenseList))
+}
+
+func (h *Handler) handleGetGroupSelect(c *gin.Context) error {
+	groupId := c.Param("groupId")
+
+	token, err := c.Cookie("access_token")
+	if err != nil {
+		c.Status(http.StatusUnauthorized)
+		c.Writer.Write([]byte("Unauthorized"))
+		return err
+	}
+
+	res, err := common.MakeBackendHTTPRequest(http.MethodGet, "/groups", token, nil)
+	if err != nil {
+		c.Status(http.StatusInternalServerError)
+		return err
+	}
+	defer res.Body.Close()
+
+	payloadList := []types.GetGroupListResponse{}
+	if res.StatusCode == http.StatusOK {
+		err = json.NewDecoder(res.Body).Decode(&payloadList)
+		if err != nil {
+			c.Status(http.StatusInternalServerError)
+			return err
+		}
+	}
+
+	html := `<select class="select select-bordered w-full text-base text-center">`
+	for _, payload := range payloadList {
+		if payload.ID == groupId {
+			html += "<option selected>"
+		} else {
+			html += "<option>"
+		}
+		html += payload.GroupName + "</option>"
+	}
+	html += "</select>"
+
+	c.Writer.WriteHeader(http.StatusOK)
+	c.Writer.Write([]byte(html))
+
+	return nil
 }

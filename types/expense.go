@@ -14,6 +14,7 @@ type ExpenseStore interface {
 
 	GetExpenseByID(expenseID string) (*Expense, error)
 	GetExpenseList(groupID string, page int64) ([]*Expense, error)
+	GetExpenseType() ([]*ExpenseType, error)
 	GetItemsByExpenseID(expenseID string) ([]*Item, error)
 	GetLedgersByExpenseID(expenseID string) ([]*Ledger, error)
 	GetLedgerUnsettledFromGroup(expenseID string) ([]*Ledger, error)
@@ -47,14 +48,9 @@ type Expense struct {
 }
 
 type ExpenseType struct {
-	ID         uuid.UUID
-	CategoryID uuid.UUID
-	Name       string
-}
-
-type Category struct {
-	ID   uuid.UUID
-	Name string
+	ID       uuid.UUID
+	Name     string
+	Category string
 }
 
 // Payloads
@@ -109,4 +105,9 @@ type ExpenseResponse struct {
 	Total             decimal.Decimal `json:"total"`
 	Currency          string          `json:"currency"`
 	Items             []ItemResponse  `json:"items"`
+}
+
+type ExpenseTypeResponse struct {
+	Category string
+	Name     string
 }

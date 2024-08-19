@@ -107,13 +107,23 @@ func (h *Handler) handleGetGroup(c *gin.Context) {
 
 	// make response
 	var members []types.GroupMember
+	var currUser types.GroupMember
 	for _, user := range users {
+		if user.ID.String() == userID {
+			currUser = types.GroupMember{
+				UserID:   user.ID.String(),
+				Username: user.Username,
+			}
+			continue
+		}
+
 		member := types.GroupMember{
 			UserID:   user.ID.String(),
 			Username: user.Username,
 		}
 		members = append(members, member)
 	}
+	members = append(members, currUser)
 
 	response := types.GetGroupResponse{
 		GroupName:   group.GroupName,

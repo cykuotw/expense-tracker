@@ -29,7 +29,7 @@ templ NewExpense(groupId string) {
 			<div class="flex flex-row justify-start items-start w-full">
 				<div 
 					class="w-full"
-					hx-get="expense_types" 
+					hx-get="/expense_types" 
 					hx-trigger="load"
 					hx-swap="outerHTML"
 				>
@@ -81,11 +81,21 @@ templ NewExpense(groupId string) {
 					<p>Upload Receipt</p>
 				</div>
 			</label>
-			<div id="splitRule" class="w-full">
+			<div 
+				id="splitRule" 
+				class="w-full"
+				hx-get={ string(templ.URL(fmt.Sprintf("/split_rules?g=%s", groupId))) } 
+				hx-trigger="load"
+				hx-swap="outerHTML"
+				>
 				@SplitRule(types.GroupMember{
 					UserID:   uuid.NewString(),
 					Username: "user me",
 				}, []types.GroupMember{
+					{
+						UserID:   uuid.NewString(),
+						Username: "user 1",
+					},
 					{
 						UserID:   uuid.NewString(),
 						Username: "user 1",

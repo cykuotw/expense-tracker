@@ -234,6 +234,42 @@ func (s *Store) GetGroupCurrency(groupID string) (string, error) {
 	return currency, nil
 }
 
+func (s *Store) GetRelatedUser(currentUser string) ([]*types.GroupMember, error) {
+	query := fmt.Sprintf(
+		`WITH former_member AS (
+			SELECT user_id
+			FROM group_member
+			WHERE group_id IN (
+				SELECT group_id
+				FROM group_member 
+				WHERE user_id = '%s'))
+
+		SELECT u.id, u.username
+		FROM users AS u
+		JOIN former_member AS fm
+		ON u.id = fm.user_id
+		WHERE u.id<>'%s';`,
+		currentUser, currentUser,
+	)
+	rows, err := s.db.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var members []*types.GroupMember
+	for rows.Next() {
+		member := new(types.GroupMember)
+		err := rows.Scan(&member.UserID, &member.Username)
+		if err != nil {
+			return nil, err
+		}
+		members = append(members, member)
+	}
+
+	return members, nil
+}
+
 func (s *Store) UpdateGroupMember(action string, userID string, groupID string) error {
 	query := ""
 	if action == "add" {

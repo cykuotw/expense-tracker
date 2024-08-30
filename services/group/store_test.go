@@ -426,6 +426,106 @@ func TestGetGroupCurrency(t *testing.T) {
 	}
 }
 
+func TestGetRelatedUser(t *testing.T) {
+	// prepare test data
+	cfg := config.Envs
+	db, _ := db.NewPostgreSQLStorage(cfg)
+	mockCurrentUserID := uuid.New()
+	mockCurrentUser := types.User{
+		ID: mockCurrentUserID,
+	}
+
+	mockGroupID := uuid.New()
+	mockGroup := types.Group{
+		ID: mockGroupID,
+	}
+	mockGroupID2 := uuid.New()
+	mockGroup2 := types.Group{
+		ID: mockGroupID2,
+	}
+
+	mockUserID := uuid.New()
+	mockUser := types.User{
+		ID: mockUserID,
+	}
+	mockUserID2 := uuid.New()
+	mockUser2 := types.User{
+		ID: mockUserID2,
+	}
+
+	insertUser(db, mockCurrentUser)
+	insertUser(db, mockUser)
+	insertUser(db, mockUser2)
+	insertGroup(db, mockGroup)
+	insertGroup(db, mockGroup2)
+	insertGroupMember(db, mockGroupID, []uuid.UUID{mockUserID, mockCurrentUserID})
+	insertGroupMember(db, mockGroupID2, []uuid.UUID{mockUserID2, mockCurrentUserID})
+	defer cleanUser(db, mockCurrentUserID)
+	defer cleanUser(db, mockUserID)
+	defer cleanUser(db, mockUserID2)
+	defer deleteGroup(db, mockGroupID)
+	defer deleteGroup(db, mockGroupID2)
+	defer deleteGroupMember(db, mockGroupID, []uuid.UUID{mockUserID, mockCurrentUserID})
+	defer deleteGroupMember(db, mockGroupID2, []uuid.UUID{mockUserID2, mockCurrentUserID})
+
+	// define test cases
+	type testcase struct {
+		name               string
+		mockUserID         string
+		expectFail         bool
+		expectGroupMembers []*types.GroupMember
+		expectError        error
+	}
+
+	subtests := []testcase{
+		{
+			name:       "valid",
+			mockUserID: mockCurrentUserID.String(),
+			expectFail: false,
+			expectGroupMembers: []*types.GroupMember{
+				{
+					UserID: mockUserID.String(),
+				},
+				{
+					UserID: mockUserID2.String(),
+				},
+			},
+			expectError: nil,
+		},
+		{
+			name:               "invalid user",
+			mockUserID:         uuid.NewString(),
+			expectFail:         true,
+			expectGroupMembers: nil,
+			expectError:        nil,
+		},
+	}
+
+	store := group.NewStore(db)
+	for _, test := range subtests {
+		t.Run(test.name, func(t *testing.T) {
+			members, err := store.GetRelatedUser(test.mockUserID)
+
+			if test.expectFail {
+				assert.Nil(t, members)
+				assert.Equal(t, test.expectError, err)
+			} else {
+				assert.Equal(t, len(test.expectGroupMembers), len(members))
+				for _, m := range members {
+					exist := false
+					for _, tm := range test.expectGroupMembers {
+						if tm.UserID == m.UserID {
+							exist = true
+							break
+						}
+					}
+					assert.True(t, exist)
+				}
+			}
+		})
+	}
+}
+
 func TestUpdateGroupMember(t *testing.T) {
 	// prepare test data
 	cfg := config.Envs

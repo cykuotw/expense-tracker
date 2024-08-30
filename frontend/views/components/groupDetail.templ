@@ -21,11 +21,15 @@ templ GroupDetail(groupID string, title string, balance types.BalanceResponse, e
 					All Balanced!
 				}
 			</p>
-			<button class="btn btn-wide btn-info py-5 text-primary-content">
-				<a href={ templ.URL("/create_expense?g=" + groupID) }>ADD EXPENSE</a>
-			</button>
-			<div class="py-1 md:hidden"></div>
-			<button class="btn btn-wide btn-warning py-5 text-primary-content">SETTLE UP</button>
+			<div>
+				<button class="btn btn-wide btn-primary py-5 text-primary-content font-bold">
+					<a href={ templ.URL("/create_expense?g=" + groupID) }>ADD EXPENSE</a>
+				</button>
+				<div class="py-1"></div>
+				<button class="btn btn-wide btn-secondary py-5 text-primary-content font-bold">ADD MEMBERS</button>
+				<div class="py-1"></div>
+				<button class="btn btn-wide btn-accent py-5 text-primary-content font-bold">SETTLE UP</button>
+			</div>
 			<div class="py-3"></div>
 			<div id="unsettled-expenses">
 				for _, expense := range expenseList {

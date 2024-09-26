@@ -14,6 +14,7 @@ type GroupStore interface {
 	GetGroupMemberByGroupID(groupId string) ([]*User, error)
 	GetGroupByIDAndUser(groupID string, userID string) (*Group, error)
 	GetGroupCurrency(groupID string) (string, error)
+	GetRelatedUser(currentUser string) ([]*GroupMember, error)
 
 	UpdateGroupMember(action string, userid string, groupID string) error
 	UpdateGroupStatus(groupid string, isActive bool) error

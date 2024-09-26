@@ -212,6 +212,9 @@ func (m *mockGetUnsettledBalanceGroupStore) UpdateGroupStatus(groupid string, is
 func (m *mockGetUnsettledBalanceGroupStore) GetGroupCurrency(groupID string) (string, error) {
 	return mockCurrency, nil
 }
+func (m *mockGetUnsettledBalanceGroupStore) GetRelatedUser(currentUser string) ([]*types.GroupMember, error) {
+	return nil, nil
+}
 
 type mockGetUnsettledBalanceUserStore struct{}
 

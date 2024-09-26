@@ -121,6 +121,9 @@ func (m *mockGetGroupListStore) UpdateGroupStatus(groupid string, isActive bool)
 func (m *mockGetGroupListStore) GetGroupCurrency(groupID string) (string, error) {
 	return "", nil
 }
+func (m *mockGetGroupListStore) GetRelatedUser(currentUser string) ([]*types.GroupMember, error) {
+	return nil, nil
+}
 
 type mockGetGroupListUserStore struct{}
 

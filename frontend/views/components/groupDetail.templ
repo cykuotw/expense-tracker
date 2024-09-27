@@ -1,20 +1,18 @@
 package components
 
-import (
-	"expense-tracker/types"
-)
+import "expense-tracker/types"
 
 templ GroupDetail(groupID string, title string, balance types.BalanceResponse, expenseList []types.ExpenseResponseBrief) {
 	<div class="flex justify-center items-center py-5">
 		<div class="text-center">
-			<h1 class="text-3xl">{title}</h1>
+			<h1 class="text-3xl">{ title }</h1>
 			<p class="py-5">
 				for _, b := range balance.Balances {
 					if b.SenderUserID.String() == balance.CurrentUser {
-						You owe { b.ReceiverUsername + " $ " + b.Balance.StringFixed(2) + " " + balance.Currency} 
+						You owe { b.ReceiverUsername + " $ " + b.Balance.StringFixed(2) + " " + balance.Currency }
 					}
 					if b.ReceiverUserID.String() == balance.CurrentUser {
-						{ b.SenderUesrname } owes you $ { b.Balance.StringFixed(2)  + " " + balance.Currency}
+						{ b.SenderUesrname } owes you $ { b.Balance.StringFixed(2)  + " " + balance.Currency }
 					}
 				}
 				if len(balance.Balances) == 0 {
@@ -33,7 +31,7 @@ templ GroupDetail(groupID string, title string, balance types.BalanceResponse, e
 			<div class="py-3"></div>
 			<div id="unsettled-expenses">
 				for _, expense := range expenseList {
-					@ExpenseCard(types.ExpenseResponseBrief {
+					@ExpenseCard(types.ExpenseResponseBrief{
 						ExpenseID:   expense.ExpenseID,
 						Description: expense.Description,
 					})

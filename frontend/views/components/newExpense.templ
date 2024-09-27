@@ -1,9 +1,9 @@
 package components
 
 import (
-	"github.com/google/uuid"
 	"expense-tracker/types"
 	"fmt"
+	"github.com/google/uuid"
 )
 
 templ NewExpense(groupId string) {
@@ -17,24 +17,22 @@ templ NewExpense(groupId string) {
 			<div class="text-2xl">
 				Add Expense
 			</div>
-			<div 
+			<div
 				class="w-full"
-				hx-get={ string(templ.URL(fmt.Sprintf("/groupSelect/%s", groupId))) } 
+				hx-get={ string(templ.URL(fmt.Sprintf("/groupSelect/%s", groupId))) }
 				hx-trigger="load"
 				hx-swap="outerHTML"
-				>
-				<select class="select select-bordered w-full text-base text-center">
-				</select>
+			>
+				<select class="select select-bordered w-full text-base text-center"></select>
 			</div>
 			<div class="flex flex-row justify-start items-start w-full">
-				<div 
+				<div
 					class="w-full"
-					hx-get="/expense_types" 
+					hx-get="/expense_types"
 					hx-trigger="load"
 					hx-swap="outerHTML"
 				>
-					<select class="select select-bordered w-3/5 text-base text-center">
-					</select>
+					<select class="select select-bordered w-3/5 text-base text-center"></select>
 				</div>
 			</div>
 			<div class="flex flex-row justify-start items-start w-full">
@@ -81,13 +79,13 @@ templ NewExpense(groupId string) {
 					<p>Upload Receipt</p>
 				</div>
 			</label>
-			<div 
-				id="splitRule" 
+			<div
+				id="splitRule"
 				class="w-full"
-				hx-get={ string(templ.URL(fmt.Sprintf("/split_rules?g=%s", groupId))) } 
+				hx-get={ string(templ.URL(fmt.Sprintf("/split_rules?g=%s", groupId))) }
 				hx-trigger="load"
 				hx-swap="outerHTML"
-				>
+			>
 				@SplitRule(types.GroupMember{
 					UserID:   uuid.NewString(),
 					Username: "user me",

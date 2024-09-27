@@ -2,11 +2,12 @@ package components
 
 templ GroupCard() {
 	<div class="h-screen">
-		<div 
+		<div
 			hx-get="/groups"
 			hx-trigger="load once"
 			hx-swap="innterHTML"
-			class="flex flex-wrap justify-center items-center py-5 md:h-auto">
+			class="flex flex-wrap justify-center items-center py-5 md:h-auto"
+		>
 			<div class="hidden card w-full lg:w-1/5 md:w-1/3 bg-base-100 shadow-md m-2 mx-6 md:m-2">
 				<a href={ templ.URL("placeholder url") }>
 					<div class="card-body">

@@ -3,9 +3,10 @@ package components
 templ Navbar() {
 	<div class="navbar bg-primary text-primary-content hidden md:flex relative z-50">
 		<div class="navbar-start">
-			<a 
+			<a
 				href="/"
-				class="btn btn-ghost text-2xl">Expense Tracker</a>
+				class="btn btn-ghost text-2xl"
+			>Expense Tracker</a>
 		</div>
 		// middle to large screen top navbar
 		<div class="navbar-center hidden md:flex">
@@ -29,7 +30,7 @@ templ Navbar() {
 			<div class="flex-none">
 				<ul class="menu menu-horizontal px-1">
 					<li>
-						<details 
+						<details
 							class="dropdown"
 							id="account-dropdown"
 							hx-get="/user_info"
@@ -45,8 +46,7 @@ templ Navbar() {
 									Account
 								</div>
 							</summary>
-							<ul class="p-2 bg-base-100 rounded-t-none">
-							</ul>
+							<ul class="p-2 bg-base-100 rounded-t-none"></ul>
 						</details>
 					</li>
 				</ul>

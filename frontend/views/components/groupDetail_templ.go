@@ -112,7 +112,7 @@ func GroupDetail(groupID string, title string, balance types.BalanceResponse, ex
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("\">ADD EXPENSE</a></button><div class=\"py-1\"></div><button class=\"btn btn-wide btn-secondary py-5 text-primary-content font-bold\">ADD MEMBERS</button><div class=\"py-1\"></div><button class=\"btn btn-wide btn-accent py-5 text-primary-content font-bold\">SETTLE UP</button></div><div class=\"py-3\"></div><div id=\"unsettled-expenses\">")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("\">ADD EXPENSE</a></button><div class=\"py-1\"></div><button class=\"btn btn-wide btn-accent py-5 text-primary-content font-bold\">SETTLE UP</button></div><div class=\"py-3\"></div><div id=\"unsettled-expenses\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

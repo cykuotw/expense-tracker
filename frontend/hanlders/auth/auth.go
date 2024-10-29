@@ -18,6 +18,8 @@ import (
 type Handler struct{}
 
 func NewHandler() *Handler {
+	initThirdParty()
+
 	return &Handler{}
 }
 
@@ -29,6 +31,9 @@ func (h *Handler) RegisterRoutes(router *gin.Engine) {
 
 	router.GET("/login", common.Make(h.handleLoginGet))
 	router.POST("/login", common.Make(h.handleLoginPost))
+
+	router.POST("/auth/:provider", common.Make(h.handleThirdParty))
+	router.GET("/auth/:provider/callback", common.Make(h.handleThirdPartyCallback))
 }
 
 func (h *Handler) handleRegisterGet(c *gin.Context) error {

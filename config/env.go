@@ -21,6 +21,13 @@ type Config struct {
 	JWTSecret              string
 	JWTExpirationInSeconds int64
 
+	GoogleClientId     string
+	GoogleClientSecret string
+	GoogleCallbackUrl  string
+
+	ThirdPartySessionSecret string
+	ThirdPartySessionMaxAge int64
+
 	ExpensesPerPage int64
 }
 
@@ -42,6 +49,13 @@ func initConfig() Config {
 
 		JWTSecret:              getEnv("JWT_SECRET", "secretstring"),
 		JWTExpirationInSeconds: getEnvInt("JWT_EXP", 3600*24*7),
+
+		GoogleClientId:     getEnv("GOOGLE_CLIENT_ID", ""),
+		GoogleClientSecret: getEnv("GOOGLE_CLIENT_SECRET", ""),
+		GoogleCallbackUrl:  getEnv("GOOGLE_CALLBACK_URL", ""),
+
+		ThirdPartySessionSecret: getEnv("THIRD_PARTY_SESSION_SECRET", ""),
+		ThirdPartySessionMaxAge: getEnvInt("THIRD_PARTY_SESSION_MAX_AGE", 3600*24*7),
 
 		ExpensesPerPage: getEnvInt("EXPENSES_PER_PAGE", 25),
 	}

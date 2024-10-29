@@ -32,3 +32,6 @@ go.work
 
 # frontend js modules
 node_modules
+
+# vscode 
+.vscode

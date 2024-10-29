@@ -42,6 +42,15 @@ type LoginUserPayload struct {
 	Password string `json:"password" validate:"required,min=8"`
 }
 
+type ThirdPartyUserPayload struct {
+	Nickname     string `json:"nickname"`
+	Firstname    string `json:"firstname"`
+	Lastname     string `json:"lastname"`
+	Email        string `json:"email"`
+	ExternalId   string `json:"externalId"`
+	ExternalType string `json:"externalType"`
+}
+
 type LoginResponse struct {
 	Token string `json:"token"`
 }

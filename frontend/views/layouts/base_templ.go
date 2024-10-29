@@ -29,7 +29,7 @@ func Base() templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<!doctype html><html lang=\"en\" data-theme=\"cupcake\"><head><title>Expense Tracker</title><link rel=\"icon\" type=\"image/x-icon\" href=\"/public/favicon.ico\"><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"><link rel=\"stylesheet\" href=\"/public/css/styles.css\"><script src=\"/public/js/htmx.min.js\"></script><script src=\"/public/js/query-3.7.1.min.js\"></script></head><style>\n\t\t\tbody {\n\t\t\t\tfont-family:'Roboto', serif;\n\t\t\t}\n\t\t</style><body class=\"antialiased\">")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<!doctype html><html lang=\"en\" data-theme=\"cupcake\"><head><title>Expense Tracker</title><link rel=\"icon\" type=\"image/x-icon\" href=\"/public/favicon.ico\"><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"><link rel=\"stylesheet\" href=\"/public/css/styles.css\"><script src=\"/public/js/htmx.min.js\"></script><script src=\"/public/js/query-3.7.1.min.js\"></script><link rel=\"stylesheet\" href=\"https://fonts.googleapis.com/css?family=Roboto\"></head><style>\n\t\t\tbody {\n\t\t\t\tfont-family:'Roboto', serif;\n\t\t\t}\n\t\t</style><body class=\"antialiased\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

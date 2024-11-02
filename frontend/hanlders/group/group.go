@@ -20,9 +20,12 @@ func NewHandler() *Handler {
 func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 	router.GET("/create_group", common.Make(h.handleCreateNewGroupGet))
 	router.POST("/create_group", common.Make(h.handleCreateNewGroup))
+
 	router.GET("/groups", common.Make(h.handleGetGroupList))
 	router.GET("/group/:groupId", common.Make(h.handleGetGroup))
+
 	router.GET("/groupSelect/:groupId", common.Make(h.handleGetGroupSelect))
+	router.GET("/related_member/", common.Make(h.handleGetRelatedMember))
 }
 
 func (h *Handler) handleCreateNewGroupGet(c *gin.Context) error {
@@ -211,6 +214,34 @@ func (h *Handler) handleGetGroupSelect(c *gin.Context) error {
 
 	c.Writer.WriteHeader(http.StatusOK)
 	c.Writer.Write([]byte(html))
+
+	return nil
+}
+
+func (h *Handler) handleGetRelatedMember(c *gin.Context) error {
+	token, err := c.Cookie("access_token")
+	if err != nil {
+		c.Status(http.StatusUnauthorized)
+		c.Writer.Write([]byte("Unauthorized"))
+		return err
+	}
+	res, err := common.MakeBackendHTTPRequest(http.MethodGet, "/related_member", token, nil)
+	if err != nil {
+		c.Status(http.StatusInternalServerError)
+		return err
+	}
+	defer res.Body.Close()
+
+	relatedUserList := []types.GroupMember{}
+	if res.StatusCode == http.StatusOK {
+		err = json.NewDecoder(res.Body).Decode(&relatedUserList)
+		if err != nil {
+			c.Status(http.StatusInternalServerError)
+			return err
+		}
+	}
+
+	fmt.Printf("%+v\n", relatedUserList)
 
 	return nil
 }

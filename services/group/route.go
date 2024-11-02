@@ -29,6 +29,8 @@ func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 	router.GET("/groups", h.handleGetGroupList)
 	router.PUT("/group_member", h.handleUpdateGroupMember)
 	router.PUT("/archive_group/:groupId", h.handleArchiveGroup)
+
+	router.GET("/related_member", h.handleGetRelatedMember)
 }
 
 func (h *Handler) handleCreateGroup(c *gin.Context) {
@@ -229,4 +231,20 @@ func (h *Handler) handleArchiveGroup(c *gin.Context) {
 	}
 
 	utils.WriteJSON(c, http.StatusCreated, nil)
+}
+
+func (h *Handler) handleGetRelatedMember(c *gin.Context) {
+	userID, err := auth.ExtractJWTClaim(c, "userID")
+	if err != nil {
+		utils.WriteError(c, http.StatusInternalServerError, err)
+		return
+	}
+
+	members, err := h.store.GetRelatedUser(userID)
+	if err != nil {
+		utils.WriteError(c, http.StatusInternalServerError, err)
+		return
+	}
+
+	utils.WriteJSON(c, http.StatusFound, members)
 }

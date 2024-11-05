@@ -234,17 +234,18 @@ func (h *Handler) handleArchiveGroup(c *gin.Context) {
 }
 
 func (h *Handler) handleGetRelatedMember(c *gin.Context) {
+	groupId := c.Query("g")
 	userID, err := auth.ExtractJWTClaim(c, "userID")
 	if err != nil {
 		utils.WriteError(c, http.StatusInternalServerError, err)
 		return
 	}
 
-	members, err := h.store.GetRelatedUser(userID)
+	members, err := h.store.GetRelatedUser(userID, groupId)
 	if err != nil {
 		utils.WriteError(c, http.StatusInternalServerError, err)
 		return
 	}
 
-	utils.WriteJSON(c, http.StatusFound, members)
+	utils.WriteJSON(c, http.StatusOK, members)
 }

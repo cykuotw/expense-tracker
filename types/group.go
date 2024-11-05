@@ -14,7 +14,7 @@ type GroupStore interface {
 	GetGroupMemberByGroupID(groupId string) ([]*User, error)
 	GetGroupByIDAndUser(groupID string, userID string) (*Group, error)
 	GetGroupCurrency(groupID string) (string, error)
-	GetRelatedUser(currentUser string) ([]*GroupMember, error)
+	GetRelatedUser(currentUser string, groupId string) ([]*RelatedMember, error)
 
 	UpdateGroupMember(action string, userid string, groupID string) error
 	UpdateGroupStatus(groupid string, isActive bool) error
@@ -52,6 +52,12 @@ type GetGroupResponse struct {
 type GroupMember struct {
 	UserID   string `json:"userId"`
 	Username string `json:"username"` // username or email
+}
+
+type RelatedMember struct {
+	UserID       string `json:"userId"`
+	Username     string `json:"username"` // username or email
+	ExistInGroup bool   `json:"existInGroup"`
 }
 
 type GetGroupListResponse struct {

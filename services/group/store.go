@@ -234,7 +234,7 @@ func (s *Store) GetGroupCurrency(groupID string) (string, error) {
 	return currency, nil
 }
 
-func (s *Store) GetRelatedUser(currentUser string) ([]*types.GroupMember, error) {
+func (s *Store) GetRelatedUser(currentUser string, groupId string) ([]*types.RelatedMember, error) {
 	query := fmt.Sprintf(
 		`WITH former_member AS (
 			SELECT user_id
@@ -244,12 +244,23 @@ func (s *Store) GetRelatedUser(currentUser string) ([]*types.GroupMember, error)
 				FROM group_member 
 				WHERE user_id = '%s'))
 
-		SELECT u.id, u.username
+		SELECT 
+			u.id, 
+			u.username,
+			CASE
+				WHEN EXISTS (
+					SELECT 1 
+					FROM group_member as gm
+					WHERE gm.user_id = u.id
+						AND gm.group_id = '%s'
+				) THEN TRUE
+				ELSE FALSE
+			END AS exist_in_group
 		FROM users AS u
 		JOIN former_member AS fm
 		ON u.id = fm.user_id
-		WHERE u.id<>'%s';`,
-		currentUser, currentUser,
+		WHERE u.id <> '%s';`,
+		currentUser, groupId, currentUser,
 	)
 	rows, err := s.db.Query(query)
 	if err != nil {
@@ -257,10 +268,10 @@ func (s *Store) GetRelatedUser(currentUser string) ([]*types.GroupMember, error)
 	}
 	defer rows.Close()
 
-	var members []*types.GroupMember
+	var members []*types.RelatedMember
 	for rows.Next() {
-		member := new(types.GroupMember)
-		err := rows.Scan(&member.UserID, &member.Username)
+		member := new(types.RelatedMember)
+		err := rows.Scan(&member.UserID, &member.Username, &member.ExistInGroup)
 		if err != nil {
 			return nil, err
 		}

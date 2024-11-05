@@ -147,6 +147,12 @@ func (m *mockUSettelExpenseGroupStore) GetGroupCurrency(groupID string) (string,
 func (m *mockUSettelExpenseGroupStore) GetRelatedUser(currentUser string, groupId string) ([]*types.RelatedMember, error) {
 	return nil, nil
 }
+func (m *mockUSettelExpenseGroupStore) CheckGroupExistById(id string) (bool, error) {
+	return false, nil
+}
+func (m *mockUSettelExpenseGroupStore) CheckGroupUserPairExist(groupId string, userId string) (bool, error) {
+	return false, nil
+}
 
 type mockSettelExpenseUserStore struct{}
 

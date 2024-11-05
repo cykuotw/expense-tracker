@@ -180,6 +180,12 @@ func (m *mockUpdateGroupMemberStore) GetGroupCurrency(groupID string) (string, e
 func (m *mockUpdateGroupMemberStore) GetRelatedUser(currentUser string, groupId string) ([]*types.RelatedMember, error) {
 	return nil, nil
 }
+func (m *mockUpdateGroupMemberStore) CheckGroupExistById(id string) (bool, error) {
+	return false, nil
+}
+func (m *mockUpdateGroupMemberStore) CheckGroupUserPairExist(groupId string, userId string) (bool, error) {
+	return false, nil
+}
 
 type mockUpdateGroupMemberUserStore struct{}
 

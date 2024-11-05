@@ -18,6 +18,9 @@ type GroupStore interface {
 
 	UpdateGroupMember(action string, userid string, groupID string) error
 	UpdateGroupStatus(groupid string, isActive bool) error
+
+	CheckGroupExistById(id string) (bool, error)
+	CheckGroupUserPairExist(groupId string, userId string) (bool, error)
 }
 
 type Group struct {

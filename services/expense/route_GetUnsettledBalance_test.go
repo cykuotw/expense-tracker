@@ -215,6 +215,12 @@ func (m *mockGetUnsettledBalanceGroupStore) GetGroupCurrency(groupID string) (st
 func (m *mockGetUnsettledBalanceGroupStore) GetRelatedUser(currentUser string, groupId string) ([]*types.RelatedMember, error) {
 	return nil, nil
 }
+func (m *mockGetUnsettledBalanceGroupStore) CheckGroupExistById(id string) (bool, error) {
+	return false, nil
+}
+func (m *mockGetUnsettledBalanceGroupStore) CheckGroupUserPairExist(groupId string, userId string) (bool, error) {
+	return false, nil
+}
 
 type mockGetUnsettledBalanceUserStore struct{}
 

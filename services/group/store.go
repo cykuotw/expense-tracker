@@ -2,6 +2,7 @@ package group
 
 import (
 	"database/sql"
+	"expense-tracker/services/user"
 	"expense-tracker/types"
 	"fmt"
 
@@ -73,45 +74,37 @@ func (s *Store) GetGroupByID(id string) (*types.Group, error) {
 
 func (s *Store) GetGroupByIDAndUser(groupID string, userID string) (*types.Group, error) {
 	// check group id exist
-	group, err := s.GetGroupByID(groupID)
-	if err != nil {
-		return nil, types.ErrGroupNotExist
-	}
-	// check user id exist
-	query := fmt.Sprintf("SELECT COUNT(*) FROM users WHERE id = '%s';", userID)
-	rows, err := s.db.Query(query)
+	exist, err := s.CheckGroupExistById(groupID)
 	if err != nil {
 		return nil, err
 	}
-	var count int
-	for rows.Next() {
-		if err := rows.Scan(&count); err != nil {
-			return nil, err
-		}
+	if !exist {
+		return nil, types.ErrGroupNotExist
 	}
-	rows.Close()
-	if count != 1 {
+
+	// check user id exist
+	userStore := user.NewStore(s.db)
+	exist, err = userStore.CheckUserExistByID(userID)
+	if err != nil {
+		return nil, err
+	}
+	if !exist {
 		return nil, types.ErrUserNotExist
 	}
 
 	// check user is group member
-	query = fmt.Sprintf(
-		"SELECT COUNT(*) FROM group_member WHERE group_id='%s' "+
-			"AND user_id='%s';",
-		groupID, userID,
-	)
-	rows, err = s.db.Query(query)
+	exist, err = s.CheckGroupUserPairExist(groupID, userID)
 	if err != nil {
 		return nil, err
 	}
-	for rows.Next() {
-		if err := rows.Scan(&count); err != nil {
-			return nil, err
-		}
-	}
-	rows.Close()
-	if count != 1 {
+	if !exist {
 		return nil, types.ErrUserNotPermitted
+	}
+
+	// get group
+	group, err := s.GetGroupByID(groupID)
+	if err != nil {
+		return nil, types.ErrGroupNotExist
 	}
 
 	return group, nil
@@ -279,6 +272,47 @@ func (s *Store) GetRelatedUser(currentUser string, groupId string) ([]*types.Rel
 	}
 
 	return members, nil
+}
+
+func (s *Store) CheckGroupExistById(id string) (bool, error) {
+	query := fmt.Sprintf("SELECT EXISTS (SELECT 1 FROM groups WHERE id = '%s')", id)
+	rows, err := s.db.Query(query)
+	if err != nil {
+		return false, err
+	}
+	defer rows.Close()
+
+	exist := false
+	for rows.Next() {
+		err := rows.Scan(&exist)
+		if err != nil {
+			return false, err
+		}
+	}
+
+	return exist, nil
+}
+
+func (s *Store) CheckGroupUserPairExist(groupId string, userId string) (bool, error) {
+	query := fmt.Sprintf(`
+			SELECT EXISTS (
+				SELECT 1 FROM group_member WHERE group_id='%s' AND user_id='%s');`,
+		groupId, userId,
+	)
+	rows, err := s.db.Query(query)
+	if err != nil {
+		return false, err
+	}
+	defer rows.Close()
+
+	exist := false
+	for rows.Next() {
+		if err := rows.Scan(&exist); err != nil {
+			return false, err
+		}
+	}
+
+	return exist, nil
 }
 
 func (s *Store) UpdateGroupMember(action string, userID string, groupID string) error {

@@ -472,22 +472,26 @@ func TestGetRelatedUser(t *testing.T) {
 	type testcase struct {
 		name               string
 		mockUserID         string
+		mockgroupID        string
 		expectFail         bool
-		expectGroupMembers []*types.GroupMember
+		expectGroupMembers []*types.RelatedMember
 		expectError        error
 	}
 
 	subtests := []testcase{
 		{
-			name:       "valid",
-			mockUserID: mockCurrentUserID.String(),
-			expectFail: false,
-			expectGroupMembers: []*types.GroupMember{
+			name:        "valid",
+			mockUserID:  mockCurrentUserID.String(),
+			mockgroupID: mockGroupID.String(),
+			expectFail:  false,
+			expectGroupMembers: []*types.RelatedMember{
 				{
-					UserID: mockUserID.String(),
+					UserID:       mockUserID.String(),
+					ExistInGroup: true,
 				},
 				{
-					UserID: mockUserID2.String(),
+					UserID:       mockUserID2.String(),
+					ExistInGroup: false,
 				},
 			},
 			expectError: nil,
@@ -495,6 +499,7 @@ func TestGetRelatedUser(t *testing.T) {
 		{
 			name:               "invalid user",
 			mockUserID:         uuid.NewString(),
+			mockgroupID:        mockGroupID.String(),
 			expectFail:         true,
 			expectGroupMembers: nil,
 			expectError:        nil,
@@ -504,7 +509,7 @@ func TestGetRelatedUser(t *testing.T) {
 	store := group.NewStore(db)
 	for _, test := range subtests {
 		t.Run(test.name, func(t *testing.T) {
-			members, err := store.GetRelatedUser(test.mockUserID)
+			members, err := store.GetRelatedUser(test.mockUserID, test.mockgroupID)
 
 			if test.expectFail {
 				assert.Nil(t, members)

@@ -177,7 +177,7 @@ func (m *mockUpdateGroupMemberStore) UpdateGroupStatus(groupid string, isActive 
 func (m *mockUpdateGroupMemberStore) GetGroupCurrency(groupID string) (string, error) {
 	return "", nil
 }
-func (m *mockUpdateGroupMemberStore) GetRelatedUser(currentUser string) ([]*types.GroupMember, error) {
+func (m *mockUpdateGroupMemberStore) GetRelatedUser(currentUser string, groupId string) ([]*types.RelatedMember, error) {
 	return nil, nil
 }
 

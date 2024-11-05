@@ -204,3 +204,12 @@ func (m *mockUpdateExpenseDetailUserStore) GetUsernameByID(userid string) (strin
 func (m *mockUpdateExpenseDetailUserStore) CheckEmailExist(email string) (bool, error) {
 	return false, nil
 }
+func (m *mockUpdateExpenseDetailUserStore) CheckUserExistByEmail(email string) (bool, error) {
+	return false, nil
+}
+func (m *mockUpdateExpenseDetailUserStore) CheckUserExistByID(id string) (bool, error) {
+	return false, nil
+}
+func (m *mockUpdateExpenseDetailUserStore) CheckUserExistByUsername(username string) (bool, error) {
+	return false, nil
+}

@@ -119,3 +119,12 @@ func (m *mockArchiveGroupUserStore) GetUsernameByID(userid string) (string, erro
 func (m *mockArchiveGroupUserStore) CheckEmailExist(email string) (bool, error) {
 	return false, nil
 }
+func (m *mockArchiveGroupUserStore) CheckUserExistByEmail(email string) (bool, error) {
+	return false, nil
+}
+func (m *mockArchiveGroupUserStore) CheckUserExistByID(id string) (bool, error) {
+	return false, nil
+}
+func (m *mockArchiveGroupUserStore) CheckUserExistByUsername(username string) (bool, error) {
+	return false, nil
+}

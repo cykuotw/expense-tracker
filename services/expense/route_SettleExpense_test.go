@@ -168,3 +168,12 @@ func (m *mockSettelExpenseUserStore) GetUsernameByID(userid string) (string, err
 func (m *mockSettelExpenseUserStore) CheckEmailExist(email string) (bool, error) {
 	return false, nil
 }
+func (m *mockSettelExpenseUserStore) CheckUserExistByEmail(email string) (bool, error) {
+	return false, nil
+}
+func (m *mockSettelExpenseUserStore) CheckUserExistByID(id string) (bool, error) {
+	return false, nil
+}
+func (m *mockSettelExpenseUserStore) CheckUserExistByUsername(username string) (bool, error) {
+	return false, nil
+}

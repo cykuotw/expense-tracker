@@ -86,7 +86,15 @@ func (m *mockStoreLogin) CreateUser(user types.User) error {
 func (m *mockStoreLogin) GetUsernameByID(userid string) (string, error) {
 	return "", nil
 }
-
 func (m *mockStoreLogin) CheckEmailExist(email string) (bool, error) {
+	return false, nil
+}
+func (m *mockStoreLogin) CheckUserExistByEmail(email string) (bool, error) {
+	return false, nil
+}
+func (m *mockStoreLogin) CheckUserExistByID(id string) (bool, error) {
+	return false, nil
+}
+func (m *mockStoreLogin) CheckUserExistByUsername(username string) (bool, error) {
 	return false, nil
 }

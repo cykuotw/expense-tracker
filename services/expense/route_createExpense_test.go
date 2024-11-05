@@ -205,6 +205,15 @@ func (m *mockCreateExpenseUserStore) GetUsernameByID(userid string) (string, err
 func (m *mockCreateExpenseUserStore) CheckEmailExist(email string) (bool, error) {
 	return false, nil
 }
+func (m *mockCreateExpenseUserStore) CheckUserExistByEmail(email string) (bool, error) {
+	return false, nil
+}
+func (m *mockCreateExpenseUserStore) CheckUserExistByID(id string) (bool, error) {
+	return false, nil
+}
+func (m *mockCreateExpenseUserStore) CheckUserExistByUsername(username string) (bool, error) {
+	return false, nil
+}
 
 type mockExpenseController struct{}
 

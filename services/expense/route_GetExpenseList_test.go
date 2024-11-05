@@ -252,3 +252,12 @@ func (m *mockGetExpenseListUserStore) GetUsernameByID(userid string) (string, er
 func (m *mockGetExpenseListUserStore) CheckEmailExist(email string) (bool, error) {
 	return false, nil
 }
+func (m *mockGetExpenseListUserStore) CheckUserExistByEmail(email string) (bool, error) {
+	return false, nil
+}
+func (m *mockGetExpenseListUserStore) CheckUserExistByID(id string) (bool, error) {
+	return false, nil
+}
+func (m *mockGetExpenseListUserStore) CheckUserExistByUsername(username string) (bool, error) {
+	return false, nil
+}

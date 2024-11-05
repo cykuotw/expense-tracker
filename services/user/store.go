@@ -85,26 +85,58 @@ func (s *Store) GetUsernameByID(userid string) (string, error) {
 	return username, nil
 }
 
+func (s *Store) checkUserExist(query string) (bool, error) {
+	rows, err := s.db.Query(query)
+	if err != nil {
+		return false, nil
+	}
+	defer rows.Close()
+
+	exist := false
+	for rows.Next() {
+		err := rows.Scan(&exist)
+		if err != nil {
+			return false, err
+		}
+	}
+
+	return exist, err
+}
+func (s *Store) CheckUserExistByEmail(email string) (bool, error) {
+	query := fmt.Sprintf("SELECT EXISTS (SELECT 1 FROM users WHERE email = '%s');", email)
+
+	return s.checkUserExist(query)
+}
+
+func (s *Store) CheckUserExistByID(id string) (bool, error) {
+	query := fmt.Sprintf("SELECT EXISTS (SELECT 1 FROM users WHERE id = '%s');", id)
+
+	return s.checkUserExist(query)
+}
+
+func (s *Store) CheckUserExistByUsername(username string) (bool, error) {
+	query := fmt.Sprintf("SELECT EXISTS (SELECT 1 FROM users WHERE username = '%s');", username)
+
+	return s.checkUserExist(query)
+}
+
 func (s *Store) CheckEmailExist(email string) (bool, error) {
-	query := fmt.Sprintf("SELECT COUNT(*) FROM users WHERE email='%s';", email)
+	query := fmt.Sprintf("SELECT EXISTS (SELECT 1 FROM users WHERE email='%s');", email)
 	rows, err := s.db.Query(query)
 	if err != nil {
 		return false, err
 	}
 	defer rows.Close()
 
-	count := 0
+	exist := false
 	for rows.Next() {
-		err := rows.Scan(&count)
+		err := rows.Scan(&exist)
 		if err != nil {
 			return false, err
 		}
 	}
 
-	if count == 0 {
-		return false, nil
-	}
-	return true, nil
+	return exist, nil
 }
 
 func (s *Store) CreateUser(user types.User) error {

@@ -17,7 +17,7 @@ import (
 
 func TestUpdateGroupMember(t *testing.T) {
 	store := &mockUpdateGroupMemberStore{}
-	userStore := &mockCreateGroupUserStore{}
+	userStore := &mockUpdateGroupMemberUserStore{}
 	handler := NewHandler(store, userStore)
 
 	t.Run("valid", func(t *testing.T) {
@@ -201,4 +201,16 @@ func (m *mockUpdateGroupMemberUserStore) CreateUser(user types.User) error {
 }
 func (m *mockUpdateGroupMemberUserStore) GetUsernameByID(userid string) (string, error) {
 	return "", nil
+}
+func (m *mockUpdateGroupMemberUserStore) CheckEmailExist(email string) (bool, error) {
+	return false, nil
+}
+func (m *mockUpdateGroupMemberUserStore) CheckUserExistByEmail(email string) (bool, error) {
+	return false, nil
+}
+func (m *mockUpdateGroupMemberUserStore) CheckUserExistByID(id string) (bool, error) {
+	return false, nil
+}
+func (m *mockUpdateGroupMemberUserStore) CheckUserExistByUsername(username string) (bool, error) {
+	return false, nil
 }

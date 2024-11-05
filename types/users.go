@@ -12,7 +12,11 @@ type UserStore interface {
 	GetUsernameByID(userid string) (string, error)
 
 	CreateUser(user User) error
+
 	CheckEmailExist(email string) (bool, error)
+	CheckUserExistByEmail(email string) (bool, error)
+	CheckUserExistByID(id string) (bool, error)
+	CheckUserExistByUsername(username string) (bool, error)
 }
 
 type User struct {

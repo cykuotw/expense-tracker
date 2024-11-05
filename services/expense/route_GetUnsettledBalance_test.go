@@ -240,6 +240,15 @@ func (m *mockGetUnsettledBalanceUserStore) GetUsernameByID(userid string) (strin
 func (m *mockGetUnsettledBalanceUserStore) CheckEmailExist(email string) (bool, error) {
 	return false, nil
 }
+func (m *mockGetUnsettledBalanceUserStore) CheckUserExistByEmail(email string) (bool, error) {
+	return false, nil
+}
+func (m *mockGetUnsettledBalanceUserStore) CheckUserExistByID(id string) (bool, error) {
+	return false, nil
+}
+func (m *mockGetUnsettledBalanceUserStore) CheckUserExistByUsername(username string) (bool, error) {
+	return false, nil
+}
 
 type mockGetUnsettledBalanceController struct{}
 

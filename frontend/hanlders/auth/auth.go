@@ -85,7 +85,7 @@ func (h *Handler) handleValidateEmail(c *gin.Context) error {
 	if !matched {
 		message += "* invalid email format (example@youremail.com)"
 	} else {
-		emailExist, err := verifyEmail(email)
+		emailExist, err := VerifyEmail(email)
 		if err != nil {
 			c.Status(http.StatusInternalServerError)
 			return err
@@ -112,7 +112,7 @@ func (h *Handler) handleValidateEmail(c *gin.Context) error {
 	return nil
 }
 
-func verifyEmail(email string) (bool, error) {
+func VerifyEmail(email string) (bool, error) {
 	// payloads
 	type emailRequest struct {
 		Email string `json:"email"`

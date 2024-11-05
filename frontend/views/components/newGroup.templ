@@ -40,14 +40,15 @@ templ NewGroup() {
 				<div class="label">
 					<label class="label-text">Main Currency</label>
 				</div>
-				<input
-					type="text"
-					id="currency"
+				<select
+					class="select select-bordered w-full"
 					name="currency"
-					required
-					class="grow input input-bordered flex items-center w-full"
-					placeholder="CAD"
-				/>
+					id="currency"
+				>
+					<option value="CAD">CAD</option>
+					<option value="USD">USD</option>
+					<option value="NTD">NTD</option>
+				</select>
 			</div>
 			<div class="w-full py-5">
 				<button

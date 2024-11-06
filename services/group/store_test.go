@@ -565,34 +565,122 @@ func TestUpdateGroupMember(t *testing.T) {
 			expectFail:  false,
 			expectError: nil,
 		},
+		{
+			name:        "invalid add nonexist groupid",
+			action:      "add",
+			mockGroupID: uuid.NewString(),
+			mockUserID:  mockGroupID.String(),
+			expectFail:  false,
+			expectError: nil,
+		},
+		{
+			name:        "invalid add nonexist userid",
+			action:      "add",
+			mockGroupID: mockUserID.String(),
+			mockUserID:  uuid.NewString(),
+			expectFail:  false,
+			expectError: nil,
+		},
+		{
+			name:        "invalid add nonexist userid groupid",
+			action:      "add",
+			mockGroupID: uuid.NewString(),
+			mockUserID:  uuid.NewString(),
+			expectFail:  false,
+			expectError: nil,
+		},
+		{
+			name:        "invalid delete nonexist groupid",
+			action:      "delete",
+			mockGroupID: uuid.NewString(),
+			mockUserID:  mockGroupID.String(),
+			expectFail:  false,
+			expectError: nil,
+		},
+		{
+			name:        "invalid delete nonexist userid",
+			action:      "delete",
+			mockGroupID: mockUserID.String(),
+			mockUserID:  uuid.NewString(),
+			expectFail:  false,
+			expectError: nil,
+		},
+		{
+			name:        "invalid delete nonexist userid groupid",
+			action:      "delete",
+			mockGroupID: uuid.NewString(),
+			mockUserID:  uuid.NewString(),
+			expectFail:  false,
+			expectError: nil,
+		},
 	}
 
 	store := group.NewStore(db)
 	for _, test := range subtests {
 		t.Run(test.name, func(t *testing.T) {
-			if test.action == "delete" {
-				insertGroupMember(db, uuid.MustParse(test.mockGroupID), []uuid.UUID{uuid.MustParse(test.mockUserID)})
-			}
-			defer deleteGroupMember(db, uuid.MustParse(test.mockGroupID), []uuid.UUID{uuid.MustParse(test.mockUserID)})
-
-			err := store.UpdateGroupMember(test.action, test.mockUserID, test.mockGroupID)
-
-			if test.expectFail {
-				userid := getGroupMember(db, uuid.MustParse(test.mockGroupID), uuid.MustParse(test.mockUserID))
-				if test.action == "add" {
-					assert.Equal(t, test.mockUserID, userid)
+			if test.action == "add" {
+				// test ordinary add
+				{
+					err := store.UpdateGroupMember(test.action, test.mockUserID, test.mockGroupID)
 					defer deleteGroupMember(db, uuid.MustParse(test.mockGroupID), []uuid.UUID{uuid.MustParse(test.mockUserID)})
-				} else if test.action == "delete" {
-					assert.Equal(t, uuid.Nil, userid)
+
+					userid := getGroupMember(db, uuid.MustParse(test.mockGroupID), uuid.MustParse(test.mockUserID))
+					if test.expectFail {
+						assert.Equal(t, test.mockUserID, userid)
+					} else {
+						assert.Equal(t, test.mockUserID, userid.String())
+						assert.Nil(t, err)
+					}
+				}
+
+				// test add while exist
+				{
+					insertGroupMember(db, uuid.MustParse(test.mockGroupID), []uuid.UUID{uuid.MustParse(test.mockUserID)})
+					defer deleteGroupMember(db, uuid.MustParse(test.mockGroupID), []uuid.UUID{uuid.MustParse(test.mockUserID)})
+
+					err := store.UpdateGroupMember(test.action, test.mockUserID, test.mockGroupID)
+
+					userid := getGroupMember(db, uuid.MustParse(test.mockGroupID), uuid.MustParse(test.mockUserID))
+					if test.expectFail {
+						assert.Equal(t, test.mockUserID, userid)
+					} else {
+						assert.Equal(t, test.mockUserID, userid.String())
+						assert.Nil(t, err)
+					}
+				}
+
+			} else if test.action == "delete" {
+				// test ordinary delete
+				{
+					insertGroupMember(db, uuid.MustParse(test.mockGroupID), []uuid.UUID{uuid.MustParse(test.mockUserID)})
+					defer deleteGroupMember(db, uuid.MustParse(test.mockGroupID), []uuid.UUID{uuid.MustParse(test.mockUserID)})
+
+					err := store.UpdateGroupMember(test.action, test.mockUserID, test.mockGroupID)
+
+					userid := getGroupMember(db, uuid.MustParse(test.mockGroupID), uuid.MustParse(test.mockUserID))
+					if test.expectFail {
+						assert.Equal(t, uuid.Nil, userid)
+					} else {
+						assert.Equal(t, uuid.Nil, userid)
+						assert.Nil(t, err)
+					}
+				}
+
+				// test delete while record not exist
+				{
+					err := store.UpdateGroupMember(test.action, test.mockUserID, test.mockGroupID)
+
+					userid := getGroupMember(db, uuid.MustParse(test.mockGroupID), uuid.MustParse(test.mockUserID))
+					if test.expectFail {
+						assert.Equal(t, uuid.Nil, userid)
+					} else {
+						assert.Equal(t, uuid.Nil, userid)
+						assert.Nil(t, err)
+					}
 				}
 			} else {
-				userid := getGroupMember(db, uuid.MustParse(test.mockGroupID), uuid.MustParse(test.mockUserID))
-				if test.action == "add" {
-					assert.Equal(t, test.mockUserID, userid.String())
-				} else if test.action == "delete" {
-					assert.Equal(t, uuid.Nil, userid)
-				}
-				assert.Nil(t, err)
+				// should not exist
+				t.Fail()
 			}
 		})
 	}

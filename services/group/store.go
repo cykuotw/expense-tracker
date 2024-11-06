@@ -316,6 +316,20 @@ func (s *Store) CheckGroupUserPairExist(groupId string, userId string) (bool, er
 }
 
 func (s *Store) UpdateGroupMember(action string, userID string, groupID string) error {
+	// check userID and groupID pair exist,
+	exist, err := s.CheckGroupUserPairExist(groupID, userID)
+	if err != nil {
+		return err
+	}
+
+	// if exist in add mode
+	// 	  OR
+	// 	  not exist in delete mode
+	// -> just return
+	if (action == "add" && exist) || (action == "delete" && !exist) {
+		return nil
+	}
+
 	query := ""
 	if action == "add" {
 		query = fmt.Sprintf(
@@ -330,7 +344,7 @@ func (s *Store) UpdateGroupMember(action string, userID string, groupID string) 
 			groupID, userID,
 		)
 	}
-	_, err := s.db.Exec(query)
+	_, err = s.db.Exec(query)
 	if err != nil {
 		return err
 	}

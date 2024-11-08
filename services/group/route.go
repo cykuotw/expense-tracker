@@ -180,13 +180,22 @@ func (h *Handler) handleUpdateGroupMember(c *gin.Context) {
 		utils.WriteError(c, http.StatusBadRequest, types.ErrInvalidAction)
 		return
 	}
-	_, err := h.userStore.GetUserByID(payload.UserID)
+	exist, err := h.userStore.CheckUserExistByID(payload.UserID)
 	if err != nil {
+		utils.WriteError(c, http.StatusInternalServerError, err)
+		return
+	}
+	if !exist {
 		utils.WriteError(c, http.StatusBadRequest, types.ErrUserNotExist)
 		return
 	}
-	_, err = h.store.GetGroupByID(payload.GroupID)
+
+	exist, err = h.store.CheckGroupExistById(payload.GroupID)
 	if err != nil {
+		utils.WriteError(c, http.StatusInternalServerError, err)
+		return
+	}
+	if !exist {
 		utils.WriteError(c, http.StatusBadRequest, types.ErrGroupNotExist)
 		return
 	}
@@ -199,9 +208,13 @@ func (h *Handler) handleUpdateGroupMember(c *gin.Context) {
 	}
 
 	// check requester belongs to the group
-	_, err = h.store.GetGroupByIDAndUser(payload.GroupID, userID)
+	exist, err = h.store.CheckGroupUserPairExist(payload.GroupID, userID)
 	if err != nil {
-		utils.WriteError(c, http.StatusForbidden, err)
+		utils.WriteError(c, http.StatusInternalServerError, err)
+		return
+	}
+	if !exist {
+		utils.WriteError(c, http.StatusForbidden, types.ErrUserNotPermitted)
 		return
 	}
 

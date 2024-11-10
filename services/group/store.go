@@ -237,7 +237,7 @@ func (s *Store) GetRelatedUser(currentUser string, groupId string) ([]*types.Rel
 				FROM group_member 
 				WHERE user_id = '%s'))
 
-		SELECT 
+		SELECT DISTINCT
 			u.id, 
 			u.username,
 			CASE
@@ -252,7 +252,8 @@ func (s *Store) GetRelatedUser(currentUser string, groupId string) ([]*types.Rel
 		FROM users AS u
 		JOIN former_member AS fm
 		ON u.id = fm.user_id
-		WHERE u.id <> '%s';`,
+		WHERE u.id <> '%s'
+		ORDER BY u.username;`,
 		currentUser, groupId, currentUser,
 	)
 	rows, err := s.db.Query(query)

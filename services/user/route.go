@@ -31,6 +31,7 @@ func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 	router.POST("/auth", h.handle3rdParty)
 
 	router.POST("/checkEmail", common.Make(h.handleCheckEmail))
+	router.GET("/userInfo", common.Make(h.handleGetUserInfoByEmail))
 }
 
 func (h *Handler) handleRegister(c *gin.Context) {
@@ -211,6 +212,27 @@ func (h *Handler) handleCheckEmail(c *gin.Context) error {
 	}
 
 	utils.WriteJSON(c, http.StatusOK, map[string]bool{"exist": exist})
+
+	return nil
+}
+
+func (h *Handler) handleGetUserInfoByEmail(c *gin.Context) error {
+	type emailRequest struct {
+		Email string `json:"email"`
+	}
+	var payload emailRequest
+	if err := utils.ParseJSON(c, &payload); err != nil {
+		utils.WriteError(c, http.StatusBadRequest, err)
+		return nil
+	}
+
+	user, err := h.store.GetUserByEmail(payload.Email)
+	if err != nil {
+		utils.WriteError(c, http.StatusInternalServerError, err)
+		return nil
+	}
+
+	utils.WriteJSON(c, http.StatusOK, user)
 
 	return nil
 }

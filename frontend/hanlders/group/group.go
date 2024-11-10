@@ -2,11 +2,13 @@ package group
 
 import (
 	"encoding/json"
+	"expense-tracker/frontend/hanlders/auth"
 	"expense-tracker/frontend/hanlders/common"
 	"expense-tracker/frontend/views/index"
 	"expense-tracker/types"
 	"fmt"
 	"net/http"
+	"regexp"
 
 	"github.com/gin-gonic/gin"
 )
@@ -25,7 +27,11 @@ func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 	router.GET("/group/:groupId", common.Make(h.handleGetGroup))
 
 	router.GET("/groupSelect/:groupId", common.Make(h.handleGetGroupSelect))
-	router.GET("/related_member/", common.Make(h.handleGetRelatedMember))
+
+	router.GET("/add_member", common.Make(h.handleGetAddNewMember))
+	router.POST("/add_member", common.MakeMuitiErr(h.handlePostAddNewMember))
+	router.POST("/add_member_list", common.Make(h.handlePostAddNewMemberList))
+	router.POST("/check_member_exist", common.Make(h.handleCheckMemberExist))
 }
 
 func (h *Handler) handleCreateNewGroupGet(c *gin.Context) error {
@@ -218,21 +224,23 @@ func (h *Handler) handleGetGroupSelect(c *gin.Context) error {
 	return nil
 }
 
-func (h *Handler) handleGetRelatedMember(c *gin.Context) error {
+func (h *Handler) handleGetAddNewMember(c *gin.Context) error {
+	groupId := c.Query("g")
+
 	token, err := c.Cookie("access_token")
 	if err != nil {
 		c.Status(http.StatusUnauthorized)
 		c.Writer.Write([]byte("Unauthorized"))
 		return err
 	}
-	res, err := common.MakeBackendHTTPRequest(http.MethodGet, "/related_member", token, nil)
+	res, err := common.MakeBackendHTTPRequest(http.MethodGet, "/related_member?g="+groupId, token, nil)
 	if err != nil {
 		c.Status(http.StatusInternalServerError)
 		return err
 	}
 	defer res.Body.Close()
 
-	relatedUserList := []types.GroupMember{}
+	relatedUserList := []types.RelatedMember{}
 	if res.StatusCode == http.StatusOK {
 		err = json.NewDecoder(res.Body).Decode(&relatedUserList)
 		if err != nil {
@@ -241,7 +249,140 @@ func (h *Handler) handleGetRelatedMember(c *gin.Context) error {
 		}
 	}
 
-	fmt.Printf("%+v\n", relatedUserList)
+	return common.Render(c.Writer, c.Request, index.AddMember(groupId, relatedUserList))
+}
+
+func (h *Handler) handleCheckMemberExist(c *gin.Context) error {
+	email := c.PostForm("email")
+
+	matched, err := regexp.MatchString("^[A-Za-z0-9._%+\\-]+@[A-Za-z0-9\\-]+\\.[a-z]{2,4}$", email)
+	if err != nil {
+		c.Status(http.StatusInternalServerError)
+		return err
+	}
+
+	message := ""
+	if !matched {
+		message += "* invalid email format (example@youremail.com)"
+	} else {
+		emailExist, err := auth.VerifyEmail(email)
+		if err != nil {
+			c.Status(http.StatusInternalServerError)
+			return err
+		}
+		if !emailExist {
+			message += "* user not exist"
+		}
+	}
+
+	html := `<div class="text-xs w-full text-center `
+	if message == "" {
+		html += `text-green-500"> 
+				<button
+					class="btn btn-sm btn-outline bg-base-100 text-green-500 font-normal"
+					hx-post="/add_member_list"
+					hx-target="#members"
+					hx-swap="beforeend"
+					>add to list?</button></div>`
+	} else {
+		html += `text-red-500">` + message + "</div>"
+	}
+
+	c.Writer.WriteHeader(http.StatusOK)
+	c.Writer.Write([]byte(html))
+
+	return nil
+}
+
+func (h *Handler) handlePostAddNewMemberList(c *gin.Context) error {
+	email := c.PostForm("email")
+
+	token, err := c.Cookie("access_token")
+	if err != nil {
+		c.Status(http.StatusUnauthorized)
+		c.Writer.Write([]byte("Unauthorized"))
+		return err
+	}
+
+	// payloads
+	type emailRequest struct {
+		Email string `json:"email"`
+	}
+
+	// make http request
+	payload := emailRequest{
+		Email: email,
+	}
+
+	res, err := common.MakeBackendHTTPRequest(http.MethodGet, "/userInfo", token, payload)
+	if err != nil {
+		c.Status(http.StatusInternalServerError)
+		return err
+	}
+	defer res.Body.Close()
+
+	user := types.User{}
+	if res.StatusCode == http.StatusOK {
+		err = json.NewDecoder(res.Body).Decode(&user)
+		if err != nil {
+			c.Status(http.StatusInternalServerError)
+			return err
+		}
+	}
+	html := `<label class="label cursor-pointer">
+				<span class="label-text">` + user.Username + `</span>
+				<input type="checkbox" is="boolean-checkbox" checked class="checkbox" name="candidate[]" value=` + user.ID.String() + `>
+			</label>`
+
+	c.Writer.WriteHeader(http.StatusOK)
+	c.Writer.Write([]byte(html))
+
+	return nil
+}
+
+func (h *Handler) handlePostAddNewMember(c *gin.Context) []error {
+	groupId := c.Query("g")
+
+	token, err := c.Cookie("access_token")
+	if err != nil {
+		c.Status(http.StatusUnauthorized)
+		c.Writer.Write([]byte("Unauthorized"))
+		return []error{err}
+	}
+
+	candidates := c.PostFormArray("candidate[]")
+	var errs []error
+	for _, candidate := range candidates {
+		go func() {
+			var jsonMap map[string]interface{}
+			json.Unmarshal([]byte(candidate), &jsonMap)
+
+			payload := types.UpdateGroupMemberPayload{
+				Action:  "add",
+				GroupID: groupId,
+				UserID:  jsonMap["value"].(string),
+			}
+			if !jsonMap["checked"].(bool) {
+				payload.Action = "delete"
+			}
+
+			res, err := common.MakeBackendHTTPRequest(http.MethodPut, "/group_member", token, payload)
+			if err != nil {
+				c.Status(http.StatusInternalServerError)
+				errs = append(errs, err)
+			}
+			defer res.Body.Close()
+		}()
+	}
+
+	if len(errs) != 0 {
+		c.Header("HX-Redirect", "/add_member?g="+groupId)
+		c.Status(200)
+		return errs
+	}
+
+	c.Header("HX-Redirect", "/group/"+groupId)
+	c.Status(200)
 
 	return nil
 }

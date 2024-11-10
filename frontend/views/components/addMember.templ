@@ -1,0 +1,87 @@
+package components
+
+import "expense-tracker/types"
+
+templ AddMember(groupId string, relatedUserList []types.RelatedMember) {
+	<script>
+		// ref: https://www.binwang.me/2024-06-08-Create-a-Checkbox-That-Returns-Boolean-Value-for-htmx.html
+		class BooleanCheckbox extends HTMLInputElement {
+			constructor() {
+				super();
+			}
+
+			get checked() {
+				return true;
+			}
+
+			get value() {
+				return JSON.stringify({
+					checked: super.checked,
+					value: super.value
+				})
+			}
+		}
+
+		customElements.define("boolean-checkbox", BooleanCheckbox, { extends: "input" });
+	</script>
+	<div class="flex flex-col justify-center items-center py-5 h-screen md:h-auto">
+		<form
+			class="flex flex-col justify-center items-center"
+			hx-post={ string(templ.URL("/add_member?g=" + groupId)) }
+			hx-target-error="#feedback"
+			hx-indicator="#indicator"
+		>
+			<div class="flex flex-col py-5 text-3xl">
+				Add Group Member
+			</div>
+			<div class="flex flex-col py-2 text-lg">
+				Your friends here
+			</div>
+			<div id="members" class="w-10/12">
+				for _, user := range relatedUserList {
+					<label class="label cursor-pointer">
+						<span class="label-text">{ user.Username }</span>
+						if user.ExistInGroup {
+							<input type="checkbox" is="boolean-checkbox" checked class="checkbox" name="candidate[]" value={ user.UserID }/>
+						} else {
+							<input type="checkbox" is="boolean-checkbox" class="checkbox" name="candidate[]" value={ user.UserID }/>
+						}
+					</label>
+				}
+			</div>
+			<div class="w-full py-5">
+				<button
+					type="submit"
+					class="btn btn-active btn-neutral btn-wide text-lg font-light"
+				>
+					Add Members
+				</button>
+			</div>
+			<div id="indicator" class="htmx-indicator">
+				<div class="flex justify-center items-center w-full">
+					<span class="loading loading-spinner loading-md"></span>
+				</div>
+			</div>
+			<div id="feedback"></div>
+		</form>
+		<form class="flex flex-col justify-center items-center">
+			<div class="flex flex-col pb-2 text-lg">
+				or a new friend
+			</div>
+			<div class="w-full justify-center items-center">
+				<input
+					hx-post="/check_member_exist"
+					hx-trigger="keyup changed delay:500ms"
+					hx-target="#msg"
+					hx-swap="innerHTML"
+					type="email"
+					id="email"
+					name="email"
+					class="input input-bordered w-full text-center bg-base-100"
+					placeholder="example@your.email"
+				/>
+			</div>
+			<div id="msg" class="text-xs w-full py-2 text-left"></div>
+		</form>
+	</div>
+}

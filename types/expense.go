@@ -108,6 +108,7 @@ type ExpenseResponse struct {
 }
 
 type ExpenseTypeResponse struct {
+	ID       string
 	Category string
 	Name     string
 }

@@ -17,6 +17,19 @@ module.exports = {
                     "logo-red": "#ea4335",
                 },
             },
+
+            // that is animation class
+            animation: {
+                fade: "fadeOut 5s ease-in-out forwards",
+            },
+
+            // that is actual animation
+            keyframes: (theme) => ({
+                fadeOut: {
+                    "0%": { opacity: "1" },
+                    "100%": { opacity: "0" },
+                },
+            }),
         },
     },
     plugins: [require("daisyui")],

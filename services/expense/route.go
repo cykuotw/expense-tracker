@@ -54,21 +54,37 @@ func (h *Handler) handleCreateExpense(c *gin.Context) {
 		utils.WriteError(c, http.StatusInternalServerError, err)
 		return
 	}
-	if userID != payload.CreateByUserID {
-		utils.WriteError(c, http.StatusForbidden, types.ErrUserNotPermitted)
+
+	// check user exist
+	exist, err := h.userStore.CheckUserExistByID(userID)
+	if err != nil {
+		utils.WriteError(c, http.StatusInternalServerError, err)
+		return
+	}
+	if !exist {
+		utils.WriteError(c, http.StatusBadRequest, types.ErrUserNotExist)
+		return
+	}
+
+	// check group exist
+	exist, err = h.groupStore.CheckGroupExistById(payload.GroupID)
+	if err != nil {
+		utils.WriteError(c, http.StatusInternalServerError, err)
+		return
+	}
+	if !exist {
+		utils.WriteError(c, http.StatusBadRequest, types.ErrGroupNotExist)
 		return
 	}
 
 	// check payload group id valid & user id valid
-	_, err = h.groupStore.GetGroupByIDAndUser(payload.GroupID, payload.CreateByUserID)
-	if err == types.ErrGroupNotExist || err == types.ErrUserNotExist {
-		utils.WriteError(c, http.StatusBadRequest, err)
-		return
-	} else if err == types.ErrUserNotPermitted {
-		utils.WriteError(c, http.StatusForbidden, err)
-		return
-	} else if err != nil {
+	exist, err = h.groupStore.CheckGroupUserPairExist(payload.GroupID, userID)
+	if err != nil {
 		utils.WriteError(c, http.StatusInternalServerError, err)
+		return
+	}
+	if !exist {
+		utils.WriteError(c, http.StatusForbidden, types.ErrUserNotPermitted)
 		return
 	}
 
@@ -79,7 +95,7 @@ func (h *Handler) handleCreateExpense(c *gin.Context) {
 		utils.WriteError(c, http.StatusInternalServerError, err)
 		return
 	}
-	creatorID, err := uuid.Parse(payload.CreateByUserID)
+	creatorID, err := uuid.Parse(userID)
 	if err != nil {
 		utils.WriteError(c, http.StatusInternalServerError, err)
 		return
@@ -261,6 +277,7 @@ func (h *Handler) handleGetExpenseType(c *gin.Context) {
 	var response []types.ExpenseTypeResponse
 	for _, expexpenseType := range expenseTypes {
 		res := types.ExpenseTypeResponse{
+			ID:       expexpenseType.ID.String(),
 			Category: expexpenseType.Category,
 			Name:     expexpenseType.Name,
 		}

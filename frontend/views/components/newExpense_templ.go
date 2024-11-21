@@ -14,7 +14,7 @@ import (
 	"github.com/google/uuid"
 )
 
-func NewExpense(groupId string) templ.Component {
+func NewExpense(groupId string, isSubmit bool) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -35,29 +35,42 @@ func NewExpense(groupId string) templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"flex flex-row justify-center items-center py-5 w-screen\"><form class=\"flex flex-col justify-center items-center py-5 space-y-5 md:w-1/3 w-5/6\" hx-post=\"/#\" hx-target-error=\"#feedback\" hx-indicator=\"#indicator\"><div class=\"text-2xl\">Add Expense</div><div class=\"w-full\" hx-get=\"")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"flex flex-row justify-center items-center py-5 w-screen\"><form class=\"flex flex-col justify-center items-center py-5 space-y-5 md:w-1/3 w-5/6\" hx-post=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var2 string
-		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(string(templ.URL(fmt.Sprintf("/groupSelect/%s", groupId))))
+		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(string(templ.URL(fmt.Sprintf("/create_expense?g=%s", groupId))))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/components/newExpense.templ`, Line: 22, Col: 71}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/components/newExpense.templ`, Line: 13, Col: 76}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("\" hx-trigger=\"load\" hx-swap=\"outerHTML\"><select class=\"select select-bordered w-full text-base text-center\"></select></div><div class=\"flex flex-row justify-start items-start w-full\"><div class=\"w-full\" hx-get=\"/expense_types\" hx-trigger=\"load\" hx-swap=\"outerHTML\"><select class=\"select select-bordered w-3/5 text-base text-center\"></select></div></div><div class=\"flex flex-row justify-start items-start w-full\"><label class=\"input input-bordered flex items-center w-full\"><input type=\"text\" id=\"description\" name=\"description\" class=\"grow\" placeholder=\"Description\"></label></div><div class=\"flex flex-row justify-start items-start w-full\"><select class=\"select select-bordered w-1/3 text-base text-center\" id=\"currency\" name=\"currency\"><option selected>CAD</option> <option>NTD</option> <option>USD</option></select> <label class=\"input input-bordered flex items-center w-full\"><input type=\"number\" id=\"total\" name=\"total\" class=\"grow\" step=\"0.001\" placeholder=\"0.00\"></label></div><label style=\"display: inline-block;\" class=\"w-2/3 h-12 border border-gray-400 rounded-full bg-base-100 hover:bg-base-300\"><input type=\"file\" style=\"display: none;\"><div class=\"flex flex-row items-center justify-center h-full space-x-3\"><svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\" class=\"w-6 h-6 opacity-70\" fill=\"currentColor\"><path d=\"M4,4H7L9,2H15L17,4H20A2,2 0 0,1 22,6V18A2,2 0 0,1 20,20H4A2,2 0 0,1 2,18V6A2,2 0 0,1 4,4M12,7A5,5 0 0,0 7,12A5,5 0 0,0 12,17A5,5 0 0,0 17,12A5,5 0 0,0 12,7M12,9A3,3 0 0,1 15,12A3,3 0 0,1 12,15A3,3 0 0,1 9,12A3,3 0 0,1 12,9Z\"></path></svg><p>Upload Receipt</p></div></label><div id=\"splitRule\" class=\"w-full\" hx-get=\"")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("\" hx-target-error=\"#feedback\" hx-indicator=\"#indicator\"><div class=\"text-2xl\">Add Expense</div><div class=\"w-full\" hx-get=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var3 string
-		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(string(templ.URL(fmt.Sprintf("/split_rules?g=%s", groupId))))
+		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(string(templ.URL(fmt.Sprintf("/groupSelect/%s", groupId))))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/components/newExpense.templ`, Line: 85, Col: 73}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/components/newExpense.templ`, Line: 22, Col: 71}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("\" hx-trigger=\"load\" hx-swap=\"outerHTML\"><select class=\"select select-bordered w-full text-base text-center\"></select></div><div class=\"flex flex-row justify-start items-start w-full\"><div class=\"w-full\" hx-get=\"/expense_types\" hx-trigger=\"load\" hx-swap=\"outerHTML\"><select class=\"select select-bordered w-3/5 text-base text-center\"></select></div></div><div class=\"flex flex-row justify-start items-start w-full\"><label class=\"input input-bordered flex items-center w-full\"><input type=\"text\" id=\"description\" name=\"description\" class=\"grow\" placeholder=\"Description\"></label></div><div class=\"flex flex-row justify-start items-start w-full\"><select class=\"select select-bordered w-1/3 text-base text-center\" id=\"currency\" name=\"currency\"><option selected>CAD</option> <option>NTD</option> <option>USD</option></select> <label class=\"input input-bordered flex items-center w-full\"><input type=\"number\" id=\"total\" name=\"total\" class=\"grow\" step=\"0.001\" placeholder=\"0.00\"></label></div><div class=\"hidden\"><label style=\"display: inline-block;\" class=\"w-2/3 h-12 border border-gray-400 rounded-full bg-base-100 hover:bg-base-300\"><input type=\"file\" style=\"display: none;\"><div class=\"flex flex-row items-center justify-center h-full space-x-3\"><svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\" class=\"w-6 h-6 opacity-70\" fill=\"currentColor\"><path d=\"M4,4H7L9,2H15L17,4H20A2,2 0 0,1 22,6V18A2,2 0 0,1 20,20H4A2,2 0 0,1 2,18V6A2,2 0 0,1 4,4M12,7A5,5 0 0,0 7,12A5,5 0 0,0 12,17A5,5 0 0,0 17,12A5,5 0 0,0 12,7M12,9A3,3 0 0,1 15,12A3,3 0 0,1 12,15A3,3 0 0,1 9,12A3,3 0 0,1 12,9Z\"></path></svg><p>Upload Receipt</p></div></label></div><div id=\"splitRule\" class=\"w-full\" hx-get=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var4 string
+		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(string(templ.URL(fmt.Sprintf("/split_rules?g=%s", groupId))))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/components/newExpense.templ`, Line: 87, Col: 73}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -85,7 +98,29 @@ func NewExpense(groupId string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</div><div id=\"items\"></div><div class=\"py-3\"></div><button type=\"submit\" class=\"btn btn-active btn-neutral btn-wide text-lg font-light\"><svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\" class=\"w-6 h-6 opacity-70\" fill=\"currentColor\"><path d=\"M9,20.42L2.79,14.21L5.62,11.38L9,14.77L18.88,4.88L21.71,7.71L9,20.42Z\"></path></svg> OK</button><div id=\"indicator\" class=\"htmx-indicator\"><div class=\"flex justify-center items-center w-full\"><span class=\"loading loading-spinner loading-md\"></span></div></div><div id=\"feedback\"></div></form></div>")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</div><button type=\"submit\" class=\"btn btn-active btn-neutral btn-wide text-lg font-light\"><svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\" class=\"w-6 h-6 opacity-70\" fill=\"currentColor\"><path d=\"M9,20.42L2.79,14.21L5.62,11.38L9,14.77L18.88,4.88L21.71,7.71L9,20.42Z\"></path></svg> OK</button><div id=\"indicator\" class=\"htmx-indicator\"><div class=\"flex justify-center items-center w-full\"><span class=\"loading loading-spinner loading-md\"></span></div></div>")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var5 = []any{templ.KV("hidden", !isSubmit)}
+		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var5...)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div id=\"feedback\" class=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var6 string
+		templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(templ.CSSClasses(templ_7745c5c3_Var5).String())
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/components/newExpense.templ`, Line: 1, Col: 0}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("\"><div class=\"animate-fade\"><div role=\"alert\" class=\"alert alert-success\"><svg xmlns=\"http://www.w3.org/2000/svg\" class=\"h-6 w-6 shrink-0 stroke-current\" fill=\"none\" viewBox=\"0 0 24 24\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z\"></path></svg> <span>Your expense has been created!</span></div></div></div></form></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

@@ -206,16 +206,13 @@ func (h *Handler) handleGetExpenseList(c *gin.Context) {
 		return
 	}
 
-	_, err = h.groupStore.GetGroupByIDAndUser(groupIdStr, userID)
-	if err == types.ErrGroupNotExist || err == types.ErrUserNotExist {
-		utils.WriteError(c, http.StatusBadRequest, err)
-		return
-	} else if err == types.ErrUserNotPermitted {
-		utils.WriteError(c, http.StatusForbidden, err)
-		return
-	} else if err != nil {
+	exist, err := h.groupStore.CheckGroupUserPairExist(groupIdStr, userID)
+	if err != nil {
 		utils.WriteError(c, http.StatusInternalServerError, err)
 		return
+	}
+	if !exist {
+		utils.WriteError(c, http.StatusForbidden, types.ErrUserNotPermitted)
 	}
 
 	// get expense list wrt page
@@ -267,6 +264,7 @@ func (h *Handler) handleGetExpenseList(c *gin.Context) {
 
 	utils.WriteJSON(c, http.StatusOK, response)
 }
+
 func (h *Handler) handleGetExpenseType(c *gin.Context) {
 	expenseTypes, err := h.store.GetExpenseType()
 	if err != nil {
@@ -291,11 +289,19 @@ func (h *Handler) handleGetExpenseDetail(c *gin.Context) {
 	// get expense id from param
 	// check expense id exist and get group id
 	expenseID := c.Param("expenseId")
-	expense, err := h.store.GetExpenseByID(expenseID)
-	if err == types.ErrExpenseNotExist {
-		utils.WriteError(c, http.StatusBadRequest, err)
+
+	exist, err := h.store.CheckExpenseExistByID(expenseID)
+	if err != nil {
+		utils.WriteError(c, http.StatusInternalServerError, err)
 		return
-	} else if err != nil {
+	}
+	if !exist {
+		utils.WriteError(c, http.StatusBadRequest, types.ErrExpenseNotExist)
+		return
+	}
+
+	expense, err := h.store.GetExpenseByID(expenseID)
+	if err != nil {
 		utils.WriteError(c, http.StatusInternalServerError, err)
 		return
 	}
@@ -308,12 +314,14 @@ func (h *Handler) handleGetExpenseDetail(c *gin.Context) {
 		utils.WriteError(c, http.StatusInternalServerError, err)
 		return
 	}
+	exist, err = h.groupStore.CheckGroupUserPairExist(groupID, userID)
 	_, err = h.groupStore.GetGroupByIDAndUser(groupID, userID)
-	if err == types.ErrPermissionDenied {
-		utils.WriteError(c, http.StatusForbidden, err)
-		return
-	} else if err != nil {
+	if err != nil {
 		utils.WriteError(c, http.StatusInternalServerError, err)
+		return
+	}
+	if !exist {
+		utils.WriteError(c, http.StatusForbidden, types.ErrPermissionDenied)
 		return
 	}
 
@@ -354,11 +362,19 @@ func (h *Handler) handleUpdateExpense(c *gin.Context) {
 	// get expense id from param
 	// check expense id exist and get group id
 	expenseID := c.Param("expenseId")
-	expense, err := h.store.GetExpenseByID(expenseID)
-	if err == types.ErrExpenseNotExist {
-		utils.WriteError(c, http.StatusBadRequest, err)
+
+	exist, err := h.store.CheckExpenseExistByID(expenseID)
+	if err != nil {
+		utils.WriteError(c, http.StatusInternalServerError, err)
 		return
-	} else if err != nil {
+	}
+	if !exist {
+		utils.WriteError(c, http.StatusBadRequest, types.ErrExpenseNotExist)
+		return
+	}
+
+	expense, err := h.store.GetExpenseByID(expenseID)
+	if err != nil {
 		utils.WriteError(c, http.StatusInternalServerError, err)
 		return
 	}
@@ -376,12 +392,13 @@ func (h *Handler) handleUpdateExpense(c *gin.Context) {
 		utils.WriteError(c, http.StatusInternalServerError, err)
 		return
 	}
-	_, err = h.groupStore.GetGroupByIDAndUser(payload.GroupID.String(), userID)
-	if err == types.ErrPermissionDenied || err == types.ErrGroupNotExist {
-		utils.WriteError(c, http.StatusForbidden, err)
-		return
-	} else if err != nil {
+	exist, err = h.groupStore.CheckGroupUserPairExist(payload.GroupID.String(), userID)
+	if err != nil {
 		utils.WriteError(c, http.StatusInternalServerError, err)
+		return
+	}
+	if !exist {
+		utils.WriteError(c, http.StatusForbidden, types.ErrPermissionDenied)
 		return
 	}
 
@@ -487,12 +504,13 @@ func (h *Handler) handleSettleExpense(c *gin.Context) {
 		return
 	}
 	// check user have permission for the group
-	_, err = h.groupStore.GetGroupByIDAndUser(groupID, userID)
-	if err == types.ErrPermissionDenied || err == types.ErrGroupNotExist {
-		utils.WriteError(c, http.StatusForbidden, err)
-		return
-	} else if err != nil {
+	exist, err := h.groupStore.CheckGroupUserPairExist(groupID, userID)
+	if err != nil {
 		utils.WriteError(c, http.StatusInternalServerError, err)
+		return
+	}
+	if !exist {
+		utils.WriteError(c, http.StatusForbidden, types.ErrPermissionDenied)
 		return
 	}
 
@@ -517,12 +535,13 @@ func (h *Handler) handleGetUnsettledBalance(c *gin.Context) {
 		return
 	}
 	// check user have permission for the group
-	_, err = h.groupStore.GetGroupByIDAndUser(groupID, userID)
-	if err == types.ErrPermissionDenied || err == types.ErrGroupNotExist {
-		utils.WriteError(c, http.StatusForbidden, err)
-		return
-	} else if err != nil {
+	exist, err := h.groupStore.CheckGroupUserPairExist(groupID, userID)
+	if err != nil {
 		utils.WriteError(c, http.StatusInternalServerError, err)
+		return
+	}
+	if !exist {
+		utils.WriteError(c, http.StatusForbidden, types.ErrPermissionDenied)
 		return
 	}
 

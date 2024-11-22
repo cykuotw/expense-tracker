@@ -111,6 +111,9 @@ func (s *mockSettelExpenseStore) UpdateItem(item types.Item) error {
 func (s *mockSettelExpenseStore) UpdateLedger(ledger types.Ledger) error {
 	return nil
 }
+func (m *mockSettelExpenseStore) CheckExpenseExistByID(id string) (bool, error) {
+	return false, nil
+}
 
 type mockUSettelExpenseGroupStore struct{}
 

@@ -79,6 +79,25 @@ func (s *Store) CreateLedger(ledger types.Ledger) error {
 	return nil
 }
 
+func (s *Store) CheckExpenseExistByID(id string) (bool, error) {
+	query := fmt.Sprintf("SELECT EXISTS (SELECT 1 FROM expense WHERE id = '%s')", id)
+	rows, err := s.db.Query(query)
+	if err != nil {
+		return false, err
+	}
+	defer rows.Close()
+
+	exist := false
+	for rows.Next() {
+		err := rows.Scan(&exist)
+		if err != nil {
+			return false, err
+		}
+	}
+
+	return exist, nil
+}
+
 func (s *Store) GetExpenseByID(expenseID string) (*types.Expense, error) {
 	query := fmt.Sprintf("SELECT * FROM expense WHERE id='%s';", expenseID)
 	rows, err := s.db.Query(query)

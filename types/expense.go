@@ -12,6 +12,8 @@ type ExpenseStore interface {
 	CreateItem(item Item) error
 	CreateLedger(ledger Ledger) error
 
+	CheckExpenseExistByID(id string) (bool, error)
+
 	GetExpenseByID(expenseID string) (*Expense, error)
 	GetExpenseList(groupID string, page int64) ([]*Expense, error)
 	GetExpenseType() ([]*ExpenseType, error)

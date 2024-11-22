@@ -179,6 +179,9 @@ func (s *mockGetUnsettledBalanceStore) UpdateItem(item types.Item) error {
 func (s *mockGetUnsettledBalanceStore) UpdateLedger(ledger types.Ledger) error {
 	return nil
 }
+func (m *mockGetUnsettledBalanceStore) CheckExpenseExistByID(id string) (bool, error) {
+	return false, nil
+}
 
 type mockGetUnsettledBalanceGroupStore struct{}
 

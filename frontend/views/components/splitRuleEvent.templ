@@ -1,0 +1,145 @@
+package components
+
+templ splitEvent2() {
+	@splitEvent()
+	<script type="text/javascript">
+        const payerContainer = document.querySelector("#payer-container")
+        const payerInput = document.querySelector("#payerSelector")
+
+        const updatePayer = () => {
+            const payer = splitRuleSelector.value.split("-")[0]
+            const payerOptions = [...payerInput.options].map(obj => obj.value)
+
+            if(payer == 'Unequally'){
+                payerContainer.classList.remove("hidden")
+                payerInput.value = payerOptions[0]
+                return
+            }
+            
+            if(!payerContainer.classList.contains("hidden"))
+                payerContainer.classList.add("hidden")
+
+            if(payer === "you"){
+                payerInput.value = payerOptions[0]
+            }else if(payer === "other"){
+                payerInput.value = payerOptions[1]
+            }
+        }
+
+        splitRuleSelector.addEventListener("change", ()=>{
+            updatePayer()
+        })
+    </script>
+}
+
+templ splitEvent() {
+	<script type="text/javascript">
+		const splitRuleSelector = document.querySelector("#splitRuleSelector")
+		const ledger = document.querySelector("#ledger")
+		const ledgerShares = document.querySelectorAll("#ledger-share")
+		const totalInput = document.querySelector("#total")
+        const descInput = document.querySelector("#description")
+		const indicator = document.querySelector("#split-indicator")
+        const submitButton = document.querySelector("#submit")
+
+        var ledgerShareDone = false
+
+		const updateLedger = () => {
+			if(totalInput.value === '' || totalInput.value === totalInput.defaultValue)
+				return
+			if(splitRuleSelector.value === "Unequally")
+				return
+			
+			const total = totalInput.value
+			const peopleCount = ledgerShares.length
+			
+			if(total <= 0 || peopleCount <= 2)
+				return
+			
+			const split = (total / peopleCount).toFixed(2)
+			const remaining = total - (split * (peopleCount - 1))
+
+			const randomIndex = Math.floor(Math.random() * peopleCount);
+			ledgerShares.forEach((share, index) => {
+				if(index === randomIndex){
+					share.value = remaining
+				}else{
+					share.value = split
+				}
+			})
+		}
+
+		const updateSplitIndicator = () => {			
+			if(totalInput.value === '' || totalInput.value === totalInput.defaultValue){
+				indicator.innerHTML = ''
+				ledgerShares.forEach((share) => {
+					share.value = ''
+				})
+				return
+			}
+
+			const currency = document.querySelector("#currency").value
+			const total = Number(totalInput.value)
+			let sum = 0
+			ledgerShares.forEach((share) => {
+				if(share.value !== '' || share.value !== share.defaultValue){
+					sum += Number(share.value)
+				}
+			})
+
+			if(sum === total){
+				indicator.innerHTML = "<p class=\"text-green-700\">Total $0 " + currency + " left.</p>"
+                ledgerShareDone = true
+			}else{
+				indicator.innerHTML = "<p class=\"text-red-700\">Total $"+ (total - sum) +" " + currency + " left.</p>"
+                ledgerShareDone = false
+			}
+            checkAllInput()
+		}
+
+        const checkAllInput = () => {
+            let doneDesc = (descInput.value !== '' && descInput.value !== descInput.defaultValue)
+            let doneTotal = (totalInput.value !== '' && totalInput.value !== totalInput.defaultValue)
+            
+            let ledgerHidden = ledger.classList.contains("hidden")
+            
+            let done = doneDesc && doneTotal
+            if(!ledgerHidden)
+                done = done && ledgerShareDone
+            
+            if(done)
+                submitButton.disabled = false
+            else
+                submitButton.disabled = true
+        }
+
+		splitRuleSelector.addEventListener("change", (event) => {
+			if(event.target.value === "Unequally"){
+				ledger.classList.remove("hidden")
+
+				ledgerShares.forEach((share) => {
+					share.value = null
+				})
+                ledgerShareDone = false
+			}else{
+				ledger.classList.add("hidden")
+				updateLedger()
+			}
+            updateSplitIndicator()
+		})
+
+        descInput.addEventListener("change", () => {
+            checkAllInput()
+        })
+
+		totalInput.addEventListener("change", () => {
+			updateLedger()
+			updateSplitIndicator()
+		})
+
+		ledgerShares.forEach((share) => {
+			share.addEventListener("change", updateSplitIndicator)
+		})
+
+	</script>
+}

@@ -8,30 +8,48 @@ templ SplitRule(user types.GroupMember, members []types.GroupMember) {
 	} else {
 		if len(members) == 2 {
 			if members[0].UserID == user.UserID {
-				@SplitRule2(user, members[1])
+				@splitRule2(user, members[1])
 			} else {
-				@SplitRule2(user, members[0])
+				@splitRule2(user, members[0])
 			}
+			@splitEvent2()
 		} else {
-			@SplitRuleN(user, members)
+			@splitRuleN(user, members)
+			@splitEvent()
 		}
+		@ledger(members)
 	}
 }
 
-templ SplitRule2(user types.GroupMember, member types.GroupMember) {
+templ splitRule2(user types.GroupMember, member types.GroupMember) {
 	<select
 		class="select select-bordered w-full text-base text-center"
 		id="splitRuleSelector"
 		name="splitRule"
 	>
-		<option selected>You paid, split equally</option>
-		<option>You are owed the full amount</option>
-		<option>{ member.Username } paid, split euqally</option>
-		<option>{ member.Username } is owed the full amount</option>
+		<option value="you-half" selected>You paid, split equally</option>
+		<option value="you-full">You are owed the full amount</option>
+		<option value="other-half">{ member.Username } paid, split euqally</option>
+		<option value="other-full">{ member.Username } is owed the full amount</option>
+		<option value="Unequally">Unequally</option>
 	</select>
+	<div
+		id="payer-container"
+		class="hidden flex flex-row justify-center items-center w-full space-x-2"
+	>
+		<p class="w-max">Paid by</p>
+		<select
+			class="select select-sm select-bordered w-max border-dashed"
+			id="payerSelector"
+			name="payer"
+		>
+			<option value={ user.UserID }>You</option>
+			<option value={ member.UserID }>{ member.Username }</option>
+		</select>
+	</div>
 }
 
-templ SplitRuleN(user types.GroupMember, members []types.GroupMember) {
+templ splitRuleN(user types.GroupMember, members []types.GroupMember) {
 	<div class="flex flex-row justify-center items-center w-full space-x-2">
 		<p class="w-max">Paid by</p>
 		<select
@@ -56,12 +74,4 @@ templ SplitRuleN(user types.GroupMember, members []types.GroupMember) {
 			<option>Unequally</option>
 		</select>
 	</div>
-}
-
-templ AdjustSplit2() {
-	// TODO: group of 2, split unequally
-}
-
-templ AdjustSplitN() {
-	// TODO: group of >2, split unequally
 }

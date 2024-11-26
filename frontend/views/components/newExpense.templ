@@ -83,7 +83,7 @@ templ NewExpense(groupId string, isSubmit bool) {
 			</div>
 			<div
 				id="splitRule"
-				class="w-full"
+				class="w-2/3"
 				hx-get={ string(templ.URL(fmt.Sprintf("/split_rules?g=%s", groupId))) }
 				hx-trigger="load"
 				hx-swap="outerHTML"
@@ -96,17 +96,14 @@ templ NewExpense(groupId string, isSubmit bool) {
 						UserID:   uuid.NewString(),
 						Username: "user 1",
 					},
-					{
-						UserID:   uuid.NewString(),
-						Username: "user 1",
-					},
-					{
-						UserID:   uuid.NewString(),
-						Username: "user me",
-					},
 				})
 			</div>
-			<button type="submit" class="btn btn-active btn-neutral btn-wide text-lg font-light">
+			<button
+				id="submit"
+				type="submit"
+				class="btn btn-active btn-neutral btn-wide text-lg font-light"
+				disabled
+			>
 				<svg
 					xmlns="http://www.w3.org/2000/svg"
 					viewBox="0 0 24 24"

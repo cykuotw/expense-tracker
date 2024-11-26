@@ -34,8 +34,6 @@ func (h *Handler) handleCreateNewExpenseGet(c *gin.Context) error {
 }
 
 func (h *Handler) handleCreateNewExpensePost(c *gin.Context) error {
-	groupId := c.Query("g")
-
 	token, err := c.Cookie("access_token")
 	if err != nil {
 		c.Status(http.StatusUnauthorized)
@@ -43,18 +41,40 @@ func (h *Handler) handleCreateNewExpensePost(c *gin.Context) error {
 		return err
 	}
 
-	total, err := decimal.NewFromString(c.PostForm("total"))
-	if err != nil {
+	groupId := c.Query("g")
+
+	var form struct {
+		Description   string    `form:"description" binding:"required"`
+		Payer         string    `form:"payer" binding:"required"`
+		ExpenseTypeID string    `form:"expenseType" binding:"required"`
+		Total         float32   `form:"total" binding:"required"`
+		Currency      string    `form:"currency" binding:"required"`
+		Borrowers     []string  `form:"ledger.borrower[]" binding:"required"`
+		Shares        []float32 `form:"ledger.share[]" binding:"required"`
+	}
+
+	if err := c.ShouldBind(&form); err != nil {
 		c.Status(http.StatusBadRequest)
 	}
 
+	ledgerList := []types.LedgerPayload{}
+	for i, borrower := range form.Borrowers {
+		ledger := types.LedgerPayload{
+			BorrowerUesrID: borrower,
+			LenderUserID:   form.Payer,
+			Share:          decimal.NewFromFloat32(form.Shares[i]),
+		}
+		ledgerList = append(ledgerList, ledger)
+	}
+
 	payload := types.ExpensePayload{
-		Description:   c.PostForm("description"),
+		Description:   form.Description,
 		GroupID:       groupId,
-		PayByUserId:   c.PostForm("payer"),
-		ExpenseTypeID: c.PostForm("expenseType"),
-		Total:         total,
-		Currency:      c.PostForm("currency"),
+		PayByUserId:   form.Payer,
+		ExpenseTypeID: form.ExpenseTypeID,
+		Total:         decimal.NewFromFloat32(form.Total),
+		Currency:      form.Currency,
+		Ledgers:       ledgerList,
 		// CreateByUserID: , // filled in backend
 
 		// ProviderName: , 	// TODO: image reconition feature
@@ -62,8 +82,6 @@ func (h *Handler) handleCreateNewExpensePost(c *gin.Context) error {
 		// TaxFeeTip: , 	// TODO: image reconition feature
 		// InvoicePicUrl: , // TODO: image reconition feature
 		// Items: , 		// TODO: image reconition feature
-
-		// Ledgers: , 		// TODO: split feature
 	}
 
 	res, err := common.MakeBackendHTTPRequest(http.MethodPost, "/create_expense", token, payload)

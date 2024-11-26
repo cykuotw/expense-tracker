@@ -2,7 +2,7 @@ css:
 	@npx tailwindcss -i frontend/views/css/app.css -o frontend/public/css/styles.css --minify
 
 templ:
-	@templ generate
+	@templ generate -lazy
 
 build: css templ
 	@go mod tidy

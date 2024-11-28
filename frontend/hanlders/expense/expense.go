@@ -57,10 +57,15 @@ func (h *Handler) handleCreateNewExpensePost(c *gin.Context) error {
 		c.Status(http.StatusBadRequest)
 	}
 
+	len := len(form.Borrowers)
 	ledgerList := []types.LedgerPayload{}
-	for i, borrower := range form.Borrowers {
+	for i := 0; i < len; i++ {
+		if form.Shares[i] == 0 {
+			continue
+		}
+
 		ledger := types.LedgerPayload{
-			BorrowerUesrID: borrower,
+			BorrowerUesrID: form.Borrowers[i],
 			LenderUserID:   form.Payer,
 			Share:          decimal.NewFromFloat32(form.Shares[i]),
 		}

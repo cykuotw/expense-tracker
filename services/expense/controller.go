@@ -46,7 +46,7 @@ func (c *Controller) DebtSimplify(ledgers []*types.Ledger) []*types.Balance {
 		}
 		b := balance{
 			id:    id,
-			share: share.Neg(),
+			share: share,
 		}
 		creditList = append(creditList, b)
 	}

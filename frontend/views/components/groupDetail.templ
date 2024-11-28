@@ -6,19 +6,24 @@ templ GroupDetail(groupID string, title string, balance types.BalanceResponse, e
 	<div class="flex justify-center items-center py-5">
 		<div class="text-center">
 			<h1 class="text-3xl">{ title }</h1>
-			<p class="py-5">
-				for _, b := range balance.Balances {
-					if b.SenderUserID.String() == balance.CurrentUser {
-						You owe { b.ReceiverUsername + " $ " + b.Balance.StringFixed(2) + " " + balance.Currency }
-					}
-					if b.ReceiverUserID.String() == balance.CurrentUser {
-						{ b.SenderUesrname } owes you $ { b.Balance.StringFixed(2)  + " " + balance.Currency }
-					}
-				}
+			<div class="flex flex-col items-center py-5">
 				if len(balance.Balances) == 0 {
-					All Balanced!
+					<p class="py-5">
+						All Balanced!
+					</p>
+				} else {
+					for _, b := range balance.Balances {
+						<p>
+							if b.SenderUserID.String() == balance.CurrentUser {
+								You owe { b.ReceiverUsername } ${ b.Balance.StringFixed(2) + " " + balance.Currency }
+							}
+							if b.ReceiverUserID.String() == balance.CurrentUser {
+								{ b.SenderUesrname } owes you ${ b.Balance.StringFixed(2)  + " " + balance.Currency }
+							}
+						</p>
+					}
 				}
-			</p>
+			</div>
 			<div>
 				<button class="btn btn-wide btn-primary py-5 text-primary-content font-bold">
 					<a href={ templ.URL("/create_expense?g=" + groupID) }>ADD EXPENSE</a>
@@ -32,14 +37,15 @@ templ GroupDetail(groupID string, title string, balance types.BalanceResponse, e
 			</div>
 			<div class="py-3"></div>
 			<div id="unsettled-expenses">
-				for _, expense := range expenseList {
-					@ExpenseCard(types.ExpenseResponseBrief{
-						ExpenseID:   expense.ExpenseID,
-						Description: expense.Description,
-					})
-				}
 				if len(expenseList) == 0 {
 					No Expenses For Now
+				} else {
+					for _, expense := range expenseList {
+						@ExpenseCard(types.ExpenseResponseBrief{
+							ExpenseID:   expense.ExpenseID,
+							Description: expense.Description,
+						})
+					}
 				}
 			</div>
 			<div id="settled-expenses">

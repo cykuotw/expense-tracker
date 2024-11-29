@@ -557,7 +557,7 @@ func TestGetLedgerUnsettledFromGroup(t *testing.T) {
 			expectFail:     true,
 			expectLength:   0,
 			expectLedgerID: nil,
-			expectError:    types.ErrGroupNotExist,
+			expectError:    nil,
 		},
 	}
 
@@ -566,10 +566,12 @@ func TestGetLedgerUnsettledFromGroup(t *testing.T) {
 			ledgerList, err := store.GetLedgerUnsettledFromGroup(test.groupID)
 
 			if test.expectFail {
-				assert.Nil(t, ledgerList)
+				assert.NotNil(t, ledgerList)
+				assert.Empty(t, ledgerList)
 				assert.Equal(t, test.expectError, err)
 			} else {
 				assert.NotNil(t, ledgerList)
+				assert.NotEmpty(t, ledgerList)
 				assert.Nil(t, err)
 				for _, ledger := range ledgerList {
 					assert.Contains(t, test.expectLedgerID, ledger.ID)
@@ -691,7 +693,8 @@ func TestUpdateExpense(t *testing.T) {
 		GroupID:        mockGroupID,
 		CreateByUserID: mockCreatorID,
 		PayByUserId:    mockPayerID,
-		CreateTime:     time.Now(),
+		UpdateTime:     time.Now(),
+		ExpenseTime:    time.Now(),
 		ExpenseTypeID:  mockExpenseTypeID,
 		IsSettled:      false,
 		Total:          decimal.NewFromFloat(99.37 + 0.37*8.3),
@@ -768,6 +771,8 @@ func selectExpense(db *sql.DB, groupID uuid.UUID) []*types.Expense {
 			&expense.Currency,
 			&expense.InvoicePicUrl,
 			&expense.CreateTime,
+			&expense.UpdateTime,
+			&expense.ExpenseTime,
 		)
 		expList = append(expList, expense)
 	}
@@ -802,6 +807,8 @@ func selectExpenseByID(db *sql.DB, expenseID uuid.UUID) *types.Expense {
 			&expense.Currency,
 			&expense.InvoicePicUrl,
 			&expense.CreateTime,
+			&expense.UpdateTime,
+			&expense.ExpenseTime,
 		)
 	}
 

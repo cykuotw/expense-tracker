@@ -256,6 +256,7 @@ func (h *Handler) handleGetExpenseList(c *gin.Context) {
 			ExpenseID:      expense.ID,
 			Description:    expense.Description,
 			Total:          expense.Total,
+			ExpenseTime:    expense.ExpenseTime,
 			PayerUserIDs:   payerUserIDs,
 			PayerUsernames: payerUsernames,
 		}
@@ -315,7 +316,6 @@ func (h *Handler) handleGetExpenseDetail(c *gin.Context) {
 		return
 	}
 	exist, err = h.groupStore.CheckGroupUserPairExist(groupID, userID)
-	_, err = h.groupStore.GetGroupByIDAndUser(groupID, userID)
 	if err != nil {
 		utils.WriteError(c, http.StatusInternalServerError, err)
 		return
@@ -352,6 +352,7 @@ func (h *Handler) handleGetExpenseDetail(c *gin.Context) {
 		TaxFeeTip:         expense.TaxFeeTip,
 		Total:             expense.Total,
 		Currency:          expense.Currency,
+		ExpenseTime:       expense.ExpenseTime,
 		Items:             itemRsp,
 	}
 

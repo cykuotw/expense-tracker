@@ -40,6 +40,8 @@ type Expense struct {
 	PayByUserId    uuid.UUID
 	ExpenseTypeID  uuid.UUID
 	CreateTime     time.Time
+	UpdateTime     time.Time
+	ExpenseTime    time.Time
 	ProviderName   string
 	IsSettled      bool
 	SubTotal       decimal.Decimal
@@ -91,7 +93,7 @@ type ExpenseResponseBrief struct {
 	ExpenseID      uuid.UUID       `json:"expenseId"`
 	Description    string          `json:"description"`
 	Total          decimal.Decimal `json:"total"`
-	Share          decimal.Decimal `json:"share"`
+	ExpenseTime    time.Time       `json:"expenseTime"`
 	PayerUserIDs   []uuid.UUID     `json:"payerUserIds"`
 	PayerUsernames []string        `json:"payerUsernames"`
 }
@@ -106,6 +108,7 @@ type ExpenseResponse struct {
 	TaxFeeTip         decimal.Decimal `json:"taxFeeTip"`
 	Total             decimal.Decimal `json:"total"`
 	Currency          string          `json:"currency"`
+	ExpenseTime       time.Time       `json:"expenseTime"`
 	Items             []ItemResponse  `json:"items"`
 }
 

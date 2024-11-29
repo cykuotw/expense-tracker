@@ -26,14 +26,15 @@ func (s *Store) CreateExpense(expense types.Expense) error {
 			"create_by_user_id, pay_by_user_id, provider_name, "+
 			"exp_type_id, is_settled, "+
 			"sub_total, tax_fee_tip, total, "+
-			"currency, invoice_pic_url, create_time_utc"+
+			"currency, invoice_pic_url, "+
+			"create_time_utc, update_time_utc, expense_time_utc"+
 			") VALUES ('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%t', "+
-			"'%s', '%s', '%s', '%s', '%s', '%s')",
+			"'%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s')",
 		expense.ID, expense.Description, expense.GroupID,
 		expense.CreateByUserID, expense.PayByUserId, expense.ProviderName,
 		expense.ExpenseTypeID, false,
 		expense.SubTotal.String(), expense.TaxFeeTip.String(), expense.Total.String(),
-		expense.Currency, expense.InvoicePicUrl, createTime,
+		expense.Currency, expense.InvoicePicUrl, createTime, createTime, createTime,
 	)
 
 	_, err := s.db.Exec(query)
@@ -272,14 +273,17 @@ func (s *Store) UpdateExpenseSettleInGroup(groupID string) error {
 }
 
 func (s *Store) UpdateExpense(expense types.Expense) error {
-	createTime := expense.CreateTime.UTC().Format("2006-01-02 15:04:05-0700")
+	updateTime := expense.UpdateTime.UTC().Format("2006-01-02 15:04:05-0700")
+	expenseTime := expense.ExpenseTime.UTC().Format("2006-01-02 15:04:05-0700")
+
 	query := fmt.Sprintf(
 		"UPDATE expense SET "+
 			"description = '%s', "+
 			"group_id = '%s', "+
 			"create_by_user_id = '%s', "+
 			"pay_by_user_id = '%s', "+
-			"create_time_utc = '%s', "+
+			"update_time_utc = '%s', "+
+			"expense_time_utc = '%s', "+
 			"provider_name = '%s', "+
 			"exp_type_id = '%s', "+
 			"is_settled = '%t', "+
@@ -290,7 +294,9 @@ func (s *Store) UpdateExpense(expense types.Expense) error {
 			"invoice_pic_url = '%s' "+
 			"WHERE id = '%s';",
 		expense.Description, expense.GroupID, expense.CreateByUserID,
-		expense.PayByUserId, createTime, expense.ProviderName,
+		expense.PayByUserId,
+		updateTime, expenseTime,
+		expense.ProviderName,
 		expense.ExpenseTypeID, expense.IsSettled, expense.SubTotal,
 		expense.TaxFeeTip, expense.Total, expense.Currency,
 		expense.InvoicePicUrl, expense.ID,
@@ -358,6 +364,8 @@ func scanRowIntoExpense(rows *sql.Rows) (*types.Expense, error) {
 		&expense.Currency,
 		&expense.InvoicePicUrl,
 		&expense.CreateTime,
+		&expense.UpdateTime,
+		&expense.ExpenseTime,
 	)
 	if err != nil {
 		return nil, err

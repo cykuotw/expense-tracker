@@ -11,7 +11,7 @@ templ ExpenseCard(expense types.ExpenseResponseBrief) {
 						<div class="flex flex-row justify-center items-center w-full">
 							<div class="flex flex-col justify-center items-center w-1/12 mx-1">
 								<div class="flex-none text-sm">
-									<p>June 11</p>
+									<p>{ expense.ExpenseTime.Format("Jan 2") }</p>
 								</div>
 							</div>
 							<div class="flex flex-col justify-center items-center w-1/12 mx-1">
@@ -21,15 +21,25 @@ templ ExpenseCard(expense types.ExpenseResponseBrief) {
 							</div>
 							<div class="flex flex-col justify-center w-7/12 truncate overflow-hidden mx-1">
 								<div class="flex-none w-fit">
-									<p class="">This is expense card { expense.Description }</p>
+									<p class="">{ expense.Description }</p>
 								</div>
 								<div class="flex-none w-fit">
-									<p class="text-xs">He paid $22.77</p>
+									for i, id := range expense.PayerUserIDs {
+										if id.String() == expense.CurrentUser {
+											<p class="text-xs">You paid ${ expense.Total.String() } { expense.Currency }</p>
+										} else {
+											<p class="text-xs">{ expense.PayerUsernames[i] } paid ${ expense.Total.String() } { expense.Currency }</p>
+										}
+									}
 								</div>
 							</div>
-							<div class="flex flex-col justify-center items-center w-1/6">
+							<div class="flex flex-col justify-center items-center w-2/6">
 								<div class="flex-none w-fit text-sm">
-									<p>You owe $30.99</p>
+									if expense.PayerUserIDs[0].String() == expense.CurrentUser {
+										<p>You lend ${ expense.Total.String() } { expense.Currency }</p>
+									} else {
+										<p>You owe ${ expense.Total.String() } { expense.Currency }</p>
+									}
 								</div>
 							</div>
 						</div>

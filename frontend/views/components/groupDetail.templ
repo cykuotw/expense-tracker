@@ -41,10 +41,7 @@ templ GroupDetail(groupID string, title string, balance types.BalanceResponse, e
 					No Expenses For Now
 				} else {
 					for _, expense := range expenseList {
-						@ExpenseCard(types.ExpenseResponseBrief{
-							ExpenseID:   expense.ExpenseID,
-							Description: expense.Description,
-						})
+						@ExpenseCard(expense)
 					}
 				}
 			</div>

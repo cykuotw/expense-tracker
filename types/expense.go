@@ -94,6 +94,8 @@ type ExpenseResponseBrief struct {
 	Description    string          `json:"description"`
 	Total          decimal.Decimal `json:"total"`
 	ExpenseTime    time.Time       `json:"expenseTime"`
+	CurrentUser    string          `json:"currentUser"`
+	Currency       string          `json:"currency"`
 	PayerUserIDs   []uuid.UUID     `json:"payerUserIds"`
 	PayerUsernames []string        `json:"payerUsernames"`
 }

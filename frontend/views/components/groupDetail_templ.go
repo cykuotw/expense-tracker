@@ -150,10 +150,7 @@ func GroupDetail(groupID string, title string, balance types.BalanceResponse, ex
 			}
 		} else {
 			for _, expense := range expenseList {
-				templ_7745c5c3_Err = ExpenseCard(types.ExpenseResponseBrief{
-					ExpenseID:   expense.ExpenseID,
-					Description: expense.Description,
-				}).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = ExpenseCard(expense).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}

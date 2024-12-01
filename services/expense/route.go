@@ -225,6 +225,12 @@ func (h *Handler) handleGetExpenseList(c *gin.Context) {
 		return
 	}
 
+	currency, nil := h.groupStore.GetGroupCurrency(groupIdStr)
+	if err != nil {
+		utils.WriteError(c, http.StatusInternalServerError, err)
+		return
+	}
+
 	var response []types.ExpenseResponseBrief
 	for _, expense := range expenseList {
 		var payerUserIDs []uuid.UUID
@@ -238,16 +244,18 @@ func (h *Handler) handleGetExpenseList(c *gin.Context) {
 
 		inserted := make(map[string]interface{})
 		for _, ledger := range ledgers {
-			_, ok := inserted[ledger.ID.String()]
+			// 2024.01.12 Single payer model
+			// just in case there are multiple payers
+			_, ok := inserted[ledger.LenderUserID.String()]
 			if !ok {
 				payerUserIDs = append(payerUserIDs, ledger.LenderUserID)
-				user, err := h.userStore.GetUserByID(ledger.LenderUserID.String())
+				username, err := h.userStore.GetUsernameByID(ledger.LenderUserID.String())
 				if err != nil {
 					utils.WriteError(c, http.StatusInternalServerError, err)
 					return
 				}
-				payerUsernames = append(payerUsernames, user.Username)
-				inserted[ledger.ID.String()] = nil
+				payerUsernames = append(payerUsernames, username)
+				inserted[ledger.LenderUserID.String()] = nil
 			}
 		}
 
@@ -257,6 +265,8 @@ func (h *Handler) handleGetExpenseList(c *gin.Context) {
 			Description:    expense.Description,
 			Total:          expense.Total,
 			ExpenseTime:    expense.ExpenseTime,
+			CurrentUser:    userID,
+			Currency:       currency,
 			PayerUserIDs:   payerUserIDs,
 			PayerUsernames: payerUsernames,
 		}

@@ -124,12 +124,6 @@ func (m *mockUSettelExpenseGroupStore) GetGroupByID(id string) (*types.Group, er
 	return nil, nil
 }
 func (s *mockUSettelExpenseGroupStore) GetGroupByIDAndUser(groupID string, userID string) (*types.Group, error) {
-	if groupID != mockGroupID.String() {
-		return nil, types.ErrGroupNotExist
-	}
-	if userID != mockUserID.String() {
-		return nil, types.ErrUserNotPermitted
-	}
 	return nil, nil
 }
 func (m *mockUSettelExpenseGroupStore) GetGroupListByUser(userid string) ([]*types.Group, error) {
@@ -154,6 +148,9 @@ func (m *mockUSettelExpenseGroupStore) CheckGroupExistById(id string) (bool, err
 	return false, nil
 }
 func (m *mockUSettelExpenseGroupStore) CheckGroupUserPairExist(groupId string, userId string) (bool, error) {
+	if groupId == mockGroupID.String() && userId == mockUserID.String() {
+		return true, nil
+	}
 	return false, nil
 }
 

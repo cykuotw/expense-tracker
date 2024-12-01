@@ -144,6 +144,9 @@ func (s *mockUpdateExpenseDetailStore) UpdateLedger(ledger types.Ledger) error {
 	return nil
 }
 func (m *mockUpdateExpenseDetailStore) CheckExpenseExistByID(id string) (bool, error) {
+	if id == mockExpenseID.String() {
+		return true, nil
+	}
 	return false, nil
 }
 
@@ -186,6 +189,9 @@ func (m *mockUpdateExpenseDetailGroupStore) CheckGroupExistById(id string) (bool
 	return false, nil
 }
 func (m *mockUpdateExpenseDetailGroupStore) CheckGroupUserPairExist(groupId string, userId string) (bool, error) {
+	if groupId == mockGroupID.String() && userId == mockUserID.String() {
+		return true, nil
+	}
 	return false, nil
 }
 

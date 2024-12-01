@@ -25,6 +25,7 @@ func TestRouteGetExpenseDetail(t *testing.T) {
 	type testcase struct {
 		name             string
 		expenseID        string
+		groupID          string
 		expectFail       bool
 		expectStatusCode int
 		expectResponse   types.ExpenseResponse
@@ -34,6 +35,7 @@ func TestRouteGetExpenseDetail(t *testing.T) {
 		{
 			name:             "valid",
 			expenseID:        mockExpenseID.String(),
+			groupID:          mockGroupID.String(),
 			expectFail:       false,
 			expectStatusCode: http.StatusOK,
 			expectResponse: types.ExpenseResponse{
@@ -52,8 +54,9 @@ func TestRouteGetExpenseDetail(t *testing.T) {
 			},
 		},
 		{
-			name:             "valid",
+			name:             "invalid expense id",
 			expenseID:        uuid.NewString(),
+			groupID:          mockGroupID.String(),
 			expectFail:       true,
 			expectStatusCode: http.StatusBadRequest,
 			expectResponse:   types.ExpenseResponse{},
@@ -125,9 +128,6 @@ func (s *mockGetExpenseDetailStore) CreateLedger(ledger types.Ledger) error {
 	return nil
 }
 func (s *mockGetExpenseDetailStore) GetExpenseByID(expenseID string) (*types.Expense, error) {
-	if expenseID != mockExpenseID.String() {
-		return nil, types.ErrExpenseNotExist
-	}
 	expense := &types.Expense{
 		ID:      mockExpenseID,
 		GroupID: mockGroupID,
@@ -162,6 +162,9 @@ func (s *mockGetExpenseDetailStore) UpdateLedger(ledger types.Ledger) error {
 	return nil
 }
 func (m *mockGetExpenseDetailStore) CheckExpenseExistByID(id string) (bool, error) {
+	if id == mockExpenseID.String() {
+		return true, nil
+	}
 	return false, nil
 }
 
@@ -174,12 +177,6 @@ func (m *mockGetExpenseDetailGroupStore) GetGroupByID(id string) (*types.Group, 
 	return nil, nil
 }
 func (s *mockGetExpenseDetailGroupStore) GetGroupByIDAndUser(groupID string, userID string) (*types.Group, error) {
-	if groupID != mockGroupID.String() {
-		return nil, types.ErrGroupNotExist
-	}
-	if userID != mockUserID.String() {
-		return nil, types.ErrUserNotExist
-	}
 	return nil, nil
 }
 func (m *mockGetExpenseDetailGroupStore) GetGroupListByUser(userid string) ([]*types.Group, error) {
@@ -204,6 +201,9 @@ func (m *mockGetExpenseDetailGroupStore) CheckGroupExistById(id string) (bool, e
 	return false, nil
 }
 func (m *mockGetExpenseDetailGroupStore) CheckGroupUserPairExist(groupId string, userId string) (bool, error) {
+	if groupId == mockGroupID.String() && userId == mockUserID.String() {
+		return true, nil
+	}
 	return false, nil
 }
 

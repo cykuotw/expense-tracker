@@ -50,11 +50,19 @@ func TestRouteGetExpenseList(t *testing.T) {
 			expectResponse:   mockGetExpenseListRsp,
 		},
 		{
+			name:             "invalid page",
+			groupID:          mockGroupID.String(),
+			page:             mockTotalPage + 1,
+			expectFail:       true,
+			expectStatusCode: http.StatusBadRequest,
+			expectResponse:   nil,
+		},
+		{
 			name:             "invalid group id",
 			groupID:          uuid.NewString(),
 			page:             0,
 			expectFail:       true,
-			expectStatusCode: http.StatusBadRequest,
+			expectStatusCode: http.StatusForbidden,
 			expectResponse:   nil,
 		},
 		{
@@ -62,15 +70,7 @@ func TestRouteGetExpenseList(t *testing.T) {
 			groupID:          uuid.Nil.String(),
 			page:             0,
 			expectFail:       true,
-			expectStatusCode: http.StatusBadRequest,
-			expectResponse:   nil,
-		},
-		{
-			name:             "invalid page",
-			groupID:          uuid.Nil.String(),
-			page:             mockTotalPage + 1,
-			expectFail:       true,
-			expectStatusCode: http.StatusBadRequest,
+			expectStatusCode: http.StatusForbidden,
 			expectResponse:   nil,
 		},
 	}
@@ -208,12 +208,6 @@ func (m *mockGetExpenseListGroupStore) GetGroupByID(id string) (*types.Group, er
 	return nil, nil
 }
 func (s *mockGetExpenseListGroupStore) GetGroupByIDAndUser(groupID string, userID string) (*types.Group, error) {
-	if groupID != mockGroupID.String() {
-		return nil, types.ErrGroupNotExist
-	}
-	if userID != mockUserID.String() {
-		return nil, types.ErrUserNotExist
-	}
 	return nil, nil
 }
 func (m *mockGetExpenseListGroupStore) GetGroupListByUser(userid string) ([]*types.Group, error) {
@@ -235,9 +229,15 @@ func (m *mockGetExpenseListGroupStore) GetRelatedUser(currentUser string, groupI
 	return nil, nil
 }
 func (m *mockGetExpenseListGroupStore) CheckGroupExistById(id string) (bool, error) {
+	if id == mockGroupID.String() {
+		return true, nil
+	}
 	return false, nil
 }
 func (m *mockGetExpenseListGroupStore) CheckGroupUserPairExist(groupId string, userId string) (bool, error) {
+	if groupId == mockGroupID.String() && userId == mockUserID.String() {
+		return true, nil
+	}
 	return false, nil
 }
 

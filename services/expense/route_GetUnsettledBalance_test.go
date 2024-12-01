@@ -105,7 +105,7 @@ func TestRouteGetUnsettledBalance(t *testing.T) {
 
 var mockUserIDs = []uuid.UUID{uuid.New(), uuid.New(), uuid.New()}
 var mockLedgerIDs = []uuid.UUID{uuid.New(), uuid.New(), uuid.New()}
-var mockSenderIDs = []uuid.UUID{uuid.New(), uuid.New(), uuid.New()}
+var mockSenderIDs = []uuid.UUID{mockUserID, mockUserID, mockUserID}
 var mockReceiverIDs = []uuid.UUID{uuid.New(), uuid.New(), uuid.New()}
 var mockCurrency = "CAD"
 var mockLedger = []*types.Ledger{
@@ -192,12 +192,6 @@ func (m *mockGetUnsettledBalanceGroupStore) GetGroupByID(id string) (*types.Grou
 	return nil, nil
 }
 func (s *mockGetUnsettledBalanceGroupStore) GetGroupByIDAndUser(groupID string, userID string) (*types.Group, error) {
-	if groupID != mockGroupID.String() {
-		return nil, types.ErrGroupNotExist
-	}
-	if userID != mockUserID.String() {
-		return nil, types.ErrUserNotExist
-	}
 	return nil, nil
 }
 func (m *mockGetUnsettledBalanceGroupStore) GetGroupListByUser(userid string) ([]*types.Group, error) {
@@ -222,6 +216,9 @@ func (m *mockGetUnsettledBalanceGroupStore) CheckGroupExistById(id string) (bool
 	return false, nil
 }
 func (m *mockGetUnsettledBalanceGroupStore) CheckGroupUserPairExist(groupId string, userId string) (bool, error) {
+	if groupId == mockGroupID.String() && userId == mockUserID.String() {
+		return true, nil
+	}
 	return false, nil
 }
 
@@ -234,11 +231,7 @@ func (m *mockGetUnsettledBalanceUserStore) GetUserByUsername(username string) (*
 	return nil, nil
 }
 func (m *mockGetUnsettledBalanceUserStore) GetUserByID(id string) (*types.User, error) {
-	user := &types.User{
-		ID:       mockUserID,
-		Username: "test user",
-	}
-	return user, nil
+	return nil, nil
 }
 func (m *mockGetUnsettledBalanceUserStore) CreateUser(user types.User) error {
 	return nil

@@ -52,11 +52,49 @@ func TestRouteCreateExpense(t *testing.T) {
 			expectStatusCode: http.StatusCreated,
 		},
 		{
-			name: "invalid mismatch user id and creator id",
+			name: "invalid user id",
 			payload: types.ExpensePayload{
 				Description:    "test desc",
 				GroupID:        mockGroupID.String(),
 				CreateByUserID: uuid.NewString(),
+				PayByUserId:    mockPayerID.String(),
+				ExpenseTypeID:  mockExpenseTypeID.String(),
+				ProviderName:   "test provider",
+				SubTotal:       decimal.NewFromFloat(20.1),
+				TaxFeeTip:      decimal.NewFromFloat(2.1),
+				Total:          decimal.NewFromFloat(22.2),
+				Currency:       "CAD",
+				Items:          nil,
+				Ledgers:        nil,
+			},
+			expectFail:       true,
+			expectStatusCode: http.StatusBadRequest,
+		},
+		{
+			name: "invalid group id",
+			payload: types.ExpensePayload{
+				Description:    "test desc",
+				GroupID:        uuid.NewString(),
+				CreateByUserID: mockCreatorID.String(),
+				PayByUserId:    mockPayerID.String(),
+				ExpenseTypeID:  mockExpenseTypeID.String(),
+				ProviderName:   "test provider",
+				SubTotal:       decimal.NewFromFloat(20.1),
+				TaxFeeTip:      decimal.NewFromFloat(2.1),
+				Total:          decimal.NewFromFloat(22.2),
+				Currency:       "CAD",
+				Items:          nil,
+				Ledgers:        nil,
+			},
+			expectFail:       true,
+			expectStatusCode: http.StatusBadRequest,
+		},
+		{
+			name: "invalid group id",
+			payload: types.ExpensePayload{
+				Description:    "test desc",
+				GroupID:        mockGroupID.String(),
+				CreateByUserID: mockUserID.String(),
 				PayByUserId:    mockPayerID.String(),
 				ExpenseTypeID:  mockExpenseTypeID.String(),
 				ProviderName:   "test provider",
@@ -80,7 +118,7 @@ func TestRouteCreateExpense(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			jwt, err := auth.CreateJWT([]byte(config.Envs.JWTSecret), mockUserID)
+			jwt, err := auth.CreateJWT([]byte(config.Envs.JWTSecret), uuid.MustParse(test.payload.CreateByUserID))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -102,7 +140,7 @@ func TestRouteCreateExpense(t *testing.T) {
 
 var mockUserID = uuid.New()
 var mockGroupID = uuid.New()
-var mockCreatorID = mockUserID
+var mockCreatorID = uuid.New()
 var mockPayerID = uuid.New()
 var mockExpenseTypeID = uuid.New()
 
@@ -135,7 +173,6 @@ func (s *mockCreateExpenseStore) GetLedgerUnsettledFromGroup(expenseID string) (
 func (s *mockCreateExpenseStore) GetExpenseType() ([]*types.ExpenseType, error) {
 	return nil, nil
 }
-
 func (s *mockCreateExpenseStore) UpdateExpense(expense types.Expense) error {
 	return nil
 }
@@ -161,12 +198,6 @@ func (m *mockCreateExpenseGroupStore) GetGroupByID(id string) (*types.Group, err
 	return nil, nil
 }
 func (s *mockCreateExpenseGroupStore) GetGroupByIDAndUser(groupID string, userID string) (*types.Group, error) {
-	if groupID != mockGroupID.String() {
-		return nil, types.ErrGroupNotExist
-	}
-	if userID != mockUserID.String() {
-		return nil, types.ErrUserNotPermitted
-	}
 	return nil, nil
 }
 func (m *mockCreateExpenseGroupStore) GetGroupListByUser(userid string) ([]*types.Group, error) {
@@ -188,9 +219,15 @@ func (m *mockCreateExpenseGroupStore) GetRelatedUser(currentUser string, groupId
 	return nil, nil
 }
 func (m *mockCreateExpenseGroupStore) CheckGroupExistById(id string) (bool, error) {
+	if id == mockGroupID.String() {
+		return true, nil
+	}
 	return false, nil
 }
 func (m *mockCreateExpenseGroupStore) CheckGroupUserPairExist(groupId string, userId string) (bool, error) {
+	if (groupId == mockGroupID.String()) && (userId == mockCreatorID.String()) {
+		return true, nil
+	}
 	return false, nil
 }
 
@@ -218,6 +255,9 @@ func (m *mockCreateExpenseUserStore) CheckUserExistByEmail(email string) (bool, 
 	return false, nil
 }
 func (m *mockCreateExpenseUserStore) CheckUserExistByID(id string) (bool, error) {
+	if id == mockCreatorID.String() || id == mockUserID.String() {
+		return true, nil
+	}
 	return false, nil
 }
 func (m *mockCreateExpenseUserStore) CheckUserExistByUsername(username string) (bool, error) {

@@ -17,6 +17,7 @@ type ExpenseStore interface {
 	GetExpenseByID(expenseID string) (*Expense, error)
 	GetExpenseList(groupID string, page int64) ([]*Expense, error)
 	GetExpenseType() ([]*ExpenseType, error)
+	GetExpenseTypeById(id uuid.UUID) (string, error)
 	GetItemsByExpenseID(expenseID string) ([]*Item, error)
 	GetLedgersByExpenseID(expenseID string) ([]*Ledger, error)
 	GetLedgerUnsettledFromGroup(expenseID string) ([]*Ledger, error)
@@ -101,17 +102,21 @@ type ExpenseResponseBrief struct {
 }
 
 type ExpenseResponse struct {
-	ID                uuid.UUID       `json:"expenseId"`
-	Description       string          `json:"description"`
-	CreatedByUserID   uuid.UUID       `json:"createdByUserID"`
-	CreatedByUsername string          `json:"createdByUsername"`
-	ExpenseTypeId     uuid.UUID       `json:"expenseTypeId"`
-	SubTotal          decimal.Decimal `json:"subTotal"`
-	TaxFeeTip         decimal.Decimal `json:"taxFeeTip"`
-	Total             decimal.Decimal `json:"total"`
-	Currency          string          `json:"currency"`
-	ExpenseTime       time.Time       `json:"expenseTime"`
-	Items             []ItemResponse  `json:"items"`
+	ID                uuid.UUID        `json:"expenseId"`
+	Description       string           `json:"description"`
+	CreatedByUserID   uuid.UUID        `json:"createdByUserID"`
+	CreatedByUsername string           `json:"createdByUsername"`
+	ExpenseTypeId     uuid.UUID        `json:"expenseTypeId"`
+	ExpenseType       string           `json:"expenseType"`
+	SubTotal          decimal.Decimal  `json:"subTotal"`
+	TaxFeeTip         decimal.Decimal  `json:"taxFeeTip"`
+	Total             decimal.Decimal  `json:"total"`
+	Currency          string           `json:"currency"`
+	ExpenseTime       time.Time        `json:"expenseTime"`
+	InvoicePicUrl     string           `json:"invoiceUrl"`
+	CurrentUser       string           `json:"currentUser"`
+	Items             []ItemResponse   `json:"items"`
+	Ledgers           []LedgerResponse `json:"ledgers"`
 }
 
 type ExpenseTypeResponse struct {

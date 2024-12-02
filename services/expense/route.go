@@ -352,18 +352,37 @@ func (h *Handler) handleGetExpenseDetail(c *gin.Context) {
 		}
 		itemRsp = append(itemRsp, item)
 	}
+	ledgers, err := h.store.GetLedgersByExpenseID(expenseID)
+	var ledgerRsp []types.LedgerResponse
+	for _, led := range ledgers {
+		lenderUsername, _ := h.userStore.GetUsernameByID(led.LenderUserID.String())
+		borrowerUsername, _ := h.userStore.GetUsernameByID(led.BorrowerUesrID.String())
+		ledger := types.LedgerResponse{
+			LenderUserId:     led.LenderUserID.String(),
+			LenderUsername:   lenderUsername,
+			BorrowerUserId:   led.BorrowerUesrID.String(),
+			BorrowerUsername: borrowerUsername,
+			Share:            led.Share,
+		}
+		ledgerRsp = append(ledgerRsp, ledger)
+	}
+	expenseType, _ := h.store.GetExpenseTypeById(expense.ExpenseTypeID)
 	response := types.ExpenseResponse{
 		ID:                expense.ID,
 		Description:       expense.Description,
 		CreatedByUserID:   expense.CreateByUserID,
 		CreatedByUsername: username,
 		ExpenseTypeId:     expense.ExpenseTypeID,
+		ExpenseType:       expenseType,
 		SubTotal:          expense.SubTotal,
 		TaxFeeTip:         expense.TaxFeeTip,
 		Total:             expense.Total,
 		Currency:          expense.Currency,
 		ExpenseTime:       expense.ExpenseTime,
+		CurrentUser:       userID,
+		InvoicePicUrl:     expense.InvoicePicUrl,
 		Items:             itemRsp,
+		Ledgers:           ledgerRsp,
 	}
 
 	utils.WriteJSON(c, http.StatusOK, response)

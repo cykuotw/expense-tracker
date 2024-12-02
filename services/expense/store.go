@@ -180,6 +180,28 @@ func (s *Store) GetExpenseType() ([]*types.ExpenseType, error) {
 	return expenseTypes, nil
 }
 
+func (s *Store) GetExpenseTypeById(id uuid.UUID) (string, error) {
+	query := fmt.Sprintf(
+		"SELECT name "+
+			"FROM expense_type "+
+			"WHERE id = '%s';",
+		id.String(),
+	)
+
+	rows, err := s.db.Query(query)
+	if err != nil {
+		return "", err
+	}
+	defer rows.Close()
+
+	name := ""
+	for rows.Next() {
+		rows.Scan(&name)
+	}
+
+	return name, nil
+}
+
 func (s *Store) GetItemsByExpenseID(expenseID string) ([]*types.Item, error) {
 	query := fmt.Sprintf("SELECT * FROM item WHERE expense_id='%s' ORDER BY id;", expenseID)
 	rows, err := s.db.Query(query)

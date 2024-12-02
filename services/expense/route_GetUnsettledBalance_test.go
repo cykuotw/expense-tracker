@@ -182,6 +182,9 @@ func (s *mockGetUnsettledBalanceStore) UpdateLedger(ledger types.Ledger) error {
 func (m *mockGetUnsettledBalanceStore) CheckExpenseExistByID(id string) (bool, error) {
 	return false, nil
 }
+func (m *mockGetUnsettledBalanceStore) GetExpenseTypeById(id uuid.UUID) (string, error) {
+	return "", nil
+}
 
 type mockGetUnsettledBalanceGroupStore struct{}
 

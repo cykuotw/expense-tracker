@@ -188,6 +188,9 @@ func (s *mockCreateExpenseStore) UpdateLedger(ledger types.Ledger) error {
 func (m *mockCreateExpenseStore) CheckExpenseExistByID(id string) (bool, error) {
 	return false, nil
 }
+func (m *mockCreateExpenseStore) GetExpenseTypeById(id uuid.UUID) (string, error) {
+	return "", nil
+}
 
 type mockCreateExpenseGroupStore struct{}
 

@@ -24,3 +24,11 @@ type LedgerUpdatePayload struct {
 	ID uuid.UUID `json:"ledgerId"`
 	LedgerPayload
 }
+
+type LedgerResponse struct {
+	LenderUserId     string          `json:"lenderUserId"`
+	LenderUsername   string          `json:"lenderUsername"`
+	BorrowerUserId   string          `json:"borrowerUserId"`
+	BorrowerUsername string          `json:"borrowerUsername"`
+	Share            decimal.Decimal `json:"share"`
+}

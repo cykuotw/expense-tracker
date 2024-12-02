@@ -1,0 +1,15 @@
+package index
+
+import (
+	"expense-tracker/frontend/views/components"
+	"expense-tracker/frontend/views/layouts"
+	"expense-tracker/types"
+)
+
+templ ExpenseDetail(expense types.ExpenseResponse) {
+	@layouts.Base() {
+		@components.Navbar() {
+			@components.ExpenseDetail(expense)
+		}
+	}
+}

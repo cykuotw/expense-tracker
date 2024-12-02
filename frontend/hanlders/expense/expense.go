@@ -22,6 +22,7 @@ func NewHandler() *Handler {
 func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 	router.GET("/create_expense", common.Make(h.handleCreateNewExpenseGet))
 	router.POST("/create_expense", common.Make(h.handleCreateNewExpensePost))
+	router.GET("/expense/:expenseId", common.Make(h.handleGetExpenseDetail))
 	router.GET("/expense_types", common.Make(h.handleGetExpenseType))
 	router.GET("/split_rules", common.Make(h.handleGetSplitRules))
 }
@@ -111,6 +112,33 @@ func (h *Handler) handleCreateNewExpensePost(c *gin.Context) error {
 	c.Status(200)
 
 	return nil
+}
+
+func (h *Handler) handleGetExpenseDetail(c *gin.Context) error {
+	token, err := c.Cookie("access_token")
+	if err != nil {
+		c.Status(http.StatusUnauthorized)
+		c.Writer.Write([]byte("Unauthorized"))
+		return err
+	}
+
+	expenseID := c.Param("expenseId")
+
+	res, err := common.MakeBackendHTTPRequest(http.MethodGet, "/expense/"+expenseID, token, nil)
+	if err != nil {
+		c.Status(http.StatusInternalServerError)
+		return err
+	}
+	defer res.Body.Close()
+
+	resPayload := types.ExpenseResponse{}
+	err = json.NewDecoder(res.Body).Decode(&resPayload)
+	if err != nil {
+		c.Status(http.StatusInternalServerError)
+		return err
+	}
+
+	return common.Render(c.Writer, c.Request, index.ExpenseDetail(resPayload))
 }
 
 func (h *Handler) handleGetExpenseType(c *gin.Context) error {

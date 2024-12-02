@@ -1,68 +1,100 @@
 package components
 
-templ ExpenseDetail() {
+import "expense-tracker/types"
+
+templ ExpenseDetail(expense types.ExpenseResponse) {
 	<div class="flex flex-col md:flex-row justify-center items-center space-x-5 h-screen py-5">
 		<div class="flex-1 hidden md:block"></div>
 		<div class="flex-1 h-full">
 			<div class="flex flex-col justify-center items-center py-5">
 				<div id="expense-overview" class="space-y-2 text-center">
-					<h1 class="text-xl">Expense Description</h1>
-					<p class="text-2xl">$61.33</p>
-					<p class="text-sm">Added by User-ccc on Jun 7, 2024</p>
+					<h1 class="text-xl">
+						{ expense.Description }
+					</h1>
+					<p class="text-2xl">
+						${ expense.Total.String() } { expense.Currency }
+					</p>
+					<p class="text-sm">
+						Added by { expense.CreatedByUsername } on { expense.ExpenseTime.Format("Jan 01, 2006") }
+					</p>
+					<p class="text-xs">
+						Category: { expense.ExpenseType }
+					</p>
 				</div>
 				<div class="py-3"></div>
 				<div id="expense-ledger" class="space-y-1">
 					<ul class="menu rounded-box">
 						<li>
-							<h2 class="menu-title font-normal text-lg text-black">User-dd paid $61.34</h2>
+							<h2 class="menu-title font-normal text-lg text-black">
+								if expense.Ledgers[0].LenderUserId == expense.CurrentUser {
+									You paid ${ expense.Total.String() } { expense.Currency }
+								} else {
+									{ expense.Ledgers[0].LenderUsername } paid ${ expense.Total.String() } { expense.Currency }
+								}
+							</h2>
 							<ul>
-								<li><p>You owe $30.67</p></li>
-								<li><p>User-dd owe $30.67</p></li>
+								for _, ledger := range expense.Ledgers {
+									<li>
+										<p>
+											if ledger.BorrowerUserId == expense.CurrentUser {
+												Yow owe ${ ledger.Share.String() } { expense.Currency }
+											} else {
+												{ ledger.BorrowerUsername } owes ${ ledger.Share.String() } { expense.Currency }
+											}
+										</p>
+									</li>
+								}
 							</ul>
 						</li>
 					</ul>
 				</div>
 				<div class="py-3"></div>
-				<div id="expense-items" class="overflow-x-auto text-center">
-					<h1 class="text-xl">Purchased Items</h1>
-					<table class="table ">
-						<thead>
-							<tr>
-								<th>Name</th>
-								<th>Amount</th>
-								<th>Price</th>
-							</tr>
-						</thead>
-						<tbody>
-							<tr class="hover">
-								<th>Potato</th>
-								<th>1 lb</th>
-								<th>5.77</th>
-							</tr>
-							<tr class="hover">
-								<th>Shin Ramen</th>
-								<th>1 bag</th>
-								<th>9.99</th>
-							</tr>
-							<tr class="hover">
-								<th>Frozen Berry</th>
-								<th>1 bag</th>
-								<th>17.99</th>
-							</tr>
-						</tbody>
-					</table>
-				</div>
-				<div class="flex flex-col justify-center items-center py-5 space-y-1">
-					<h1 class="text-xl">Invoice Image</h1>
-					<button class="btn btn-ghost btn-active">
-						View Invoice Image
-					</button>
-					<div id="indicator" class="htmx-indicator">
-						<div class="flex justify-center items-center w-full">
-							<span class="loading loading-spinner loading-md"></span>
+				if len(expense.Items) != 0 {
+					// TODO: image reconition feature
+					<div id="expense-items" class="overflow-x-auto text-center">
+						<h1 class="text-xl">Purchased Items</h1>
+						<table class="table ">
+							<thead>
+								<tr>
+									<th>Name</th>
+									<th>Amount</th>
+									<th>Price</th>
+								</tr>
+							</thead>
+							<tbody>
+								<tr class="hover">
+									<th>Potato</th>
+									<th>1 lb</th>
+									<th>5.77</th>
+								</tr>
+								<tr class="hover">
+									<th>Shin Ramen</th>
+									<th>1 bag</th>
+									<th>9.99</th>
+								</tr>
+								<tr class="hover">
+									<th>Frozen Berry</th>
+									<th>1 bag</th>
+									<th>17.99</th>
+								</tr>
+							</tbody>
+						</table>
+					</div>
+				}
+				if expense.InvoicePicUrl != "" {
+					// TODO: image reconition feature
+					<div class="flex flex-col justify-center items-center py-5 space-y-1">
+						<h1 class="text-xl">Invoice Image</h1>
+						<button class="btn btn-ghost btn-active">
+							View Invoice Image
+						</button>
+						<div id="indicator" class="htmx-indicator">
+							<div class="flex justify-center items-center w-full">
+								<span class="loading loading-spinner loading-md"></span>
+							</div>
 						</div>
 					</div>
-				</div>
+				}
 			</div>
 		</div>
 		<div class="flex-1 h-full">

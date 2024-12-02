@@ -35,7 +35,7 @@ func ExpenseCard(expense types.ExpenseResponseBrief) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var2 templ.SafeURL = templ.URL("#" + expense.ExpenseID.String())
+		var templ_7745c5c3_Var2 templ.SafeURL = templ.URL("/expense/" + expense.ExpenseID.String())
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(string(templ_7745c5c3_Var2)))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err

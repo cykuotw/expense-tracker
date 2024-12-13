@@ -35,9 +35,9 @@ func TestRouteUpdateExpenseDetail(t *testing.T) {
 		{
 			name: "valid",
 			payload: types.ExpenseUpdatePayload{
-				GroupID:        mockGroupID,
-				CreateByUserID: mockCreatorID,
-				ExpenseTypeID:  mockExpenseTypeID,
+				GroupID:       mockGroupID,
+				PayByUserId:   mockCreatorID.String(),
+				ExpenseTypeID: mockExpenseTypeID,
 			},
 			expenseID:        mockExpenseID.String(),
 			expectFail:       false,
@@ -46,9 +46,9 @@ func TestRouteUpdateExpenseDetail(t *testing.T) {
 		{
 			name: "invalid expense id",
 			payload: types.ExpenseUpdatePayload{
-				GroupID:        mockGroupID,
-				CreateByUserID: mockCreatorID,
-				ExpenseTypeID:  mockExpenseTypeID,
+				GroupID:       mockGroupID,
+				PayByUserId:   mockCreatorID.String(),
+				ExpenseTypeID: mockExpenseTypeID,
 			},
 			expenseID:        uuid.NewString(),
 			expectFail:       true,
@@ -57,9 +57,9 @@ func TestRouteUpdateExpenseDetail(t *testing.T) {
 		{
 			name: "invalid group id",
 			payload: types.ExpenseUpdatePayload{
-				GroupID:        uuid.New(),
-				CreateByUserID: mockCreatorID,
-				ExpenseTypeID:  mockExpenseTypeID,
+				GroupID:       uuid.New(),
+				PayByUserId:   mockCreatorID.String(),
+				ExpenseTypeID: mockExpenseTypeID,
 			},
 			expenseID:        mockExpenseID.String(),
 			expectFail:       true,

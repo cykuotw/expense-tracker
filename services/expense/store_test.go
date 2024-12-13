@@ -48,6 +48,7 @@ func TestCreateExpense(t *testing.T) {
 				Total:          decimal.NewFromFloat(21.02),
 				Currency:       "CAD",
 				InvoicePicUrl:  "http://mockpic.url.com",
+				SplitRule:      "Unequally",
 			},
 			expectFail:  false,
 			expectError: nil,
@@ -236,6 +237,7 @@ func TestGetExpenseList(t *testing.T) {
 			IsSettled:      false,
 			Total:          decimal.NewFromFloat(10.112),
 			Currency:       "CAD",
+			SplitRule:      "Equally",
 		}
 
 		insertExpense(db, exp)
@@ -480,6 +482,7 @@ func TestGetLedgerUnsettledFromGroup(t *testing.T) {
 			IsSettled:      false,
 			Total:          decimal.NewFromFloat(99.37 + 0.37*float64(i)),
 			Currency:       "CAD",
+			SplitRule:      "Equally",
 		}
 		insertExpense(db, expense)
 
@@ -699,6 +702,7 @@ func TestUpdateExpense(t *testing.T) {
 		IsSettled:      false,
 		Total:          decimal.NewFromFloat(99.37 + 0.37*8.3),
 		Currency:       "CAD",
+		SplitRule:      "Equally",
 	}
 	insertExpense(db, mockExpense)
 	defer deleteExpense(db, mockExpense.ID)
@@ -773,6 +777,7 @@ func selectExpense(db *sql.DB, groupID uuid.UUID) []*types.Expense {
 			&expense.CreateTime,
 			&expense.UpdateTime,
 			&expense.ExpenseTime,
+			&expense.SplitRule,
 		)
 		expList = append(expList, expense)
 	}
@@ -809,6 +814,7 @@ func selectExpenseByID(db *sql.DB, expenseID uuid.UUID) *types.Expense {
 			&expense.CreateTime,
 			&expense.UpdateTime,
 			&expense.ExpenseTime,
+			&expense.SplitRule,
 		)
 	}
 
@@ -823,14 +829,14 @@ func insertExpense(db *sql.DB, expense types.Expense) {
 			"create_by_user_id, pay_by_user_id, provider_name, "+
 			"exp_type_id, is_settled, "+
 			"sub_total, tax_fee_tip, total, "+
-			"currency, invoice_pic_url, create_time_utc"+
+			"currency, invoice_pic_url, create_time_utc, split_rule"+
 			") VALUES ('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%t', "+
-			"'%s', '%s', '%s', '%s', '%s', '%s')",
+			"'%s', '%s', '%s', '%s', '%s', '%s', '%s')",
 		expense.ID, expense.Description, expense.GroupID,
 		expense.CreateByUserID, expense.PayByUserId, expense.ProviderName,
 		expense.ExpenseTypeID, expense.IsSettled,
 		expense.SubTotal.String(), expense.TaxFeeTip.String(), expense.Total.String(),
-		expense.Currency, expense.InvoicePicUrl, createTime,
+		expense.Currency, expense.InvoicePicUrl, createTime, expense.SplitRule,
 	)
 
 	db.Exec(query)

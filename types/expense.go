@@ -50,6 +50,7 @@ type Expense struct {
 	Total          decimal.Decimal
 	Currency       string
 	InvoicePicUrl  string
+	SplitRule      string
 }
 
 type ExpenseType struct {
@@ -71,23 +72,25 @@ type ExpensePayload struct {
 	Total          decimal.Decimal `json:"total"`
 	Currency       string          `json:"currency"`
 	InvoicePicUrl  string          `json:"invoiceUrl"`
+	SplitRule      string          `json:"splitRule"`
 	Items          []ItemPayload   `json:"items"`
 	Ledgers        []LedgerPayload `json:"ledgers"`
 }
 
 type ExpenseUpdatePayload struct {
-	Description    string                `json:"description"`
-	GroupID        uuid.UUID             `json:"groupId"`
-	CreateByUserID uuid.UUID             `json:"createByUserId"`
-	ExpenseTypeID  uuid.UUID             `json:"expTypeId"`
-	ProviderName   string                `json:"providerName"`
-	SubTotal       decimal.Decimal       `json:"subTotal"`
-	TaxFeeTip      decimal.Decimal       `json:"taxFeeTip"`
-	Total          decimal.Decimal       `json:"total"`
-	Currency       string                `json:"currency"`
-	InvoicePicUrl  string                `json:"invoiceUrl"`
-	Items          []ItemUpdatePayload   `json:"items"`
-	Ledgers        []LedgerUpdatePayload `json:"ledgers"`
+	Description   string                `json:"description"`
+	GroupID       uuid.UUID             `json:"groupId"`
+	PayByUserId   string                `json:"payByUserId"`
+	ExpenseTypeID uuid.UUID             `json:"expTypeId"`
+	ProviderName  string                `json:"providerName"`
+	SubTotal      decimal.Decimal       `json:"subTotal"`
+	TaxFeeTip     decimal.Decimal       `json:"taxFeeTip"`
+	Total         decimal.Decimal       `json:"total"`
+	Currency      string                `json:"currency"`
+	InvoicePicUrl string                `json:"invoiceUrl"`
+	SplitRule     string                `json:"splitRule"`
+	Items         []ItemUpdatePayload   `json:"items"`
+	Ledgers       []LedgerUpdatePayload `json:"ledgers"`
 }
 
 type ExpenseResponseBrief struct {
@@ -115,6 +118,8 @@ type ExpenseResponse struct {
 	ExpenseTime       time.Time        `json:"expenseTime"`
 	InvoicePicUrl     string           `json:"invoiceUrl"`
 	CurrentUser       string           `json:"currentUser"`
+	GroupId           string           `json:"groupId"`
+	SplitRule         string           `json:"splitRule"`
 	Items             []ItemResponse   `json:"items"`
 	Ledgers           []LedgerResponse `json:"ledgers"`
 }

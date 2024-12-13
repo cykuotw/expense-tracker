@@ -27,6 +27,7 @@ func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 	router.POST("/create_group", h.handleCreateGroup)
 	router.GET("/group/:groupid", h.handleGetGroup)
 	router.GET("/groups", h.handleGetGroupList)
+	router.GET("/group_member/:groupid", h.handleGetGroupMember)
 	router.PUT("/group_member", h.handleUpdateGroupMember)
 	router.PUT("/archive_group/:groupId", h.handleArchiveGroup)
 
@@ -165,6 +166,62 @@ func (h *Handler) handleGetGroupList(c *gin.Context) {
 	}
 
 	utils.WriteJSON(c, http.StatusOK, response)
+}
+
+func (h *Handler) handleGetGroupMember(c *gin.Context) {
+	// get group id
+	groupId := c.Param("groupid")
+	if groupId == "" {
+		utils.WriteError(c, http.StatusBadRequest, types.ErrGroupNotExist)
+		return
+	}
+
+	// get user id from jwt
+	userID, err := auth.ExtractJWTClaim(c, "userID")
+	if err != nil {
+		utils.WriteError(c, http.StatusInternalServerError, err)
+		return
+	}
+
+	// check requester belongs to the group
+	exist, err := h.store.CheckGroupUserPairExist(groupId, userID)
+	if err != nil {
+		utils.WriteError(c, http.StatusInternalServerError, err)
+		return
+	}
+	if !exist {
+		utils.WriteError(c, http.StatusForbidden, types.ErrUserNotPermitted)
+		return
+	}
+
+	// get members of the group
+	users, err := h.store.GetGroupMemberByGroupID(groupId)
+	if err != nil {
+		utils.WriteJSON(c, http.StatusInternalServerError, err)
+		return
+	}
+
+	// make response
+	var members []types.GroupMember
+	var currUser types.GroupMember
+	for _, user := range users {
+		if user.ID.String() == userID {
+			currUser = types.GroupMember{
+				UserID:   user.ID.String(),
+				Username: user.Username,
+			}
+			continue
+		}
+
+		member := types.GroupMember{
+			UserID:   user.ID.String(),
+			Username: user.Username,
+		}
+		members = append(members, member)
+	}
+	members = append(members, currUser)
+
+	utils.WriteJSON(c, http.StatusOK, members)
 }
 
 func (h *Handler) handleUpdateGroupMember(c *gin.Context) {

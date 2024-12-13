@@ -124,6 +124,7 @@ func (h *Handler) handleCreateExpense(c *gin.Context) {
 		Total:          payload.Total,
 		Currency:       payload.Currency,
 		InvoicePicUrl:  payload.InvoicePicUrl,
+		SplitRule:      payload.SplitRule,
 	}
 
 	err = h.store.CreateExpense(expense)
@@ -358,6 +359,7 @@ func (h *Handler) handleGetExpenseDetail(c *gin.Context) {
 		lenderUsername, _ := h.userStore.GetUsernameByID(led.LenderUserID.String())
 		borrowerUsername, _ := h.userStore.GetUsernameByID(led.BorrowerUesrID.String())
 		ledger := types.LedgerResponse{
+			ID:               led.ID.String(),
 			LenderUserId:     led.LenderUserID.String(),
 			LenderUsername:   lenderUsername,
 			BorrowerUserId:   led.BorrowerUesrID.String(),
@@ -381,8 +383,10 @@ func (h *Handler) handleGetExpenseDetail(c *gin.Context) {
 		ExpenseTime:       expense.ExpenseTime,
 		CurrentUser:       userID,
 		InvoicePicUrl:     expense.InvoicePicUrl,
+		GroupId:           expense.GroupID.String(),
 		Items:             itemRsp,
 		Ledgers:           ledgerRsp,
+		SplitRule:         expense.SplitRule,
 	}
 
 	utils.WriteJSON(c, http.StatusOK, response)
@@ -473,15 +477,19 @@ func (h *Handler) handleUpdateExpense(c *gin.Context) {
 			utils.WriteError(c, http.StatusInternalServerError, err)
 			return
 		}
+		ledgerId, err := uuid.Parse(led.ID)
+		if err != nil {
+			ledgerId = uuid.Nil
+		}
 		ledger := types.Ledger{
-			ID:             led.ID,
+			ID:             ledgerId,
 			ExpenseID:      expense.ID,
 			LenderUserID:   lenderID,
 			BorrowerUesrID: borrowerID,
 			Share:          led.Share,
 		}
 
-		if led.ID == uuid.Nil {
+		if ledger.ID == uuid.Nil {
 			ledger.ID = uuid.New()
 
 			err := h.store.CreateLedger(ledger)
@@ -502,17 +510,17 @@ func (h *Handler) handleUpdateExpense(c *gin.Context) {
 	// update expense
 	id := expense.ID
 	expense = &types.Expense{
-		ID:             id,
-		Description:    payload.Description,
-		GroupID:        payload.GroupID,
-		CreateByUserID: payload.CreateByUserID,
-		ExpenseTypeID:  payload.ExpenseTypeID,
-		ProviderName:   payload.ProviderName,
-		SubTotal:       payload.SubTotal,
-		TaxFeeTip:      payload.TaxFeeTip,
-		Total:          payload.Total,
-		Currency:       payload.Currency,
-		InvoicePicUrl:  payload.InvoicePicUrl,
+		ID:            id,
+		Description:   payload.Description,
+		GroupID:       payload.GroupID,
+		ExpenseTypeID: payload.ExpenseTypeID,
+		ProviderName:  payload.ProviderName,
+		SubTotal:      payload.SubTotal,
+		TaxFeeTip:     payload.TaxFeeTip,
+		Total:         payload.Total,
+		Currency:      payload.Currency,
+		InvoicePicUrl: payload.InvoicePicUrl,
+		SplitRule:     payload.SplitRule,
 	}
 	err = h.store.UpdateExpense(*expense)
 	if err != nil {

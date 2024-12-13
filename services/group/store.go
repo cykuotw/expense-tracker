@@ -157,7 +157,7 @@ func (s *Store) GetGroupListByUser(userID string) ([]*types.Group, error) {
 
 func (s *Store) GetGroupMemberByGroupID(groupID string) ([]*types.User, error) {
 	query := fmt.Sprintf(
-		"SELECT user_id FROM group_member WHERE group_id='%s';",
+		"SELECT user_id FROM group_member WHERE group_id='%s' ORDER BY user_id ASC;",
 		groupID)
 	rowsGroup, err := s.db.Query(query)
 	if err != nil {

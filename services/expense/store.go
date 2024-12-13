@@ -27,14 +27,16 @@ func (s *Store) CreateExpense(expense types.Expense) error {
 			"exp_type_id, is_settled, "+
 			"sub_total, tax_fee_tip, total, "+
 			"currency, invoice_pic_url, "+
-			"create_time_utc, update_time_utc, expense_time_utc"+
+			"create_time_utc, update_time_utc, expense_time_utc, "+
+			"split_rule "+
 			") VALUES ('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%t', "+
-			"'%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s')",
+			"'%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s')",
 		expense.ID, expense.Description, expense.GroupID,
 		expense.CreateByUserID, expense.PayByUserId, expense.ProviderName,
 		expense.ExpenseTypeID, false,
 		expense.SubTotal.String(), expense.TaxFeeTip.String(), expense.Total.String(),
 		expense.Currency, expense.InvoicePicUrl, createTime, createTime, createTime,
+		expense.SplitRule,
 	)
 
 	_, err := s.db.Exec(query)
@@ -229,7 +231,7 @@ func (s *Store) GetItemsByExpenseID(expenseID string) ([]*types.Item, error) {
 
 func (s *Store) GetLedgersByExpenseID(expenseID string) ([]*types.Ledger, error) {
 	query := fmt.Sprintf(
-		"SELECT * FROM ledger WHERE expense_id='%s';", expenseID,
+		"SELECT * FROM ledger WHERE expense_id='%s' ORDER BY borrower_user_id ASC;", expenseID,
 	)
 	rows, err := s.db.Query(query)
 	if err != nil {
@@ -302,7 +304,6 @@ func (s *Store) UpdateExpense(expense types.Expense) error {
 		"UPDATE expense SET "+
 			"description = '%s', "+
 			"group_id = '%s', "+
-			"create_by_user_id = '%s', "+
 			"pay_by_user_id = '%s', "+
 			"update_time_utc = '%s', "+
 			"expense_time_utc = '%s', "+
@@ -313,15 +314,17 @@ func (s *Store) UpdateExpense(expense types.Expense) error {
 			"tax_fee_tip = '%s', "+
 			"total = '%s', "+
 			"currency = '%s', "+
-			"invoice_pic_url = '%s' "+
+			"invoice_pic_url = '%s', "+
+			"split_rule = '%s' "+
 			"WHERE id = '%s';",
-		expense.Description, expense.GroupID, expense.CreateByUserID,
+		expense.Description, expense.GroupID,
 		expense.PayByUserId,
 		updateTime, expenseTime,
 		expense.ProviderName,
 		expense.ExpenseTypeID, expense.IsSettled, expense.SubTotal,
 		expense.TaxFeeTip, expense.Total, expense.Currency,
-		expense.InvoicePicUrl, expense.ID,
+		expense.InvoicePicUrl, expense.SplitRule,
+		expense.ID,
 	)
 	_, err := s.db.Exec(query)
 	if err != nil {
@@ -352,7 +355,7 @@ func (s *Store) UpdateItem(item types.Item) error {
 
 func (s *Store) UpdateLedger(ledger types.Ledger) error {
 	query := fmt.Sprintf(
-		"UPDATE item SET "+
+		"UPDATE ledger SET "+
 			"expense_id = '%s', "+
 			"lender_user_id = '%s', "+
 			"borrower_user_id = '%s', "+
@@ -388,6 +391,7 @@ func scanRowIntoExpense(rows *sql.Rows) (*types.Expense, error) {
 		&expense.CreateTime,
 		&expense.UpdateTime,
 		&expense.ExpenseTime,
+		&expense.SplitRule,
 	)
 	if err != nil {
 		return nil, err

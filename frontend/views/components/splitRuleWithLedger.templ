@@ -1,0 +1,130 @@
+package components
+
+import (
+	"expense-tracker/frontend/hanlders/common"
+	"expense-tracker/types"
+)
+
+templ SplitRuleWithLedger(user types.GroupMember, members []types.GroupMember, mpLedger map[string]types.LedgerResponse, rule common.SplitOption, lendgerId string) {
+	if len(members) <= 1 {
+		<div></div>
+	} else {
+		if len(members) == 2 {
+			if members[0].UserID == user.UserID {
+				@splitRuleWithLedger2(user, members[1], rule, lendgerId)
+			} else {
+				@splitRuleWithLedger2(user, members[0], rule, lendgerId)
+			}
+			@splitEvent()
+			@splitEvent2()
+		} else {
+			@splitRuleWithLedgerN(user, members, rule, lendgerId)
+			@splitEvent()
+		}
+		@ledgerWithData(members, rule, mpLedger)
+	}
+}
+
+templ splitRuleWithLedger2(user types.GroupMember, member types.GroupMember, rule common.SplitOption, lendgerId string) {
+	<select
+		class="select select-bordered w-full text-base text-center"
+		id="splitRuleSelector"
+		name="splitRule"
+	>
+		<option
+			value="You-Half"
+			selected?={ rule == common.YouHalf }
+		>
+			You paid, split equally
+		</option>
+		<option
+			value="You-Full"
+			selected?={ rule == common.YouFull }
+		>
+			You are owed the full amount
+		</option>
+		<option
+			value="Other-Half"
+			selected?={ rule == common.OtherHalf }
+		>
+			{ member.Username } paid, split euqally
+		</option>
+		<option
+			value="Other-Full"
+			selected?={ rule == common.OtherFull }
+		>
+			{ member.Username } is owed the full amount
+		</option>
+		<option
+			value="Unequally"
+			selected?={ rule == common.Unequally }
+		>
+			Unequally
+		</option>
+	</select>
+	<div
+		id="payer-container"
+		if rule == common.Unequally {
+			class="flex flex-row justify-center items-center w-full space-x-2"
+		} else {
+			class="hidden flex-row justify-center items-center w-full space-x-2"
+		}
+	>
+		<p class="w-max">Paid by</p>
+		<select
+			class="select select-sm select-bordered w-max border-dashed"
+			id="payerSelector"
+			name="payer"
+		>
+			<option
+				value={ user.UserID }
+				selected?={ lendgerId == user.UserID }
+			>
+				You
+			</option>
+			<option
+				value={ member.UserID }
+				selected?={ lendgerId == member.UserID }
+			>
+				{ member.Username }
+			</option>
+		</select>
+	</div>
+}
+
+templ splitRuleWithLedgerN(user types.GroupMember, members []types.GroupMember, rule common.SplitOption, lendgerId string) {
+	<div class="flex flex-row justify-center items-center w-full space-x-2">
+		<p class="w-max">Paid by</p>
+		<select
+			class="select select-sm select-bordered w-max border-dashed"
+			id="payerSelector"
+			name="payer"
+		>
+			<option
+				value={ user.UserID }
+				selected?={ lendgerId == user.UserID }
+			>
+				You
+			</option>
+			for _, mem := range members {
+				if mem.UserID != user.UserID {
+					<option
+						value={ mem.UserID }
+						selected?={ lendgerId == mem.UserID }
+					>
+						{ mem.Username }
+					</option>
+				}
+			}
+		</select>
+		<p class="w-max">and split</p>
+		<select
+			class="select select-sm select-bordered w-max border-dashed"
+			id="splitRuleSelector"
+			name="splitRule"
+		>
+			<option selected?={ rule==common.Equally }>Equally</option>
+			<option selected?={ rule==common.Unequally }>Unequally</option>
+		</select>
+	</div>
+}

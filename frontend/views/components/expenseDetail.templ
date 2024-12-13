@@ -3,127 +3,88 @@ package components
 import "expense-tracker/types"
 
 templ ExpenseDetail(expense types.ExpenseResponse) {
-	<div class="flex flex-col md:flex-row justify-center items-center space-x-5 h-screen py-5">
-		<div class="flex-1 hidden md:block"></div>
-		<div class="flex-1 h-full">
-			<div class="flex flex-col justify-center items-center py-5">
-				<div id="expense-overview" class="space-y-2 text-center">
-					<h1 class="text-xl">
-						{ expense.Description }
-					</h1>
-					<p class="text-2xl">
-						${ expense.Total.String() } { expense.Currency }
-					</p>
-					<p class="text-sm">
-						Added by { expense.CreatedByUsername } on { expense.ExpenseTime.Format("Jan 01, 2006") }
-					</p>
-					<p class="text-xs">
-						Category: { expense.ExpenseType }
-					</p>
-				</div>
-				<div class="py-3"></div>
-				<div id="expense-ledger" class="space-y-1">
-					<ul class="menu rounded-box">
-						<li>
-							<h2 class="menu-title font-normal text-lg text-black">
-								if expense.Ledgers[0].LenderUserId == expense.CurrentUser {
-									You paid ${ expense.Total.String() } { expense.Currency }
-								} else {
-									{ expense.Ledgers[0].LenderUsername } paid ${ expense.Total.String() } { expense.Currency }
-								}
-							</h2>
-							<ul>
-								for _, ledger := range expense.Ledgers {
-									<li>
-										<p>
-											if ledger.BorrowerUserId == expense.CurrentUser {
-												Yow owe ${ ledger.Share.String() } { expense.Currency }
-											} else {
-												{ ledger.BorrowerUsername } owes ${ ledger.Share.String() } { expense.Currency }
-											}
-										</p>
-									</li>
-								}
-							</ul>
+	<div class="flex flex-col md:flex-row justify-center items-center space-x-5 h-full py-5">
+		<div class="card bg-base-100 shadow-md p-6 w-full max-w-md">
+			<h1 class="text-xl font-bold mb-2">{ expense.Description }</h1>
+			<p class="text-4xl font-semibold text-success mb-4">${ expense.Total.String() } { expense.Currency }</p>
+			<p class="text-sm text-gray-600">Added by { expense.CreatedByUsername } on { expense.ExpenseTime.Format("Jan 01, 2006") }</p>
+			<p class="text-sm text-gray-600 mb-6">Category: { expense.ExpenseType }</p>
+			<div class="p-4 rounded-lg">
+				<button
+					id="toggleDropdown"
+					class="flex items-center justify-between w-full font-medium focus:outline-none"
+				>
+					<span>
+						if expense.Ledgers[0].LenderUserId == expense.CurrentUser {
+							You paid ${ expense.Total.String() } { expense.Currency }
+						} else {
+							{ expense.Ledgers[0].LenderUsername } paid ${ expense.Total.String() } { expense.Currency }
+						}
+					</span>
+					<svg id="dropdownIcon" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+					</svg>
+				</button>
+				<ul id="dropdownList" class="mt-3 hidden border-l-2 border-primary pl-1 space-y-2">
+					for _, ledger := range expense.Ledgers {
+						<li class="relative text-gray-600 pl-2">
+							{ ledger.BorrowerUsername } owes ${ ledger.Share.String() } { expense.Currency }
 						</li>
-					</ul>
+					}
+				</ul>
+			</div>
+			if len(expense.Items) != 0 {
+				// TODO: image reconition feature
+				<div class="p-4 rounded-lg">
+					<button
+						id="toggleDropdown"
+						class="flex items-center justify-between w-full font-medium focus:outline-none"
+					>
+						<span>
+							Items
+						</span>
+						<svg id="dropdownIcon" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+						</svg>
+					</button>
 				</div>
-				<div class="py-3"></div>
-				if len(expense.Items) != 0 {
-					// TODO: image reconition feature
-					<div id="expense-items" class="overflow-x-auto text-center">
-						<h1 class="text-xl">Purchased Items</h1>
-						<table class="table ">
-							<thead>
-								<tr>
-									<th>Name</th>
-									<th>Amount</th>
-									<th>Price</th>
-								</tr>
-							</thead>
-							<tbody>
-								<tr class="hover">
-									<th>Potato</th>
-									<th>1 lb</th>
-									<th>5.77</th>
-								</tr>
-								<tr class="hover">
-									<th>Shin Ramen</th>
-									<th>1 bag</th>
-									<th>9.99</th>
-								</tr>
-								<tr class="hover">
-									<th>Frozen Berry</th>
-									<th>1 bag</th>
-									<th>17.99</th>
-								</tr>
-							</tbody>
-						</table>
-					</div>
-				}
-				if expense.InvoicePicUrl != "" {
-					// TODO: image reconition feature
-					<div class="flex flex-col justify-center items-center py-5 space-y-1">
-						<h1 class="text-xl">Invoice Image</h1>
-						<button class="btn btn-ghost btn-active">
-							View Invoice Image
-						</button>
-						<div id="indicator" class="htmx-indicator">
-							<div class="flex justify-center items-center w-full">
-								<span class="loading loading-spinner loading-md"></span>
-							</div>
+			}
+			if expense.InvoicePicUrl != "" {
+				// TODO: image reconition feature
+				<div class="flex flex-col justify-center items-center py-5 space-y-1">
+					<h1 class="text-xl">Invoice Image</h1>
+					<button class="btn btn-ghost btn-active">
+						View Invoice Image
+					</button>
+					<div id="indicator" class="htmx-indicator">
+						<div class="flex justify-center items-center w-full">
+							<span class="loading loading-spinner loading-md"></span>
 						</div>
 					</div>
-				}
-			</div>
-		</div>
-		<div class="flex-1 h-full">
-			<div class="flex flex-col justify-start items-start py-5 md:space-y-1 md:w-2/3">
-				<button class="btn btn-ghost btn-block md:btn-sm md:m-2 md:justify-start md:items-start">
-					<a href="#edit-1">
-						<div class="flex justify-start items-center space-x-2">
-							<svg
-								xmlns="http://www.w3.org/2000/svg"
-								viewBox="0 0 24 24"
-								class="w-6 h-6"
-							><path d="M9.86 21.43L9 22L6 20L3 22V3H21V10.2C20.1 9.82 19 10 18.24 10.75L9.86 19.13V21.43M11.86 19.96L18 13.83L20.03 15.87L13.9 22H11.86V19.96M20.39 12.15C20.37 12.13 20.34 12.1 20.31 12.09C20.12 11.96 19.86 11.97 19.69 12.13L19.67 12.15L18.69 13.13L20.73 15.17L21.71 14.19C21.91 14 21.91 13.67 21.71 13.47L20.39 12.15Z"></path></svg>
-							<p>Edit Expense</p>
-						</div>
+				</div>
+			}
+			<div class="flex justify-between mt-6">
+				<button class="flex items-center space-x-2 text-blue-600 hover:text-blue-800">
+					<a href={ templ.URL("/expense/" + expense.ID.String() + "/edit") }>
+						<span>Edit Expense</span>
 					</a>
 				</button>
-				<button class="btn btn-ghost btn-block md:btn-sm md:m-2 md:justify-start md:items-start">
-					<a href="#delete-1">
-						<div class="flex justify-start items-center space-x-2">
-							<svg
-								xmlns="http://www.w3.org/2000/svg"
-								viewBox="0 0 24 24"
-								class="w-6 h-6"
-							><path d="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z"></path></svg>
-							<p>Delete Expense</p>
-						</div>
+				<button class="flex items-center space-x-2 text-red-600 hover:text-red-800">
+					<a href={ templ.URL("/expense/" + expense.ID.String() + "/edit") }>
+						<span>Delete Expense</span>
 					</a>
 				</button>
 			</div>
+			<script>
+				const toggleDropdown = document.getElementById("toggleDropdown");
+				const dropdownList = document.getElementById("dropdownList");
+				const dropdownIcon = document.getElementById("dropdownIcon");
+
+				toggleDropdown.addEventListener("click", () => {
+					dropdownList.classList.toggle("hidden");
+					dropdownIcon.classList.toggle("rotate-180");
+				});
+			</script>
 		</div>
 	</div>
 }

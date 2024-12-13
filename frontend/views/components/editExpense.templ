@@ -6,29 +6,31 @@ import (
 	"github.com/google/uuid"
 )
 
-templ NewExpense(groupId string, isSubmit bool) {
+templ EditExpense(expense types.ExpenseResponse) {
 	<div class="flex flex-row justify-center items-center py-5 w-screen">
 		<form
-			class="flex flex-col justify-center items-center py-5 space-y-5 md:w-1/3 w-5/6m max-w-md"
-			hx-post={ string(templ.URL(fmt.Sprintf("/create_expense?g=%s", groupId))) }
+			class="flex flex-col justify-center items-center py-5 space-y-5 md:w-1/3 w-5/6"
+			hx-put={ string(templ.URL(fmt.Sprintf("/update_expense?e=%s", expense.ID))) }
 			hx-target-error="#feedback"
 			hx-indicator="#indicator"
 		>
 			<div class="text-2xl">
-				Add Expense
-			</div>
-			<div
-				class="w-full"
-				hx-get={ string(templ.URL(fmt.Sprintf("/groupSelect/%s", groupId))) }
-				hx-trigger="load"
-				hx-swap="outerHTML"
-			>
-				<select class="select select-bordered w-full text-base text-center"></select>
+				Edit Expense
 			</div>
 			<div class="flex flex-row justify-start items-start w-full">
 				<div
 					class="w-full"
-					hx-get="/expense_types"
+					hx-get={ string(templ.URL(fmt.Sprintf("/groupSelect/%s", expense.GroupId))) }
+					hx-trigger="load"
+					hx-swap="outerHTML"
+				>
+					<select class="select select-bordered w-full text-base text-center"></select>
+				</div>
+			</div>
+			<div class="flex flex-row justify-start items-start w-full">
+				<div
+					class="w-full"
+					hx-get={ string(templ.URL(fmt.Sprintf("/expense_types/%s", expense.ExpenseType))) }
 					hx-trigger="load"
 					hx-swap="outerHTML"
 				>
@@ -43,6 +45,7 @@ templ NewExpense(groupId string, isSubmit bool) {
 						name="description"
 						class="grow"
 						placeholder="Description"
+						value={ expense.Description }
 					/>
 				</label>
 			</div>
@@ -52,9 +55,13 @@ templ NewExpense(groupId string, isSubmit bool) {
 					id="currency"
 					name="currency"
 				>
-					<option selected>CAD</option>
-					<option>NTD</option>
-					<option>USD</option>
+					for _, currency := range []string{"CAD", "NTU", "USD"} {
+						if currency == expense.Currency {
+							<option selected>{ currency }</option>
+						} else {
+							<option>{ currency }</option>
+						}
+					}
 				</select>
 				<label class="input input-bordered flex items-center w-full">
 					<input
@@ -64,6 +71,7 @@ templ NewExpense(groupId string, isSubmit bool) {
 						class="grow"
 						step="0.001"
 						placeholder="0.00"
+						value={ expense.Total.String() }
 					/>
 				</label>
 			</div>
@@ -84,7 +92,7 @@ templ NewExpense(groupId string, isSubmit bool) {
 			<div
 				id="splitRule"
 				class="w-2/3"
-				hx-get={ string(templ.URL(fmt.Sprintf("/split_rules?g=%s", groupId))) }
+				hx-get={ string(templ.URL(fmt.Sprintf("/split_rules?e=%s", expense.ID))) }
 				hx-trigger="load"
 				hx-swap="outerHTML"
 			>
@@ -110,31 +118,11 @@ templ NewExpense(groupId string, isSubmit bool) {
 					class="w-6 h-6 opacity-70"
 					fill="currentColor"
 				><path d="M9,20.42L2.79,14.21L5.62,11.38L9,14.77L18.88,4.88L21.71,7.71L9,20.42Z"></path></svg>
-				OK
+				Update
 			</button>
 			<div id="indicator" class="htmx-indicator">
 				<div class="flex justify-center items-center w-full">
 					<span class="loading loading-spinner loading-md"></span>
-				</div>
-			</div>
-			<div id="feedback" class={ templ.KV("hidden", !isSubmit) }>
-				<div class="animate-fade">
-					<div role="alert" class="alert alert-success">
-						<svg
-							xmlns="http://www.w3.org/2000/svg"
-							class="h-6 w-6 shrink-0 stroke-current"
-							fill="none"
-							viewBox="0 0 24 24"
-						>
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-							></path>
-						</svg>
-						<span>Your expense has been created!</span>
-					</div>
 				</div>
 			</div>
 		</form>

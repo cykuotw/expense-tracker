@@ -35,7 +35,7 @@ func NewExpense(groupId string, isSubmit bool) templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"flex flex-row justify-center items-center py-5 w-screen\"><form class=\"flex flex-col justify-center items-center py-5 space-y-5 md:w-1/3 w-5/6\" hx-post=\"")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"flex flex-row justify-center items-center py-5 w-screen\"><form class=\"flex flex-col justify-center items-center py-5 space-y-5 md:w-1/3 w-5/6m max-w-md\" hx-post=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

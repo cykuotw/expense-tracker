@@ -1,17 +1,23 @@
 package components
 
-import "expense-tracker/types"
+import (
+	"expense-tracker/frontend/hanlders/common"
+	"expense-tracker/types"
+)
 
 templ SplitRule(user types.GroupMember, members []types.GroupMember) {
 	if len(members) <= 1 {
 		<div></div>
 	} else {
 		if len(members) == 2 {
-			if members[0].UserID == user.UserID {
-				@splitRule2(user, members[1])
-			} else {
-				@splitRule2(user, members[0])
-			}
+			{{
+				member := members[0]
+				if members[0].UserID == user.UserID {
+					member = members[1]
+				}
+			}}
+			@splitRule2(user, member)
+			@splitEvent()
 			@splitEvent2()
 		} else {
 			@splitRuleN(user, members)
@@ -27,15 +33,15 @@ templ splitRule2(user types.GroupMember, member types.GroupMember) {
 		id="splitRuleSelector"
 		name="splitRule"
 	>
-		<option value="you-half" selected>You paid, split equally</option>
-		<option value="you-full">You are owed the full amount</option>
-		<option value="other-half">{ member.Username } paid, split euqally</option>
-		<option value="other-full">{ member.Username } is owed the full amount</option>
-		<option value="Unequally">Unequally</option>
+		<option value={ common.YouHalf.String() } selected>You paid, split equally</option>
+		<option value={ common.YouFull.String() }>You are owed the full amount</option>
+		<option value={ common.OtherHalf.String() }>{ member.Username } paid, split euqally</option>
+		<option value={ common.OtherFull.String() }>{ member.Username } is owed the full amount</option>
+		<option value={ common.Unequally.String() }>Unequally</option>
 	</select>
 	<div
 		id="payer-container"
-		class="hidden flex flex-row justify-center items-center w-full space-x-2"
+		class="hidden flex-row justify-center items-center w-full space-x-2"
 	>
 		<p class="w-max">Paid by</p>
 		<select
@@ -70,8 +76,8 @@ templ splitRuleN(user types.GroupMember, members []types.GroupMember) {
 			id="splitRuleSelector"
 			name="splitRule"
 		>
-			<option>Equally</option>
-			<option>Unequally</option>
+			<option value={ common.Equally.String() }>Equally</option>
+			<option value={ common.Unequally.String() }>Unequally</option>
 		</select>
 	</div>
 }

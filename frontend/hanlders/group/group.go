@@ -207,12 +207,12 @@ func (h *Handler) handleGetGroupSelect(c *gin.Context) error {
 		}
 	}
 
-	html := `<select class="select select-bordered w-full text-base text-center">`
+	html := `<select class="select select-bordered w-full text-base text-center" id="groupId" name="groupId">`
 	for _, payload := range payloadList {
 		if payload.ID == groupId {
-			html += "<option selected>"
+			html += "<option value=\"" + payload.ID + "\" selected>"
 		} else {
-			html += "<option>"
+			html += "<option value=\"" + payload.ID + "\">"
 		}
 		html += payload.GroupName + "</option>"
 	}

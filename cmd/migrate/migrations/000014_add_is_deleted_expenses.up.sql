@@ -1,0 +1,1 @@
+ALTER TABLE expense ADD COLUMN is_deleted BOOL DEFAULT false NOT NULL;

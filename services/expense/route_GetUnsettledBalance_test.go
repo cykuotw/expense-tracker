@@ -185,6 +185,9 @@ func (m *mockGetUnsettledBalanceStore) CheckExpenseExistByID(id string) (bool, e
 func (m *mockGetUnsettledBalanceStore) GetExpenseTypeById(id uuid.UUID) (string, error) {
 	return "", nil
 }
+func (m *mockGetUnsettledBalanceStore) DeleteExpense(expense types.Expense) error {
+	return nil
+}
 
 type mockGetUnsettledBalanceGroupStore struct{}
 

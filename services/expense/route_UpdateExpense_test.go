@@ -152,6 +152,9 @@ func (m *mockUpdateExpenseDetailStore) CheckExpenseExistByID(id string) (bool, e
 func (m *mockUpdateExpenseDetailStore) GetExpenseTypeById(id uuid.UUID) (string, error) {
 	return "", nil
 }
+func (m *mockUpdateExpenseDetailStore) DeleteExpense(expense types.Expense) error {
+	return nil
+}
 
 type mockUpdateExpenseDetailGroupStore struct{}
 

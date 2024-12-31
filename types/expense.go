@@ -23,6 +23,7 @@ type ExpenseStore interface {
 	GetLedgerUnsettledFromGroup(expenseID string) ([]*Ledger, error)
 
 	UpdateExpense(expense Expense) error
+	DeleteExpense(expense Expense) error
 	UpdateExpenseSettleInGroup(groupID string) error
 	UpdateItem(item Item) error
 	UpdateLedger(ledger Ledger) error
@@ -51,6 +52,7 @@ type Expense struct {
 	Currency       string
 	InvoicePicUrl  string
 	SplitRule      string
+	IsDeleted      bool
 }
 
 type ExpenseType struct {

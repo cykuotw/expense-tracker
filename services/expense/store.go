@@ -130,7 +130,7 @@ func (s *Store) GetExpenseList(groupID string, page int64) ([]*types.Expense, er
 
 	query := fmt.Sprintf(
 		"SELECT * FROM expense "+
-			"WHERE group_id = '%s' "+
+			"WHERE group_id = '%s' AND is_deleted = False "+
 			"ORDER BY create_time_utc ASC "+
 			"OFFSET '%d' LIMIT '%d';",
 		groupID, offset, limit,
@@ -334,6 +334,20 @@ func (s *Store) UpdateExpense(expense types.Expense) error {
 	return nil
 }
 
+func (s *Store) DeleteExpense(expense types.Expense) error {
+	query := fmt.Sprintf(
+		"UPDATE expense SET is_deleted = true "+
+			"WHERE id = '%s';",
+		expense.ID,
+	)
+	_, err := s.db.Exec(query)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (s *Store) UpdateItem(item types.Item) error {
 	query := fmt.Sprintf(
 		"UPDATE item SET "+
@@ -392,6 +406,7 @@ func scanRowIntoExpense(rows *sql.Rows) (*types.Expense, error) {
 		&expense.UpdateTime,
 		&expense.ExpenseTime,
 		&expense.SplitRule,
+		&expense.IsDeleted,
 	)
 	if err != nil {
 		return nil, err

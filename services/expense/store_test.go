@@ -778,6 +778,7 @@ func selectExpense(db *sql.DB, groupID uuid.UUID) []*types.Expense {
 			&expense.UpdateTime,
 			&expense.ExpenseTime,
 			&expense.SplitRule,
+			&expense.IsDeleted,
 		)
 		expList = append(expList, expense)
 	}

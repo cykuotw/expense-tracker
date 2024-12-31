@@ -251,16 +251,33 @@ func ExpenseDetail(expense types.ExpenseResponse) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("\"><span>Edit Expense</span></a></button> <button class=\"flex items-center space-x-2 text-red-600 hover:text-red-800\"><a href=\"")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("\"><span>Edit Expense</span></a></button> <button class=\"flex items-center space-x-2 text-red-600 hover:text-red-800\" onclick=\"delete_confirm.showModal()\"><span>Delete Expense</span></button> <dialog id=\"delete_confirm\" class=\"modal\"><div class=\"modal-box\"><h3 class=\"text-lg font-bold\">Are You Sure?</h3><p class=\"py-4\">Expense will be deleted permanently</p><div class=\"modal-action\"><form method=\"dialog\" class=\"flex space-x-1\"><input type=\"hidden\" name=\"groupId\" value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var17 templ.SafeURL = templ.URL("/expense/" + expense.ID.String() + "/edit")
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(string(templ_7745c5c3_Var17)))
+		var templ_7745c5c3_Var17 string
+		templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.JoinStringErrs(expense.GroupId)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/components/expenseDetail.templ`, Line: 84, Col: 67}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var17))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("\"><span>Delete Expense</span></a></button></div><script>\n\t\t\t\tconst toggleDropdown = document.getElementById(\"toggleDropdown\");\n\t\t\t\tconst dropdownList = document.getElementById(\"dropdownList\");\n\t\t\t\tconst dropdownIcon = document.getElementById(\"dropdownIcon\");\n\n\t\t\t\ttoggleDropdown.addEventListener(\"click\", () => {\n\t\t\t\t\tdropdownList.classList.toggle(\"hidden\");\n\t\t\t\t\tdropdownIcon.classList.toggle(\"rotate-180\");\n\t\t\t\t});\n\t\t\t</script></div></div>")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("\"> <button class=\"btn bg-red-600 text-white w-1/2\" hx-put=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var18 string
+		templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.JoinStringErrs(string(templ.URL("/expense/" + expense.ID.String() + "/delete")))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/components/expenseDetail.templ`, Line: 87, Col: 82}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var18))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("\">Delete</button> <button class=\"btn w-1/2\">Cancel</button></form></div></div></dialog></div><script>\n\t\t\t\tconst toggleDropdown = document.getElementById(\"toggleDropdown\");\n\t\t\t\tconst dropdownList = document.getElementById(\"dropdownList\");\n\t\t\t\tconst dropdownIcon = document.getElementById(\"dropdownIcon\");\n\n\t\t\t\ttoggleDropdown.addEventListener(\"click\", () => {\n\t\t\t\t\tdropdownList.classList.toggle(\"hidden\");\n\t\t\t\t\tdropdownIcon.classList.toggle(\"rotate-180\");\n\t\t\t\t});\n\t\t\t</script></div></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

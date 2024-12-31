@@ -69,11 +69,28 @@ templ ExpenseDetail(expense types.ExpenseResponse) {
 						<span>Edit Expense</span>
 					</a>
 				</button>
-				<button class="flex items-center space-x-2 text-red-600 hover:text-red-800">
-					<a href={ templ.URL("/expense/" + expense.ID.String() + "/edit") }>
-						<span>Delete Expense</span>
-					</a>
+				<button
+					class="flex items-center space-x-2 text-red-600 hover:text-red-800"
+					onclick="delete_confirm.showModal()"
+				>
+					<span>Delete Expense</span>
 				</button>
+				<dialog id="delete_confirm" class="modal">
+					<div class="modal-box">
+						<h3 class="text-lg font-bold">Are You Sure?</h3>
+						<p class="py-4">Expense will be deleted permanently</p>
+						<div class="modal-action">
+							<form method="dialog" class="flex space-x-1">
+								<input type="hidden" name="groupId" value={ expense.GroupId }/>
+								<button
+									class="btn bg-red-600 text-white w-1/2"
+									hx-put={ string(templ.URL("/expense/" + expense.ID.String() + "/delete")) }
+								>Delete</button>
+								<button class="btn w-1/2">Cancel</button>
+							</form>
+						</div>
+					</div>
+				</dialog>
 			</div>
 			<script>
 				const toggleDropdown = document.getElementById("toggleDropdown");

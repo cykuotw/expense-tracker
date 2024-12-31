@@ -5,7 +5,7 @@ import (
 	"expense-tracker/config"
 	"expense-tracker/db"
 	"expense-tracker/services/auth"
-	"expense-tracker/services/group"
+	group "expense-tracker/services/group/stores"
 	"expense-tracker/types"
 	"fmt"
 	"testing"

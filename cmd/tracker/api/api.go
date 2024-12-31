@@ -8,7 +8,8 @@ import (
 	"expense-tracker/services/expense"
 	expenseRoute "expense-tracker/services/expense/routes"
 	expenseStore "expense-tracker/services/expense/stores"
-	"expense-tracker/services/group"
+	groupRoute "expense-tracker/services/group/routes"
+	groupStore "expense-tracker/services/group/stores"
 	"expense-tracker/services/user"
 	"log"
 	"net/http"
@@ -46,8 +47,8 @@ func (s *APIServer) Run() error {
 	userProtectedHandler := user.NewProtectedHandler(userStore)
 	userProtectedHandler.RegisterRoutes(protected)
 
-	groupStore := group.NewStore(s.db)
-	groupHandler := group.NewHandler(groupStore, userStore)
+	groupStore := groupStore.NewStore(s.db)
+	groupHandler := groupRoute.NewHandler(groupStore, userStore)
 	groupHandler.RegisterRoutes(protected)
 
 	expenseStore := expenseStore.NewStore(s.db)

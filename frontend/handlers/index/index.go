@@ -1,7 +1,7 @@
 package index
 
 import (
-	"expense-tracker/frontend/hanlders/common"
+	"expense-tracker/frontend/handlers/common"
 	"expense-tracker/frontend/views/index"
 
 	"github.com/gin-gonic/gin"

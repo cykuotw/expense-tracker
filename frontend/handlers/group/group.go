@@ -2,8 +2,8 @@ package group
 
 import (
 	"encoding/json"
-	"expense-tracker/frontend/hanlders/auth"
-	"expense-tracker/frontend/hanlders/common"
+	"expense-tracker/frontend/handlers/auth"
+	"expense-tracker/frontend/handlers/common"
 	"expense-tracker/frontend/views/index"
 	"expense-tracker/types"
 	"fmt"

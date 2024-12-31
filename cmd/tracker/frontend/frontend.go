@@ -3,11 +3,11 @@ package frontend
 import (
 	"context"
 	"expense-tracker/frontend"
-	"expense-tracker/frontend/hanlders/auth"
-	"expense-tracker/frontend/hanlders/expense"
-	"expense-tracker/frontend/hanlders/group"
-	"expense-tracker/frontend/hanlders/index"
-	"expense-tracker/frontend/hanlders/users"
+	"expense-tracker/frontend/handlers/auth"
+	"expense-tracker/frontend/handlers/expense"
+	"expense-tracker/frontend/handlers/group"
+	"expense-tracker/frontend/handlers/index"
+	"expense-tracker/frontend/handlers/users"
 	"log"
 	"net/http"
 

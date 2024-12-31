@@ -3,7 +3,7 @@ package auth
 import (
 	"encoding/json"
 	"expense-tracker/config"
-	"expense-tracker/frontend/hanlders/common"
+	"expense-tracker/frontend/handlers/common"
 	"expense-tracker/frontend/views/auth"
 	"expense-tracker/types"
 	"fmt"

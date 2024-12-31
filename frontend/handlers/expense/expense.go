@@ -2,7 +2,7 @@ package expense
 
 import (
 	"encoding/json"
-	"expense-tracker/frontend/hanlders/common"
+	"expense-tracker/frontend/handlers/common"
 	"expense-tracker/frontend/views/components"
 	"expense-tracker/frontend/views/index"
 	"expense-tracker/types"
@@ -135,7 +135,7 @@ func (h *Handler) handleCreateNewExpensePost(c *gin.Context) error {
 			return err
 		}
 		c.Status(http.StatusInternalServerError)
-		return fmt.Errorf(resErr.Error)
+		return fmt.Errorf("%s", resErr.Error)
 	}
 
 	c.Header("HX-Redirect", "/create_expense?g="+groupId+"&submit=true")
@@ -225,7 +225,7 @@ func (h *Handler) handleGetExpenseDelete(c *gin.Context) error {
 			return err
 		}
 		c.Status(http.StatusInternalServerError)
-		return fmt.Errorf(resErr.Error)
+		return fmt.Errorf("%s", resErr.Error)
 	}
 
 	c.Header("HX-Redirect", "/group/"+groupId)
@@ -327,7 +327,7 @@ func (h *Handler) handleUpdateExpense(c *gin.Context) error {
 			return err
 		}
 		c.Status(http.StatusInternalServerError)
-		return fmt.Errorf(resErr.Error)
+		return fmt.Errorf("%s", resErr.Error)
 	}
 
 	c.Header("HX-Redirect", "/expense/"+expenseID)

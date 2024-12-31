@@ -9,7 +9,7 @@ import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
 import (
-	"expense-tracker/frontend/hanlders/common"
+	"expense-tracker/frontend/handlers/common"
 	"expense-tracker/types"
 )
 

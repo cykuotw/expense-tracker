@@ -2,7 +2,7 @@ package users
 
 import (
 	"encoding/json"
-	"expense-tracker/frontend/hanlders/common"
+	"expense-tracker/frontend/handlers/common"
 	"expense-tracker/types"
 	"net/http"
 

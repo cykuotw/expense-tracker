@@ -27,6 +27,7 @@ func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 	router.POST("/create_expense", common.Make(h.handleCreateNewExpensePost))
 	router.GET("/expense/:expenseId", common.Make(h.handleGetExpenseDetail))
 	router.GET("/expense/:expenseId/edit", common.Make(h.handleGetExpenseEdit))
+	router.PUT("/expense/:expenseId/delete", common.Make(h.handleGetExpenseDelete))
 	router.PUT("/update_expense", common.Make(h.handleUpdateExpense))
 	router.GET("/expense_types", common.Make(h.handleGetExpenseType))
 	router.GET("/expense_types/:select", common.Make(h.handleGetExpenseType))
@@ -195,6 +196,42 @@ func (h *Handler) handleGetExpenseEdit(c *gin.Context) error {
 	}
 
 	return common.Render(c.Writer, c.Request, index.EditExpense(resPayload))
+}
+
+func (h *Handler) handleGetExpenseDelete(c *gin.Context) error {
+	token, err := c.Cookie("access_token")
+	if err != nil {
+		c.Status(http.StatusUnauthorized)
+		c.Writer.Write([]byte("Unauthorized"))
+		return err
+	}
+
+	expenseID := c.Param("expenseId")
+	groupId := c.PostForm("groupId")
+
+	// Make a request to delete the expense
+	res, err := common.MakeBackendHTTPRequest(http.MethodPut, "/delete_expense/"+expenseID, token, nil)
+	if err != nil {
+		c.Status(http.StatusInternalServerError)
+		return err
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		resErr := types.ServerErr{}
+		err = json.NewDecoder(res.Body).Decode(&resErr)
+		if err != nil {
+			c.Status(http.StatusInternalServerError)
+			return err
+		}
+		c.Status(http.StatusInternalServerError)
+		return fmt.Errorf(resErr.Error)
+	}
+
+	c.Header("HX-Redirect", "/group/"+groupId)
+	c.Status(http.StatusOK)
+
+	return nil
 }
 
 func (h *Handler) handleUpdateExpense(c *gin.Context) error {

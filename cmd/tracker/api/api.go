@@ -6,6 +6,7 @@ import (
 	"expense-tracker/config"
 	"expense-tracker/services/auth"
 	"expense-tracker/services/expense"
+	expenseRoute "expense-tracker/services/expense/routes"
 	"expense-tracker/services/group"
 	"expense-tracker/services/user"
 	"log"
@@ -50,7 +51,7 @@ func (s *APIServer) Run() error {
 
 	expenseStore := expense.NewStore(s.db)
 	expenseController := expense.NewController()
-	expenseHandler := expense.NewHandler(expenseStore, userStore, groupStore, expenseController)
+	expenseHandler := expenseRoute.NewHandler(expenseStore, userStore, groupStore, expenseController)
 	expenseHandler.RegisterRoutes(protected)
 
 	log.Println("API Server Listening on", s.addr)

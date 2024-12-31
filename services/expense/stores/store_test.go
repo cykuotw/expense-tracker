@@ -1,10 +1,10 @@
-package expense_test
+package store_test
 
 import (
 	"database/sql"
 	"expense-tracker/config"
 	"expense-tracker/db"
-	"expense-tracker/services/expense"
+	expense "expense-tracker/services/expense/stores"
 	"expense-tracker/types"
 	"fmt"
 	"strconv"

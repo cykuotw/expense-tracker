@@ -31,7 +31,7 @@ func ExpenseDetail(expense types.ExpenseResponse) templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"flex flex-col justify-center items-center space-x-1 h-full w-full py-5\"><div class=\"flex justify-center w-full\"><div class=\"card bg-base-100 shadow-md p-6 w-full max-w-md\"><h1 class=\"text-xl font-bold mb-2\">")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"flex flex-col justify-center items-center space-x-1 h-full w-full py-5 px-2\"><div class=\"flex justify-center w-full\"><div class=\"card bg-base-100 border-2 p-6 w-full max-w-md\"><h1 class=\"text-xl font-bold mb-2\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

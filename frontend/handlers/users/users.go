@@ -50,8 +50,6 @@ func (h *Handler) handleGetUserInfo(c *gin.Context) error {
 			</summary>
 			<ul class="p-2 bg-base-100 rounded-t-none">
 				<li class="menu-title text-md text-black">Hi ` + payload.Nickname + `</li>
-				<li><a>Link 1</a></li>
-				<li><a>Link 2</a></li>
 			</ul>
 		</details>
 	`

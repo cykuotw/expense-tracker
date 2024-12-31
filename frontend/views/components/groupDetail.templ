@@ -5,7 +5,7 @@ import "expense-tracker/types"
 templ GroupDetail(groupID string, title string, balance types.BalanceResponse, expenseList []types.ExpenseResponseBrief) {
 	<div class="flex justify-center items-center py-5">
 		<div class="text-center">
-			<h1 class="text-3xl">{ title }</h1>
+			<h1 class="text-3xl font-semibold text-success">{ title }</h1>
 			<div class="flex flex-col items-center py-5">
 				if len(balance.Balances) == 0 {
 					<p class="py-5">

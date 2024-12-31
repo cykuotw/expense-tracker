@@ -6,7 +6,7 @@ templ ExpenseCard(expense types.ExpenseResponseBrief) {
 	<div class="flex flex-col">
 		<div class="grow h-20 w-screen py-1 px-5">
 			<div class="flex flex-row justify-center items-center h-full">
-				<div class="h-full w-11/12 md:w-7/12 border rounded-xl">
+				<div class="h-full w-11/12 md:w-7/12 border rounded-xl max-w-md">
 					<a href={ templ.URL("/expense/" + expense.ExpenseID.String()) } class="flex justify-center items-center h-full w-full">
 						<div class="flex flex-row justify-center items-center w-full">
 							<div class="flex flex-col justify-center items-center w-2/12 mx-1">

@@ -3,7 +3,7 @@ package components
 templ NewGroup() {
 	<div class="flex justify-center items-center py-5 h-screen md:h-auto">
 		<form
-			class="flex flex-col justify-center items-center"
+			class="flex flex-col justify-center items-center max-w-md"
 			hx-post="/create_group"
 			hx-target-error="#feedback"
 			hx-indicator="#indicator"

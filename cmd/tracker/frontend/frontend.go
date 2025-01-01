@@ -2,6 +2,7 @@ package frontend
 
 import (
 	"context"
+	"expense-tracker/config"
 	"expense-tracker/frontend"
 	"expense-tracker/frontend/handlers/auth"
 	"expense-tracker/frontend/handlers/expense"
@@ -27,6 +28,8 @@ func NewFrontendServer(addr string) *FrontendServer {
 }
 
 func (s *FrontendServer) Run() error {
+	gin.SetMode(config.Envs.Mode)
+
 	router := gin.New()
 	router.Use(gin.Logger())
 

@@ -8,6 +8,8 @@ import (
 )
 
 type Config struct {
+	Mode string
+
 	BackendURL  string
 	FrontendURL string
 	APIPath     string
@@ -37,6 +39,8 @@ func initConfig() Config {
 	godotenv.Load()
 
 	return Config{
+		Mode: getEnv("MODE", "debug"),
+
 		BackendURL:  getEnv("BACKEND_URL", "localhost:8000"),
 		FrontendURL: getEnv("FRONTEND_URL", "localhost:8050"),
 		APIPath:     getEnv("API_URL", ""),

@@ -67,42 +67,42 @@ func (c *Controller) DebtSimplify(ledgers []*types.Ledger) []*types.Balance {
 	return transactions
 }
 
-func dfs(creditList []balance, curr int, transactions []types.Balance) (int, []types.Balance) {
-	for curr < len(creditList) && creditList[curr].share.IsZero() {
-		curr++
+func dfs(creditList []balance, currIndex int, transactions []types.Balance) (int, []types.Balance) {
+	for currIndex < len(creditList) && creditList[currIndex].share.IsZero() {
+		currIndex++
 	}
 
-	if curr == len(creditList) {
+	if currIndex == len(creditList) {
 		return 0, transactions
 	}
 
-	count := math.MaxInt
+	minCount := math.MaxInt
 	minTransactions := []types.Balance{}
-	for next := curr + 1; next < len(creditList); next++ {
-		if creditList[curr].share.Mul(creditList[next].share).IsPositive() {
+	for next := currIndex + 1; next < len(creditList); next++ {
+		if creditList[currIndex].share.Mul(creditList[next].share).IsPositive() {
 			continue
 		}
 
 		transactionsCp := make([]types.Balance, len(transactions))
 		copy(transactionsCp, transactions)
 		trans := types.Balance{
-			SenderUserID:   creditList[curr].id,
+			SenderUserID:   creditList[currIndex].id,
 			ReceiverUserID: creditList[next].id,
-			Share:          creditList[curr].share,
+			Share:          creditList[currIndex].share,
 		}
 		transactionsCp = append(transactionsCp, trans)
 
 		originReceiverShare := creditList[next].share
-		creditList[next].share = originReceiverShare.Add(creditList[curr].share)
-		newCount, newTransactions := dfs(creditList, curr+1, transactionsCp)
+		creditList[next].share = originReceiverShare.Add(creditList[currIndex].share)
+		newCount, newTransactions := dfs(creditList, currIndex+1, transactionsCp)
 
-		if count > newCount+1 {
-			count = newCount + 1
+		if minCount > newCount+1 {
+			minCount = newCount + 1
 			minTransactions = newTransactions
 		}
 
 		creditList[next].share = originReceiverShare
 	}
 
-	return count, minTransactions
+	return minCount, minTransactions
 }

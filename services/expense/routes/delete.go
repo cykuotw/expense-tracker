@@ -53,5 +53,12 @@ func (h *Handler) handleDeleteExpense(c *gin.Context) {
 		return
 	}
 
+	// update balance
+	err = h.updateBalance(expense.GroupID.String())
+	if err != nil {
+		utils.WriteError(c, http.StatusInternalServerError, err)
+		return
+	}
+
 	utils.WriteJSON(c, http.StatusOK, nil)
 }

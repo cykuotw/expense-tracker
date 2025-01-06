@@ -30,14 +30,8 @@ func (h *Handler) handleGetUnsettledBalance(c *gin.Context) {
 		return
 	}
 
-	// get ledgers
-	ledgers, err := h.store.GetLedgerUnsettledFromGroup(groupID)
-	if err != nil {
-		utils.WriteError(c, http.StatusInternalServerError, err)
-		return
-	}
-
-	balanceSimplified := h.controller.DebtSimplify(ledgers)
+	// get balance
+	balanceSimplified, err := h.store.GetBalanceByGroupId(groupID)
 
 	// make response
 	groupCurrency, err := h.groupStore.GetGroupCurrency(groupID)

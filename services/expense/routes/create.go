@@ -133,8 +133,9 @@ func (h *Handler) handleCreateExpense(c *gin.Context) {
 			utils.WriteError(c, http.StatusInternalServerError, err)
 			return
 		}
+		id := uuid.New()
 		ledger := types.Ledger{
-			ID:             uuid.New(),
+			ID:             id,
 			ExpenseID:      expenseID,
 			LenderUserID:   lenderUserId,
 			BorrowerUesrID: borrowerUserId,
@@ -146,6 +147,13 @@ func (h *Handler) handleCreateExpense(c *gin.Context) {
 			utils.WriteError(c, http.StatusInternalServerError, err)
 			return
 		}
+	}
+
+	// update balance
+	err = h.updateBalance(payload.GroupID)
+	if err != nil {
+		utils.WriteError(c, http.StatusInternalServerError, err)
+		return
 	}
 
 	utils.WriteJSON(c, http.StatusCreated, map[string]string{"expenseId": expenseID.String()})

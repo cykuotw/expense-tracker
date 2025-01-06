@@ -146,5 +146,12 @@ func (h *Handler) handleUpdateExpense(c *gin.Context) {
 		return
 	}
 
+	// update balance
+	err = h.updateBalance(payload.GroupID.String())
+	if err != nil {
+		utils.WriteError(c, http.StatusInternalServerError, err)
+		return
+	}
+
 	utils.WriteJSON(c, http.StatusCreated, nil)
 }

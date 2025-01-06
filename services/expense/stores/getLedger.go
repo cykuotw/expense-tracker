@@ -37,7 +37,7 @@ func (s *Store) GetLedgerUnsettledFromGroup(groupID string) ([]*types.Ledger, er
 			"FROM expense AS e "+
 			"JOIN ledger AS l "+
 			"ON l.expense_id = e.id "+
-			"WHERE e.is_settled = false AND e.group_id = '%s';",
+			"WHERE e.is_settled = false AND e.is_deleted = false AND e.group_id = '%s';",
 		groupID,
 	)
 	rows, err := s.db.Query(query)

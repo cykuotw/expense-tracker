@@ -1,14 +1,23 @@
 package types
 
 import (
+	"time"
+
 	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
 )
 
 type Balance struct {
+	ID             uuid.UUID
 	SenderUserID   uuid.UUID
 	ReceiverUserID uuid.UUID
 	Share          decimal.Decimal
+	GroupID        uuid.UUID
+	CreateTime     time.Time
+	IsOutdated     bool
+	UpdateTime     time.Time
+	IsSettled      bool
+	SettledTime    time.Time
 }
 
 type BalanceRsp struct {

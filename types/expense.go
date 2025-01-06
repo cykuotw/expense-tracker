@@ -20,13 +20,18 @@ type ExpenseStore interface {
 	GetExpenseTypeById(id uuid.UUID) (string, error)
 	GetItemsByExpenseID(expenseID string) ([]*Item, error)
 	GetLedgersByExpenseID(expenseID string) ([]*Ledger, error)
-	GetLedgerUnsettledFromGroup(expenseID string) ([]*Ledger, error)
+	GetLedgerUnsettledFromGroup(groupID string) ([]*Ledger, error)
 
 	UpdateExpense(expense Expense) error
 	DeleteExpense(expense Expense) error
 	UpdateExpenseSettleInGroup(groupID string) error
 	UpdateItem(item Item) error
 	UpdateLedger(ledger Ledger) error
+
+	CreateBalances(groupId string, balances []*Balance) error
+	CreateBalanceLedger(balanceIds []uuid.UUID, ledgerIds []uuid.UUID) error
+	OutdateBalanceByGroupId(groupId string) error
+	GetBalanceByGroupId(groupId string) ([]Balance, error)
 }
 
 type ExpenseController interface {

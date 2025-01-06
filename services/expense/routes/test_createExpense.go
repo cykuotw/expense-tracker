@@ -138,92 +138,14 @@ func TestRouteCreateExpense(t *testing.T) {
 	}
 }
 
-var mockUserID = uuid.New()
-var mockGroupID = uuid.New()
-var mockCreatorID = uuid.New()
-var mockPayerID = uuid.New()
-var mockExpenseTypeID = uuid.New()
-
-type mockCreateExpenseStore struct{}
-
-func (s *mockCreateExpenseStore) CreateExpense(expense types.Expense) error {
-	return nil
-}
-func (s *mockCreateExpenseStore) CreateItem(item types.Item) error {
-	return nil
-}
-func (s *mockCreateExpenseStore) CreateLedger(ledger types.Ledger) error {
-	return nil
-}
-func (s *mockCreateExpenseStore) GetExpenseByID(expenseID string) (*types.Expense, error) {
-	return nil, nil
-}
-func (s *mockCreateExpenseStore) GetExpenseList(groupID string, page int64) ([]*types.Expense, error) {
-	return nil, nil
-}
-func (s *mockCreateExpenseStore) GetItemsByExpenseID(expenseID string) ([]*types.Item, error) {
-	return nil, nil
-}
-func (s *mockCreateExpenseStore) GetLedgersByExpenseID(expenseID string) ([]*types.Ledger, error) {
-	return nil, nil
-}
-func (s *mockCreateExpenseStore) GetLedgerUnsettledFromGroup(expenseID string) ([]*types.Ledger, error) {
-	return nil, nil
-}
-func (s *mockCreateExpenseStore) GetExpenseType() ([]*types.ExpenseType, error) {
-	return nil, nil
-}
-func (s *mockCreateExpenseStore) UpdateExpense(expense types.Expense) error {
-	return nil
-}
-func (s *mockCreateExpenseStore) UpdateExpenseSettleInGroup(groupID string) error {
-	return nil
-}
-func (s *mockCreateExpenseStore) UpdateItem(item types.Item) error {
-	return nil
-}
-func (s *mockCreateExpenseStore) UpdateLedger(ledger types.Ledger) error {
-	return nil
-}
-func (m *mockCreateExpenseStore) CheckExpenseExistByID(id string) (bool, error) {
-	return false, nil
-}
-func (m *mockCreateExpenseStore) GetExpenseTypeById(id uuid.UUID) (string, error) {
-	return "", nil
-}
-func (m *mockCreateExpenseStore) DeleteExpense(expense types.Expense) error {
-	return nil
+type mockCreateExpenseStore struct {
+	mockExpenseStore
 }
 
-type mockCreateExpenseGroupStore struct{}
+type mockCreateExpenseGroupStore struct {
+	mockGroupStore
+}
 
-func (m *mockCreateExpenseGroupStore) CreateGroup(group types.Group) error {
-	return nil
-}
-func (m *mockCreateExpenseGroupStore) GetGroupByID(id string) (*types.Group, error) {
-	return nil, nil
-}
-func (s *mockCreateExpenseGroupStore) GetGroupByIDAndUser(groupID string, userID string) (*types.Group, error) {
-	return nil, nil
-}
-func (m *mockCreateExpenseGroupStore) GetGroupListByUser(userid string) ([]*types.Group, error) {
-	return nil, nil
-}
-func (m *mockCreateExpenseGroupStore) GetGroupMemberByGroupID(groupId string) ([]*types.User, error) {
-	return nil, nil
-}
-func (m *mockCreateExpenseGroupStore) UpdateGroupMember(action string, userid string, groupid string) error {
-	return nil
-}
-func (m *mockCreateExpenseGroupStore) UpdateGroupStatus(groupid string, isActive bool) error {
-	return nil
-}
-func (m *mockCreateExpenseGroupStore) GetGroupCurrency(groupID string) (string, error) {
-	return "", nil
-}
-func (m *mockCreateExpenseGroupStore) GetRelatedUser(currentUser string, groupId string) ([]*types.RelatedMember, error) {
-	return nil, nil
-}
 func (m *mockCreateExpenseGroupStore) CheckGroupExistById(id string) (bool, error) {
 	if id == mockGroupID.String() {
 		return true, nil
@@ -237,41 +159,17 @@ func (m *mockCreateExpenseGroupStore) CheckGroupUserPairExist(groupId string, us
 	return false, nil
 }
 
-type mockCreateExpenseUserStore struct{}
+type mockCreateExpenseUserStore struct {
+	mockUserStore
+}
 
-func (m *mockCreateExpenseUserStore) GetUserByEmail(email string) (*types.User, error) {
-	return nil, nil
-}
-func (m *mockCreateExpenseUserStore) GetUserByUsername(username string) (*types.User, error) {
-	return nil, nil
-}
-func (m *mockCreateExpenseUserStore) GetUserByID(id string) (*types.User, error) {
-	return nil, nil
-}
-func (m *mockCreateExpenseUserStore) CreateUser(user types.User) error {
-	return nil
-}
-func (m *mockCreateExpenseUserStore) GetUsernameByID(userid string) (string, error) {
-	return "", nil
-}
-func (m *mockCreateExpenseUserStore) CheckEmailExist(email string) (bool, error) {
-	return false, nil
-}
-func (m *mockCreateExpenseUserStore) CheckUserExistByEmail(email string) (bool, error) {
-	return false, nil
-}
 func (m *mockCreateExpenseUserStore) CheckUserExistByID(id string) (bool, error) {
 	if id == mockCreatorID.String() || id == mockUserID.String() {
 		return true, nil
 	}
 	return false, nil
 }
-func (m *mockCreateExpenseUserStore) CheckUserExistByUsername(username string) (bool, error) {
-	return false, nil
-}
 
-type mockExpenseController struct{}
-
-func (m *mockExpenseController) DebtSimplify(ledgers []*types.Ledger) []*types.Balance {
-	return nil
+type mockExpenseController struct {
+	mockController
 }

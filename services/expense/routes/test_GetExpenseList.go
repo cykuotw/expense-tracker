@@ -139,20 +139,10 @@ var mockGetExpenseListRsp = []types.ExpenseResponseBrief{
 	},
 }
 
-type mockGetExpenseListStore struct{}
+type mockGetExpenseListStore struct {
+	mockExpenseStore
+}
 
-func (s *mockGetExpenseListStore) CreateExpense(expense types.Expense) error {
-	return nil
-}
-func (s *mockGetExpenseListStore) CreateItem(item types.Item) error {
-	return nil
-}
-func (s *mockGetExpenseListStore) CreateLedger(ledger types.Ledger) error {
-	return nil
-}
-func (s *mockGetExpenseListStore) GetExpenseByID(expenseID string) (*types.Expense, error) {
-	return nil, nil
-}
 func (s *mockGetExpenseListStore) GetExpenseList(groupID string, page int64) ([]*types.Expense, error) {
 	if page > int64(mockTotalPage) {
 		return nil, types.ErrNoRemainingExpenses
@@ -171,69 +161,11 @@ func (s *mockGetExpenseListStore) GetExpenseList(groupID string, page int64) ([]
 	}
 	return expense, nil
 }
-func (s *mockGetExpenseListStore) GetExpenseType() ([]*types.ExpenseType, error) {
-	return nil, nil
-}
-func (s *mockGetExpenseListStore) GetItemsByExpenseID(expenseID string) ([]*types.Item, error) {
-	return nil, nil
-}
-func (s *mockGetExpenseListStore) GetLedgersByExpenseID(expenseID string) ([]*types.Ledger, error) {
-	return nil, nil
-}
-func (s *mockGetExpenseListStore) GetLedgerUnsettledFromGroup(expenseID string) ([]*types.Ledger, error) {
-	return nil, nil
-}
-func (s *mockGetExpenseListStore) UpdateExpense(expense types.Expense) error {
-	return nil
-}
-func (s *mockGetExpenseListStore) UpdateExpenseSettleInGroup(groupID string) error {
-	return nil
-}
-func (s *mockGetExpenseListStore) UpdateItem(item types.Item) error {
-	return nil
-}
-func (s *mockGetExpenseListStore) UpdateLedger(ledger types.Ledger) error {
-	return nil
-}
-func (m *mockGetExpenseListStore) CheckExpenseExistByID(id string) (bool, error) {
-	return false, nil
-}
-func (m *mockGetExpenseListStore) GetExpenseTypeById(id uuid.UUID) (string, error) {
-	return "", nil
-}
-func (m *mockGetExpenseListStore) DeleteExpense(expense types.Expense) error {
-	return nil
+
+type mockGetExpenseListGroupStore struct {
+	mockGroupStore
 }
 
-type mockGetExpenseListGroupStore struct{}
-
-func (m *mockGetExpenseListGroupStore) CreateGroup(group types.Group) error {
-	return nil
-}
-func (m *mockGetExpenseListGroupStore) GetGroupByID(id string) (*types.Group, error) {
-	return nil, nil
-}
-func (s *mockGetExpenseListGroupStore) GetGroupByIDAndUser(groupID string, userID string) (*types.Group, error) {
-	return nil, nil
-}
-func (m *mockGetExpenseListGroupStore) GetGroupListByUser(userid string) ([]*types.Group, error) {
-	return nil, nil
-}
-func (m *mockGetExpenseListGroupStore) GetGroupMemberByGroupID(groupId string) ([]*types.User, error) {
-	return nil, nil
-}
-func (m *mockGetExpenseListGroupStore) UpdateGroupMember(action string, userid string, groupid string) error {
-	return nil
-}
-func (m *mockGetExpenseListGroupStore) UpdateGroupStatus(groupid string, isActive bool) error {
-	return nil
-}
-func (m *mockGetExpenseListGroupStore) GetGroupCurrency(groupID string) (string, error) {
-	return "", nil
-}
-func (m *mockGetExpenseListGroupStore) GetRelatedUser(currentUser string, groupId string) ([]*types.RelatedMember, error) {
-	return nil, nil
-}
 func (m *mockGetExpenseListGroupStore) CheckGroupExistById(id string) (bool, error) {
 	if id == mockGroupID.String() {
 		return true, nil
@@ -247,32 +179,6 @@ func (m *mockGetExpenseListGroupStore) CheckGroupUserPairExist(groupId string, u
 	return false, nil
 }
 
-type mockGetExpenseListUserStore struct{}
-
-func (m *mockGetExpenseListUserStore) GetUserByEmail(email string) (*types.User, error) {
-	return nil, nil
-}
-func (m *mockGetExpenseListUserStore) GetUserByUsername(username string) (*types.User, error) {
-	return nil, nil
-}
-func (m *mockGetExpenseListUserStore) GetUserByID(id string) (*types.User, error) {
-	return nil, nil
-}
-func (m *mockGetExpenseListUserStore) CreateUser(user types.User) error {
-	return nil
-}
-func (m *mockGetExpenseListUserStore) GetUsernameByID(userid string) (string, error) {
-	return "", nil
-}
-func (m *mockGetExpenseListUserStore) CheckEmailExist(email string) (bool, error) {
-	return false, nil
-}
-func (m *mockGetExpenseListUserStore) CheckUserExistByEmail(email string) (bool, error) {
-	return false, nil
-}
-func (m *mockGetExpenseListUserStore) CheckUserExistByID(id string) (bool, error) {
-	return false, nil
-}
-func (m *mockGetExpenseListUserStore) CheckUserExistByUsername(username string) (bool, error) {
-	return false, nil
+type mockGetExpenseListUserStore struct {
+	mockUserStore
 }

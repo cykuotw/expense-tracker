@@ -1,7 +1,7 @@
 package expense
 
 import (
-	"expense-tracker/services/auth"
+	"expense-tracker/services/middleware/extractors"
 	"expense-tracker/types"
 	"expense-tracker/utils"
 	"net/http"
@@ -15,16 +15,6 @@ func (h *Handler) handleUpdateExpense(c *gin.Context) {
 	// check expense id exist and get group id
 	expenseID := c.Param("expenseId")
 
-	exist, err := h.store.CheckExpenseExistByID(expenseID)
-	if err != nil {
-		utils.WriteError(c, http.StatusInternalServerError, err)
-		return
-	}
-	if !exist {
-		utils.WriteError(c, http.StatusBadRequest, types.ErrExpenseNotExist)
-		return
-	}
-
 	expense, err := h.store.GetExpenseByID(expenseID)
 	if err != nil {
 		utils.WriteError(c, http.StatusInternalServerError, err)
@@ -32,25 +22,9 @@ func (h *Handler) handleUpdateExpense(c *gin.Context) {
 	}
 
 	// get expense update paylaod from body
-	var payload types.ExpenseUpdatePayload
-	if err := utils.ParseJSON(c, &payload); err != nil {
+	payload, err := extractors.GetExpenseUpdatePayload(c)
+	if err != nil {
 		utils.WriteError(c, http.StatusBadRequest, err)
-		return
-	}
-
-	// extract userid from jwt, check userid is permitted for the group
-	userID, err := auth.ExtractJWTClaim(c, "userID")
-	if err != nil {
-		utils.WriteError(c, http.StatusInternalServerError, err)
-		return
-	}
-	exist, err = h.groupStore.CheckGroupUserPairExist(payload.GroupID.String(), userID)
-	if err != nil {
-		utils.WriteError(c, http.StatusInternalServerError, err)
-		return
-	}
-	if !exist {
-		utils.WriteError(c, http.StatusForbidden, types.ErrPermissionDenied)
 		return
 	}
 

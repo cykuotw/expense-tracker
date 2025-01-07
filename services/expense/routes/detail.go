@@ -1,7 +1,7 @@
 package expense
 
 import (
-	"expense-tracker/services/auth"
+	"expense-tracker/services/middleware/extractors"
 	"expense-tracker/types"
 	"expense-tracker/utils"
 	"net/http"
@@ -13,42 +13,14 @@ func (h *Handler) handleGetExpenseDetail(c *gin.Context) {
 	// get expense id from param
 	// check expense id exist and get group id
 	expenseID := c.Param("expenseId")
+	userID := c.GetString("userID")
 
-	exist, err := h.store.CheckExpenseExistByID(expenseID)
-	if err != nil {
-		utils.WriteError(c, http.StatusInternalServerError, err)
-		return
-	}
-	if !exist {
-		utils.WriteError(c, http.StatusBadRequest, types.ErrExpenseNotExist)
-		return
-	}
-
-	expense, err := h.store.GetExpenseByID(expenseID)
+	expense, err := extractors.GetExpenseFromStore(c)
 	if err != nil {
 		utils.WriteError(c, http.StatusInternalServerError, err)
 		return
 	}
 
-	groupID := expense.GroupID.String()
-
-	// extract userid from jwt, check userid is permitted for the group
-	userID, err := auth.ExtractJWTClaim(c, "userID")
-	if err != nil {
-		utils.WriteError(c, http.StatusInternalServerError, err)
-		return
-	}
-	exist, err = h.groupStore.CheckGroupUserPairExist(groupID, userID)
-	if err != nil {
-		utils.WriteError(c, http.StatusInternalServerError, err)
-		return
-	}
-	if !exist {
-		utils.WriteError(c, http.StatusForbidden, types.ErrPermissionDenied)
-		return
-	}
-
-	// get expense
 	user, err := h.userStore.GetUserByID(expense.CreateByUserID.String())
 	if err != nil {
 		utils.WriteError(c, http.StatusInternalServerError, err)

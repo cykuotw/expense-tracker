@@ -1,6 +1,8 @@
 package expense
 
 import (
+	"expense-tracker/services/middleware/extractors"
+	"expense-tracker/services/middleware/validation"
 	"expense-tracker/types"
 
 	"github.com/gin-gonic/gin"
@@ -25,13 +27,38 @@ func NewHandler(store types.ExpenseStore, userStore types.UserStore, groupStore 
 }
 
 func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
-	router.POST("/create_expense", h.handleCreateExpense)
-	router.GET("/expense_list/:groupId", h.handleGetExpenseList)
-	router.GET("/expense_list/:groupId/:page", h.handleGetExpenseList)
+	router.Use(extractors.ExtractUserIdFromJWT())
+
+	router.POST("/create_expense",
+		extractors.ExtractExpensePayload(),
+		validation.ValidateGroupUserPairExist(h.groupStore),
+		h.handleCreateExpense)
+	router.GET("/expense_list/:groupId",
+		validation.ValidateGroupUserPairExist(h.groupStore),
+		h.handleGetExpenseList)
+	router.GET("/expense_list/:groupId/:page",
+		validation.ValidateGroupUserPairExist(h.groupStore),
+		h.handleGetExpenseList)
 	router.GET("/expense_types", h.handleGetExpenseType)
-	router.GET("/expense/:expenseId", h.handleGetExpenseDetail)
-	router.PUT("/expense/:expenseId", h.handleUpdateExpense)
-	router.PUT("/delete_expense/:expenseId", h.handleDeleteExpense)
-	router.PUT("/settle_expense/:groupId", h.handleSettleExpense)
-	router.GET("/balance/:groupId", h.handleGetUnsettledBalance)
+	router.GET("/expense/:expenseId",
+		validation.ValidateExpenseExist(h.store),
+		extractors.ExtractExpenseFromStore(h.store),
+		validation.ValidateGroupUserPairExist(h.groupStore),
+		h.handleGetExpenseDetail)
+	router.PUT("/expense/:expenseId",
+		validation.ValidateExpenseExist(h.store),
+		extractors.ExtractExpenseUpdatePayload(),
+		validation.ValidateGroupUserPairExist(h.groupStore),
+		h.handleUpdateExpense)
+	router.PUT("/delete_expense/:expenseId",
+		validation.ValidateExpenseExist(h.store),
+		extractors.ExtractExpenseFromStore(h.store),
+		validation.ValidateGroupUserPairExist(h.groupStore),
+		h.handleDeleteExpense)
+	router.PUT("/settle_expense/:groupId",
+		validation.ValidateGroupUserPairExist(h.groupStore),
+		h.handleSettleExpense)
+	router.GET("/balance/:groupId",
+		validation.ValidateGroupUserPairExist(h.groupStore),
+		h.handleGetUnsettledBalance)
 }

@@ -1,7 +1,6 @@
 package expense
 
 import (
-	"expense-tracker/services/auth"
 	"expense-tracker/types"
 	"expense-tracker/utils"
 	"net/http"
@@ -10,25 +9,8 @@ import (
 )
 
 func (h *Handler) handleGetUnsettledBalance(c *gin.Context) {
-	// get group id from param
 	groupID := c.Param("groupId")
-
-	// get user id from jwt claim
-	userID, err := auth.ExtractJWTClaim(c, "userID")
-	if err != nil {
-		utils.WriteError(c, http.StatusInternalServerError, err)
-		return
-	}
-	// check user have permission for the group
-	exist, err := h.groupStore.CheckGroupUserPairExist(groupID, userID)
-	if err != nil {
-		utils.WriteError(c, http.StatusInternalServerError, err)
-		return
-	}
-	if !exist {
-		utils.WriteError(c, http.StatusForbidden, types.ErrPermissionDenied)
-		return
-	}
+	userID := c.GetString("userID")
 
 	// get balance
 	balanceSimplified, err := h.store.GetBalanceByGroupId(groupID)

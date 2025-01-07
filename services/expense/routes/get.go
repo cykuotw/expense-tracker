@@ -1,7 +1,6 @@
 package expense
 
 import (
-	"expense-tracker/services/auth"
 	"expense-tracker/types"
 	"expense-tracker/utils"
 	"net/http"
@@ -30,21 +29,7 @@ func (h *Handler) handleGetExpenseList(c *gin.Context) {
 		}
 	}
 
-	// extract user id from jwt claim, and check permission
-	userID, err := auth.ExtractJWTClaim(c, "userID")
-	if err != nil {
-		utils.WriteError(c, http.StatusInternalServerError, err)
-		return
-	}
-
-	exist, err := h.groupStore.CheckGroupUserPairExist(groupIdStr, userID)
-	if err != nil {
-		utils.WriteError(c, http.StatusInternalServerError, err)
-		return
-	}
-	if !exist {
-		utils.WriteError(c, http.StatusForbidden, types.ErrUserNotPermitted)
-	}
+	userID := c.GetString("userID")
 
 	// get expense list wrt page
 	expenseList, err := h.store.GetExpenseList(groupIdStr, page)

@@ -1,7 +1,7 @@
 package expense
 
 import (
-	"expense-tracker/services/auth"
+	"expense-tracker/services/middleware/extractors"
 	"expense-tracker/types"
 	"expense-tracker/utils"
 	"net/http"
@@ -11,50 +11,10 @@ import (
 )
 
 func (h *Handler) handleCreateExpense(c *gin.Context) {
-	// extract payload
-	var payload types.ExpensePayload
-	if err := utils.ParseJSON(c, &payload); err != nil {
+	userID := c.GetString("userID")
+	payload, err := extractors.GetExpensePayload(c)
+	if err != nil {
 		utils.WriteError(c, http.StatusBadRequest, err)
-		return
-	}
-
-	// extract jwt claim
-	userID, err := auth.ExtractJWTClaim(c, "userID")
-	if err != nil {
-		utils.WriteError(c, http.StatusInternalServerError, err)
-		return
-	}
-
-	// check user exist
-	exist, err := h.userStore.CheckUserExistByID(userID)
-	if err != nil {
-		utils.WriteError(c, http.StatusInternalServerError, err)
-		return
-	}
-	if !exist {
-		utils.WriteError(c, http.StatusBadRequest, types.ErrUserNotExist)
-		return
-	}
-
-	// check group exist
-	exist, err = h.groupStore.CheckGroupExistById(payload.GroupID)
-	if err != nil {
-		utils.WriteError(c, http.StatusInternalServerError, err)
-		return
-	}
-	if !exist {
-		utils.WriteError(c, http.StatusBadRequest, types.ErrGroupNotExist)
-		return
-	}
-
-	// check payload group id valid & user id valid
-	exist, err = h.groupStore.CheckGroupUserPairExist(payload.GroupID, userID)
-	if err != nil {
-		utils.WriteError(c, http.StatusInternalServerError, err)
-		return
-	}
-	if !exist {
-		utils.WriteError(c, http.StatusForbidden, types.ErrUserNotPermitted)
 		return
 	}
 

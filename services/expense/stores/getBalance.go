@@ -40,7 +40,7 @@ func (s *Store) GetBalanceByGroupId(groupId string) ([]types.Balance, error) {
 		if updateTime != nil && !updateTime.IsZero() {
 			bal.UpdateTime = *updateTime
 		}
-		if updateTime != nil && !settledTime.IsZero() {
+		if settledTime != nil && !settledTime.IsZero() {
 			bal.SettledTime = *settledTime
 		}
 

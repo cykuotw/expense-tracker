@@ -51,6 +51,7 @@ type Expense struct {
 	ExpenseTime    time.Time
 	ProviderName   string
 	IsSettled      bool
+	SettleTime     time.Time
 	SubTotal       decimal.Decimal
 	TaxFeeTip      decimal.Decimal
 	Total          decimal.Decimal
@@ -58,6 +59,7 @@ type Expense struct {
 	InvoicePicUrl  string
 	SplitRule      string
 	IsDeleted      bool
+	DeleteTime     time.Time
 }
 
 type ExpenseType struct {

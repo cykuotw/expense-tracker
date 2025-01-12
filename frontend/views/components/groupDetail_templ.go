@@ -121,7 +121,7 @@ func GroupDetail(groupID string, title string, balance types.BalanceResponse, ex
 				}
 			}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</div><div><button class=\"btn btn-wide btn-primary py-5 text-primary-content font-bold\"><a href=\"")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</div><div class=\"flex flex-col items-center space-y-1\"><button class=\"btn btn-wide btn-primary py-5 text-primary-content font-bold\"><a href=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -130,7 +130,7 @@ func GroupDetail(groupID string, title string, balance types.BalanceResponse, ex
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("\">ADD EXPENSE</a></button><div class=\"py-1\"></div><button class=\"btn btn-wide btn-secondary py-5 text-primary-content font-bold\"><a href=\"")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("\">ADD EXPENSE</a></button> <button class=\"btn btn-wide btn-secondary py-5 text-primary-content font-bold\"><a href=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -139,7 +139,20 @@ func GroupDetail(groupID string, title string, balance types.BalanceResponse, ex
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("\">ADD MEMEBERS</a></button><div class=\"py-1\"></div><button class=\"btn btn-wide btn-accent py-5 text-primary-content font-bold\">SETTLE UP</button></div><div class=\"py-3\"></div><div id=\"unsettled-expenses\">")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("\">ADD MEMEBERS</a></button> <button class=\"btn btn-wide btn-accent py-5 text-primary-content font-bold\" onclick=\"settle_confirm.showModal();\">SETTLE UP</button> <dialog id=\"settle_confirm\" class=\"modal\"><div class=\"modal-box\"><h3 class=\"text-lg font-bold\">Are You Sure?</h3><p class=\"py-4\">Your </p><div class=\"modal-action\"><form method=\"dialog\" class=\"flex space-x-1\"><button class=\"btn btn-accent text-accent-content w-1/2\" hx-post=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var9 string
+		templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(string(templ.URL("/settle_expense?g=" + groupID)))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/components/groupDetail.templ`, Line: 48, Col: 68}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("\">SETTLE</button> <button class=\"btn w-1/2\">Cancel</button></form></div></div></dialog></div><div class=\"pt-3\" id=\"unsettled-expenses\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

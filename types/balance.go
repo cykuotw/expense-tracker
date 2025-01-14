@@ -21,6 +21,7 @@ type Balance struct {
 }
 
 type BalanceRsp struct {
+	ID               uuid.UUID       `json:"id"`
 	SenderUserID     uuid.UUID       `json:"senderUserId"`
 	SenderUesrname   string          `json:"senderUsername"`
 	ReceiverUserID   uuid.UUID       `json:"receiverUserId"`

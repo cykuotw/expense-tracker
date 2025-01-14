@@ -23,6 +23,9 @@ var (
 	ErrExpenseNotExist     = errors.New("expense not exist")
 	ErrNoRemainingExpenses = errors.New("no remaining expenses in the list")
 	ErrProviderNotExist    = errors.New("provider not exist")
+
+	// balance
+	ErrBalanceNotExist = errors.New("balacne not exist")
 )
 
 type ServerErr struct {

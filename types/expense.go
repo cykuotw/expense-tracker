@@ -21,6 +21,7 @@ type ExpenseStore interface {
 	GetItemsByExpenseID(expenseID string) ([]*Item, error)
 	GetLedgersByExpenseID(expenseID string) ([]*Ledger, error)
 	GetLedgerUnsettledFromGroup(groupID string) ([]*Ledger, error)
+	SettleExpenseByGroupId(groupId string) error
 
 	UpdateExpense(expense Expense) error
 	DeleteExpense(expense Expense) error
@@ -32,6 +33,9 @@ type ExpenseStore interface {
 	CreateBalanceLedger(balanceIds []uuid.UUID, ledgerIds []uuid.UUID) error
 	OutdateBalanceByGroupId(groupId string) error
 	GetBalanceByGroupId(groupId string) ([]Balance, error)
+	CheckBalanceExistByID(id string) (bool, error)
+	SettleBalanceByBalanceId(balanceId string) error
+	CheckGroupBallanceAllSettled(groupId string) (bool, error)
 }
 
 type ExpenseController interface {

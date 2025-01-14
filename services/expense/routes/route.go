@@ -61,4 +61,8 @@ func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 	router.GET("/balance/:groupId",
 		validation.ValidateGroupUserPairExist(h.groupStore),
 		h.handleGetUnsettledBalance)
+	router.POST("/settle_balance/:groupId/:balanceId",
+		validation.ValidateGroupUserPairExist(h.groupStore),
+		validation.ValidateBalanceExist(h.store),
+		h.handleSettleBalance)
 }

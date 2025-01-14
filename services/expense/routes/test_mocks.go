@@ -90,6 +90,19 @@ func (m *mockExpenseStore) GetBalanceByGroupId(groupId string) ([]types.Balance,
 	return nil, nil
 }
 
+func (m *mockExpenseStore) SettleExpenseByGroupId(groupId string) error {
+	return nil
+}
+func (m *mockExpenseStore) CheckBalanceExistByID(id string) (bool, error) {
+	return false, nil
+}
+func (m *mockExpenseStore) SettleBalanceByBalanceId(balanceId string) error {
+	return nil
+}
+func (m *mockExpenseStore) CheckGroupBallanceAllSettled(groupId string) (bool, error) {
+	return false, nil
+}
+
 // group store interface
 type mockGroupStore struct{}
 

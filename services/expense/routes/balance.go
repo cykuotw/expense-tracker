@@ -34,6 +34,7 @@ func (h *Handler) handleGetUnsettledBalance(c *gin.Context) {
 			return
 		}
 		res := types.BalanceRsp{
+			ID:               balance.ID,
 			SenderUserID:     balance.SenderUserID,
 			SenderUesrname:   senderUsername,
 			ReceiverUserID:   balance.ReceiverUserID,
@@ -41,9 +42,7 @@ func (h *Handler) handleGetUnsettledBalance(c *gin.Context) {
 			Balance:          balance.Share,
 		}
 
-		if res.SenderUserID.String() == userID || res.ReceiverUserID.String() == userID {
-			balances = append(balances, res)
-		}
+		balances = append(balances, res)
 	}
 
 	response := types.BalanceResponse{

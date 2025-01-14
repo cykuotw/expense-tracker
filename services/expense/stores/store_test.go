@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"expense-tracker/types"
 	"fmt"
-	"time"
 
 	"github.com/google/uuid"
 )
@@ -28,8 +27,10 @@ func selectExpense(db *sql.DB, groupID uuid.UUID) []*types.Expense {
 
 	for rows.Next() {
 		expense := new(types.Expense)
-		updateTime := new(time.Time)
-		settleTime := new(time.Time)
+		updateTime := sql.NullTime{}
+		settleTime := sql.NullTime{}
+		deleteTime := sql.NullTime{}
+
 		rows.Scan(
 			&expense.ID,
 			&expense.Description,
@@ -45,18 +46,22 @@ func selectExpense(db *sql.DB, groupID uuid.UUID) []*types.Expense {
 			&expense.Currency,
 			&expense.InvoicePicUrl,
 			&expense.CreateTime,
-			updateTime,
+			&updateTime,
 			&expense.ExpenseTime,
 			&expense.SplitRule,
 			&expense.IsDeleted,
-			&expense.DeleteTime,
-			settleTime,
+			&deleteTime,
+			&settleTime,
 		)
-		if !updateTime.IsZero() {
-			expense.UpdateTime = *updateTime
+
+		if updateTime.Valid {
+			expense.UpdateTime = updateTime.Time
 		}
-		if !settleTime.IsZero() {
-			expense.SettleTime = *settleTime
+		if settleTime.Valid {
+			expense.SettleTime = settleTime.Time
+		}
+		if deleteTime.Valid {
+			expense.DeleteTime = deleteTime.Time
 		}
 		expList = append(expList, expense)
 	}
@@ -76,6 +81,10 @@ func selectExpenseByID(db *sql.DB, expenseID uuid.UUID) *types.Expense {
 	expense := new(types.Expense)
 
 	for rows.Next() {
+		updateTime := sql.NullTime{}
+		settleTime := sql.NullTime{}
+		deleteTime := sql.NullTime{}
+
 		rows.Scan(
 			&expense.ID,
 			&expense.Description,
@@ -91,10 +100,23 @@ func selectExpenseByID(db *sql.DB, expenseID uuid.UUID) *types.Expense {
 			&expense.Currency,
 			&expense.InvoicePicUrl,
 			&expense.CreateTime,
-			&expense.UpdateTime,
+			&updateTime,
 			&expense.ExpenseTime,
 			&expense.SplitRule,
+			&expense.IsDeleted,
+			&deleteTime,
+			&settleTime,
 		)
+
+		if updateTime.Valid {
+			expense.UpdateTime = updateTime.Time
+		}
+		if settleTime.Valid {
+			expense.SettleTime = settleTime.Time
+		}
+		if deleteTime.Valid {
+			expense.DeleteTime = deleteTime.Time
+		}
 	}
 
 	return expense

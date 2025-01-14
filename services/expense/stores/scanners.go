@@ -3,13 +3,13 @@ package store
 import (
 	"database/sql"
 	"expense-tracker/types"
-	"time"
 )
 
 func scanRowIntoExpense(rows *sql.Rows) (*types.Expense, error) {
 	expense := new(types.Expense)
-	updateTime := new(time.Time)
-	settleTime := new(time.Time)
+	updateTime := sql.NullTime{}
+	settleTime := sql.NullTime{}
+	deleteTime := sql.NullTime{}
 
 	err := rows.Scan(
 		&expense.ID,
@@ -26,24 +26,26 @@ func scanRowIntoExpense(rows *sql.Rows) (*types.Expense, error) {
 		&expense.Currency,
 		&expense.InvoicePicUrl,
 		&expense.CreateTime,
-		updateTime,
+		&updateTime,
 		&expense.ExpenseTime,
 		&expense.SplitRule,
 		&expense.IsDeleted,
-		&expense.DeleteTime,
-		settleTime,
+		&deleteTime,
+		&settleTime,
 	)
 	if err != nil {
 		return nil, err
 	}
 
-	if !updateTime.IsZero() {
-		expense.UpdateTime = *updateTime
+	if updateTime.Valid {
+		expense.UpdateTime = updateTime.Time
 	}
-	if !settleTime.IsZero() {
-		expense.SettleTime = *settleTime
+	if settleTime.Valid {
+		expense.SettleTime = settleTime.Time
 	}
-
+	if deleteTime.Valid {
+		expense.DeleteTime = deleteTime.Time
+	}
 	return expense, nil
 }
 

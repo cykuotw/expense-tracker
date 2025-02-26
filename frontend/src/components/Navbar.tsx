@@ -5,7 +5,7 @@ import "../styles/styles.css";
 export default function Navbar() {
     return (
         <>
-            <div className="navbar bg-primary text-primary-content hidden md:flex relative z-50">
+            <div className="navbar bg-neutral text-neutral-content hidden md:flex relative z-50">
                 <div className="navbar-start">
                     <a href="/" className="btn btn-ghost text-2xl">
                         Expense Tracker

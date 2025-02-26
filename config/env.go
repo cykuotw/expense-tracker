@@ -31,6 +31,9 @@ type Config struct {
 	ThirdPartySessionMaxAge int64
 
 	ExpensesPerPage int64
+
+	CORSFrontendOrigin   string
+	CORSAllowCredentials bool
 }
 
 var Envs = initConfig()
@@ -62,6 +65,9 @@ func initConfig() Config {
 		ThirdPartySessionMaxAge: getEnvInt("THIRD_PARTY_SESSION_MAX_AGE", 3600*24*7),
 
 		ExpensesPerPage: getEnvInt("EXPENSES_PER_PAGE", 25),
+
+		CORSFrontendOrigin:   getEnv("CORS_FRONTEND_ORIGIN", "localhost:8050"),
+		CORSAllowCredentials: getEnvBool("CORS_ALLOW_CREDENTIALS", false),
 	}
 }
 
@@ -79,6 +85,17 @@ func getEnvInt(key string, fallback int64) int64 {
 			return fallback
 		}
 		return num
+	}
+	return fallback
+}
+
+func getEnvBool(key string, fallback bool) bool {
+	if value, ok := os.LookupEnv(key); ok {
+		if value == "True" || value == "true" {
+			return true
+		} else if value == "False" || value == "false" {
+			return false
+		}
 	}
 	return fallback
 }

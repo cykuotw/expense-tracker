@@ -10,6 +10,7 @@ import (
 	expenseStore "expense-tracker/services/expense/stores"
 	groupRoute "expense-tracker/services/group/routes"
 	groupStore "expense-tracker/services/group/stores"
+	"expense-tracker/services/middleware"
 	"expense-tracker/services/user"
 	"log"
 	"net/http"
@@ -36,6 +37,7 @@ func (s *APIServer) Run() error {
 
 	router := gin.New()
 	router.Use(gin.Logger())
+	router.Use(middleware.CORSMiddleware())
 
 	subrouter := router.Group(config.Envs.APIPath)
 

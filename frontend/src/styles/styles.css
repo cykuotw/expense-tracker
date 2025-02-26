@@ -1,6 +1,10 @@
 @import "tailwindcss";
+@import "./font-roboto.css";
+@import "./google-login.css";
+@import "./fade-out.css";
+
 @plugin "daisyui" {
-    themes: corporate --default, dark --prefersdark;
+    themes: cupcake --default, dark --prefersdark;
 }
 
 body {

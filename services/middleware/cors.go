@@ -2,7 +2,6 @@ package middleware
 
 import (
 	"expense-tracker/config"
-	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -16,7 +15,6 @@ func CORSMiddleware() gin.HandlerFunc {
 		if config.Envs.CORSAllowCredentials {
 			c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
 		}
-		fmt.Println(c.Request.Method)
 
 		if c.Request.Method == "OPTIONS" {
 			c.AbortWithStatus(http.StatusNoContent)

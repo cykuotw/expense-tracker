@@ -124,7 +124,13 @@ func (h *Handler) handleLogin(c *gin.Context) {
 		utils.WriteError(c, http.StatusInternalServerError, err)
 		return
 	}
-	utils.WriteJSON(c, http.StatusOK, map[string]string{"token": token})
+
+	c.SetCookie(
+		"access_token", token,
+		int(config.Envs.JWTExpirationInSeconds),
+		"/", "localhost", false, true,
+	)
+	utils.WriteJSON(c, http.StatusOK, nil)
 }
 
 func (h *Handler) handle3rdParty(c *gin.Context) {

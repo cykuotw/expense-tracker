@@ -29,7 +29,7 @@ func CreateJWT(secret []byte, userID uuid.UUID) (string, error) {
 	return tokenString, nil
 }
 
-func ValidateJWT(c *gin.Context) error {
+func validateJWT(c *gin.Context) error {
 	token, err := extractToken(c)
 
 	if err != nil || !token.Valid {
@@ -41,9 +41,9 @@ func ValidateJWT(c *gin.Context) error {
 
 func JWTAuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		err := ValidateJWT(c)
+		err := validateJWT(c)
 		if err != nil {
-			utils.WriteJSON(c, http.StatusUnauthorized, "Unauthorized")
+			utils.WriteJSON(c, http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 			c.Abort()
 			return
 		}
@@ -56,22 +56,41 @@ func ExtractJWTClaim(c *gin.Context, key string) (string, error) {
 	if err != nil || !token.Valid {
 		return "", types.ErrInvalidToken
 	}
-	claims := token.Claims.(jwt.MapClaims)
-	claim := claims[key].(string)
 
-	return claim, nil
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		return "", fmt.Errorf("invalid token claims")
+	}
+
+	claim, exists := claims[key]
+	if !exists {
+		return "", fmt.Errorf("claim '%s' not found", key)
+	}
+
+	claimStr, ok := claim.(string)
+	if !ok {
+		return "", fmt.Errorf("claim '%s' is not a string", key)
+	}
+
+	return claimStr, nil
 }
 
 func extractToken(c *gin.Context) (*jwt.Token, error) {
-	bearerToken := c.Request.Header.Get("Authorization")
-	if bearerToken == "" {
-		return nil, types.ErrInvalidToken
+	var tokenStr string
+
+	if cookie, err := c.Cookie("access_token"); err == nil {
+		tokenStr = cookie
+	} else {
+		bearerToken := c.Request.Header.Get("Authorization")
+		if bearerToken == "" {
+			return nil, types.ErrInvalidToken
+		}
+		tks := strings.Split(bearerToken, " ")
+		if len(tks) != 2 {
+			return nil, types.ErrInvalidToken
+		}
+		tokenStr = tks[1]
 	}
-	tks := strings.Split(bearerToken, " ")
-	if len(tks) != 2 {
-		return nil, types.ErrInvalidToken
-	}
-	tokenStr := tks[1]
 
 	token, err := jwt.Parse(tokenStr, func(t *jwt.Token) (interface{}, error) {
 		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {

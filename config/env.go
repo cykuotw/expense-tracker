@@ -10,9 +10,10 @@ import (
 type Config struct {
 	Mode string
 
-	BackendURL  string
-	FrontendURL string
-	APIPath     string
+	BackendURL       string
+	FrontendURL      string
+	FrontendReactURL string
+	APIPath          string
 
 	DBPublicHost string
 	DBPort       string
@@ -44,9 +45,10 @@ func initConfig() Config {
 	return Config{
 		Mode: getEnv("MODE", "debug"),
 
-		BackendURL:  getEnv("BACKEND_URL", "localhost:8000"),
-		FrontendURL: getEnv("FRONTEND_URL", "localhost:8050"),
-		APIPath:     getEnv("API_URL", ""),
+		BackendURL:       getEnv("BACKEND_URL", "localhost:8000"),
+		FrontendURL:      getEnv("FRONTEND_URL", "localhost:8050"),
+		FrontendReactURL: getEnv("FRONTEND_REACT_URL", "localhost:5173"),
+		APIPath:          getEnv("API_URL", ""),
 
 		DBPublicHost: getEnv("DB_PUBLIC_HOST", "localhost"),
 		DBPort:       getEnv("DB_PORT", "5432"),

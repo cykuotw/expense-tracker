@@ -28,7 +28,6 @@ func NewHandler(store types.UserStore) *Handler {
 func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 	router.POST("/register", h.handleRegister)
 	router.POST("/login", h.handleLogin)
-	router.POST("/auth", h.handle3rdParty)
 
 	router.POST("/checkEmail", common.Make(h.handleCheckEmail))
 	router.GET("/userInfo", common.Make(h.handleGetUserInfoByEmail))
@@ -131,74 +130,6 @@ func (h *Handler) handleLogin(c *gin.Context) {
 		"/", "localhost", false, true,
 	)
 	utils.WriteJSON(c, http.StatusOK, nil)
-}
-
-func (h *Handler) handle3rdParty(c *gin.Context) {
-	var payload types.ThirdPartyUserPayload
-
-	if err := utils.ParseJSON(c, &payload); err != nil {
-		fmt.Println(err)
-		utils.WriteError(c, http.StatusBadRequest, err)
-		return
-	}
-
-	succeed := false
-	user, err := h.store.GetUserByEmail(payload.Email)
-	if err == types.ErrUserNotExist {
-		// register
-		hashedPassword, err := auth.HashPassword(payload.ExternalId)
-		if err != nil {
-			utils.WriteError(c, http.StatusInternalServerError, err)
-			return
-		}
-		user = &types.User{
-			ID:             uuid.New(),
-			Username:       payload.Nickname,
-			Nickname:       payload.Nickname,
-			Firstname:      payload.Firstname,
-			Lastname:       payload.Lastname,
-			Email:          payload.Email,
-			PasswordHashed: hashedPassword,
-			ExternalType:   payload.ExternalType,
-			ExternalID:     payload.ExternalId,
-			CreateTime:     time.Now(),
-			IsActive:       true,
-		}
-		err = h.store.CreateUser(*user)
-		if err != nil {
-			utils.WriteError(c, http.StatusInternalServerError, err)
-			return
-		}
-
-		succeed = true
-	} else if err != nil {
-		utils.WriteError(c, http.StatusInternalServerError, err)
-		return
-	} else {
-		// login
-		if user.ExternalID != payload.ExternalId {
-			utils.WriteError(c, http.StatusBadRequest, types.ErrPasswordNotMatch)
-			return
-		}
-		if !auth.ValidatePassword(user.PasswordHashed, payload.ExternalId) {
-			utils.WriteError(c, http.StatusBadRequest, types.ErrPasswordNotMatch)
-			return
-		}
-
-		succeed = true
-	}
-
-	if succeed {
-		secret := []byte(config.Envs.JWTSecret)
-		token, err := auth.CreateJWT(secret, user.ID)
-		if err != nil {
-			utils.WriteError(c, http.StatusInternalServerError, err)
-			return
-		}
-		utils.WriteJSON(c, http.StatusOK, map[string]string{"token": token})
-		return
-	}
-	utils.WriteError(c, http.StatusInternalServerError, nil)
 }
 
 func (h *Handler) handleCheckEmail(c *gin.Context) error {

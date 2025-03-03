@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"expense-tracker/config"
 	"expense-tracker/services/auth"
+	authRoute "expense-tracker/services/auth/routes"
 	"expense-tracker/services/expense"
 	expenseRoute "expense-tracker/services/expense/routes"
 	expenseStore "expense-tracker/services/expense/stores"
@@ -44,6 +45,9 @@ func (s *APIServer) Run() error {
 	userStore := user.NewStore(s.db)
 	userHandler := user.NewHandler(userStore)
 	userHandler.RegisterRoutes(subrouter)
+
+	authHandler := authRoute.NewHandler(userStore)
+	authHandler.RegisterRoutes(subrouter)
 
 	protected := subrouter.Group("")
 	protected.Use(auth.JWTAuthMiddleware())

@@ -1,7 +1,9 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 
 import NavbarLayout from "./layouts/NavbarLayout";
+import Login from "./pages/auth/Login";
 import "./styles/styles.css";
+import Register from "./pages/auth/Register";
 
 function Home() {
     return (
@@ -21,6 +23,8 @@ function App() {
         <>
             <Router>
                 <Routes>
+                    <Route path="/register" element={<Register />} />
+                    <Route path="/login" element={<Login />} />
                     <Route element={<NavbarLayout />}>
                         <Route path="/" element={<Home />} />
                     </Route>

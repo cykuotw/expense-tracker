@@ -22,4 +22,6 @@ func NewHandler(store types.UserStore) *Handler {
 func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 	router.POST("/auth/:provider", common.Make(h.handleThirdParty))
 	router.GET("/auth/:provider/callback", common.Make(h.handleThirdPartyCallback))
+
+	router.GET("/auth/me", common.Make(h.handleAuthMe))
 }

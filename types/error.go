@@ -11,6 +11,7 @@ var (
 	ErrUserNotExist     = errors.New("invalid username/email/password")
 	ErrPasswordNotMatch = errors.New("invalid username/email/password")
 	ErrInvalidCSRFToken = errors.New("invalid csrf token")
+	ErrInvalidJWTToken  = errors.New("invalid jwt token")
 
 	// jwt
 	ErrInvalidToken = errors.New("invalid token")

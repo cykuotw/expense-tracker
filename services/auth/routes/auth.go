@@ -126,3 +126,26 @@ func (h *Handler) handleThirdPartyCallback(c *gin.Context) error {
 
 	return nil
 }
+
+func (h *Handler) handleAuthMe(c *gin.Context) error {
+
+	userId, err := auth.ExtractJWTClaim(c, "userID")
+	if err != nil {
+		utils.WriteError(c, http.StatusUnauthorized, types.ErrInvalidJWTToken)
+		return err
+	}
+
+	exist, err := h.store.CheckUserExistByID(userId)
+	if err != nil {
+		utils.WriteError(c, http.StatusInternalServerError, err)
+		return err
+	}
+	if !exist {
+		utils.WriteError(c, http.StatusUnauthorized, types.ErrInvalidJWTToken)
+		return types.ErrInvalidJWTToken
+	}
+
+	utils.WriteJSON(c, http.StatusOK, gin.H{"userID": userId})
+
+	return nil
+}

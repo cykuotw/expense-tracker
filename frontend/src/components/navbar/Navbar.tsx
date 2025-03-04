@@ -1,8 +1,17 @@
 import { Link } from "react-router-dom";
 
 import Dropdown from "../Dropdown";
+import { API_URL } from "../../configs/config";
 
 export default function Navbar() {
+    const handleLogout = async () => {
+        await fetch(`${API_URL}/logout`, {
+            method: "POST",
+            credentials: "include",
+        });
+        window.location.href = "/login";
+    };
+
     return (
         <div className="navbar bg-neutral text-neutral-content hidden md:flex relative z-50">
             <div className="navbar-start">
@@ -53,7 +62,9 @@ export default function Navbar() {
                                     <Link to="/settings">Settings</Link>
                                 </li>
                                 <li>
-                                    <Link to="/logout">Logout</Link>
+                                    <button onClick={handleLogout}>
+                                        Logout
+                                    </button>
                                 </li>
                             </Dropdown>
                         </li>

@@ -24,4 +24,8 @@ func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 	router.GET("/auth/:provider/callback", common.Make(h.handleThirdPartyCallback))
 
 	router.GET("/auth/me", common.Make(h.handleAuthMe))
+
+	router.POST("/register", h.handleRegister)
+	router.POST("/login", h.handleLogin)
+	router.POST("logout", common.Make(h.handleLogout))
 }

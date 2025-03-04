@@ -6,8 +6,6 @@ import {
 } from "react-router-dom";
 import { useState, useEffect } from "react";
 
-import "./styles/styles.css";
-
 import NavbarLayout from "./layouts/NavbarLayout";
 import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
@@ -16,7 +14,7 @@ import AuthGuard from "./components/auth/AuthGuard";
 
 function Home() {
     return (
-        <div className="flex items-center justify-center h-screen">
+        <div className="flex items-center justify-center min-h-50">
             <span className="loading loading-spinner loading-xl"></span>
         </div>
     );

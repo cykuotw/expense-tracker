@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { API_URL } from "../../configs/config";
 import { useNavigate } from "react-router-dom";
+
+import { API_URL } from "../../configs/config";
 
 export default function LoginForm() {
     const [email, setEmail] = useState("");

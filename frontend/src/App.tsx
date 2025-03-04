@@ -16,14 +16,9 @@ import AuthGuard from "./components/auth/AuthGuard";
 
 function Home() {
     return (
-        <>
-            <h1 className="text-3xl font-bold underline text-red-500">
-                Hello Tailwindcss!
-            </h1>
-            <div className="p-10">
-                <button className="btn btn-secondary">DaisyUI Button</button>
-            </div>
-        </>
+        <div className="flex items-center justify-center h-screen">
+            <span className="loading loading-spinner loading-xl"></span>
+        </div>
     );
 }
 
@@ -53,8 +48,13 @@ function AppRoutes() {
         checkAuth();
     }, [location.pathname]);
 
-    if (isAuthenticated === null)
-        return <span className="loading loading-spinner loading-md"></span>;
+    if (isAuthenticated === null) {
+        return (
+            <div className="flex items-center justify-center h-screen">
+                <span className="loading loading-spinner loading-xl"></span>
+            </div>
+        );
+    }
 
     return (
         <Routes>

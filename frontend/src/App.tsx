@@ -11,14 +11,7 @@ import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
 import GuestGuard from "./components/auth/GuestGuard";
 import AuthGuard from "./components/auth/AuthGuard";
-
-function Home() {
-    return (
-        <div className="flex items-center justify-center min-h-50">
-            <span className="loading loading-spinner loading-xl"></span>
-        </div>
-    );
-}
+import Home from "./pages/Home";
 
 function AppRoutes() {
     const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(

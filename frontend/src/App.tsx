@@ -12,6 +12,7 @@ import Register from "./pages/auth/Register";
 import GuestGuard from "./components/auth/GuestGuard";
 import AuthGuard from "./components/auth/AuthGuard";
 import Home from "./pages/Home";
+import GroupDetail from "./pages/GroupDetail";
 
 function AppRoutes() {
     const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(
@@ -57,6 +58,7 @@ function AppRoutes() {
             <Route element={<AuthGuard isAuthenticated={isAuthenticated} />}>
                 <Route element={<NavbarLayout />}>
                     <Route path="/" element={<Home />} />
+                    <Route path="/group/:id" element={<GroupDetail />} />
                 </Route>
             </Route>
         </Routes>

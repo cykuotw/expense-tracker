@@ -1,14 +1,10 @@
 import { useEffect, useState } from "react";
+
 import { API_URL } from "../configs/config";
 import GroupCard from "../components/group/GroupCard";
+import { GroupCardData } from "../types/group";
 
 export default function Home() {
-    interface GroupCardData {
-        id: string;
-        groupName: string;
-        description: string;
-    }
-
     const [groupCards, setGroupCards] = useState<GroupCardData[]>([]);
 
     useEffect(() => {
@@ -23,10 +19,9 @@ export default function Home() {
                     },
                 });
                 groups = await response.json();
+                setGroupCards(groups);
             } catch (error) {
                 console.log(error);
-            } finally {
-                setGroupCards(groups);
             }
         };
 
@@ -37,12 +32,7 @@ export default function Home() {
         <div className="h-screen">
             <div className="flex flex-wrap justify-center items-center py-5 md:h-auto">
                 {groupCards.map((group) => (
-                    <GroupCard
-                        key={group.id}
-                        Id={group.id}
-                        GroupName={group.groupName}
-                        Description={group.description}
-                    />
+                    <GroupCard key={group.id} {...group} />
                 ))}
             </div>
             <div className="py-10 block md:hidden"></div>

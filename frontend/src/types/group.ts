@@ -15,3 +15,9 @@ export interface GroupInfo {
     currency: string;
     members: GroupMember[];
 }
+
+export interface RelatedUser {
+    userId: string;
+    username: string;
+    existInGroup: boolean;
+}

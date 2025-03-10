@@ -21,7 +21,7 @@ func NewHandler(store types.UserStore) *Handler {
 
 func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 	router.POST("/checkEmail", common.Make(h.handleCheckEmail))
-	router.GET("/userInfo", common.Make(h.handleGetUserInfoByEmail))
+	router.POST("/userInfo", common.Make(h.handleGetUserInfoByEmail))
 }
 
 func (h *Handler) handleCheckEmail(c *gin.Context) error {

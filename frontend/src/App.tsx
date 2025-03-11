@@ -7,8 +7,8 @@ import {
 import { useState, useEffect } from "react";
 
 import NavbarLayout from "./layouts/NavbarLayout";
-import Login from "./pages/auth/Login";
-import Register from "./pages/auth/Register";
+import Login from "./pages/Login";
+import Register from "./pages/Register";
 import GuestGuard from "./components/auth/GuestGuard";
 import AuthGuard from "./components/auth/AuthGuard";
 import Home from "./pages/Home";

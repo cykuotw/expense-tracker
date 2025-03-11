@@ -1,5 +1,5 @@
-import GoogleSignInButton from "../../components/auth/GoogleSignInButton";
-import LoginForm from "../../components/auth/LoginForm";
+import GoogleSignInButton from "../components/auth/GoogleSignInButton";
+import LoginForm from "../components/auth/LoginForm";
 
 export default function Login() {
     return (

@@ -27,5 +27,5 @@ func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 
 	router.POST("/register", h.handleRegister)
 	router.POST("/login", h.handleLogin)
-	router.POST("logout", common.Make(h.handleLogout))
+	router.POST("/logout", common.Make(h.handleLogout))
 }

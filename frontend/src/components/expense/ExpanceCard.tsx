@@ -15,7 +15,7 @@ export default function ExpenseCard(expense: ExpenseData) {
                 <div className="flex flex-row justify-center items-center h-full">
                     <div className="h-full w-11/12 md:w-7/12 border border-dotted rounded-xl max-w-md">
                         <Link
-                            to={`/expense/${expense.expenseId}}`}
+                            to={`/expense/${expense.expenseId}`}
                             className="flex justify-center items-center h-full w-full"
                         >
                             <div className="flex flex-row justify-center items-center w-full">

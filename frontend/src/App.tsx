@@ -14,6 +14,7 @@ import AuthGuard from "./components/auth/AuthGuard";
 import Home from "./pages/Home";
 import GroupDetail from "./pages/GroupDetail";
 import AddMember from "./pages/AddMember";
+import ExpenseDetail from "./pages/ExpenseDetail";
 
 function AppRoutes() {
     const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(
@@ -61,6 +62,8 @@ function AppRoutes() {
                     <Route path="/" element={<Home />} />
                     <Route path="/group/:id" element={<GroupDetail />} />
                     <Route path="/add_member" element={<AddMember />} />
+
+                    <Route path="/expense/:id" element={<ExpenseDetail />} />
                 </Route>
             </Route>
         </Routes>

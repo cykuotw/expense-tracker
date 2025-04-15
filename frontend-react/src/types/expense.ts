@@ -31,3 +31,9 @@ export interface ExpenseDetailData {
     items: ItemData[];
     ledgers: LedgerData[];
 }
+
+export interface ExpenseTypeItem {
+    id: string;
+    category: string;
+    name: string;
+}

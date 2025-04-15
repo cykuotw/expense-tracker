@@ -6,7 +6,7 @@ tmp_dir = "tmp"
   cmd = "make css; make templ; go mod tidy; go build -tags dev -o ./tmp/tracker cmd/tracker/main.go"
 
   delay = 20
-  exclude_dir = ["assets", "tmp", "vendor", "node_modules"]
+  exclude_dir = ["assets", "tmp", "vendor", "node_modules", "frontend-react"]
   exclude_file = []
   exclude_regex = [".*_templ.go"]
   exclude_unchanged = false

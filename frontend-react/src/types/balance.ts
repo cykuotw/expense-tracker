@@ -12,3 +12,12 @@ export interface BalanceData {
     currentUser: string;
     balances: Balance[];
 }
+
+export enum SplitOption {
+    Equally = "Equally",
+    Unequally = "Unequally",
+    YouHalf = "You-Half",
+    YouFull = "You-Full",
+    OtherHalf = "Other-Half",
+    OtherFull = "Other-Full",
+}

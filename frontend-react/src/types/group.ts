@@ -21,3 +21,10 @@ export interface RelatedUser {
     username: string;
     existInGroup: boolean;
 }
+
+export interface GroupListItem {
+    id: string;
+    groupName: string;
+    description: string;
+    currency: string;
+}

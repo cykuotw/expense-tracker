@@ -138,7 +138,7 @@ type ExpenseResponse struct {
 }
 
 type ExpenseTypeResponse struct {
-	ID       string
-	Category string
-	Name     string
+	ID       string `json:"id"`
+	Category string `json:"category"`
+	Name     string `json:"name"`
 }

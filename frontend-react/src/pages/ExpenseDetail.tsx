@@ -1,11 +1,13 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
+
+import Icon from "@mdi/react";
+import { mdiSubdirectoryArrowLeft } from "@mdi/js";
 
 import Dropdown from "../components/Dropdown";
 import { API_URL } from "../configs/config";
 
 import { ExpenseDetailData } from "../types/expense";
-import { Link } from "react-router-dom";
 
 export default function ExpenseDetail() {
     const { id: expenseId = "" } = useParams();
@@ -87,21 +89,13 @@ export default function ExpenseDetail() {
                 </div>
             </div>
             <div className="flex justify-center w-full mt-4">
-                <a
+                <Link
                     className="btn btn-ghost"
-                    href={`/group/${expenseDetail?.groupId}`}
+                    to={`/group/${expenseDetail?.groupId}`}
                 >
-                    <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        viewBox="0 0 24 24"
-                        width="22"
-                        height="22"
-                    >
-                        <title>keyboard-return</title>
-                        <path d="M19,7V11H5.83L9.41,7.41L8,6L2,12L8,18L9.41,16.58L5.83,13H21V7H19Z"></path>
-                    </svg>
+                    <Icon path={mdiSubdirectoryArrowLeft} size={1} />
                     Back to Group
-                </a>
+                </Link>
             </div>
         </div>
     );

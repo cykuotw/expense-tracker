@@ -1,5 +1,5 @@
-import { ItemData } from "./item";
-import { LedgerData } from "./ledger";
+import { ItemCreateData, ItemData } from "./item";
+import { LedgerCreateData, LedgerData } from "./ledger";
 
 export interface ExpenseData {
     expenseId: string;
@@ -36,4 +36,23 @@ export interface ExpenseTypeItem {
     id: string;
     category: string;
     name: string;
+}
+
+export interface ExpenseCreateData {
+    description: string;
+    groupId: string;
+    payByUserId: string;
+    expTypeId: string;
+    total: string;
+    currency: string;
+    splitRule: string;
+    ledgers: LedgerCreateData[];
+
+    createByUserId?: string;
+
+    providerName?: string;
+    subTotal?: string;
+    taxFeeTip?: string;
+    invoiceUrl?: string;
+    items?: ItemCreateData[];
 }

@@ -6,3 +6,9 @@ export interface LedgerData {
     borrowerUsername: string;
     share: string;
 }
+
+export interface LedgerCreateData {
+    lenderUserId: string;
+    borrowerUserId: string;
+    share: string;
+}

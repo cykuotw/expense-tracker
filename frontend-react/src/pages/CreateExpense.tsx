@@ -80,14 +80,17 @@ const CreateExpense = () => {
                 }
                 break;
             }
+
             case Rule.YouFull:
                 ledgers[0].share = 0;
                 ledgers[1].share = total;
                 break;
+
             case Rule.OtherFull:
                 ledgers[0].share = total;
                 ledgers[1].share = 0;
                 break;
+
             default:
                 break;
         }
@@ -103,8 +106,8 @@ const CreateExpense = () => {
             ledgers: ledgers.map(
                 (ledger) =>
                     ({
-                        lenderUserId: ledger.userId,
-                        borrowerUserId: payer,
+                        borrowerUserId: ledger.userId,
+                        lenderUserId: payer,
                         share: ledger.share.toFixed(precision),
                     } as LedgerCreateData)
             ),

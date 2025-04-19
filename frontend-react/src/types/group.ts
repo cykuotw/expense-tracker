@@ -28,3 +28,9 @@ export interface GroupListItem {
     description: string;
     currency: string;
 }
+
+export interface GroupNewData {
+    groupName: string;
+    description: string;
+    currency: string;
+}

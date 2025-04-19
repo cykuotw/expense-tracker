@@ -34,7 +34,7 @@ func (h *Handler) handleGetExpenseList(c *gin.Context) {
 	// get expense list wrt page
 	expenseList, err := h.store.GetExpenseList(groupIdStr, page)
 	if err == types.ErrNoRemainingExpenses {
-		utils.WriteError(c, http.StatusBadRequest, err)
+		utils.WriteJSON(c, http.StatusOK, []types.ExpenseResponseBrief{})
 		return
 	} else if err != nil {
 		utils.WriteError(c, http.StatusInternalServerError, err)

@@ -10,3 +10,7 @@ export interface ItemCreateData {
     unit: string;
     unitPrice: string;
 }
+
+export interface ItemUpdateData extends ItemCreateData {
+    itemId: string;
+}

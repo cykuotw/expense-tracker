@@ -17,6 +17,7 @@ import AddMember from "./pages/AddMember";
 import ExpenseDetail from "./pages/ExpenseDetail";
 import CreateExpense from "./pages/CreateExpense";
 import CreateGroup from "./pages/CreateGroup";
+import EditExpense from "./pages/EditExpense";
 
 function AppRoutes() {
     const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(
@@ -67,6 +68,7 @@ function AppRoutes() {
                     <Route path="/create_group" element={<CreateGroup />} />
 
                     <Route path="/expense/:id" element={<ExpenseDetail />} />
+                    <Route path="/expense/:id/edit" element={<EditExpense />} />
                     <Route path="/create_expense" element={<CreateExpense />} />
                     <Route path="/add_member" element={<AddMember />} />
                 </Route>

@@ -12,3 +12,7 @@ export interface LedgerCreateData {
     borrowerUserId: string;
     share: string;
 }
+
+export interface LedgerUpdateData extends LedgerCreateData {
+    ledgerId: string;
+}

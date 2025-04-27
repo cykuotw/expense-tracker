@@ -1,5 +1,5 @@
 import { ItemCreateData, ItemData } from "./item";
-import { LedgerCreateData, LedgerData } from "./ledger";
+import { LedgerCreateData, LedgerData, LedgerUpdateData } from "./ledger";
 
 export interface ExpenseData {
     expenseId: string;
@@ -55,4 +55,9 @@ export interface ExpenseCreateData {
     taxFeeTip?: string;
     invoiceUrl?: string;
     items?: ItemCreateData[];
+}
+
+export interface ExpenseUpdateData
+    extends Omit<ExpenseCreateData, "createByUserId" | "ledgers"> {
+    ledgers: LedgerUpdateData[];
 }

@@ -1,129 +1,150 @@
-import { ReactElement, useEffect, useState } from "react";
-import { useSearchParams, Link } from "react-router-dom";
+import React, { ReactElement, useEffect, useState } from "react";
+import { useParams } from "react-router-dom";
 
 import Icon from "@mdi/react";
-import {
-    mdiCamera,
-    mdiCheckBold,
-    mdiCheckCircleOutline,
-    mdiSubdirectoryArrowLeft,
-} from "@mdi/js";
+import { mdiCamera, mdiCheckBold, mdiCheckCircleOutline } from "@mdi/js";
 
 import { API_URL } from "../configs/config";
-import { ExpenseCreateData, ExpenseTypeItem } from "../types/expense";
+import {
+    ExpenseDetailData,
+    ExpenseTypeItem,
+    ExpenseUpdateData,
+} from "../types/expense";
 import { GroupListItem, GroupMember } from "../types/group";
-import { LedgerCreateData } from "../types/ledger";
+import { LedgerUpdateData } from "../types/ledger";
 import { Rule } from "../types/splitRule";
 
-const CreateExpense = () => {
-    const [searchParams] = useSearchParams();
-    const groupId = searchParams.get("g");
+interface expenseFormData {
+    groupId: string;
+    expenseType: string;
+    description: string;
+    currency: string;
+    total: number;
+    splitRule: Rule;
+
+    payerUserId: string;
+    ledgers: {
+        id: string;
+        userId: string;
+        share: number;
+    }[];
+}
+
+const emptyData: expenseFormData = {
+    groupId: "",
+    expenseType: "",
+    description: "",
+    total: 0,
+    currency: "",
+    splitRule: Rule.Equally,
+    payerUserId: "",
+    ledgers: [],
+};
+
+const EditExpense = () => {
+    const { id: expenseId = "" } = useParams();
 
     // handle form submission
     const [feedback, setFeedback] = useState<string>("");
     const [indicatorShow, setIndicatorShow] = useState<boolean>(false);
 
-    const [selectedGroupId, setSelectedGroupId] = useState<string | null>(
-        groupId
-    );
-    const [selectedExpenseTypeId, setSelectedExpenseTypeId] =
-        useState<string>("");
-    const [total, setTotal] = useState<number>(0);
-    const [description, setDescription] = useState<string>("");
-    const [currency, setCurrency] = useState<string>("CAD");
-    const [payer, setPayer] = useState<string>("");
-    const [selectedRule, setSelectedRule] = useState<Rule>(Rule.Equally);
-    const [ledgers, setLedgers] = useState<{ userId: string; share: number }[]>(
-        []
-    );
+    const [formData, setFormData] = useState<expenseFormData>(emptyData);
 
-    const [ledgerShareOk, setLedgerShareOk] = useState<boolean>(false);
-    const [ledgerShareMessage, setLedgerShareMessage] = useState<string>("");
-    const [dataOk, setDataOk] = useState<boolean>(false);
-
-    const handleCreateExpense = async (e: React.FormEvent) => {
+    const handleUpdateExpense = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        setIndicatorShow(true);
-        setFeedback("");
+        try {
+            setIndicatorShow(true);
 
-        // set up ledgers in defult split rules
-        const currencyPrecision: Record<"CAD" | "USD" | "NTD", number> = {
-            CAD: 2,
-            USD: 2,
-            NTD: 0,
-        };
-        const precision: number =
-            currencyPrecision[currency as keyof typeof currencyPrecision];
-        switch (selectedRule) {
-            case Rule.Equally:
-            case Rule.YouHalf:
-            case Rule.OtherHalf: {
-                const peopleCount: number = ledgers.length;
+            setIndicatorShow(true);
+            setFeedback("");
 
-                const split: number =
-                    Math.floor((total / peopleCount) * 10 ** precision) /
-                    10 ** precision;
-                const remaining: number = total - split * (peopleCount - 1);
+            // set up ledgers in defult split rules
+            const currencyPrecision: Record<"CAD" | "USD" | "NTD", number> = {
+                CAD: 2,
+                USD: 2,
+                NTD: 0,
+            };
+            const precision: number =
+                currencyPrecision[
+                    formData.currency as keyof typeof currencyPrecision
+                ];
 
-                const randIndex = Math.floor(Math.random() * peopleCount);
-                for (let i = 0; i < peopleCount; i++) {
-                    ledgers[i].share = i === randIndex ? remaining : split;
+            switch (formData.splitRule) {
+                case Rule.Equally:
+                case Rule.YouHalf:
+                case Rule.OtherHalf: {
+                    const peopleCount: number = formData.ledgers.length;
+
+                    const split: number =
+                        Math.floor(
+                            (formData.total / peopleCount) * 10 ** precision
+                        ) /
+                        10 ** precision;
+                    const remaining: number =
+                        formData.total - split * (peopleCount - 1);
+
+                    const randIndex = Math.floor(Math.random() * peopleCount);
+                    for (let i = 0; i < peopleCount; i++) {
+                        formData.ledgers[i].share =
+                            i === randIndex ? remaining : split;
+                    }
+                    break;
                 }
-                break;
+
+                case Rule.YouFull:
+                    formData.ledgers[0].share = 0;
+                    formData.ledgers[1].share = formData.total;
+                    break;
+
+                case Rule.OtherFull:
+                    formData.ledgers[0].share = formData.total;
+                    formData.ledgers[1].share = 0;
+                    break;
+
+                default:
+                    break;
             }
 
-            case Rule.YouFull:
-                ledgers[0].share = 0;
-                ledgers[1].share = total;
-                break;
+            const payload: ExpenseUpdateData = {
+                description: formData.description,
+                groupId: formData.groupId,
+                payByUserId: formData.payerUserId,
+                expTypeId: formData.expenseType,
+                total: formData.total.toFixed(precision),
+                currency: formData.currency,
+                splitRule: formData.splitRule,
+                ledgers: formData.ledgers.map(
+                    (ledger) =>
+                        ({
+                            ledgerId: ledger.id,
+                            borrowerUserId: ledger.userId,
+                            lenderUserId: formData.payerUserId,
+                            share: ledger.share.toFixed(precision),
+                        } as LedgerUpdateData)
+                ),
+            };
 
-            case Rule.OtherFull:
-                ledgers[0].share = total;
-                ledgers[1].share = 0;
-                break;
+            const response = await fetch(`${API_URL}/expense/${expenseId}`, {
+                method: "PUT",
+                credentials: "include",
+                body: JSON.stringify(payload),
+            });
+            if (!response.ok) {
+                const errorMessage = await response.text();
+                throw new Error(`Failed to update expense: ${errorMessage}`);
+            }
 
-            default:
-                break;
+            window.location.href = `/expense/${expenseId}`;
+        } catch (error) {
+            console.error("Error updating expense:", error);
+            setFeedback("Error updating expense");
+        } finally {
+            setIndicatorShow(false);
         }
-
-        const payload: ExpenseCreateData = {
-            description: description,
-            groupId: selectedGroupId || "",
-            payByUserId: payer,
-            expTypeId: selectedExpenseTypeId,
-            total: total.toFixed(precision),
-            currency: currency,
-            splitRule: selectedRule,
-            ledgers: ledgers.map(
-                (ledger) =>
-                    ({
-                        borrowerUserId: ledger.userId,
-                        lenderUserId: payer,
-                        share: ledger.share.toFixed(precision),
-                    } as LedgerCreateData)
-            ),
-        };
-
-        const response = await fetch(`${API_URL}/create_expense`, {
-            method: "POST",
-            credentials: "include",
-            headers: {
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify(payload),
-        });
-
-        setIndicatorShow(false);
-
-        if (!response.ok) {
-            setFeedback("Failed to create expense.");
-            return;
-        }
-        setFeedback("Your expense has been created!");
     };
 
-    // handle on page load
+    // handle page load
     const [groupList, setGroupList] = useState<GroupListItem[]>([]);
     const [expTypeOptions, setExpTypeOptions] = useState<ReactElement[]>([]);
     const [groupMembers, setGroupMembers] = useState<GroupMember[]>([]);
@@ -137,8 +158,14 @@ const CreateExpense = () => {
             if (!response.ok) return;
 
             const data: GroupListItem[] = await response.json();
+
             setGroupList(data);
+            setFormData((prev) => ({
+                ...prev,
+                groupId: data[0].id,
+            }));
         };
+
         const fetchExpeseTypes = async () => {
             const response = await fetch(`${API_URL}/expense_types`, {
                 method: "GET",
@@ -150,11 +177,7 @@ const CreateExpense = () => {
             // create options
             const options: ReactElement[] = [];
             let lastCategory = "";
-            let generalId = "";
             data.forEach((type) => {
-                if (type.name === "General") {
-                    generalId = type.id;
-                }
                 if (lastCategory !== type.category) {
                     options.push(
                         <option
@@ -175,82 +198,110 @@ const CreateExpense = () => {
                 );
             });
             setExpTypeOptions(options);
-
-            if (generalId !== "") {
-                setSelectedExpenseTypeId(generalId);
-            }
         };
-        const fetchGroupMembers = async () => {
-            const response = await fetch(`${API_URL}/group_member/${groupId}`, {
+
+        const fetchExpenseDetail = async () => {
+            const response = await fetch(`${API_URL}/expense/${expenseId}`, {
                 method: "GET",
                 credentials: "include",
             });
             if (!response.ok) return;
 
-            const data: GroupMember[] = await response.json();
+            const data: ExpenseDetailData = await response.json();
 
-            setGroupMembers(data);
-            setPayer(data[data.length - 1].userId);
-            setLedgers(
-                data.map((member) => ({
-                    userId: member.userId,
-                    share: 0,
-                }))
+            setFormData((prev) => ({
+                ...prev,
+                groupId: data.groupId,
+                expenseType: data.expenseTypeId,
+                description: data.description,
+                total: parseFloat(data.total),
+                currency: data.currency,
+                splitRule: data.splitRule as Rule,
+                payerUserId: data.ledgers[0].lenderUserId,
+                ledgers: data.ledgers.map((ledger) => ({
+                    id: ledger.id,
+                    userId: ledger.borrowerUserId,
+                    share: parseFloat(ledger.share),
+                })),
+            }));
+
+            const responseGroupMember = await fetch(
+                `${API_URL}/group_member/${data.groupId}`,
+                {
+                    method: "GET",
+                    credentials: "include",
+                }
             );
-            if (data.length === 2) {
-                setSelectedRule(Rule.YouHalf);
-            } else {
-                setSelectedRule(Rule.Equally);
-            }
+            if (!responseGroupMember.ok) return;
+
+            const groupMember: GroupMember[] = await responseGroupMember.json();
+
+            setGroupMembers(groupMember);
         };
 
         fetchGroupList();
         fetchExpeseTypes();
-        fetchGroupMembers();
+        fetchExpenseDetail();
     }, []);
 
-    // check input validity
-    useEffect(() => {
-        const totalOk = total > 0;
-        const descriptionOk = description.length > 0;
+    // handle form data update
+    const handleFormDataChange = (
+        e: React.ChangeEvent<HTMLSelectElement | HTMLInputElement>
+    ) => {
+        const { name, value } = e.target;
+        setFormData((prev) => ({
+            ...prev,
+            [name]: value,
+        }));
+    };
 
-        if (selectedRule !== Rule.Unequally) {
+    // handle form data validation
+    const [ledgerShareOk, setLedgerShareOk] = useState<boolean>(false);
+    const [ledgerShareMessage, setLedgerShareMessage] = useState<string>("");
+    const [dataOk, setDataOk] = useState<boolean>(false);
+
+    useEffect(() => {
+        const totalOk = formData.total > 0;
+        const descriptionOk = formData.description.length > 0;
+
+        if (formData.splitRule !== Rule.Unequally) {
             setDataOk(totalOk && descriptionOk);
             return;
         }
 
-        const ledgerTotal = ledgers.reduce(
+        const ledgerTotal = formData.ledgers.reduce(
             (acc, ledger) => acc + ledger.share,
             0
         );
         const ledgerOk =
-            ledgerTotal === total &&
-            ledgers.every((ledger) => ledger.share >= 0);
+            ledgerTotal === formData.total &&
+            formData.ledgers.every((ledger) => ledger.share >= 0);
 
         setDataOk(totalOk && descriptionOk && ledgerOk);
         setLedgerShareOk(ledgerOk);
         setLedgerShareMessage(
             ledgerOk
-                ? `Total $0 ${currency} left.`
-                : `Total $${(total - ledgerTotal).toFixed(2)} ${currency} left.`
+                ? `Total $0 ${formData.currency} left.`
+                : `Total $${(formData.total - ledgerTotal).toFixed(2)} ${
+                      formData.currency
+                  } left.`
         );
-    }, [total, description, ledgers, selectedRule]);
+    }, [formData]);
 
     return (
-        <div className="flex flex-col justify-center items-center py-5 w-screen">
+        <div className="flex flex-row justify-center items-center py-5 w-screen">
             <form
-                className="flex flex-col justify-center items-center py-5 space-y-5 md:w-1/3 w-5/6m max-w-md"
-                onSubmit={handleCreateExpense}
+                className="flex flex-col justify-center items-center py-5 space-y-5 md:w-1/3 w-5/6 max-w-md"
+                onSubmit={handleUpdateExpense}
             >
-                <div className="text-2xl">Add Expense</div>
+                <div className="text-2xl">Edit Expense</div>
 
                 {/* GROUP SELECTOR */}
                 <select
                     className="select select-bordered w-full text-base text-center"
-                    id="groupId"
                     name="groupId"
-                    value={selectedGroupId || ""}
-                    onChange={(e) => setSelectedGroupId(e.target.value)}
+                    value={formData.groupId}
+                    onChange={handleFormDataChange}
                 >
                     {groupList.map((group) => (
                         <option key={group.id} value={group.id}>
@@ -262,48 +313,39 @@ const CreateExpense = () => {
                 {/* EXPENSE TYPE SELECTOR */}
                 <select
                     className="select select-bordered w-full text-base text-center"
-                    id="expenseType"
                     name="expenseType"
-                    value={selectedExpenseTypeId}
-                    onChange={(e) => {
-                        console.log(e.target.value);
-                        setSelectedExpenseTypeId(e.target.value);
-                    }}
+                    value={formData.expenseType}
+                    onChange={handleFormDataChange}
                 >
                     {expTypeOptions}
                 </select>
 
                 {/* DESCRIPTION INPUT */}
-                <label className="input input-bordered flex items-center w-full">
-                    <input
-                        type="text"
-                        name="description"
-                        className="grow"
-                        placeholder="Description"
-                        value={description}
-                        onChange={(e) => {
-                            setDescription(e.target.value);
-                        }}
-                        required
-                    />
-                </label>
+                <div className="flex flex-row justify-start items-start w-full">
+                    <label className="input input-bordered flex items-center w-full">
+                        <input
+                            type="text"
+                            name="description"
+                            className="grow"
+                            placeholder="Description"
+                            value={formData.description}
+                            onChange={handleFormDataChange}
+                        />
+                    </label>
+                </div>
 
                 <div className="flex flex-row justify-start items-start w-full">
                     {/* CURRENCY SELECTOR */}
                     <select
                         className="select select-bordered w-1/3 text-base text-center"
                         name="currency"
-                        value={currency}
-                        onChange={(e) => {
-                            setCurrency(e.target.value);
-                        }}
+                        value={formData.currency}
+                        onChange={handleFormDataChange}
                     >
                         <option>CAD</option>
                         <option>NTD</option>
                         <option>USD</option>
                     </select>
-
-                    {/* AMOUNT INPUT */}
                     <label className="input input-bordered flex items-center w-full">
                         <input
                             type="number"
@@ -311,10 +353,8 @@ const CreateExpense = () => {
                             className="grow"
                             step="0.001"
                             placeholder="0.00"
-                            value={total}
-                            onChange={(e) => {
-                                setTotal(parseFloat(e.target.value) || 0.0);
-                            }}
+                            value={formData.total}
+                            onChange={handleFormDataChange}
                             required
                             min={0}
                         />
@@ -344,25 +384,30 @@ const CreateExpense = () => {
                         <select
                             className="select select-bordered w-full text-base text-center"
                             name="splitRule"
-                            value={selectedRule}
+                            value={formData.splitRule}
                             onChange={(e) => {
-                                setSelectedRule(e.target.value as Rule);
+                                handleFormDataChange(e);
+
+                                let payerUserId = "";
                                 switch (e.target.value) {
                                     case Rule.YouHalf:
                                     case Rule.YouFull:
-                                        setPayer(
+                                        payerUserId =
                                             groupMembers[
                                                 groupMembers.length - 1
-                                            ].userId
-                                        );
+                                            ].userId;
                                         break;
                                     case Rule.OtherHalf:
                                     case Rule.OtherFull:
-                                        setPayer(groupMembers[0].userId);
+                                        payerUserId = groupMembers[0].userId;
                                         break;
                                     default:
                                         break;
                                 }
+                                setFormData((prev) => ({
+                                    ...prev,
+                                    payerUserId: payerUserId,
+                                }));
                             }}
                         >
                             <option value={Rule.YouHalf}>
@@ -406,11 +451,9 @@ const CreateExpense = () => {
                         <p className="w-max">Paid by</p>
                         <select
                             className="select select-sm select-bordered w-max border-dashed"
-                            name="payer"
-                            value={payer}
-                            onChange={(e) => {
-                                setPayer(e.target.value);
-                            }}
+                            name="payerUserId"
+                            value={formData.payerUserId}
+                            onChange={handleFormDataChange}
                         >
                             <option
                                 value={
@@ -442,10 +485,8 @@ const CreateExpense = () => {
                         <select
                             className="select select-sm select-bordered w-max border-dashed"
                             name="splitRule"
-                            value={selectedRule}
-                            onChange={(e) => {
-                                setSelectedRule(e.target.value as Rule);
-                            }}
+                            value={formData.splitRule}
+                            onChange={handleFormDataChange}
                         >
                             <option value={Rule.Equally}>Equally</option>
                             <option value={Rule.Unequally}>Unequally</option>
@@ -456,13 +497,13 @@ const CreateExpense = () => {
                 {/* LEDGERS - FOR UNEQUAL SPLIT RULE */}
                 <div
                     className={`${
-                        selectedRule === Rule.Unequally ? "" : "hidden"
+                        formData.splitRule === Rule.Unequally ? "" : "hidden"
                     } flex-col justify-center items-center w-full space-y-1`}
                 >
-                    {ledgers.map((ledger, index) => (
+                    {formData.ledgers.map((ledger, index) => (
                         <div
                             className="flex items-center w-full"
-                            key={ledger.userId}
+                            key={ledger.id}
                         >
                             <p className="w-1/3 text-right mr-2">
                                 {
@@ -483,10 +524,13 @@ const CreateExpense = () => {
                                     placeholder="0.00"
                                     value={ledger.share}
                                     onChange={(e) => {
-                                        const updated = [...ledgers];
+                                        const updated = [...formData.ledgers];
                                         updated[index].share =
                                             parseFloat(e.target.value) || 0;
-                                        setLedgers(updated);
+                                        setFormData((prev) => ({
+                                            ...prev,
+                                            ledgers: updated,
+                                        }));
                                     }}
                                 />
                             </label>
@@ -512,7 +556,7 @@ const CreateExpense = () => {
                     {...(dataOk ? {} : { disabled: true })}
                 >
                     <Icon path={mdiCheckBold} size={1} />
-                    OK
+                    Update
                 </button>
 
                 {/* FEEDBACK */}
@@ -530,14 +574,8 @@ const CreateExpense = () => {
                     </div>
                 </div>
             </form>
-            <div className="flex justify-center w-full mt-4">
-                <Link className="btn btn-ghost" to={`/group/${groupId}`}>
-                    <Icon path={mdiSubdirectoryArrowLeft} size={1} />
-                    Back to Group
-                </Link>
-            </div>
         </div>
     );
 };
 
-export default CreateExpense;
+export default EditExpense;

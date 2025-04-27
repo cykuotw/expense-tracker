@@ -14,17 +14,10 @@ And because **exploring new technologies is way more fun than just using someone
 
 ### **Frontend**
 
--   **React** – Switched from HTMX because I wanted **more power and flexibility**.
+-   **React** – Switched from HTMX for **more power and flexibility**.
 -   **TypeScript** – Strict types mean fewer bugs, and fewer bugs mean less debugging.
 -   **TailwindCSS 4** – Utility-first styling that **keeps CSS fun and efficient**.
 -   **DaisyUI 5** – Making Tailwind components even prettier.
-
-> _Previously used: Go a-h templ, HTMX, TailwindCSS 3, DaisyUI 4. But we evolve. 💡_
-
-## **📌 Ongoing Progress**
-
-🔄 **Migrating from Go a-h templ & HTMX to React + TypeScript**.  
-Yes, it was a tough breakup, but React offers **better reusability, scalability, and component-driven development**.
 
 ## **🔮 Future Features**
 

@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"expense-tracker/cmd/tracker/api"
-	"expense-tracker/cmd/tracker/frontend"
 	"expense-tracker/config"
 	"expense-tracker/db"
 	"log"
@@ -35,13 +34,6 @@ func main() {
 		}
 	}()
 
-	frontendServer := frontend.NewFrontendServer(config.Envs.FrontendURL)
-	go func() {
-		if err := frontendServer.Run(); err != nil && err != http.ErrServerClosed {
-			log.Fatal(err)
-		}
-	}()
-
 	<-ctx.Done()
 
 	stop()
@@ -53,11 +45,4 @@ func main() {
 		log.Fatal(err)
 	}
 	log.Println("\tAPI Server is shut down")
-
-	ctx, cancel = context.WithTimeout(context.Background(), 2*time.Second)
-	defer cancel()
-	if err := frontendServer.Shutdown(ctx); err != nil {
-		log.Fatal(err)
-	}
-	log.Println("\tFrontend Server is shut down")
 }

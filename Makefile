@@ -1,10 +1,4 @@
-css:
-	@npx tailwindcss -i frontend/views/css/app.css -o frontend/public/css/styles.css --minify
-
-templ:
-	@templ generate -lazy
-
-build: css templ
+build:  
 	@go mod tidy
 	@go build -o bin/tracker cmd/tracker/main.go
 

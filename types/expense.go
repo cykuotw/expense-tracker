@@ -113,6 +113,7 @@ type ExpenseResponseBrief struct {
 	ExpenseTime    time.Time       `json:"expenseTime"`
 	CurrentUser    string          `json:"currentUser"`
 	Currency       string          `json:"currency"`
+	IsSettled      bool            `json:"isSettled"`
 	PayerUserIDs   []uuid.UUID     `json:"payerUserIds"`
 	PayerUsernames []string        `json:"payerUsernames"`
 }

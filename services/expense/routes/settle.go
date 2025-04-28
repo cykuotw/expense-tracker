@@ -18,5 +18,11 @@ func (h *Handler) handleSettleExpense(c *gin.Context) {
 		return
 	}
 
+	err = h.updateBalance(groupID)
+	if err != nil {
+		utils.WriteError(c, http.StatusInternalServerError, err)
+		return
+	}
+
 	utils.WriteJSON(c, http.StatusCreated, nil)
 }

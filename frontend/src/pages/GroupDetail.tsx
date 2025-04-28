@@ -69,7 +69,40 @@ export default function GroupDetail() {
         fetchGroupInfo();
         fetchBalance();
         fetchExpenses();
-    }, [groupId]);
+    }, []);
+
+    // handle settle
+    const handleSettle = async (e: React.MouseEvent<HTMLButtonElement>) => {
+        e.preventDefault();
+
+        try {
+            const response = await fetch(
+                `${API_URL}/settle_expense/${groupId}`,
+                {
+                    method: "PUT",
+                    credentials: "include",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                }
+            );
+            if (response.ok) {
+                console.log("Settlement successful");
+                // Optionally, refresh data or provide user feedback
+            } else {
+                console.error("Settlement failed");
+            }
+        } catch (error) {
+            console.error("Error during settlement:", error);
+        } finally {
+            const dialog = document.getElementById(
+                "settle_confirm"
+            ) as HTMLDialogElement | null;
+            dialog?.close();
+
+            window.location.reload();
+        }
+    };
 
     return (
         <div className="flex justify-center items-center py-5">
@@ -134,7 +167,10 @@ export default function GroupDetail() {
                                     method="dialog"
                                     className="flex space-x-1"
                                 >
-                                    <button className="btn btn-outline btn-error w-1/2">
+                                    <button
+                                        className="btn btn-outline btn-error w-1/2"
+                                        onClick={handleSettle}
+                                    >
                                         SETTLE
                                     </button>
                                     <button className="btn w-1/2">
@@ -143,24 +179,32 @@ export default function GroupDetail() {
                                 </form>
                             </div>
                         </div>
+                        <form method="dialog" className="modal-backdrop">
+                            <button>close</button>
+                        </form>
                     </dialog>
                 </div>
                 <div className="pt-3" id="unsettled-expenses">
                     {expenseList.length === 0
                         ? "No Expenses For Now"
-                        : expenseList.map((exp: ExpenseData) => (
-                              <ExpenseCard key={exp.expenseId} {...exp} />
-                          ))}
+                        : expenseList
+                              .filter((exp: ExpenseData) => !exp.isSettled)
+                              .map((exp: ExpenseData) => (
+                                  <ExpenseCard key={exp.expenseId} {...exp} />
+                              ))}
                 </div>
-                {/* <div id="settled-expenses">settled expenses</div> */}
                 <div>
-                    <div className="py-5">
-                        {/* {
-                        expenseList.length !== 0 ? (
-                            <hr className="block md:hidden"/>
-                            <button className="my-2 btn btn-ghost">More Settled Expenses</button>
-                        )
-                    } */}
+                    <div className="divider text-gray-500">
+                        settled expenses
+                    </div>
+                    <div>
+                        <div className="py-5">
+                            {expenseList
+                                .filter((exp: ExpenseData) => exp.isSettled)
+                                .map((exp: ExpenseData) => (
+                                    <ExpenseCard key={exp.expenseId} {...exp} />
+                                ))}
+                        </div>
                     </div>
                 </div>
             </div>

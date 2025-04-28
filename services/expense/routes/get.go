@@ -83,6 +83,7 @@ func (h *Handler) handleGetExpenseList(c *gin.Context) {
 			ExpenseTime:    expense.ExpenseTime,
 			CurrentUser:    userID,
 			Currency:       currency,
+			IsSettled:      expense.IsSettled,
 			PayerUserIDs:   payerUserIDs,
 			PayerUsernames: payerUsernames,
 		}

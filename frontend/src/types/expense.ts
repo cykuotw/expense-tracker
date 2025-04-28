@@ -8,6 +8,7 @@ export interface ExpenseData {
     expenseTime: string;
     currentUser: string;
     currency: string;
+    isSettled: boolean;
     payerUserIds: string[];
     payerUsernames: string[];
 }

@@ -55,12 +55,12 @@ export default function Navbar() {
                                 dropdownType="dropdown-bottom dropdown-end"
                                 contendTextConfig="text-sm"
                             >
-                                <li>
+                                {/* <li>
                                     <Link to="/profile">Profile</Link>
                                 </li>
                                 <li>
                                     <Link to="/settings">Settings</Link>
-                                </li>
+                                </li> */}
                                 <li>
                                     <button onClick={handleLogout}>
                                         Logout

@@ -2,6 +2,10 @@ build:
 	@go mod tidy
 	@go build -o bin/tracker cmd/tracker/main.go
 
+build-prod:
+	@go mod tidy
+	@go build -ldflags="-s -w -X expense-tracker/config.BuildMode=release" -o bin/tracker-prod cmd/tracker/main.go
+
 test: 
 	@go test -v ./...
 

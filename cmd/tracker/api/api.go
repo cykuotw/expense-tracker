@@ -37,7 +37,9 @@ func (s *APIServer) Run() error {
 	gin.SetMode(config.Envs.Mode)
 
 	router := gin.New()
-	router.Use(gin.Logger())
+	if config.Envs.Mode != "release" {
+		router.Use(gin.Logger())
+	}
 	router.Use(middleware.CORSMiddleware())
 
 	subrouter := router.Group(config.Envs.APIPath)

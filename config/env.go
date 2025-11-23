@@ -39,11 +39,19 @@ type Config struct {
 
 var Envs = initConfig()
 
+// passed during build time
+var BuildMode string
+
 func initConfig() Config {
 	godotenv.Load()
 
+	mode := getEnv("MODE", "debug")
+	if BuildMode != "" {
+		mode = BuildMode
+	}
+
 	return Config{
-		Mode: getEnv("MODE", "debug"),
+		Mode: mode,
 
 		BackendURL:       getEnv("BACKEND_URL", "localhost:8000"),
 		FrontendURL:      getEnv("FRONTEND_URL", "localhost:8050"),
@@ -93,9 +101,10 @@ func getEnvInt(key string, fallback int64) int64 {
 
 func getEnvBool(key string, fallback bool) bool {
 	if value, ok := os.LookupEnv(key); ok {
-		if value == "True" || value == "true" {
+		switch value {
+		case "True", "true", "1", "yes":
 			return true
-		} else if value == "False" || value == "false" {
+		case "False", "false", "0", "no":
 			return false
 		}
 	}

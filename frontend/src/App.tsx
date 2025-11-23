@@ -6,6 +6,8 @@ import {
 } from "react-router-dom";
 import { useState, useEffect } from "react";
 
+import { API_URL } from "./configs/config";
+
 import NavbarLayout from "./layouts/NavbarLayout";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -28,13 +30,10 @@ function AppRoutes() {
     useEffect(() => {
         const checkAuth = async () => {
             try {
-                const response = await fetch(
-                    "http://localhost:8080/api/v0/auth/me",
-                    {
-                        method: "GET",
-                        credentials: "include",
-                    }
-                );
+                const response = await fetch(`${API_URL}/auth/me`, {
+                    method: "GET",
+                    credentials: "include",
+                });
 
                 setIsAuthenticated(response.ok);
             } catch {

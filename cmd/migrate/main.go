@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
@@ -25,7 +26,11 @@ func main() {
 		log.Fatal(err)
 	}
 
-	cmd := os.Args[len(os.Args)-1]
+	if len(os.Args) < 2 {
+		log.Fatal("expected 'up', 'down', or 'force <version>' subcommands")
+	}
+
+	cmd := os.Args[1]
 	if cmd == "up" {
 		if err := m.Up(); err != nil && err != migrate.ErrNoChange {
 			log.Fatal(err)
@@ -36,5 +41,16 @@ func main() {
 			log.Fatal(err)
 		}
 	}
-
+	if cmd == "force" {
+		if len(os.Args) < 3 {
+			log.Fatal("force requires a version number")
+		}
+		v, err := strconv.Atoi(os.Args[2])
+		if err != nil {
+			log.Fatal(err)
+		}
+		if err := m.Force(v); err != nil {
+			log.Fatal(err)
+		}
+	}
 }

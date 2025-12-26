@@ -1,79 +1,17 @@
-import { useState, useEffect, FormEvent } from "react";
-import { API_URL } from "../configs/config";
+import { InviteUserProvider } from "../contexts/InviteUserContext";
+import { useInviteUser } from "../hooks/InviteUserContextHooks";
 
-interface Invitation {
-    id: string;
-    token: string;
-    email: string;
-    expiresAt: string;
-    usedAt: string | null;
-    createdAt: string;
-}
-
-const InviteUser = () => {
-    const [email, setEmail] = useState("");
-    const [token, setToken] = useState("");
-    const [error, setError] = useState("");
-    const [loading, setLoading] = useState(false);
-    const [invitations, setInvitations] = useState<Invitation[]>([]);
-
-    const fetchInvitations = async () => {
-        try {
-            const response = await fetch(`${API_URL}/invitations`, {
-                credentials: "include",
-            });
-            if (response.ok) {
-                const data = await response.json();
-                setInvitations(data);
-            }
-        } catch (err) {
-            console.error("Failed to fetch invitations", err);
-        }
-    };
-
-    useEffect(() => {
-        fetchInvitations();
-    }, []);
-
-    const handleSubmit = async (e: FormEvent) => {
-        e.preventDefault();
-        setLoading(true);
-        setError("");
-        setToken("");
-
-        try {
-            const response = await fetch(`${API_URL}/invitations`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                credentials: "include",
-                body: JSON.stringify({ email }),
-            });
-
-            if (!response.ok) {
-                const data = await response.json();
-                throw new Error(data.error || "Failed to create invitation");
-            }
-
-            const data = await response.json();
-            setToken(data.token);
-            fetchInvitations();
-        } catch (err) {
-            if (err instanceof Error) {
-                setError(err.message);
-            } else {
-                setError("An unexpected error occurred");
-            }
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const copyLink = (tokenToCopy: string) => {
-        const link = `${window.location.origin}/register?token=${tokenToCopy}`;
-        navigator.clipboard.writeText(link);
-    };
+const InviteUserContent = () => {
+    const {
+        email,
+        setEmail,
+        token,
+        error,
+        loading,
+        invitations,
+        handleSubmit,
+        copyLink,
+    } = useInviteUser();
 
     return (
         <div className="flex flex-col items-center mt-10 gap-10">
@@ -207,6 +145,14 @@ const InviteUser = () => {
                 </div>
             </div>
         </div>
+    );
+};
+
+const InviteUser = () => {
+    return (
+        <InviteUserProvider>
+            <InviteUserContent />
+        </InviteUserProvider>
     );
 };
 

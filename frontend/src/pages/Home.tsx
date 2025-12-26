@@ -1,32 +1,17 @@
-import { useEffect, useState } from "react";
-
-import { API_URL } from "../configs/config";
 import GroupCard from "../components/group/GroupCard";
-import { GroupCardData } from "../types/group";
+import { HomeProvider } from "../contexts/HomeContext";
+import { useHome } from "../contexts/HomeContextHooks";
 
-export default function Home() {
-    const [groupCards, setGroupCards] = useState<GroupCardData[]>([]);
+const HomeContent = () => {
+    const { groupCards, loading } = useHome();
 
-    useEffect(() => {
-        const fetchGroups = async () => {
-            let groups: GroupCardData[] = [];
-            try {
-                const response = await fetch(`${API_URL}/groups`, {
-                    method: "GET",
-                    credentials: "include",
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
-                });
-                groups = await response.json();
-                setGroupCards(groups);
-            } catch (error) {
-                console.log(error);
-            }
-        };
-
-        fetchGroups();
-    }, []);
+    if (loading) {
+        return (
+            <div className="flex justify-center items-center h-screen">
+                <span className="loading loading-spinner loading-lg"></span>
+            </div>
+        );
+    }
 
     return (
         <div className="h-screen">
@@ -37,5 +22,13 @@ export default function Home() {
             </div>
             <div className="py-10 block md:hidden"></div>
         </div>
+    );
+};
+
+export default function Home() {
+    return (
+        <HomeProvider>
+            <HomeContent />
+        </HomeProvider>
     );
 }

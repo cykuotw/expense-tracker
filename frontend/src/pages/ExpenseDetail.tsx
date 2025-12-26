@@ -1,53 +1,17 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useRef, useState } from "react";
+import { Link } from "react-router-dom";
 
 import Icon from "@mdi/react";
 import { mdiSubdirectoryArrowLeft } from "@mdi/js";
 
 import Dropdown from "../components/Dropdown";
-import { API_URL } from "../configs/config";
 
 import { ExpenseDetailData } from "../types/expense";
+import { ExpenseDetailProvider } from "../contexts/ExpenseDetailContext";
+import { useExpenseDetail } from "../hooks/ExpenseDetailContextHooks";
 
-export default function ExpenseDetail() {
-    const { id: expenseId = "" } = useParams();
-
-    const [expenseDetail, setExpenseDetail] =
-        useState<ExpenseDetailData | null>(null);
-
-    const formattedDate = useMemo(() => {
-        if (!expenseDetail?.expenseTime) return "";
-        return new Date(expenseDetail.expenseTime).toLocaleDateString("en-US", {
-            year: "numeric",
-            month: "short",
-            day: "numeric",
-        });
-    }, [expenseDetail?.expenseTime]);
-
-    useEffect(() => {
-        if (!expenseId) return;
-
-        const fetchExpenseDetail = async () => {
-            try {
-                const response = await fetch(
-                    `${API_URL}/expense/${expenseId}`,
-                    {
-                        method: "GET",
-                        credentials: "include",
-                        headers: {
-                            "Content-Type": "application/json",
-                        },
-                    }
-                );
-                const data: ExpenseDetailData = await response.json();
-                setExpenseDetail(data);
-            } catch (error) {
-                console.log(error);
-            }
-        };
-
-        fetchExpenseDetail();
-    }, [expenseId]);
+const ExpenseDetailContent = () => {
+    const { expenseDetail, formattedDate, expenseId } = useExpenseDetail();
 
     if (!expenseId || expenseId.length === 0) {
         return <div>Expense ID not found</div>;
@@ -81,10 +45,7 @@ export default function ExpenseDetail() {
                                 <span>Edit Expense</span>
                             </Link>
                         </button>
-                        <DeleteBtn
-                            groupId={expenseDetail?.groupId || ""}
-                            expenseId={expenseId}
-                        />
+                        <DeleteBtn />
                     </div>
                 </div>
             </div>
@@ -98,6 +59,14 @@ export default function ExpenseDetail() {
                 </Link>
             </div>
         </div>
+    );
+};
+
+export default function ExpenseDetail() {
+    return (
+        <ExpenseDetailProvider>
+            <ExpenseDetailContent />
+        </ExpenseDetailProvider>
     );
 }
 
@@ -219,35 +188,8 @@ const InvoiceImage = ({
     );
 };
 
-const DeleteBtn = ({
-    groupId = "",
-    expenseId = "",
-}: {
-    groupId: string;
-    expenseId: string;
-}) => {
-    const handleDeleteExpense = async (e: React.FormEvent) => {
-        if (groupId === "" || expenseId === "") return;
-
-        e.preventDefault();
-
-        try {
-            const response = await fetch(
-                `${API_URL}/delete_expense/${expenseId}`,
-                {
-                    method: "PUT",
-                    headers: { "Content-Type": "application/json" },
-                    credentials: "include",
-                }
-            );
-
-            if (response.status === 200) {
-                window.location.href = `/group/${groupId}`;
-            }
-        } catch (error) {
-            console.log(error);
-        }
-    };
+const DeleteBtn = () => {
+    const { handleDeleteExpense } = useExpenseDetail();
 
     return (
         <>

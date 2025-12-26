@@ -1,43 +1,15 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-
-import { API_URL } from "../../configs/config";
+import { useLogin } from "../../hooks/LoginContextHooks";
 
 export default function LoginForm() {
-    const [email, setEmail] = useState("");
-    const [password, setPassword] = useState("");
-    const [feedback, setFeedback] = useState("");
-    const [loading, setLoading] = useState(false);
-
-    const navigate = useNavigate();
-
-    const handleLoginSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setLoading(true);
-        setFeedback("");
-
-        try {
-            const response = await fetch(`${API_URL}/login`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email: email, password: password }),
-                credentials: "include",
-            });
-
-            const data = await response.json();
-            if (!response.ok) throw new Error(data.message || "Login failed");
-
-            setFeedback("✅ Login successful!");
-
-            setTimeout(() => {
-                navigate("/");
-            }, 500);
-        } catch (error) {
-            setFeedback(`❌ ${(error as Error).message}`);
-        } finally {
-            setLoading(false);
-        }
-    };
+    const {
+        email,
+        password,
+        feedback,
+        loading,
+        setEmail,
+        setPassword,
+        handleLoginSubmit,
+    } = useLogin();
 
     return (
         <>

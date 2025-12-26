@@ -1,56 +1,19 @@
-import { useEffect, useState } from "react";
-import { API_URL } from "../configs/config";
-import { GroupNewData } from "../types/group";
+import { CreateGroupProvider } from "../contexts/CreateGroupContext";
+import { useCreateGroup } from "../hooks/CreateGroupContextHooks";
 
-const CreateGroup = () => {
-    const [indicator, setIndicator] = useState<boolean>(false);
-    const [feedback, setFeedback] = useState<string>("");
-    const [dataOk, setDataOk] = useState<boolean>(false);
-
-    const [groupName, setGroupName] = useState<string>("");
-    const [description, setDescription] = useState<string>("");
-    const [currency, setCurrency] = useState<string>("");
-
-    useEffect(() => {
-        const ok = groupName.length > 0 && currency.length > 0;
-        setDataOk(ok);
-    }, [groupName, description, currency]);
-
-    const createGroup = async (e: React.FormEvent) => {
-        e.preventDefault();
-
-        const payload: GroupNewData = {
-            groupName: groupName,
-            description: description,
-            currency: currency,
-        };
-
-        try {
-            setIndicator(true);
-            setFeedback("");
-
-            const response = await fetch(`${API_URL}/create_group`, {
-                method: "POST",
-                credentials: "include",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify(payload),
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                setFeedback(errorData.message || "Failed to create group");
-                return;
-            }
-        } catch (err) {
-            setFeedback("Failed to create group");
-            console.error("Error creating group:", err);
-        } finally {
-            setIndicator(false);
-            window.location.href = "/";
-        }
-    };
+const CreateGroupContent = () => {
+    const {
+        groupName,
+        setGroupName,
+        description,
+        setDescription,
+        currency,
+        setCurrency,
+        indicator,
+        feedback,
+        dataOk,
+        createGroup,
+    } = useCreateGroup();
 
     return (
         <div className="flex justify-center items-center py-5 h-screen md:h-auto">
@@ -115,6 +78,14 @@ const CreateGroup = () => {
                 ></div>
             </form>
         </div>
+    );
+};
+
+const CreateGroup = () => {
+    return (
+        <CreateGroupProvider>
+            <CreateGroupContent />
+        </CreateGroupProvider>
     );
 };
 

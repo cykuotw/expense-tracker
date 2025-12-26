@@ -1,108 +1,20 @@
-import { useEffect, useState } from "react";
-import { useParams, Link } from "react-router-dom";
-
-import { GroupInfo } from "../types/group";
-import { BalanceData } from "../types/balance";
+import { Link } from "react-router-dom";
 import { ExpenseData } from "../types/expense";
 import ExpenseCard from "../components/expense/ExpanceCard";
-import { API_URL } from "../configs/config";
+import { GroupDetailProvider } from "../contexts/GroupDetailContext";
+import { useGroupDetail } from "../hooks/GroupDetailContextHooks";
 
-export default function GroupDetail() {
-    const [groupinfo, setGroupInfo] = useState<GroupInfo | null>(null);
-    const [balance, setBalance] = useState<BalanceData | null>(null);
-    const [expenseList, setExpenseList] = useState<ExpenseData[]>([]);
+const GroupDetailContent = () => {
+    const { groupinfo, balance, expenseList, loading, groupId, handleSettle } =
+        useGroupDetail();
 
-    const { id: groupId } = useParams();
-
-    useEffect(() => {
-        const fetchGroupInfo = async () => {
-            try {
-                const response = await fetch(`${API_URL}/group/${groupId}`, {
-                    method: "GET",
-                    credentials: "include",
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
-                });
-                const data = await response.json();
-                setGroupInfo(data);
-            } catch (error) {
-                console.log(error);
-            }
-        };
-
-        const fetchBalance = async () => {
-            try {
-                const response = await fetch(`${API_URL}/balance/${groupId}`, {
-                    method: "GET",
-                    credentials: "include",
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
-                });
-                const data = await response.json();
-                setBalance(data);
-            } catch (error) {
-                console.log(error);
-            }
-        };
-
-        const fetchExpenses = async () => {
-            try {
-                const response = await fetch(
-                    `${API_URL}/expense_list/${groupId}`,
-                    {
-                        method: "GET",
-                        credentials: "include",
-                        headers: {
-                            "Content-Type": "application/json",
-                        },
-                    }
-                );
-                const data = await response.json();
-                setExpenseList(data);
-            } catch (error) {
-                console.log(error);
-            }
-        };
-
-        fetchGroupInfo();
-        fetchBalance();
-        fetchExpenses();
-    }, []);
-
-    // handle settle
-    const handleSettle = async (e: React.MouseEvent<HTMLButtonElement>) => {
-        e.preventDefault();
-
-        try {
-            const response = await fetch(
-                `${API_URL}/settle_expense/${groupId}`,
-                {
-                    method: "PUT",
-                    credentials: "include",
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
-                }
-            );
-            if (response.ok) {
-                console.log("Settlement successful");
-                // Optionally, refresh data or provide user feedback
-            } else {
-                console.error("Settlement failed");
-            }
-        } catch (error) {
-            console.error("Error during settlement:", error);
-        } finally {
-            const dialog = document.getElementById(
-                "settle_confirm"
-            ) as HTMLDialogElement | null;
-            dialog?.close();
-
-            window.location.reload();
-        }
-    };
+    if (loading) {
+        return (
+            <div className="flex justify-center items-center h-screen">
+                <span className="loading loading-spinner loading-lg"></span>
+            </div>
+        );
+    }
 
     return (
         <div className="flex justify-center items-center py-5">
@@ -209,5 +121,13 @@ export default function GroupDetail() {
                 </div>
             </div>
         </div>
+    );
+};
+
+export default function GroupDetail() {
+    return (
+        <GroupDetailProvider>
+            <GroupDetailContent />
+        </GroupDetailProvider>
     );
 }

@@ -25,6 +25,7 @@ func (h *Handler) RegisterRoutes(public *gin.RouterGroup, adminProtected *gin.Ro
 	public.GET("/invitations/:token", h.handleGetInvitation)
 
 	adminProtected.POST("/invitations", h.handleCreateInvitation)
+	adminProtected.GET("/invitations", h.handleListInvitations)
 }
 
 func (h *Handler) handleCreateInvitation(c *gin.Context) {
@@ -101,4 +102,14 @@ func (h *Handler) handleGetInvitation(c *gin.Context) {
 		Email: invitation.Email,
 		Valid: true,
 	})
+}
+
+func (h *Handler) handleListInvitations(c *gin.Context) {
+	invitations, err := h.store.GetInvitations()
+	if err != nil {
+		utils.WriteError(c, http.StatusInternalServerError, err)
+		return
+	}
+
+	utils.WriteJSON(c, http.StatusOK, invitations)
 }

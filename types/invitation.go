@@ -20,6 +20,7 @@ type InvitationStore interface {
 	CreateInvitation(invitation Invitation) error
 	GetInvitationByToken(token string) (*Invitation, error)
 	MarkInvitationUsed(token string) error
+	GetInvitations() ([]Invitation, error)
 }
 
 type CreateInvitationPayload struct {

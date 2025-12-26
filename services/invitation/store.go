@@ -63,3 +63,32 @@ func (s *Store) MarkInvitationUsed(token string) error {
 	_, err := s.db.Exec(query)
 	return err
 }
+
+func (s *Store) GetInvitations() ([]types.Invitation, error) {
+	query := "SELECT * FROM invitations ORDER BY created_at DESC;"
+	rows, err := s.db.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	invitations := []types.Invitation{}
+	for rows.Next() {
+		var invitation types.Invitation
+		err := rows.Scan(
+			&invitation.ID,
+			&invitation.Token,
+			&invitation.Email,
+			&invitation.InviterID,
+			&invitation.ExpiresAt,
+			&invitation.UsedAt,
+			&invitation.CreatedAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+		invitations = append(invitations, invitation)
+	}
+
+	return invitations, nil
+}

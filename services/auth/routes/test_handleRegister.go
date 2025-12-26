@@ -105,3 +105,6 @@ func (m *mockInvitationStore) GetInvitationByToken(token string) (*types.Invitat
 func (m *mockInvitationStore) MarkInvitationUsed(token string) error {
 	return nil
 }
+func (m *mockInvitationStore) GetInvitations() ([]types.Invitation, error) {
+	return []types.Invitation{}, nil
+}

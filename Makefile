@@ -20,3 +20,12 @@ migrate-up:
 
 migrate-down:
 	@go run cmd/migrate/main.go down
+
+migrate-step:
+	@go run cmd/migrate/main.go step $(n)
+
+migrate-to:
+	@go run cmd/migrate/main.go migrate $(v)
+
+migrate-force:
+	@go run cmd/migrate/main.go force $(v)

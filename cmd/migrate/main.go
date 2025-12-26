@@ -27,7 +27,7 @@ func main() {
 	}
 
 	if len(os.Args) < 2 {
-		log.Fatal("expected 'up', 'down', or 'force <version>' subcommands")
+		log.Fatal("expected 'up', 'down', 'step <n>', 'migrate <v>', or 'force <version>' subcommands")
 	}
 
 	cmd := os.Args[1]
@@ -38,6 +38,30 @@ func main() {
 	}
 	if cmd == "down" {
 		if err := m.Down(); err != nil && err != migrate.ErrNoChange {
+			log.Fatal(err)
+		}
+	}
+	if cmd == "step" {
+		if len(os.Args) < 3 {
+			log.Fatal("step requires a number")
+		}
+		n, err := strconv.Atoi(os.Args[2])
+		if err != nil {
+			log.Fatal(err)
+		}
+		if err := m.Steps(n); err != nil && err != migrate.ErrNoChange {
+			log.Fatal(err)
+		}
+	}
+	if cmd == "migrate" {
+		if len(os.Args) < 3 {
+			log.Fatal("migrate requires a version number")
+		}
+		v, err := strconv.Atoi(os.Args[2])
+		if err != nil {
+			log.Fatal(err)
+		}
+		if err := m.Migrate(uint(v)); err != nil && err != migrate.ErrNoChange {
 			log.Fatal(err)
 		}
 	}

@@ -1,5 +1,5 @@
 CREATE TABLE invitations(
-    id serial PRIMARY KEY,
+    id uuid PRIMARY KEY,
     token varchar(255) NOT NULL UNIQUE,
     email varchar(255) NOT NULL,
     inviter_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,

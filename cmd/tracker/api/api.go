@@ -43,24 +43,23 @@ func (s *APIServer) Run() error {
 	}
 	router.Use(middleware.CORSMiddleware())
 
-	subrouter := router.Group(config.Envs.APIPath)
+	public := router.Group(config.Envs.APIPath)
 
 	userStore := user.NewStore(s.db)
 	userHandler := user.NewHandler(userStore)
-	userHandler.RegisterRoutes(subrouter)
-
+	userHandler.RegisterRoutes(public)
 	invitationStore := invitation.NewStore(s.db)
 	invitationHandler := invitation.NewHandler(invitationStore)
 
 	authHandler := authRoute.NewHandler(userStore, invitationStore)
-	authHandler.RegisterRoutes(subrouter)
+	authHandler.RegisterRoutes(public)
 
-	protected := subrouter.Group("")
+	protected := public.Group("")
 	protected.Use(auth.JWTAuthMiddleware())
 
 	adminProtected := protected.Group("")
 	adminProtected.Use(middleware.AdminMiddleware(userStore))
-	invitationHandler.RegisterRoutes(adminProtected)
+	invitationHandler.RegisterRoutes(public, adminProtected)
 
 	userProtectedHandler := user.NewProtectedHandler(userStore)
 	userProtectedHandler.RegisterRoutes(protected)

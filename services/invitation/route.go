@@ -21,9 +21,10 @@ func NewHandler(store types.InvitationStore) *Handler {
 	return &Handler{store: store}
 }
 
-func (h *Handler) RegisterRoutes(protected *gin.RouterGroup) {
-	protected.POST("/invitations", h.handleCreateInvitation)
-	protected.GET("/invitations/:token", h.handleGetInvitation)
+func (h *Handler) RegisterRoutes(public *gin.RouterGroup, adminProtected *gin.RouterGroup) {
+	public.GET("/invitations/:token", h.handleGetInvitation)
+
+	adminProtected.POST("/invitations", h.handleCreateInvitation)
 }
 
 func (h *Handler) handleCreateInvitation(c *gin.Context) {

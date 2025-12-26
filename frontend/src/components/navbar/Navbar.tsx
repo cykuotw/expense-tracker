@@ -3,7 +3,11 @@ import { Link } from "react-router-dom";
 import Dropdown from "../Dropdown";
 import { API_URL } from "../../configs/config";
 
-export default function Navbar() {
+interface NavbarProps {
+    role: string | null;
+}
+
+export default function Navbar({ role }: NavbarProps) {
     const handleLogout = async () => {
         await fetch(`${API_URL}/logout`, {
             method: "POST",
@@ -23,6 +27,11 @@ export default function Navbar() {
             {/* middle to large screen top navbar */}
             <div className="navbar-center hidden md:flex">
                 <ul className="menu menu-horizontal px-5 text-lg">
+                    <li>
+                        {role === "admin" && (
+                            <Link to="/admin/invite">Invite User</Link>
+                        )}
+                    </li>
                     <li>
                         <Dropdown label="Group">
                             <li className="w-max">

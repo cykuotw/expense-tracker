@@ -15,7 +15,8 @@ import (
 
 func TestServiceLogin(t *testing.T) {
 	userStore := &mockStoreLogin{}
-	handler := NewHandler(userStore)
+	invitationStore := &mockInvitationStore{}
+	handler := NewHandler(userStore, invitationStore)
 
 	t.Run("valid-email", func(t *testing.T) {
 		payload := types.LoginUserPayload{

@@ -28,8 +28,30 @@ func (h *Handler) handleRegister(c *gin.Context) {
 		return
 	}
 
+	// validate invitation token
+	invitation, err := h.invitationStore.GetInvitationByToken(payload.Token)
+	if err != nil {
+		utils.WriteError(c, http.StatusUnauthorized, fmt.Errorf("invalid invitation token"))
+		return
+	}
+
+	if invitation.UsedAt != nil {
+		utils.WriteError(c, http.StatusUnauthorized, fmt.Errorf("invitation token already used"))
+		return
+	}
+
+	if time.Now().After(invitation.ExpiresAt) {
+		utils.WriteError(c, http.StatusUnauthorized, fmt.Errorf("invitation token expired"))
+		return
+	}
+
+	if invitation.Email != payload.Email {
+		utils.WriteError(c, http.StatusBadRequest, fmt.Errorf("email does not match invitation"))
+		return
+	}
+
 	// check if the user email exist
-	_, err := h.store.GetUserByEmail(payload.Email)
+	_, err = h.store.GetUserByEmail(payload.Email)
 	if err == nil {
 		utils.WriteError(c, http.StatusBadRequest,
 			fmt.Errorf("email %s already exists.", payload.Email))
@@ -60,8 +82,14 @@ func (h *Handler) handleRegister(c *gin.Context) {
 		ExternalID:     "",
 		CreateTime:     time.Now(),
 		IsActive:       true,
+		Role:           "user",
 	})
 	if err != nil {
+		utils.WriteError(c, http.StatusInternalServerError, err)
+		return
+	}
+
+	if err := h.invitationStore.MarkInvitationUsed(payload.Token); err != nil {
 		utils.WriteError(c, http.StatusInternalServerError, err)
 		return
 	}

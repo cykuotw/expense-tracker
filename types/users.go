@@ -31,6 +31,7 @@ type User struct {
 	ExternalID     string    `json:"externalId"`
 	CreateTime     time.Time `json:"createTime"`
 	IsActive       bool      `json:"isActive"`
+	Role           string    `json:"role"`
 }
 
 type RegisterUserPayload struct {
@@ -39,6 +40,7 @@ type RegisterUserPayload struct {
 	Lastname  string `json:"lastname" validate:"required"`
 	Email     string `json:"email" validate:"required,email"`
 	Password  string `json:"password" validate:"required,min=8"`
+	Token     string `json:"token" validate:"required"`
 }
 
 type LoginUserPayload struct {

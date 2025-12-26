@@ -14,7 +14,8 @@ import (
 
 func TestServiceRegister(t *testing.T) {
 	userStore := &mockStoreRegister{}
-	handler := NewHandler(userStore)
+	invitationStore := &mockInvitationStore{}
+	handler := NewHandler(userStore, invitationStore)
 
 	t.Run("valid", func(t *testing.T) {
 		payload := types.RegisterUserPayload{
@@ -91,4 +92,16 @@ func (m *mockStoreRegister) CheckUserExistByID(id string) (bool, error) {
 }
 func (m *mockStoreRegister) CheckUserExistByUsername(username string) (bool, error) {
 	return false, nil
+}
+
+type mockInvitationStore struct{}
+
+func (m *mockInvitationStore) CreateInvitation(invitation types.Invitation) error {
+	return nil
+}
+func (m *mockInvitationStore) GetInvitationByToken(token string) (*types.Invitation, error) {
+	return &types.Invitation{}, nil
+}
+func (m *mockInvitationStore) MarkInvitationUsed(token string) error {
+	return nil
 }

@@ -146,12 +146,14 @@ func (s *Store) CreateUser(user types.User) error {
 			"id, username, firstname, lastname, nickname, "+
 			"email, password_hash, "+
 			"external_type, external_id, "+
-			"create_time_utc, is_active"+
-			") VALUES ('%s','%s','%s','%s','%s','%s','%s','%s','%s','%s',%t);",
+			"create_time_utc, is_active, "+
+			"role"+
+			") VALUES ('%s','%s','%s','%s','%s','%s','%s','%s','%s','%s',%t,'%s');",
 		user.ID, user.Username, user.Firstname, user.Lastname, user.Nickname,
 		user.Email, user.PasswordHashed,
 		user.ExternalType, user.ExternalID,
 		createTime, user.IsActive,
+		user.Role,
 	)
 	_, err := s.db.Exec(query)
 	if err != nil {
@@ -175,6 +177,7 @@ func scanRowIntoUser(rows *sql.Rows) (*types.User, error) {
 		&user.CreateTime,
 		&user.IsActive,
 		&user.Nickname,
+		&user.Role,
 	)
 	if err != nil {
 		return nil, err

@@ -1,0 +1,65 @@
+package invitation
+
+import (
+	"database/sql"
+	"expense-tracker/types"
+	"fmt"
+
+	"github.com/google/uuid"
+)
+
+type Store struct {
+	db *sql.DB
+}
+
+func NewStore(db *sql.DB) *Store {
+	return &Store{db: db}
+}
+
+func (s *Store) CreateInvitation(invitation types.Invitation) error {
+	query := fmt.Sprintf(
+		"INSERT INTO invitations (id, token, email, inviter_id, expires_at, created_at) VALUES ('%s', '%s', '%s', '%s', '%s', '%s');",
+		invitation.ID, invitation.Token, invitation.Email, invitation.InviterID,
+		invitation.ExpiresAt.Format("2006-01-02 15:04:05"),
+		invitation.CreatedAt.Format("2006-01-02 15:04:05"),
+	)
+	_, err := s.db.Exec(query)
+	return err
+}
+
+func (s *Store) GetInvitationByToken(token string) (*types.Invitation, error) {
+	query := fmt.Sprintf("SELECT * FROM invitations WHERE token = '%s';", token)
+	rows, err := s.db.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	invitation := new(types.Invitation)
+	for rows.Next() {
+		err := rows.Scan(
+			&invitation.ID,
+			&invitation.Token,
+			&invitation.Email,
+			&invitation.InviterID,
+			&invitation.ExpiresAt,
+			&invitation.UsedAt,
+			&invitation.CreatedAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if invitation.ID == uuid.Nil {
+		return nil, fmt.Errorf("invitation not found")
+	}
+
+	return invitation, nil
+}
+
+func (s *Store) MarkInvitationUsed(token string) error {
+	query := fmt.Sprintf("UPDATE invitations SET used_at = NOW() WHERE token = '%s';", token)
+	_, err := s.db.Exec(query)
+	return err
+}

@@ -8,14 +8,16 @@ import (
 )
 
 type Handler struct {
-	store types.UserStore
+	store           types.UserStore
+	invitationStore types.InvitationStore
 }
 
-func NewHandler(store types.UserStore) *Handler {
+func NewHandler(store types.UserStore, invitationStore types.InvitationStore) *Handler {
 	initThirdParty()
 
 	return &Handler{
-		store: store,
+		store:           store,
+		invitationStore: invitationStore,
 	}
 }
 

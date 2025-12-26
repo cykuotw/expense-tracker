@@ -11,6 +11,7 @@ import (
 	expenseStore "expense-tracker/services/expense/stores"
 	groupRoute "expense-tracker/services/group/routes"
 	groupStore "expense-tracker/services/group/stores"
+	"expense-tracker/services/invitation"
 	"expense-tracker/services/middleware"
 	"expense-tracker/services/user"
 	"log"
@@ -48,11 +49,18 @@ func (s *APIServer) Run() error {
 	userHandler := user.NewHandler(userStore)
 	userHandler.RegisterRoutes(subrouter)
 
-	authHandler := authRoute.NewHandler(userStore)
+	invitationStore := invitation.NewStore(s.db)
+	invitationHandler := invitation.NewHandler(invitationStore)
+
+	authHandler := authRoute.NewHandler(userStore, invitationStore)
 	authHandler.RegisterRoutes(subrouter)
 
 	protected := subrouter.Group("")
 	protected.Use(auth.JWTAuthMiddleware())
+
+	adminProtected := protected.Group("")
+	adminProtected.Use(middleware.AdminMiddleware(userStore))
+	invitationHandler.RegisterRoutes(adminProtected)
 
 	userProtectedHandler := user.NewProtectedHandler(userStore)
 	userProtectedHandler.RegisterRoutes(protected)

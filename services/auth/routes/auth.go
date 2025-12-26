@@ -90,6 +90,7 @@ func (h *Handler) handleThirdPartyCallback(c *gin.Context) error {
 			ExternalID:     gothUser.UserID,
 			CreateTime:     time.Now(),
 			IsActive:       true,
+			Role:           "user",
 		}
 		err = h.store.CreateUser(*user)
 		if err != nil {
@@ -135,17 +136,13 @@ func (h *Handler) handleAuthMe(c *gin.Context) error {
 		return err
 	}
 
-	exist, err := h.store.CheckUserExistByID(userId)
+	user, err := h.store.GetUserByID(userId)
 	if err != nil {
 		utils.WriteError(c, http.StatusInternalServerError, err)
 		return err
 	}
-	if !exist {
-		utils.WriteError(c, http.StatusUnauthorized, types.ErrInvalidJWTToken)
-		return types.ErrInvalidJWTToken
-	}
 
-	utils.WriteJSON(c, http.StatusOK, gin.H{"userID": userId})
+	utils.WriteJSON(c, http.StatusOK, gin.H{"userID": userId, "role": user.Role})
 
 	return nil
 }

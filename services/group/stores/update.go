@@ -1,8 +1,6 @@
 package group
 
 import (
-	"fmt"
-
 	"github.com/google/uuid"
 )
 
@@ -21,21 +19,14 @@ func (s *Store) UpdateGroupMember(action string, userID string, groupID string) 
 		return nil
 	}
 
-	query := ""
-	if action == "add" {
-		query = fmt.Sprintf(
-			"INSERT INTO group_member ("+
-				"id, group_id, user_id"+
-				") VALUES ('%s', '%s', '%s')",
-			uuid.NewString(), groupID, userID,
-		)
-	} else if action == "delete" {
-		query = fmt.Sprintf(
-			"DELETE FROM group_member WHERE group_id='%s' AND user_id='%s';",
-			groupID, userID,
-		)
+	switch action {
+	case "add":
+		query := "INSERT INTO group_member (id, group_id, user_id) VALUES (?, ?, ?)"
+		_, err = s.db.Exec(query, uuid.NewString(), groupID, userID)
+	case "delete":
+		query := "DELETE FROM group_member WHERE group_id = ? AND user_id = ?;"
+		_, err = s.db.Exec(query, groupID, userID)
 	}
-	_, err = s.db.Exec(query)
 	if err != nil {
 		return err
 	}
@@ -44,9 +35,8 @@ func (s *Store) UpdateGroupMember(action string, userID string, groupID string) 
 }
 
 func (s *Store) UpdateGroupStatus(groupid string, isActive bool) error {
-	query := fmt.Sprintf("UPDATE groups SET is_active='%t' WHERE id='%s';",
-		isActive, groupid)
-	_, err := s.db.Exec(query)
+	query := "UPDATE groups SET is_active = ? WHERE id = ?;"
+	_, err := s.db.Exec(query, isActive, groupid)
 	if err != nil {
 		return err
 	}

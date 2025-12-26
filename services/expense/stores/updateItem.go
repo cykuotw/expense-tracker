@@ -2,22 +2,19 @@ package store
 
 import (
 	"expense-tracker/types"
-	"fmt"
 )
 
 func (s *Store) UpdateItem(item types.Item) error {
-	query := fmt.Sprintf(
-		"UPDATE item SET "+
-			"expense_id = '%s', "+
-			"name = '%s', "+
-			"amount = '%s', "+
-			"unit = '%s', "+
-			"unit_price = '%s' "+
-			"WHERE id = '%s';",
+	query := "UPDATE item SET " +
+		"expense_id = ?, " +
+		"name = ?, " +
+		"amount = ?, " +
+		"unit = ?, " +
+		"unit_price = ? " +
+		"WHERE id = ?;"
+	_, err := s.db.Exec(query,
 		item.ExpenseID, item.Name, item.Amount, item.Unit,
-		item.UnitPrice, item.ID,
-	)
-	_, err := s.db.Exec(query)
+		item.UnitPrice, item.ID)
 	if err != nil {
 		return err
 	}

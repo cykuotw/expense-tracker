@@ -2,12 +2,11 @@ package store
 
 import (
 	"expense-tracker/types"
-	"fmt"
 )
 
 func (s *Store) GetItemsByExpenseID(expenseID string) ([]*types.Item, error) {
-	query := fmt.Sprintf("SELECT * FROM item WHERE expense_id='%s' ORDER BY id;", expenseID)
-	rows, err := s.db.Query(query)
+	query := "SELECT * FROM item WHERE expense_id = ? ORDER BY id;"
+	rows, err := s.db.Query(query, expenseID)
 	if err != nil {
 		return nil, err
 	}

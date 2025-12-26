@@ -17,19 +17,18 @@ func NewStore(db *sql.DB) *Store {
 }
 
 func (s *Store) CreateInvitation(invitation types.Invitation) error {
-	query := fmt.Sprintf(
-		"INSERT INTO invitations (id, token, email, inviter_id, expires_at, created_at) VALUES ('%s', '%s', '%s', '%s', '%s', '%s');",
+	query := "INSERT INTO invitations (id, token, email, inviter_id, expires_at, created_at) VALUES (?, ?, ?, ?, ?, ?);"
+	_, err := s.db.Exec(query,
 		invitation.ID, invitation.Token, invitation.Email, invitation.InviterID,
 		invitation.ExpiresAt.Format("2006-01-02 15:04:05"),
 		invitation.CreatedAt.Format("2006-01-02 15:04:05"),
 	)
-	_, err := s.db.Exec(query)
 	return err
 }
 
 func (s *Store) GetInvitationByToken(token string) (*types.Invitation, error) {
-	query := fmt.Sprintf("SELECT * FROM invitations WHERE token = '%s';", token)
-	rows, err := s.db.Query(query)
+	query := "SELECT * FROM invitations WHERE token = ?;"
+	rows, err := s.db.Query(query, token)
 	if err != nil {
 		return nil, err
 	}
@@ -59,8 +58,8 @@ func (s *Store) GetInvitationByToken(token string) (*types.Invitation, error) {
 }
 
 func (s *Store) MarkInvitationUsed(token string) error {
-	query := fmt.Sprintf("UPDATE invitations SET used_at = NOW() WHERE token = '%s';", token)
-	_, err := s.db.Exec(query)
+	query := "UPDATE invitations SET used_at = NOW() WHERE token = ?;"
+	_, err := s.db.Exec(query, token)
 	return err
 }
 

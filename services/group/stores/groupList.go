@@ -2,15 +2,14 @@ package group
 
 import (
 	"expense-tracker/types"
-	"fmt"
 
 	"github.com/google/uuid"
 )
 
 func (s *Store) GetGroupListByUser(userID string) ([]*types.Group, error) {
 	// get group id where user is member
-	query := fmt.Sprintf("SELECT group_id FROM group_member WHERE user_id='%s';", userID)
-	rowsMember, err := s.db.Query(query)
+	query := "SELECT group_id FROM group_member WHERE user_id = ?;"
+	rowsMember, err := s.db.Query(query, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -30,8 +29,8 @@ func (s *Store) GetGroupListByUser(userID string) ([]*types.Group, error) {
 	var groups []*types.Group
 
 	for _, id := range groupIds {
-		query = fmt.Sprintf("SELECT * FROM groups WHERE id='%s';", id)
-		rows, err := s.db.Query(query)
+		query = "SELECT * FROM groups WHERE id = ?;"
+		rows, err := s.db.Query(query, id)
 		if err != nil {
 			return nil, err
 		}

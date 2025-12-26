@@ -2,12 +2,11 @@ package group
 
 import (
 	"expense-tracker/types"
-	"fmt"
 )
 
 func (s *Store) GetGroupCurrency(groupID string) (string, error) {
-	query := fmt.Sprintf("SELECT currency FROM groups WHERE id='%s';", groupID)
-	rows, err := s.db.Query(query)
+	query := "SELECT currency FROM groups WHERE id = ?;"
+	rows, err := s.db.Query(query, groupID)
 	if err != nil {
 		return "", nil
 	}

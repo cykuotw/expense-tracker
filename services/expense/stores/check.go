@@ -1,12 +1,8 @@
 package store
 
-import (
-	"fmt"
-)
-
 func (s *Store) CheckExpenseExistByID(id string) (bool, error) {
-	query := fmt.Sprintf("SELECT EXISTS (SELECT 1 FROM expense WHERE id = '%s')", id)
-	rows, err := s.db.Query(query)
+	query := "SELECT EXISTS (SELECT 1 FROM expense WHERE id = ?)"
+	rows, err := s.db.Query(query, id)
 	if err != nil {
 		return false, err
 	}

@@ -1,21 +1,18 @@
 package store
 
 import (
-	"fmt"
-
 	"github.com/google/uuid"
 )
 
 func (s *Store) CreateBalanceLedger(balanceIds []uuid.UUID, ledgerIds []uuid.UUID) error {
 	for _, balanceId := range balanceIds {
 		for _, ledgerId := range ledgerIds {
-			query := fmt.Sprintf(`
+			query := `
 				INSERT INTO balance_ledger (
 					balance_id, ledger_id
-				) VALUES ('%s', '%s')
-			`, balanceId.String(), ledgerId.String())
+				) VALUES (?, ?)`
 
-			_, err := s.db.Exec(query)
+			_, err := s.db.Exec(query, balanceId.String(), ledgerId.String())
 			if err != nil {
 				return err
 			}

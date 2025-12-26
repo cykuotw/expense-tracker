@@ -2,17 +2,12 @@ package store
 
 import (
 	"expense-tracker/types"
-	"fmt"
 
 	"github.com/google/uuid"
 )
 
 func (s *Store) GetExpenseType() ([]*types.ExpenseType, error) {
-	query := fmt.Sprintf(
-		"SELECT id, name, category " +
-			"FROM expense_type " +
-			"ORDER BY category, name;",
-	)
+	query := "SELECT id, name, category FROM expense_type ORDER BY category, name;"
 
 	rows, err := s.db.Query(query)
 	if err != nil {
@@ -31,14 +26,9 @@ func (s *Store) GetExpenseType() ([]*types.ExpenseType, error) {
 }
 
 func (s *Store) GetExpenseTypeById(id uuid.UUID) (string, error) {
-	query := fmt.Sprintf(
-		"SELECT name "+
-			"FROM expense_type "+
-			"WHERE id = '%s';",
-		id.String(),
-	)
+	query := "SELECT name FROM expense_type WHERE id = ?;"
 
-	rows, err := s.db.Query(query)
+	rows, err := s.db.Query(query, id.String())
 	if err != nil {
 		return "", err
 	}

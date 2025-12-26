@@ -1,12 +1,8 @@
 package group
 
-import (
-	"fmt"
-)
-
 func (s *Store) CheckGroupExistById(id string) (bool, error) {
-	query := fmt.Sprintf("SELECT EXISTS (SELECT 1 FROM groups WHERE id = '%s')", id)
-	rows, err := s.db.Query(query)
+	query := "SELECT EXISTS (SELECT 1 FROM groups WHERE id = ?)"
+	rows, err := s.db.Query(query, id)
 	if err != nil {
 		return false, err
 	}
@@ -24,12 +20,8 @@ func (s *Store) CheckGroupExistById(id string) (bool, error) {
 }
 
 func (s *Store) CheckGroupUserPairExist(groupId string, userId string) (bool, error) {
-	query := fmt.Sprintf(`
-			SELECT EXISTS (
-				SELECT 1 FROM group_member WHERE group_id='%s' AND user_id='%s');`,
-		groupId, userId,
-	)
-	rows, err := s.db.Query(query)
+	query := "SELECT EXISTS (SELECT 1 FROM group_member WHERE group_id = ? AND user_id = ?);"
+	rows, err := s.db.Query(query, groupId, userId)
 	if err != nil {
 		return false, err
 	}

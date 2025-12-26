@@ -3,14 +3,13 @@ package store
 import (
 	"expense-tracker/config"
 	"expense-tracker/types"
-	"fmt"
 
 	"github.com/google/uuid"
 )
 
 func (s *Store) GetExpenseByID(expenseID string) (*types.Expense, error) {
-	query := fmt.Sprintf("SELECT * FROM expense WHERE id='%s';", expenseID)
-	rows, err := s.db.Query(query)
+	query := "SELECT * FROM expense WHERE id = ?;"
+	rows, err := s.db.Query(query, expenseID)
 	if err != nil {
 		return nil, err
 	}
@@ -35,15 +34,12 @@ func (s *Store) GetExpenseList(groupID string, page int64) ([]*types.Expense, er
 	offset := page * config.Envs.ExpensesPerPage
 	limit := config.Envs.ExpensesPerPage
 
-	query := fmt.Sprintf(
-		"SELECT * FROM expense "+
-			"WHERE group_id = '%s' AND is_deleted = False "+
-			"ORDER BY create_time_utc DESC "+
-			"OFFSET '%d' LIMIT '%d';",
-		groupID, offset, limit,
-	)
+	query := "SELECT * FROM expense " +
+		"WHERE group_id = ? AND is_deleted = False " +
+		"ORDER BY create_time_utc DESC " +
+		"OFFSET ? LIMIT ?;"
 
-	rows, err := s.db.Query(query)
+	rows, err := s.db.Query(query, groupID, offset, limit)
 	if err != nil {
 		return nil, err
 	}

@@ -3,14 +3,13 @@ package group
 import (
 	"expense-tracker/services/user"
 	"expense-tracker/types"
-	"fmt"
 
 	"github.com/google/uuid"
 )
 
 func (s *Store) GetGroupByID(id string) (*types.Group, error) {
-	query := fmt.Sprintf("SELECT * FROM groups WHERE id='%s';", id)
-	rows, err := s.db.Query(query)
+	query := "SELECT * FROM groups WHERE id = ?;"
+	rows, err := s.db.Query(query, id)
 	if err != nil {
 		return nil, err
 	}

@@ -2,14 +2,11 @@ package store
 
 import (
 	"expense-tracker/types"
-	"fmt"
 )
 
 func (s *Store) GetLedgersByExpenseID(expenseID string) ([]*types.Ledger, error) {
-	query := fmt.Sprintf(
-		"SELECT * FROM ledger WHERE expense_id='%s' ORDER BY borrower_user_id ASC;", expenseID,
-	)
-	rows, err := s.db.Query(query)
+	query := "SELECT * FROM ledger WHERE expense_id = ? ORDER BY borrower_user_id ASC;"
+	rows, err := s.db.Query(query, expenseID)
 	if err != nil {
 		return nil, err
 	}
@@ -32,15 +29,12 @@ func (s *Store) GetLedgersByExpenseID(expenseID string) ([]*types.Ledger, error)
 }
 
 func (s *Store) GetLedgerUnsettledFromGroup(groupID string) ([]*types.Ledger, error) {
-	query := fmt.Sprintf(
-		"SELECT l.* "+
-			"FROM expense AS e "+
-			"JOIN ledger AS l "+
-			"ON l.expense_id = e.id "+
-			"WHERE e.is_settled = false AND e.is_deleted = false AND e.group_id = '%s';",
-		groupID,
-	)
-	rows, err := s.db.Query(query)
+	query := "SELECT l.* " +
+		"FROM expense AS e " +
+		"JOIN ledger AS l " +
+		"ON l.expense_id = e.id " +
+		"WHERE e.is_settled = false AND e.is_deleted = false AND e.group_id = ?;"
+	rows, err := s.db.Query(query, groupID)
 	if err != nil {
 		return nil, err
 	}

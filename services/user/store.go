@@ -3,7 +3,6 @@ package user
 import (
 	"database/sql"
 	"expense-tracker/types"
-	"fmt"
 
 	"github.com/google/uuid"
 )
@@ -17,8 +16,8 @@ func NewStore(db *sql.DB) *Store {
 }
 
 func (s *Store) GetUserByEmail(email string) (*types.User, error) {
-	query := fmt.Sprintf("SELECT * FROM users WHERE email = '%s';", email)
-	rows, err := s.db.Query(query)
+	query := "SELECT * FROM users WHERE email = ?;"
+	rows, err := s.db.Query(query, email)
 	if err != nil {
 		return nil, err
 	}
@@ -40,8 +39,8 @@ func (s *Store) GetUserByEmail(email string) (*types.User, error) {
 }
 
 func (s *Store) GetUserByID(id string) (*types.User, error) {
-	query := fmt.Sprintf("SELECT * FROM users WHERE id = '%s';", id)
-	rows, err := s.db.Query(query)
+	query := "SELECT * FROM users WHERE id = ?;"
+	rows, err := s.db.Query(query, id)
 	if err != nil {
 		return nil, err
 	}
@@ -63,8 +62,8 @@ func (s *Store) GetUserByID(id string) (*types.User, error) {
 }
 
 func (s *Store) GetUsernameByID(userid string) (string, error) {
-	query := fmt.Sprintf("SELECT username FROM users WHERE id='%s';", userid)
-	rows, err := s.db.Query(query)
+	query := "SELECT username FROM users WHERE id = ?;"
+	rows, err := s.db.Query(query, userid)
 	if err != nil {
 		return "", err
 	}
@@ -85,8 +84,8 @@ func (s *Store) GetUsernameByID(userid string) (string, error) {
 	return username, nil
 }
 
-func (s *Store) checkUserExist(query string) (bool, error) {
-	rows, err := s.db.Query(query)
+func (s *Store) checkUserExist(query string, args ...interface{}) (bool, error) {
+	rows, err := s.db.Query(query, args...)
 	if err != nil {
 		return false, nil
 	}
@@ -103,26 +102,26 @@ func (s *Store) checkUserExist(query string) (bool, error) {
 	return exist, err
 }
 func (s *Store) CheckUserExistByEmail(email string) (bool, error) {
-	query := fmt.Sprintf("SELECT EXISTS (SELECT 1 FROM users WHERE email = '%s');", email)
+	query := "SELECT EXISTS (SELECT 1 FROM users WHERE email = ?);"
 
-	return s.checkUserExist(query)
+	return s.checkUserExist(query, email)
 }
 
 func (s *Store) CheckUserExistByID(id string) (bool, error) {
-	query := fmt.Sprintf("SELECT EXISTS (SELECT 1 FROM users WHERE id = '%s');", id)
+	query := "SELECT EXISTS (SELECT 1 FROM users WHERE id = ?);"
 
-	return s.checkUserExist(query)
+	return s.checkUserExist(query, id)
 }
 
 func (s *Store) CheckUserExistByUsername(username string) (bool, error) {
-	query := fmt.Sprintf("SELECT EXISTS (SELECT 1 FROM users WHERE username = '%s');", username)
+	query := "SELECT EXISTS (SELECT 1 FROM users WHERE username = ?);"
 
-	return s.checkUserExist(query)
+	return s.checkUserExist(query, username)
 }
 
 func (s *Store) CheckEmailExist(email string) (bool, error) {
-	query := fmt.Sprintf("SELECT EXISTS (SELECT 1 FROM users WHERE email='%s');", email)
-	rows, err := s.db.Query(query)
+	query := "SELECT EXISTS (SELECT 1 FROM users WHERE email = ?);"
+	rows, err := s.db.Query(query, email)
 	if err != nil {
 		return false, err
 	}
@@ -141,21 +140,19 @@ func (s *Store) CheckEmailExist(email string) (bool, error) {
 
 func (s *Store) CreateUser(user types.User) error {
 	createTime := user.CreateTime.UTC().Format("2006-01-02 15:04:05-0700")
-	query := fmt.Sprintf(
-		"INSERT INTO users ("+
-			"id, username, firstname, lastname, nickname, "+
-			"email, password_hash, "+
-			"external_type, external_id, "+
-			"create_time_utc, is_active, "+
-			"role"+
-			") VALUES ('%s','%s','%s','%s','%s','%s','%s','%s','%s','%s',%t,'%s');",
+	query := "INSERT INTO users (" +
+		"id, username, firstname, lastname, nickname, " +
+		"email, password_hash, " +
+		"external_type, external_id, " +
+		"create_time_utc, is_active, " +
+		"role" +
+		") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"
+	_, err := s.db.Exec(query,
 		user.ID, user.Username, user.Firstname, user.Lastname, user.Nickname,
 		user.Email, user.PasswordHashed,
 		user.ExternalType, user.ExternalID,
 		createTime, user.IsActive,
-		user.Role,
-	)
-	_, err := s.db.Exec(query)
+		user.Role)
 	if err != nil {
 		return err
 	}

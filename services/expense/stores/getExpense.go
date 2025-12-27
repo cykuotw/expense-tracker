@@ -8,7 +8,7 @@ import (
 )
 
 func (s *Store) GetExpenseByID(expenseID string) (*types.Expense, error) {
-	query := "SELECT * FROM expense WHERE id = ?;"
+	query := "SELECT * FROM expense WHERE id = $1;"
 	rows, err := s.db.Query(query, expenseID)
 	if err != nil {
 		return nil, err
@@ -35,9 +35,9 @@ func (s *Store) GetExpenseList(groupID string, page int64) ([]*types.Expense, er
 	limit := config.Envs.ExpensesPerPage
 
 	query := "SELECT * FROM expense " +
-		"WHERE group_id = ? AND is_deleted = False " +
+		"WHERE group_id = $1 AND is_deleted = False " +
 		"ORDER BY create_time_utc DESC " +
-		"OFFSET ? LIMIT ?;"
+		"OFFSET $2 LIMIT $3;"
 
 	rows, err := s.db.Query(query, groupID, offset, limit)
 	if err != nil {

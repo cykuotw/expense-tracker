@@ -15,7 +15,7 @@ func (s *Store) CreateExpense(expense types.Expense) error {
 		"currency, invoice_pic_url, " +
 		"create_time_utc, update_time_utc, expense_time_utc, " +
 		"split_rule " +
-		") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+		") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)"
 
 	_, err := s.db.Exec(query,
 		expense.ID, expense.Description, expense.GroupID,

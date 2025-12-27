@@ -10,7 +10,7 @@ func (s *Store) CreateBalanceLedger(balanceIds []uuid.UUID, ledgerIds []uuid.UUI
 			query := `
 				INSERT INTO balance_ledger (
 					balance_id, ledger_id
-				) VALUES (?, ?)`
+				) VALUES ($1, $2)`
 
 			_, err := s.db.Exec(query, balanceId.String(), ledgerId.String())
 			if err != nil {

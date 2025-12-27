@@ -8,7 +8,7 @@ import (
 
 func (s *Store) GetGroupListByUser(userID string) ([]*types.Group, error) {
 	// get group id where user is member
-	query := "SELECT group_id FROM group_member WHERE user_id = ?;"
+	query := "SELECT group_id FROM group_member WHERE user_id = $1;"
 	rowsMember, err := s.db.Query(query, userID)
 	if err != nil {
 		return nil, err
@@ -29,7 +29,7 @@ func (s *Store) GetGroupListByUser(userID string) ([]*types.Group, error) {
 	var groups []*types.Group
 
 	for _, id := range groupIds {
-		query = "SELECT * FROM groups WHERE id = ?;"
+		query = "SELECT * FROM groups WHERE id = $1;"
 		rows, err := s.db.Query(query, id)
 		if err != nil {
 			return nil, err

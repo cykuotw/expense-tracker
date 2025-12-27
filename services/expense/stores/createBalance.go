@@ -10,7 +10,7 @@ func (s *Store) CreateBalances(groupId string, balances []*types.Balance) error 
 			"id, " +
 			"sender_user_id, receiver_user_id, share, " +
 			"group_id " +
-			") VALUES (?, ?, ?, ?, ?)"
+			") VALUES ($1, $2, $3, $4, $5)"
 
 		_, err := s.db.Exec(query,
 			balance.ID,

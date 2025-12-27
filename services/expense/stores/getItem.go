@@ -5,7 +5,7 @@ import (
 )
 
 func (s *Store) GetItemsByExpenseID(expenseID string) ([]*types.Item, error) {
-	query := "SELECT * FROM item WHERE expense_id = ? ORDER BY id;"
+	query := "SELECT * FROM item WHERE expense_id = $1 ORDER BY id;"
 	rows, err := s.db.Query(query, expenseID)
 	if err != nil {
 		return nil, err

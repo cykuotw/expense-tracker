@@ -21,10 +21,10 @@ func (s *Store) UpdateGroupMember(action string, userID string, groupID string) 
 
 	switch action {
 	case "add":
-		query := "INSERT INTO group_member (id, group_id, user_id) VALUES (?, ?, ?)"
+		query := "INSERT INTO group_member (id, group_id, user_id) VALUES ($1, $2, $3)"
 		_, err = s.db.Exec(query, uuid.NewString(), groupID, userID)
 	case "delete":
-		query := "DELETE FROM group_member WHERE group_id = ? AND user_id = ?;"
+		query := "DELETE FROM group_member WHERE group_id = $1 AND user_id = $2;"
 		_, err = s.db.Exec(query, groupID, userID)
 	}
 	if err != nil {
@@ -35,7 +35,7 @@ func (s *Store) UpdateGroupMember(action string, userID string, groupID string) 
 }
 
 func (s *Store) UpdateGroupStatus(groupid string, isActive bool) error {
-	query := "UPDATE groups SET is_active = ? WHERE id = ?;"
+	query := "UPDATE groups SET is_active = $1 WHERE id = $2;"
 	_, err := s.db.Exec(query, isActive, groupid)
 	if err != nil {
 		return err

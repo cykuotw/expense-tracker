@@ -6,7 +6,7 @@ import (
 
 func (s *Store) UpdateExpenseSettleInGroup(groupID string) error {
 	// settle all expense with groupID
-	query := "UPDATE expense SET is_settled=true WHERE group_id = ? and is_settled=false;"
+	query := "UPDATE expense SET is_settled=true WHERE group_id = $1 and is_settled=false;"
 	_, err := s.db.Exec(query, groupID)
 	if err != nil {
 		return err
@@ -19,21 +19,21 @@ func (s *Store) UpdateExpense(expense types.Expense) error {
 	expenseTime := expense.ExpenseTime.UTC().Format("2006-01-02 15:04:05-0700")
 
 	query := "UPDATE expense SET " +
-		"description = ?, " +
-		"group_id = ?, " +
-		"pay_by_user_id = ?, " +
-		"update_time_utc = ?, " +
-		"expense_time_utc = ?, " +
-		"provider_name = ?, " +
-		"exp_type_id = ?, " +
-		"is_settled = ?, " +
-		"sub_total = ?, " +
-		"tax_fee_tip = ?, " +
-		"total = ?, " +
-		"currency = ?, " +
-		"invoice_pic_url = ?, " +
-		"split_rule = ? " +
-		"WHERE id = ?;"
+		"description = $1, " +
+		"group_id = $2, " +
+		"pay_by_user_id = $3, " +
+		"update_time_utc = $4, " +
+		"expense_time_utc = $5, " +
+		"provider_name = $6, " +
+		"exp_type_id = $7, " +
+		"is_settled = $8, " +
+		"sub_total = $9, " +
+		"tax_fee_tip = $10, " +
+		"total = $11, " +
+		"currency = $12, " +
+		"invoice_pic_url = $13, " +
+		"split_rule = $14 " +
+		"WHERE id = $15;"
 	_, err := s.db.Exec(query,
 		expense.Description, expense.GroupID,
 		expense.PayByUserId,

@@ -1,7 +1,7 @@
 package store
 
 func (s *Store) CheckBalanceExistByID(id string) (bool, error) {
-	query := "SELECT EXISTS (SELECT 1 FROM balance WHERE id = ?)"
+	query := "SELECT EXISTS (SELECT 1 FROM balance WHERE id = $1);"
 	rows, err := s.db.Query(query, id)
 	if err != nil {
 		return false, err

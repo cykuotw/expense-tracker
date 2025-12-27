@@ -5,7 +5,7 @@ import (
 )
 
 func (s *Store) GetGroupMemberByGroupID(groupID string) ([]*types.User, error) {
-	query := "SELECT user_id FROM group_member WHERE group_id = ? ORDER BY user_id ASC;"
+	query := "SELECT user_id FROM group_member WHERE group_id = $1 ORDER BY user_id ASC;"
 	rowsGroup, err := s.db.Query(query, groupID)
 	if err != nil {
 		return nil, err
@@ -21,7 +21,7 @@ func (s *Store) GetGroupMemberByGroupID(groupID string) ([]*types.User, error) {
 
 	var users []*types.User
 	for _, id := range userIDs {
-		query := "SELECT * FROM users WHERE id = ?;"
+		query := "SELECT * FROM users WHERE id = $1;"
 		rows, err := s.db.Query(query, id)
 		if err != nil {
 			return nil, err

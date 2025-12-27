@@ -17,7 +17,7 @@ func NewStore(db *sql.DB) *Store {
 }
 
 func (s *Store) CreateInvitation(invitation types.Invitation) error {
-	query := "INSERT INTO invitations (id, token, email, inviter_id, expires_at, created_at) VALUES (?, ?, ?, ?, ?, ?);"
+	query := "INSERT INTO invitations (id, token, email, inviter_id, expires_at, created_at) VALUES ($1, $2, $3, $4, $5, $6);"
 	_, err := s.db.Exec(query,
 		invitation.ID, invitation.Token, invitation.Email, invitation.InviterID,
 		invitation.ExpiresAt.Format("2006-01-02 15:04:05"),
@@ -27,7 +27,7 @@ func (s *Store) CreateInvitation(invitation types.Invitation) error {
 }
 
 func (s *Store) GetInvitationByToken(token string) (*types.Invitation, error) {
-	query := "SELECT * FROM invitations WHERE token = ?;"
+	query := "SELECT * FROM invitations WHERE token = $1;"
 	rows, err := s.db.Query(query, token)
 	if err != nil {
 		return nil, err
@@ -58,7 +58,7 @@ func (s *Store) GetInvitationByToken(token string) (*types.Invitation, error) {
 }
 
 func (s *Store) MarkInvitationUsed(token string) error {
-	query := "UPDATE invitations SET used_at = NOW() WHERE token = ?;"
+	query := "UPDATE invitations SET used_at = NOW() WHERE token = $1;"
 	_, err := s.db.Exec(query, token)
 	return err
 }

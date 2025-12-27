@@ -6,7 +6,7 @@ import (
 
 func (s *Store) SettleBalanceByBalanceId(balanceId string) error {
 	settleTime := time.Now().UTC().Format("2006-01-02 15:04:05-0700")
-	query := "UPDATE balance SET is_settled = true, settle_time_utc = ? WHERE id = ?;"
+	query := "UPDATE balance SET is_settled = true, settle_time_utc = $1 WHERE id = $2;"
 
 	_, err := s.db.Exec(query, settleTime, balanceId)
 	if err != nil {

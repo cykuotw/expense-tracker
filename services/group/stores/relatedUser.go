@@ -11,7 +11,7 @@ func (s *Store) GetRelatedUser(currentUser string, groupId string) ([]*types.Rel
 			WHERE group_id IN (
 				SELECT group_id
 				FROM group_member 
-				WHERE user_id = ?))
+				WHERE user_id = $1))
 
 		SELECT DISTINCT
 			u.id, 
@@ -21,14 +21,14 @@ func (s *Store) GetRelatedUser(currentUser string, groupId string) ([]*types.Rel
 					SELECT 1 
 					FROM group_member as gm
 					WHERE gm.user_id = u.id
-						AND gm.group_id = ?
+						AND gm.group_id = $2
 				) THEN TRUE
 				ELSE FALSE
 			END AS exist_in_group
 		FROM users AS u
 		JOIN former_member AS fm
 		ON u.id = fm.user_id
-		WHERE u.id <> ?
+		WHERE u.id <> $3
 		ORDER BY u.username;`
 	rows, err := s.db.Query(query, currentUser, groupId, currentUser)
 	if err != nil {

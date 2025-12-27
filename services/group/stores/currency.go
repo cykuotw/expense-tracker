@@ -5,7 +5,7 @@ import (
 )
 
 func (s *Store) GetGroupCurrency(groupID string) (string, error) {
-	query := "SELECT currency FROM groups WHERE id = ?;"
+	query := "SELECT currency FROM groups WHERE id = $1;"
 	rows, err := s.db.Query(query, groupID)
 	if err != nil {
 		return "", nil

@@ -6,11 +6,11 @@ import (
 
 func (s *Store) UpdateLedger(ledger types.Ledger) error {
 	query := "UPDATE ledger SET " +
-		"expense_id = ?, " +
-		"lender_user_id = ?, " +
-		"borrower_user_id = ?, " +
-		"share = ? " +
-		"WHERE id = ?;"
+		"expense_id = $1, " +
+		"lender_user_id = $2, " +
+		"borrower_user_id = $3, " +
+		"share = $4 " +
+		"WHERE id = $5;"
 	_, err := s.db.Exec(query,
 		ledger.ExpenseID, ledger.LenderUserID, ledger.BorrowerUesrID,
 		ledger.Share, ledger.ID)

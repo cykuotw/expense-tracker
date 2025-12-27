@@ -8,7 +8,7 @@ import (
 func (s *Store) GetBalanceByGroupId(groupId string) ([]types.Balance, error) {
 	query := `
 		SELECT * FROM balance
-		WHERE group_id = ? AND is_outdated = FALSE AND is_settled = FALSE;
+		WHERE group_id = $1 AND is_outdated = FALSE AND is_settled = FALSE;
 	`
 	rows, err := s.db.Query(query, groupId)
 	if err != nil {

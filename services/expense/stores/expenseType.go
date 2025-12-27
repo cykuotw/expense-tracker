@@ -26,7 +26,7 @@ func (s *Store) GetExpenseType() ([]*types.ExpenseType, error) {
 }
 
 func (s *Store) GetExpenseTypeById(id uuid.UUID) (string, error) {
-	query := "SELECT name FROM expense_type WHERE id = ?;"
+	query := "SELECT name FROM expense_type WHERE id = $1;"
 
 	rows, err := s.db.Query(query, id.String())
 	if err != nil {

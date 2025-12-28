@@ -13,6 +13,10 @@ const InviteUserContent = () => {
         copyLink,
     } = useInviteUser();
 
+    const isExpired = (expiresAt: string) => {
+        return new Date(expiresAt) < new Date();
+    };
+
     return (
         <div className="flex flex-col items-center mt-10 gap-10">
             <div className="card w-96 bg-base-100 shadow-xl border border-base-200">
@@ -48,13 +52,6 @@ const InviteUserContent = () => {
                                 <span className="font-bold">
                                     Invitation Created!
                                 </span>
-                                <div className="break-all mt-1">
-                                    Token: {token}
-                                </div>
-                                <div className="break-all mt-1 text-xs opacity-75">
-                                    Link: {window.location.origin}
-                                    /register?token={token}
-                                </div>
                             </div>
                         )}
 
@@ -97,8 +94,7 @@ const InviteUserContent = () => {
                                                 <span className="badge badge-success">
                                                     Used
                                                 </span>
-                                            ) : new Date(inv.expiresAt) <
-                                              new Date() ? (
+                                            ) : isExpired(inv.expiresAt) ? (
                                                 <span className="badge badge-error">
                                                     Expired
                                                 </span>
@@ -122,6 +118,9 @@ const InviteUserContent = () => {
                                             {!inv.usedAt && (
                                                 <button
                                                     className="btn btn-xs btn-outline"
+                                                    disabled={isExpired(
+                                                        inv.expiresAt
+                                                    )}
                                                     onClick={() =>
                                                         copyLink(inv.token)
                                                     }

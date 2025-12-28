@@ -122,7 +122,7 @@ func selectExpenseByID(db *sql.DB, expenseID uuid.UUID) *types.Expense {
 	return expense
 }
 
-func insertExpense(db *sql.DB, expense types.Expense) {
+func insertExpense(db *sql.DB, expense types.Expense) error {
 	createTime := expense.CreateTime.UTC().Format("2006-01-02 15:04:05-0700")
 	query := fmt.Sprintf(
 		"INSERT INTO expense ("+
@@ -140,7 +140,9 @@ func insertExpense(db *sql.DB, expense types.Expense) {
 		expense.Currency, expense.InvoicePicUrl, createTime, expense.SplitRule,
 	)
 
-	db.Exec(query)
+	_, err := db.Exec(query)
+
+	return err
 }
 
 func deleteExpense(db *sql.DB, expenseId uuid.UUID) {

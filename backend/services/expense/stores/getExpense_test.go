@@ -35,6 +35,7 @@ func TestGetExpenseByID(t *testing.T) {
 		Total:          decimal.NewFromFloat(11.77),
 		Currency:       "CAD",
 		InvoicePicUrl:  "https://test.com",
+		SplitRule:      "Equally",
 	}
 	insertExpense(db, mockExpense)
 	defer deleteExpense(db, mockExpenseID)

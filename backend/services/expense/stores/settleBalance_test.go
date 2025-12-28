@@ -105,7 +105,7 @@ func TestSettleBalanceByBalanceId(t *testing.T) {
 				assert.Equal(t, test.mockBalanceId, updateBalanced.ID.String())
 				assert.True(t, updateBalanced.IsSettled)
 				assert.LessOrEqual(t,
-					time.Since(updateBalanced.UpdateTime).Seconds(),
+					time.Until(updateBalanced.UpdateTime).Seconds(),
 					time.Duration(1*time.Second).Seconds())
 			}
 		})

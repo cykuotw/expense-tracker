@@ -755,7 +755,7 @@ func TestUpdateGroupStatus(t *testing.T) {
 	}
 }
 
-func insertGroup(db *sql.DB, group types.Group) {
+func insertGroup(db *sql.DB, group types.Group) error {
 	createTime := group.CreateTime.UTC().Format("2006-01-02 15:04:05-0700")
 	query := fmt.Sprintf(
 		"INSERT INTO groups ("+
@@ -766,7 +766,8 @@ func insertGroup(db *sql.DB, group types.Group) {
 		createTime, group.IsActive, group.CreateByUser, group.Currency,
 	)
 
-	db.Exec(query)
+	_, err := db.Exec(query)
+	return err
 }
 
 func getGroup(db *sql.DB, groupId uuid.UUID) types.Group {
@@ -792,7 +793,7 @@ func deleteGroup(db *sql.DB, groupId uuid.UUID) {
 	db.Exec(query)
 }
 
-func insertGroupMember(db *sql.DB, groupId uuid.UUID, userids []uuid.UUID) {
+func insertGroupMember(db *sql.DB, groupId uuid.UUID, userids []uuid.UUID) error {
 	for _, id := range userids {
 		query := fmt.Sprintf(
 			"INSERT INTO group_member ("+
@@ -800,8 +801,12 @@ func insertGroupMember(db *sql.DB, groupId uuid.UUID, userids []uuid.UUID) {
 				") VALUES ('%s', '%s', '%s');",
 			uuid.NewString(), groupId, id,
 		)
-		db.Exec(query)
+		_, err := db.Exec(query)
+		if err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
 func getGroupMember(db *sql.DB, groupId uuid.UUID, userid uuid.UUID) uuid.UUID {
@@ -831,7 +836,7 @@ func deleteGroupMember(db *sql.DB, groupId uuid.UUID, userids []uuid.UUID) {
 	}
 }
 
-func insertUser(db *sql.DB, user types.User) {
+func insertUser(db *sql.DB, user types.User) error {
 	createTime := user.CreateTime.UTC().Format("2006-01-02 15:04:05-0700")
 	query := fmt.Sprintf(
 		"INSERT INTO users ("+
@@ -845,7 +850,8 @@ func insertUser(db *sql.DB, user types.User) {
 		user.ExternalType, user.ExternalID,
 		createTime, user.IsActive,
 	)
-	db.Exec(query)
+	_, err := db.Exec(query)
+	return err
 }
 
 func cleanUser(db *sql.DB, id uuid.UUID) {

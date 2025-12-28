@@ -61,7 +61,7 @@ func TestOutdateBalanceByGroupId(t *testing.T) {
 				assert.Equal(t, test.mockBalance.ID, balance.ID)
 				assert.True(t, balance.IsOutdated)
 				assert.LessOrEqual(t,
-					time.Since(balance.UpdateTime).Seconds(),
+					time.Until(balance.UpdateTime).Seconds(),
 					time.Duration(1*time.Second).Seconds())
 			}
 		})

@@ -36,7 +36,7 @@ func (s *Store) GetExpenseList(groupID string, page int64) ([]*types.Expense, er
 
 	query := "SELECT * FROM expense " +
 		"WHERE group_id = $1 AND is_deleted = False " +
-		"ORDER BY create_time_utc DESC " +
+		"ORDER BY create_time_utc ASC " +
 		"OFFSET $2 LIMIT $3;"
 
 	rows, err := s.db.Query(query, groupID, offset, limit)

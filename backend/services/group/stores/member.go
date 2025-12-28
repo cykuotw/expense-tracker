@@ -40,6 +40,7 @@ func (s *Store) GetGroupMemberByGroupID(groupID string) ([]*types.User, error) {
 				&user.CreateTime,
 				&user.IsActive,
 				&user.Nickname,
+				&user.Role,
 			)
 			if err != nil {
 				return nil, err

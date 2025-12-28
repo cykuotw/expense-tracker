@@ -60,7 +60,7 @@ func TestDeleteExpense(t *testing.T) {
 				assert.Nil(t, err)
 				assert.True(t, deletedExpense.IsDeleted)
 				assert.LessOrEqual(t,
-					time.Since(deletedExpense.DeleteTime).Seconds(),
+					time.Until(deletedExpense.DeleteTime).Seconds(),
 					time.Duration(1*time.Second).Seconds())
 			}
 		})

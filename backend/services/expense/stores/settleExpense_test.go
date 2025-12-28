@@ -90,7 +90,7 @@ func TestSettleExpenseByGroupId(t *testing.T) {
 				for _, exp := range expenses {
 					assert.True(t, exp.IsSettled)
 					assert.LessOrEqual(t,
-						time.Since(exp.SettleTime).Seconds(),
+						time.Until(exp.SettleTime).Seconds(),
 						time.Duration(1*time.Second).Seconds())
 				}
 			}

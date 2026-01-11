@@ -57,8 +57,14 @@ func (s *Store) GetInvitationByToken(token string) (*types.Invitation, error) {
 	return invitation, nil
 }
 
-func (s *Store) MarkInvitationUsed(token string) error {
-	query := "UPDATE invitations SET used_at = NOW() WHERE token = $1;"
+func (s *Store) MarkInvitationUsed(token string, email string) error {
+	query := "UPDATE invitations SET used_at = NOW(), email = $2 WHERE token = $1;"
+	_, err := s.db.Exec(query, token, email)
+	return err
+}
+
+func (s *Store) ExpireInvitation(token string) error {
+	query := "UPDATE invitations SET expires_at = NOW() WHERE token = $1;"
 	_, err := s.db.Exec(query, token)
 	return err
 }

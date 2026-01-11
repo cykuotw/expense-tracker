@@ -2,8 +2,6 @@ import {
     createContext,
     useContext,
     FormEvent,
-    Dispatch,
-    SetStateAction,
 } from "react";
 
 export interface Invitation {
@@ -16,14 +14,13 @@ export interface Invitation {
 }
 
 export interface InviteUserContextType {
-    email: string;
-    setEmail: Dispatch<SetStateAction<string>>;
     token: string;
     error: string;
     loading: boolean;
     invitations: Invitation[];
     handleSubmit: (e: FormEvent) => Promise<void>;
     copyLink: (tokenToCopy: string) => void;
+    expireInvitation: (tokenToExpire: string) => Promise<void>;
 }
 
 export const InviteUserContext = createContext<

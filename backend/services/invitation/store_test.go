@@ -102,13 +102,44 @@ func TestMarkInvitationUsed(t *testing.T) {
 	defer cleanInvitation(dbConn, invitationID)
 
 	// Mark as used
-	err := store.MarkInvitationUsed(token)
+	err := store.MarkInvitationUsed(token, "updated@test.com")
 	assert.Nil(t, err)
 
 	// Verify
 	updatedInv, err := store.GetInvitationByToken(token)
 	assert.Nil(t, err)
 	assert.NotNil(t, updatedInv.UsedAt)
+	assert.Equal(t, "updated@test.com", updatedInv.Email)
+}
+
+func TestExpireInvitation(t *testing.T) {
+	cfg := config.Envs
+	dbConn, _ := db.NewPostgreSQLStorage(cfg)
+	store := invitation.NewStore(dbConn)
+
+	inviterID := uuid.New()
+	setupUser(dbConn, inviterID)
+	defer cleanUser(dbConn, inviterID)
+
+	invitationID := uuid.New()
+	token := "test-token-expire-" + uuid.NewString()[:8]
+	inv := types.Invitation{
+		ID:        invitationID,
+		Token:     token,
+		Email:     "expire@test.com",
+		InviterID: inviterID,
+		ExpiresAt: time.Now().Add(24 * time.Hour),
+		CreatedAt: time.Now(),
+	}
+	insertInvitation(dbConn, inv)
+	defer cleanInvitation(dbConn, invitationID)
+
+	err := store.ExpireInvitation(token)
+	assert.Nil(t, err)
+
+	updatedInv, err := store.GetInvitationByToken(token)
+	assert.Nil(t, err)
+	assert.True(t, updatedInv.ExpiresAt.Before(time.Now().Add(1*time.Minute)))
 }
 
 // Helpers

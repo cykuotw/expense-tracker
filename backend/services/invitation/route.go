@@ -1,6 +1,7 @@
 package invitation
 
 import (
+	"errors"
 	"expense-tracker/backend/services/auth"
 	"expense-tracker/backend/types"
 	"expense-tracker/backend/utils"
@@ -26,13 +27,16 @@ func (h *Handler) RegisterRoutes(public *gin.RouterGroup, adminProtected *gin.Ro
 
 	adminProtected.POST("/invitations", h.handleCreateInvitation)
 	adminProtected.GET("/invitations", h.handleListInvitations)
+	adminProtected.POST("/invitations/:token/expire", h.handleExpireInvitation)
 }
 
 func (h *Handler) handleCreateInvitation(c *gin.Context) {
 	var payload types.CreateInvitationPayload
 	if err := utils.ParseJSON(c, &payload); err != nil {
-		utils.WriteError(c, http.StatusBadRequest, err)
-		return
+		if !errors.Is(err, types.ErrEmptyRequestBody) {
+			utils.WriteError(c, http.StatusBadRequest, err)
+			return
+		}
 	}
 
 	if err := utils.Validate.Struct(payload); err != nil {
@@ -112,4 +116,19 @@ func (h *Handler) handleListInvitations(c *gin.Context) {
 	}
 
 	utils.WriteJSON(c, http.StatusOK, invitations)
+}
+
+func (h *Handler) handleExpireInvitation(c *gin.Context) {
+	token := c.Param("token")
+	if token == "" {
+		utils.WriteError(c, http.StatusBadRequest, fmt.Errorf("token is required"))
+		return
+	}
+
+	if err := h.store.ExpireInvitation(token); err != nil {
+		utils.WriteError(c, http.StatusInternalServerError, err)
+		return
+	}
+
+	utils.WriteJSON(c, http.StatusOK, nil)
 }

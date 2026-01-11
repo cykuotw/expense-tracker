@@ -45,7 +45,7 @@ func (h *Handler) handleRegister(c *gin.Context) {
 		return
 	}
 
-	if invitation.Email != payload.Email {
+	if invitation.Email != "" && invitation.Email != payload.Email {
 		utils.WriteError(c, http.StatusBadRequest, fmt.Errorf("email does not match invitation"))
 		return
 	}
@@ -89,7 +89,7 @@ func (h *Handler) handleRegister(c *gin.Context) {
 		return
 	}
 
-	if err := h.invitationStore.MarkInvitationUsed(payload.Token); err != nil {
+	if err := h.invitationStore.MarkInvitationUsed(payload.Token, payload.Email); err != nil {
 		utils.WriteError(c, http.StatusInternalServerError, err)
 		return
 	}

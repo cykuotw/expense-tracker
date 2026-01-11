@@ -3,7 +3,6 @@ import { API_URL } from "../configs/config";
 import { InviteUserContext, Invitation } from "../hooks/InviteUserContextHooks";
 
 export const InviteUserProvider = ({ children }: { children: ReactNode }) => {
-    const [email, setEmail] = useState("");
     const [token, setToken] = useState("");
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
@@ -40,7 +39,7 @@ export const InviteUserProvider = ({ children }: { children: ReactNode }) => {
                     "Content-Type": "application/json",
                 },
                 credentials: "include",
-                body: JSON.stringify({ email }),
+                body: JSON.stringify({}),
             });
 
             if (!response.ok) {
@@ -67,17 +66,42 @@ export const InviteUserProvider = ({ children }: { children: ReactNode }) => {
         navigator.clipboard.writeText(link);
     };
 
+    const expireInvitation = async (tokenToExpire: string) => {
+        setError("");
+        try {
+            const response = await fetch(
+                `${API_URL}/invitations/${tokenToExpire}/expire`,
+                {
+                    method: "POST",
+                    credentials: "include",
+                }
+            );
+
+            if (!response.ok) {
+                const data = await response.json();
+                throw new Error(data.error || "Failed to expire invitation");
+            }
+
+            fetchInvitations();
+        } catch (err) {
+            if (err instanceof Error) {
+                setError(err.message);
+            } else {
+                setError("An unexpected error occurred");
+            }
+        }
+    };
+
     return (
         <InviteUserContext.Provider
             value={{
-                email,
-                setEmail,
                 token,
                 error,
                 loading,
                 invitations,
                 handleSubmit,
                 copyLink,
+                expireInvitation,
             }}
         >
             {children}

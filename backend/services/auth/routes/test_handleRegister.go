@@ -102,7 +102,10 @@ func (m *mockInvitationStore) CreateInvitation(invitation types.Invitation) erro
 func (m *mockInvitationStore) GetInvitationByToken(token string) (*types.Invitation, error) {
 	return &types.Invitation{}, nil
 }
-func (m *mockInvitationStore) MarkInvitationUsed(token string) error {
+func (m *mockInvitationStore) MarkInvitationUsed(token string, email string) error {
+	return nil
+}
+func (m *mockInvitationStore) ExpireInvitation(token string) error {
 	return nil
 }
 func (m *mockInvitationStore) GetInvitations() ([]types.Invitation, error) {

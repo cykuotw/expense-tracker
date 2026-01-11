@@ -3,14 +3,13 @@ import { useInviteUser } from "../hooks/InviteUserContextHooks";
 
 const InviteUserContent = () => {
     const {
-        email,
-        setEmail,
         token,
         error,
         loading,
         invitations,
         handleSubmit,
         copyLink,
+        expireInvitation,
     } = useInviteUser();
 
     const isExpired = (expiresAt: string) => {
@@ -25,22 +24,6 @@ const InviteUserContent = () => {
                         Invite User
                     </h2>
                     <form onSubmit={handleSubmit}>
-                        <div className="form-control w-full">
-                            <label className="label">
-                                <span className="label-text">
-                                    Email Address
-                                </span>
-                            </label>
-                            <input
-                                type="email"
-                                placeholder="email@example.com"
-                                className="input input-bordered w-full"
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                                required
-                            />
-                        </div>
-
                         {error && (
                             <div className="alert alert-error mt-4 text-sm">
                                 <span>{error}</span>
@@ -88,7 +71,11 @@ const InviteUserContent = () => {
                             <tbody>
                                 {invitations.map((inv) => (
                                     <tr key={inv.id}>
-                                        <td>{inv.email}</td>
+                                        <td>
+                                            {inv.usedAt && inv.email
+                                                ? inv.email
+                                                : "-"}
+                                        </td>
                                         <td>
                                             {inv.usedAt ? (
                                                 <span className="badge badge-success">
@@ -116,17 +103,32 @@ const InviteUserContent = () => {
                                         </td>
                                         <td>
                                             {!inv.usedAt && (
-                                                <button
-                                                    className="btn btn-xs btn-outline"
-                                                    disabled={isExpired(
-                                                        inv.expiresAt
-                                                    )}
-                                                    onClick={() =>
-                                                        copyLink(inv.token)
-                                                    }
-                                                >
-                                                    Copy Link
-                                                </button>
+                                                <div className="flex gap-2">
+                                                    <button
+                                                        className="btn btn-xs btn-outline"
+                                                        disabled={isExpired(
+                                                            inv.expiresAt
+                                                        )}
+                                                        onClick={() =>
+                                                            copyLink(inv.token)
+                                                        }
+                                                    >
+                                                        Copy Link
+                                                    </button>
+                                                    <button
+                                                        className="btn btn-xs btn-warning"
+                                                        disabled={isExpired(
+                                                            inv.expiresAt
+                                                        )}
+                                                        onClick={() =>
+                                                            expireInvitation(
+                                                                inv.token
+                                                            )
+                                                        }
+                                                    >
+                                                        Expire
+                                                    </button>
+                                                </div>
                                             )}
                                         </td>
                                     </tr>

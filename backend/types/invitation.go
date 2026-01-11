@@ -19,12 +19,13 @@ type Invitation struct {
 type InvitationStore interface {
 	CreateInvitation(invitation Invitation) error
 	GetInvitationByToken(token string) (*Invitation, error)
-	MarkInvitationUsed(token string) error
+	MarkInvitationUsed(token string, email string) error
+	ExpireInvitation(token string) error
 	GetInvitations() ([]Invitation, error)
 }
 
 type CreateInvitationPayload struct {
-	Email string `json:"email" validate:"required,email"`
+	Email string `json:"email"`
 }
 
 type InvitationResponse struct {

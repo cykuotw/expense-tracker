@@ -1,5 +1,6 @@
 import { useState, useEffect, ReactNode, FormEvent, ReactElement } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { toast } from "react-hot-toast";
 import { API_URL } from "../configs/config";
 import { ExpenseCreateData, ExpenseTypeItem } from "../types/expense";
 import { GroupListItem, GroupMember } from "../types/group";
@@ -12,11 +13,11 @@ export const CreateExpenseProvider = ({
 }: {
     children: ReactNode;
 }) => {
+    const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const groupId = searchParams.get("g");
 
     // handle form submission
-    const [feedback, setFeedback] = useState<string>("");
     const [indicatorShow, setIndicatorShow] = useState<boolean>(false);
 
     const [selectedGroupId, setSelectedGroupId] = useState<string | null>(
@@ -41,7 +42,6 @@ export const CreateExpenseProvider = ({
         e.preventDefault();
 
         setIndicatorShow(true);
-        setFeedback("");
 
         // set up ledgers in defult split rules
         const currencyPrecision: Record<"CAD" | "USD" | "NTD", number> = {
@@ -113,10 +113,14 @@ export const CreateExpenseProvider = ({
         setIndicatorShow(false);
 
         if (!response.ok) {
-            setFeedback("Failed to create expense.");
+            toast.error("Failed to create expense.");
             return;
         }
-        setFeedback("Your expense has been created!");
+        toast.success("Your expense has been created!", { duration: 1000 });
+        const targetGroupId = selectedGroupId || groupId;
+        if (targetGroupId) {
+            navigate(`/group/${targetGroupId}`);
+        }
     };
 
     // handle on page load
@@ -252,7 +256,6 @@ export const CreateExpenseProvider = ({
                 setSelectedRule,
                 ledgers,
                 setLedgers,
-                feedback,
                 indicatorShow,
                 dataOk,
                 ledgerShareOk,

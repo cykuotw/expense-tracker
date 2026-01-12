@@ -28,7 +28,6 @@ export interface CreateExpenseContextType {
     ledgers: { userId: string; share: number }[];
     setLedgers: Dispatch<SetStateAction<{ userId: string; share: number }[]>>;
 
-    feedback: string;
     indicatorShow: boolean;
     dataOk: boolean;
     ledgerShareOk: boolean;

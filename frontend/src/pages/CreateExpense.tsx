@@ -4,7 +4,6 @@ import Icon from "@mdi/react";
 import {
     mdiCamera,
     mdiCheckBold,
-    mdiCheckCircleOutline,
     mdiSubdirectoryArrowLeft,
 } from "@mdi/js";
 
@@ -31,7 +30,6 @@ const CreateExpenseContent = () => {
         setSelectedRule,
         ledgers,
         setLedgers,
-        feedback,
         indicatorShow,
         dataOk,
         ledgerShareOk,
@@ -325,14 +323,6 @@ const CreateExpenseContent = () => {
                 <div className={`${indicatorShow ? "" : "hidden"}`}>
                     <div className="flex justify-center items-center w-full">
                         <span className="loading loading-spinner loading-md"></span>
-                    </div>
-                </div>
-                <div className={`${feedback.length === 0 ? "hidden" : ""}`}>
-                    <div className="animate-fade">
-                        <div role="alert" className="alert alert-success">
-                            <Icon path={mdiCheckCircleOutline} size={1} />
-                            <span>{feedback}</span>
-                        </div>
                     </div>
                 </div>
             </form>

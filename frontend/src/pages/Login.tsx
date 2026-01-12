@@ -12,12 +12,6 @@ export default function Login() {
             <p>or</p>
 
             <GoogleSignInButton />
-            <div className="flex flex-row items-center gap-x-2">
-                <p>New here?</p>
-                <a href="/register" className="link link-info">
-                    Create an account
-                </a>
-            </div>
         </div>
     );
 }

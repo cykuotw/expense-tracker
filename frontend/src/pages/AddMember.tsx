@@ -7,7 +7,6 @@ const AddMemberContent = () => {
         relatedUserList,
         email,
         setEmail,
-        emailFeedback,
         newMember,
         handleSubmitRelatedUsers,
         handleAddNewMember,
@@ -76,13 +75,6 @@ const AddMemberContent = () => {
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                     />
-                </div>
-                <div
-                    className={`text-xs w-full text-center text-red-500 py-1 ${
-                        emailFeedback ? "" : "hidden"
-                    }`}
-                >
-                    {emailFeedback}
                 </div>
                 <div>
                     <button

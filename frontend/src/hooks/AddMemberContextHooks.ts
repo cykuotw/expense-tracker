@@ -14,7 +14,6 @@ export interface AddMemberContextType {
     relatedUserList: RelatedUser[];
     email: string;
     setEmail: Dispatch<SetStateAction<string>>;
-    emailFeedback: string;
     newMember: UserData | null;
     handleSubmitRelatedUsers: (e: FormEvent) => Promise<void>;
     handleAddNewMember: () => void;

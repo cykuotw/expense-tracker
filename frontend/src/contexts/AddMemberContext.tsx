@@ -1,6 +1,7 @@
 import { useState, useEffect, ReactNode, FormEvent } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "react-hot-toast";
+import { isEmail } from "validator";
 import { API_URL } from "../configs/config";
 import { RelatedUser } from "../types/group";
 import { UserData } from "../types/user";
@@ -22,13 +23,8 @@ export const AddMemberProvider = ({ children }: { children: ReactNode }) => {
     const [relatedUserList, setRelatedUserList] = useState<RelatedUser[]>([]);
 
     const [email, setEmail] = useState("");
-    const [emailFeedback, setEmailFeedback] = useState("");
     const debouncedEmail = useDebounce(email, 300);
     const [newMember, setNewMember] = useState<UserData | null>(null);
-
-    const isValidEmail = (email: string) => {
-        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-    };
 
     useEffect(() => {
         const fetchRelatedUsers = async () => {
@@ -102,12 +98,15 @@ export const AddMemberProvider = ({ children }: { children: ReactNode }) => {
 
     useEffect(() => {
         if (!debouncedEmail) {
-            setEmailFeedback("");
+            setNewMember(null);
             return;
         }
 
-        if (!isValidEmail(debouncedEmail)) {
-            setEmailFeedback("* invalid email format (example@youremail.com)");
+        if (!isEmail(debouncedEmail)) {
+            toast.error("Invalid email format (example@youremail.com)", {
+                id: "email-validation",
+            });
+            setNewMember(null);
             return;
         }
 
@@ -125,19 +124,24 @@ export const AddMemberProvider = ({ children }: { children: ReactNode }) => {
                     body: JSON.stringify({ email: debouncedEmail }),
                 });
                 const data = await response.json();
-                if (data.exist) {
-                    emailExist = true;
-                }
+                emailExist = Boolean(data.exist);
             } catch (error) {
-                setEmailFeedback(`Error checking email: ${error}`);
+                toast.error(`Error checking email: ${error}`, {
+                    id: "email-validation",
+                });
+                setNewMember(null);
             } finally {
                 setLoading(false);
             }
 
             if (emailExist === null) {
+                setNewMember(null);
                 return;
             } else if (!emailExist) {
-                setEmailFeedback("* email not found");
+                toast.error("Email not found. Please contact admin.", {
+                    id: "email-validation",
+                });
+                setNewMember(null);
                 return;
             }
 
@@ -161,15 +165,17 @@ export const AddMemberProvider = ({ children }: { children: ReactNode }) => {
                 }
 
                 if (relatedUserList.some((user) => user.userId === data.id)) {
-                    setEmailFeedback("* user already in the group");
+                    toast.error("User already in the group", {
+                        id: "email-validation",
+                    });
+                    setNewMember(null);
                     return;
                 }
 
                 setNewMember(data);
-
-                setEmailFeedback("");
             } catch (error) {
                 console.log(error);
+                setNewMember(null);
             } finally {
                 setLoading(false);
             }
@@ -202,7 +208,6 @@ export const AddMemberProvider = ({ children }: { children: ReactNode }) => {
                 relatedUserList,
                 email,
                 setEmail,
-                emailFeedback,
                 newMember,
                 handleSubmitRelatedUsers,
                 handleAddNewMember,

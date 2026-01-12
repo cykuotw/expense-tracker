@@ -1,5 +1,6 @@
 import { useState, useEffect, ReactNode, FormEvent } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { toast } from "react-hot-toast";
 import { API_URL } from "../configs/config";
 import { RelatedUser } from "../types/group";
 import { UserData } from "../types/user";
@@ -13,10 +14,10 @@ interface UpdateGroupMemberPayload {
 }
 
 export const AddMemberProvider = ({ children }: { children: ReactNode }) => {
+    const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const groupId = searchParams.get("g");
 
-    const [feedback, setFeedback] = useState("");
     const [loading, setLoading] = useState(false);
     const [relatedUserList, setRelatedUserList] = useState<RelatedUser[]>([]);
 
@@ -55,7 +56,6 @@ export const AddMemberProvider = ({ children }: { children: ReactNode }) => {
     const handleSubmitRelatedUsers = async (e: FormEvent) => {
         e.preventDefault();
         setLoading(true);
-        setFeedback("");
 
         const formData = new FormData(e.currentTarget as HTMLFormElement);
         const selectedUserIds = new Set(
@@ -87,12 +87,14 @@ export const AddMemberProvider = ({ children }: { children: ReactNode }) => {
                 })
             );
 
-            setFeedback("✅ Update successful!");
-            (
-                document.getElementById("feedback") as HTMLDialogElement
-            ).showModal();
+            toast.success("Update successful!", { duration: 1000 });
+            if (groupId) {
+                window.setTimeout(() => {
+                    navigate(`/group/${groupId}`);
+                }, 1000);
+            }
         } catch (error) {
-            setFeedback(`❌ ${(error as Error).message}`);
+            toast.error((error as Error).message);
         } finally {
             setLoading(false);
         }
@@ -196,7 +198,6 @@ export const AddMemberProvider = ({ children }: { children: ReactNode }) => {
         <AddMemberContext.Provider
             value={{
                 groupId,
-                feedback,
                 loading,
                 relatedUserList,
                 email,

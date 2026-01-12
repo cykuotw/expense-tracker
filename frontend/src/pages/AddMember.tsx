@@ -3,8 +3,6 @@ import { useAddMember } from "../hooks/AddMemberContextHooks";
 
 const AddMemberContent = () => {
     const {
-        groupId,
-        feedback,
         loading,
         relatedUserList,
         email,
@@ -55,7 +53,7 @@ const AddMemberContent = () => {
                         type="submit"
                         className="btn btn-active btn-neutral btn-wide text-lg font-light"
                     >
-                        Add Members
+                        Update Members
                     </button>
                 </div>
                 <div
@@ -99,24 +97,6 @@ const AddMemberContent = () => {
                     </button>
                 </div>
             </div>
-
-            <dialog
-                id="feedback"
-                className="modal"
-                onClose={() => {
-                    window.location.href = `/group/${groupId}`;
-                }}
-            >
-                <div className="modal-box flex flex-col items-center">
-                    <h3 className="font-bold text-lg">{feedback}</h3>
-                    <p className="py-4">
-                        Press ESC key or click outside to close
-                    </p>
-                </div>
-                <form method="dialog" className="modal-backdrop">
-                    <button>close</button>
-                </form>
-            </dialog>
         </div>
     );
 };

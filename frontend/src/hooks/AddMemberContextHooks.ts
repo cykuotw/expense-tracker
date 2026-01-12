@@ -10,7 +10,6 @@ import { UserData } from "../types/user";
 
 export interface AddMemberContextType {
     groupId: string | null;
-    feedback: string;
     loading: boolean;
     relatedUserList: RelatedUser[];
     email: string;

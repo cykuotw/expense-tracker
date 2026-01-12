@@ -8,7 +8,6 @@ export interface CreateGroupContextType {
     currency: string;
     setCurrency: (curr: string) => void;
     indicator: boolean;
-    feedback: string;
     dataOk: boolean;
     createGroup: (e: FormEvent) => Promise<void>;
 }

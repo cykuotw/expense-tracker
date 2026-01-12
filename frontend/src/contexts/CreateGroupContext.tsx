@@ -1,5 +1,6 @@
 import { useState, useEffect, ReactNode, FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
+import { toast } from "react-hot-toast";
 import { API_URL } from "../configs/config";
 import { GroupNewData } from "../types/group";
 import { CreateGroupContext } from "../hooks/CreateGroupContextHooks";
@@ -7,7 +8,6 @@ import { CreateGroupContext } from "../hooks/CreateGroupContextHooks";
 export const CreateGroupProvider = ({ children }: { children: ReactNode }) => {
     const navigate = useNavigate();
     const [indicator, setIndicator] = useState<boolean>(false);
-    const [feedback, setFeedback] = useState<string>("");
     const [dataOk, setDataOk] = useState<boolean>(false);
 
     const [groupName, setGroupName] = useState<string>("");
@@ -30,7 +30,6 @@ export const CreateGroupProvider = ({ children }: { children: ReactNode }) => {
 
         try {
             setIndicator(true);
-            setFeedback("");
 
             const response = await fetch(`${API_URL}/create_group`, {
                 method: "POST",
@@ -43,18 +42,20 @@ export const CreateGroupProvider = ({ children }: { children: ReactNode }) => {
 
             if (!response.ok) {
                 const errorData = await response.json();
-                setFeedback(errorData.message || "Failed to create group");
+                toast.error(errorData.message || "Failed to create group");
                 return;
             }
 
             const data = await response.json();
             if (data?.groupId) {
+                toast.success("Group created", { duration: 1000 });
                 navigate(`/group/${data.groupId}`);
             } else {
+                toast.success("Group created", { duration: 1000 });
                 navigate("/");
             }
         } catch (err) {
-            setFeedback("Failed to create group");
+            toast.error("Failed to create group");
             console.error("Error creating group:", err);
         } finally {
             setIndicator(false);
@@ -71,7 +72,6 @@ export const CreateGroupProvider = ({ children }: { children: ReactNode }) => {
                 currency,
                 setCurrency,
                 indicator,
-                feedback,
                 dataOk,
                 createGroup,
             }}

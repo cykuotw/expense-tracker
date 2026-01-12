@@ -10,7 +10,6 @@ const CreateGroupContent = () => {
         currency,
         setCurrency,
         indicator,
-        feedback,
         dataOk,
         createGroup,
     } = useCreateGroup();
@@ -73,9 +72,6 @@ const CreateGroupContent = () => {
                 >
                     <span className="loading loading-spinner loading-md"></span>
                 </div>
-                <div
-                    className={`${feedback.length !== 0 ? "hidden" : ""}`}
-                ></div>
             </form>
         </div>
     );

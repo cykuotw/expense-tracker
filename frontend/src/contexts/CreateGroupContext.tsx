@@ -47,7 +47,12 @@ export const CreateGroupProvider = ({ children }: { children: ReactNode }) => {
                 return;
             }
 
-            navigate("/");
+            const data = await response.json();
+            if (data?.groupId) {
+                navigate(`/group/${data.groupId}`);
+            } else {
+                navigate("/");
+            }
         } catch (err) {
             setFeedback("Failed to create group");
             console.error("Error creating group:", err);

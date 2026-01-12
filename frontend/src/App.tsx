@@ -5,6 +5,7 @@ import {
     useLocation,
 } from "react-router-dom";
 import { useState, useEffect } from "react";
+import { Toaster } from "react-hot-toast";
 
 import { API_URL } from "./configs/config";
 
@@ -108,6 +109,7 @@ function AppRoutes() {
 function App() {
     return (
         <Router>
+            <Toaster position="bottom-center" />
             <AppRoutes />
         </Router>
     );

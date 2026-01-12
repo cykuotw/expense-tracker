@@ -3,8 +3,6 @@ import { useInviteUser } from "../hooks/InviteUserContextHooks";
 
 const InviteUserContent = () => {
     const {
-        token,
-        error,
         loading,
         invitations,
         handleSubmit,
@@ -24,20 +22,6 @@ const InviteUserContent = () => {
                         Invite User
                     </h2>
                     <form onSubmit={handleSubmit}>
-                        {error && (
-                            <div className="alert alert-error mt-4 text-sm">
-                                <span>{error}</span>
-                            </div>
-                        )}
-
-                        {token && (
-                            <div className="alert alert-success mt-4 text-sm flex-col items-start">
-                                <span className="font-bold">
-                                    Invitation Created!
-                                </span>
-                            </div>
-                        )}
-
                         <div className="card-actions justify-end mt-6">
                             <button
                                 type="submit"

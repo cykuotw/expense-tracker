@@ -14,8 +14,6 @@ export interface Invitation {
 }
 
 export interface InviteUserContextType {
-    token: string;
-    error: string;
     loading: boolean;
     invitations: Invitation[];
     handleSubmit: (e: FormEvent) => Promise<void>;

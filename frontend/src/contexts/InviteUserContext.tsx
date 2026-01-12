@@ -1,10 +1,9 @@
 import { useState, useEffect, ReactNode, FormEvent } from "react";
+import { toast } from "react-hot-toast";
 import { API_URL } from "../configs/config";
 import { InviteUserContext, Invitation } from "../hooks/InviteUserContextHooks";
 
 export const InviteUserProvider = ({ children }: { children: ReactNode }) => {
-    const [token, setToken] = useState("");
-    const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
     const [invitations, setInvitations] = useState<Invitation[]>([]);
 
@@ -29,9 +28,6 @@ export const InviteUserProvider = ({ children }: { children: ReactNode }) => {
     const handleSubmit = async (e: FormEvent) => {
         e.preventDefault();
         setLoading(true);
-        setError("");
-        setToken("");
-
         try {
             const response = await fetch(`${API_URL}/invitations`, {
                 method: "POST",
@@ -47,14 +43,13 @@ export const InviteUserProvider = ({ children }: { children: ReactNode }) => {
                 throw new Error(data.error || "Failed to create invitation");
             }
 
-            const data = await response.json();
-            setToken(data.token);
+            toast.success("Invitation created", { duration: 1000 });
             fetchInvitations();
         } catch (err) {
             if (err instanceof Error) {
-                setError(err.message);
+                toast.error(err.message);
             } else {
-                setError("An unexpected error occurred");
+                toast.error("An unexpected error occurred");
             }
         } finally {
             setLoading(false);
@@ -67,7 +62,6 @@ export const InviteUserProvider = ({ children }: { children: ReactNode }) => {
     };
 
     const expireInvitation = async (tokenToExpire: string) => {
-        setError("");
         try {
             const response = await fetch(
                 `${API_URL}/invitations/${tokenToExpire}/expire`,
@@ -83,11 +77,12 @@ export const InviteUserProvider = ({ children }: { children: ReactNode }) => {
             }
 
             fetchInvitations();
+            toast.success("Invitation expired", { duration: 1000 });
         } catch (err) {
             if (err instanceof Error) {
-                setError(err.message);
+                toast.error(err.message);
             } else {
-                setError("An unexpected error occurred");
+                toast.error("An unexpected error occurred");
             }
         }
     };
@@ -95,8 +90,6 @@ export const InviteUserProvider = ({ children }: { children: ReactNode }) => {
     return (
         <InviteUserContext.Provider
             value={{
-                token,
-                error,
                 loading,
                 invitations,
                 handleSubmit,

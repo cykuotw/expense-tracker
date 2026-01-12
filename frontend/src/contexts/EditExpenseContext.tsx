@@ -6,7 +6,8 @@ import {
     ReactElement,
     ChangeEvent,
 } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
+import { toast } from "react-hot-toast";
 import { API_URL } from "../configs/config";
 import {
     ExpenseDetailData,
@@ -33,10 +34,10 @@ const emptyData: expenseFormData = {
 };
 
 export const EditExpenseProvider = ({ children }: { children: ReactNode }) => {
+    const navigate = useNavigate();
     const { id: expenseId = "" } = useParams();
 
     // handle form submission
-    const [feedback, setFeedback] = useState<string>("");
     const [indicatorShow, setIndicatorShow] = useState<boolean>(false);
 
     const [formData, setFormData] = useState<expenseFormData>(emptyData);
@@ -46,7 +47,6 @@ export const EditExpenseProvider = ({ children }: { children: ReactNode }) => {
 
         try {
             setIndicatorShow(true);
-            setFeedback("");
 
             // set up ledgers in defult split rules
             const currencyPrecision: Record<"CAD" | "USD" | "NTD", number> = {
@@ -124,10 +124,13 @@ export const EditExpenseProvider = ({ children }: { children: ReactNode }) => {
                 throw new Error(`Failed to update expense: ${errorMessage}`);
             }
 
-            window.location.href = `/expense/${expenseId}`;
+            toast.success("Expense updated", { duration: 1000 });
+            window.setTimeout(() => {
+                navigate(`/expense/${expenseId}`);
+            }, 1000);
         } catch (error) {
             console.error("Error updating expense:", error);
-            setFeedback("Error updating expense");
+            toast.error("Error updating expense");
         } finally {
             setIndicatorShow(false);
         }
@@ -285,7 +288,6 @@ export const EditExpenseProvider = ({ children }: { children: ReactNode }) => {
                 groupList,
                 expTypeOptions,
                 groupMembers,
-                feedback,
                 indicatorShow,
                 dataOk,
                 ledgerShareOk,

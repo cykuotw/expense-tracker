@@ -32,7 +32,6 @@ export interface EditExpenseContextType {
     groupList: GroupListItem[];
     expTypeOptions: ReactElement[];
     groupMembers: GroupMember[];
-    feedback: string;
     indicatorShow: boolean;
     dataOk: boolean;
     ledgerShareOk: boolean;

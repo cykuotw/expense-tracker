@@ -14,11 +14,11 @@ export default function LoginForm() {
     return (
         <>
             <form
-                className="flex flex-col justify-center items-center gap-3 w-2/3 md:w-1/4 md:max-w-72"
+                className="flex w-full max-w-md flex-col items-center gap-3 md:mx-auto"
                 onSubmit={handleLoginSubmit}
             >
                 <div className="text-2xl">Sign In</div>
-                <label className="input flex items-center gap-2 w-full">
+                <label className="input flex items-center gap-2 w-full md:w-96">
                     <svg
                         xmlns="http://www.w3.org/2000/svg"
                         viewBox="0 0 16 16"
@@ -38,7 +38,7 @@ export default function LoginForm() {
                         required
                     />
                 </label>
-                <label className="input flex items-center gap-2 w-full">
+                <label className="input flex items-center gap-2 w-full md:w-96">
                     <svg
                         xmlns="http://www.w3.org/2000/svg"
                         viewBox="0 0 16 16"
@@ -64,7 +64,7 @@ export default function LoginForm() {
                 </label>
                 <button
                     type="submit"
-                    className="btn btn-active btn-neutral btn-wide text-lg font-light"
+                    className="btn btn-neutral w-full md:w-96 text-lg font-light"
                 >
                     Login
                 </button>

@@ -18,45 +18,65 @@ const ExpenseDetailContent = () => {
     }
 
     return (
-        <div className="flex flex-col justify-center items-center space-x-1 h-full w-full py-5 px-2">
-            <div className="flex justify-center w-full">
-                <div className="card bg-base-100 border-2 p-6 w-full max-w-md">
-                    <h1 className="text-xl font-bold mb-2">
-                        {expenseDetail?.description}
-                    </h1>
-                    <p className="text-4xl font-semibold text-success mb-4">
-                        ${expenseDetail?.total} {expenseDetail?.currency}
-                    </p>
-                    <p className="text-sm text-gray-600">
-                        Added by {expenseDetail?.createdByUsername} on{" "}
-                        {formattedDate}
-                    </p>
-                    <p className="text-sm text-gray-600 mb-6">
-                        Category: {expenseDetail?.expenseType}
-                    </p>
+        <div className="min-h-screen bg-gradient-to-br from-base-200 via-base-100 to-base-200 pb-28 md:pb-0">
+            <div className="mx-auto w-full max-w-4xl px-4 py-10 md:py-14">
+                <div className="flex flex-col gap-6">
+                    <div className="space-y-3">
+                        <div className="text-xs uppercase tracking-[0.2em] text-base-content/60">
+                            Expense Detail
+                        </div>
+                        <h1 className="text-3xl font-semibold md:text-4xl">
+                            {expenseDetail?.description}
+                        </h1>
+                        <p className="text-sm text-base-content/70 md:text-base">
+                            Added by {expenseDetail?.createdByUsername} on{" "}
+                            {formattedDate}
+                        </p>
+                    </div>
 
-                    <LedgersDropdown expenseDetail={expenseDetail} />
-                    <ItemsDropdown expenseDetail={expenseDetail} />
-                    <InvoiceImage expenseDetail={expenseDetail} />
+                    <div className="rounded-3xl border border-base-300 bg-base-100/90 p-6 shadow-sm">
+                        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+                            <div>
+                                <div className="text-xs uppercase tracking-[0.2em] text-base-content/60">
+                                    Total
+                                </div>
+                                <div className="mt-2 text-4xl font-semibold text-success">
+                                    ${expenseDetail?.total}{" "}
+                                    {expenseDetail?.currency}
+                                </div>
+                            </div>
+                            <div className="rounded-2xl border border-base-200 bg-base-100 px-4 py-3 text-sm text-base-content/70">
+                                Category: {expenseDetail?.expenseType}
+                            </div>
+                        </div>
 
-                    <div className="flex justify-between mt-6">
-                        <button className="flex items-center space-x-2 text-blue-600 hover:text-blue-800">
-                            <Link to={`/expense/${expenseId}/edit`}>
-                                <span>Edit Expense</span>
+                        <div className="mt-6 space-y-4">
+                            <LedgersDropdown expenseDetail={expenseDetail} />
+                            <ItemsDropdown expenseDetail={expenseDetail} />
+                            <InvoiceImage expenseDetail={expenseDetail} />
+                        </div>
+
+                        <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <Link
+                                to={`/expense/${expenseId}/edit`}
+                                className="btn btn-neutral w-full sm:w-auto"
+                            >
+                                Edit Expense
                             </Link>
-                        </button>
-                        <DeleteBtn />
+                            <DeleteBtn />
+                        </div>
+                    </div>
+
+                    <div className="flex justify-start">
+                        <Link
+                            className="btn btn-ghost w-full sm:w-auto"
+                            to={`/group/${expenseDetail?.groupId}`}
+                        >
+                            <Icon path={mdiSubdirectoryArrowLeft} size={1} />
+                            Back to Group
+                        </Link>
                     </div>
                 </div>
-            </div>
-            <div className="flex justify-center w-full mt-4">
-                <Link
-                    className="btn btn-ghost"
-                    to={`/group/${expenseDetail?.groupId}`}
-                >
-                    <Icon path={mdiSubdirectoryArrowLeft} size={1} />
-                    Back to Group
-                </Link>
             </div>
         </div>
     );
@@ -79,7 +99,7 @@ const LedgersDropdown = ({
     const ledgerDropdown = useRef<HTMLButtonElement>(null);
 
     return (
-        <div className="p-4 rounded-lg">
+        <div className="rounded-2xl border border-base-200 bg-base-100 p-4">
             <button
                 className="flex items-center justify-between w-full font-medium focus:outline-none"
                 ref={ledgerDropdown}
@@ -120,12 +140,12 @@ const LedgersDropdown = ({
             <ul
                 className={`mt-3 ${
                     isLedgerOpen ? "" : "hidden"
-                } border-l-2 border-primary pl-1 space-y-2`}
+                } border-l-2 border-primary pl-2 space-y-2`}
             >
                 {expenseDetail?.ledgers.map((ledger) => {
                     return (
                         <li
-                            className="relative text-gray-600 pl-2"
+                            className="relative text-sm text-base-content/70"
                             key={ledger.id}
                         >
                             {ledger.borrowerUsername} owes ${ledger.share}{" "}
@@ -149,7 +169,7 @@ const ItemsDropdown = ({
         <>
             {Array.isArray(expenseDetail?.items) &&
             expenseDetail?.items.length !== 0 ? (
-                <div className="p-4 rounded-lg">
+                <div className="rounded-2xl border border-base-200 bg-base-100 p-4">
                     <Dropdown
                         label="Items"
                         dropdownType="dropdown-bottom dropdown-start"
@@ -172,10 +192,12 @@ const InvoiceImage = ({
     return (
         <>
             {expenseDetail?.invoiceUrl !== "" ? (
-                <div className="flex flex-col justify-center items-center py-5 space-y-1">
-                    <h1 className="text-xl">Invoice Image</h1>
-                    <button className="btn btn-ghost btn-active">
-                        View Invoice Image
+                <div className="rounded-2xl border border-base-200 bg-base-100 p-4">
+                    <div className="text-sm font-semibold uppercase tracking-[0.2em] text-base-content/60">
+                        Invoice
+                    </div>
+                    <button className="btn btn-ghost mt-3">
+                        View invoice image
                     </button>
                     <div id="indicator" className="htmx-indicator">
                         <div className="flex justify-center items-center w-full">
@@ -194,7 +216,7 @@ const DeleteBtn = () => {
     return (
         <>
             <button
-                className="flex items-center space-x-2 text-red-600 hover:text-red-800"
+                className="btn btn-ghost w-full sm:w-auto text-error"
                 onClick={() =>
                     (
                         document.getElementById(

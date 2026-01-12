@@ -13,80 +13,105 @@ const AddMemberContent = () => {
     } = useAddMember();
 
     return (
-        <div className="flex flex-col justify-center items-center py-5 h-screen md:h-auto">
-            <form
-                className="flex flex-col justify-center items-center"
-                onSubmit={handleSubmitRelatedUsers}
-            >
-                <div className="flex flex-col py-5 text-3xl">
-                    Add Group Member
-                </div>
-                <div className="flex flex-col py-2 text-lg">
-                    Your friends here
-                </div>
-                <div id="members" className="w-10/12">
-                    {relatedUserList.length !== 0 ? (
-                        relatedUserList.map((user) => {
-                            return (
-                                <label
-                                    className="input input-ghost"
-                                    key={user.userId}
-                                >
-                                    <input
-                                        type="checkbox"
-                                        defaultChecked={user.existInGroup}
-                                        className="checkbox checkbox-lg"
-                                        name="candidate[]"
-                                        value={user.userId}
-                                    />
-                                    <span>{user.username}</span>
-                                </label>
-                            );
-                        })
-                    ) : (
-                        <div className="text-lg">No friends found</div>
-                    )}
-                </div>
-                <div className="w-full py-5">
-                    <button
-                        type="submit"
-                        className="btn btn-active btn-neutral btn-wide text-lg font-light"
-                    >
-                        Update Members
-                    </button>
-                </div>
-                <div
-                    className={`flex justify-center items-center w-full ${
-                        loading ? "" : "hidden"
-                    }`}
-                >
-                    <span className="loading loading-spinner loading-md"></span>
-                </div>
-            </form>
+        <div className="min-h-screen bg-gradient-to-br from-base-200 via-base-100 to-base-200 pb-28 md:pb-0">
+            <div className="mx-auto w-full max-w-5xl px-4 py-10 md:py-14">
+                <div className="flex flex-col gap-8">
+                    <div className="space-y-3">
+                        <div className="text-xs uppercase tracking-[0.2em] text-base-content/60">
+                            Group Members
+                        </div>
+                        <h1 className="text-3xl font-semibold md:text-4xl">
+                            Add members
+                        </h1>
+                        <p className="max-w-xl text-sm text-base-content/70 md:text-base">
+                            Add existing friends or invite a new person by
+                            email.
+                        </p>
+                    </div>
 
-            <div className="flex flex-col justify-center items-center space-y-2">
-                <div className="flex flex-col text-lg">or a new friend</div>
-                <div className="w-full justify-center items-center">
-                    <input
-                        type="email"
-                        name="email"
-                        className="input input-bordered w-full text-center bg-base-100"
-                        placeholder="example@your.email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                    />
-                </div>
-                <div>
-                    <button
-                        className={`btn btn-neutral ${
-                            newMember ? "" : "btn-disabled"
-                        }`}
-                        onClick={() => {
-                            handleAddNewMember();
-                        }}
-                    >
-                        Add
-                    </button>
+                    <div className="grid gap-6 lg:grid-cols-5">
+                        <form
+                            className="rounded-3xl border border-base-300 bg-base-100/90 p-6 shadow-sm lg:col-span-3"
+                            onSubmit={handleSubmitRelatedUsers}
+                        >
+                            <div className="text-sm font-semibold uppercase tracking-[0.2em] text-base-content/60">
+                                Existing friends
+                            </div>
+                            <div id="members" className="mt-4 space-y-2">
+                                {relatedUserList.length !== 0 ? (
+                                    relatedUserList.map((user) => {
+                                        return (
+                                            <label
+                                                className="flex items-center gap-3 rounded-2xl border border-base-200 bg-base-100 px-4 py-3"
+                                                key={user.userId}
+                                            >
+                                                <input
+                                                    type="checkbox"
+                                                    defaultChecked={
+                                                        user.existInGroup
+                                                    }
+                                                    className="checkbox checkbox-md"
+                                                    name="candidate[]"
+                                                    value={user.userId}
+                                                />
+                                                <span className="text-sm font-medium">
+                                                    {user.username}
+                                                </span>
+                                            </label>
+                                        );
+                                    })
+                                ) : (
+                                    <div className="rounded-2xl border border-base-200 bg-base-100 p-4 text-sm text-base-content/70">
+                                        No friends found
+                                    </div>
+                                )}
+                            </div>
+                            <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                <button
+                                    type="submit"
+                                    className="btn btn-neutral w-full sm:w-auto"
+                                >
+                                    Update Members
+                                </button>
+                                {loading && (
+                                    <span className="loading loading-spinner loading-md"></span>
+                                )}
+                            </div>
+                        </form>
+
+                        <div className="rounded-3xl border border-base-300 bg-base-100/90 p-6 shadow-sm lg:col-span-2">
+                            <div className="text-sm font-semibold uppercase tracking-[0.2em] text-base-content/60">
+                                Invite by email
+                            </div>
+                            <div className="mt-4 space-y-4">
+                                <label className="input input-bordered flex items-center gap-2 w-full bg-base-100">
+                                    <input
+                                        type="email"
+                                        name="email"
+                                        className="grow"
+                                        placeholder="example@your.email"
+                                        value={email}
+                                        onChange={(e) =>
+                                            setEmail(e.target.value)
+                                        }
+                                    />
+                                </label>
+                                <button
+                                    className={`btn btn-neutral w-full ${
+                                        newMember ? "" : "btn-disabled"
+                                    }`}
+                                    onClick={() => {
+                                        handleAddNewMember();
+                                    }}
+                                >
+                                    Add
+                                </button>
+                                <p className="text-xs text-base-content/60">
+                                    We will only add users already registered.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

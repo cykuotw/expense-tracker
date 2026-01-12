@@ -1,4 +1,4 @@
-import { useState, useEffect, ReactNode, MouseEvent } from "react";
+import { useState, useEffect, ReactNode, MouseEvent, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { API_URL } from "../configs/config";
 import { GroupInfo } from "../types/group";
@@ -10,8 +10,18 @@ export const GroupDetailProvider = ({ children }: { children: ReactNode }) => {
     const { id: groupId } = useParams();
     const [groupinfo, setGroupInfo] = useState<GroupInfo | null>(null);
     const [balance, setBalance] = useState<BalanceData | null>(null);
-    const [expenseList, setExpenseList] = useState<ExpenseData[]>([]);
     const [loading, setLoading] = useState(true);
+    const [unsettledExpenses, setUnsettledExpenses] = useState<ExpenseData[]>(
+        []
+    );
+    const [unsettledPage, setUnsettledPage] = useState(0);
+    const [unsettledHasMore, setUnsettledHasMore] = useState(false);
+    const [unsettledLoading, setUnsettledLoading] = useState(false);
+    const [settledExpenses, setSettledExpenses] = useState<ExpenseData[]>([]);
+    const [settledPage, setSettledPage] = useState(0);
+    const [settledHasMore, setSettledHasMore] = useState(false);
+    const [settledLoading, setSettledLoading] = useState(false);
+    const initialUnsettledLoadedRef = useRef(false);
 
     useEffect(() => {
         if (!groupId) return;
@@ -19,21 +29,17 @@ export const GroupDetailProvider = ({ children }: { children: ReactNode }) => {
         const fetchData = async () => {
             setLoading(true);
             try {
-                const [groupRes, balanceRes, expenseRes] = await Promise.all([
+                const [groupRes, balanceRes] = await Promise.all([
                     fetch(`${API_URL}/group/${groupId}`, {
                         credentials: "include",
                     }),
                     fetch(`${API_URL}/balance/${groupId}`, {
                         credentials: "include",
                     }),
-                    fetch(`${API_URL}/expense_list/${groupId}`, {
-                        credentials: "include",
-                    }),
                 ]);
 
                 if (groupRes.ok) setGroupInfo(await groupRes.json());
                 if (balanceRes.ok) setBalance(await balanceRes.json());
-                if (expenseRes.ok) setExpenseList(await expenseRes.json());
             } catch (error) {
                 console.error(error);
             } finally {
@@ -43,6 +49,124 @@ export const GroupDetailProvider = ({ children }: { children: ReactNode }) => {
 
         fetchData();
     }, [groupId]);
+
+    const fetchExpensePage = async (page: number) => {
+        if (!groupId) return [];
+        const response = await fetch(
+            `${API_URL}/expense_list/${groupId}/${page}`,
+            {
+                credentials: "include",
+            }
+        );
+        if (!response.ok) return [];
+        return (await response.json()) as ExpenseData[];
+    };
+
+    useEffect(() => {
+        if (!groupId) return;
+
+        const loadInitialUnsettled = async () => {
+            if (initialUnsettledLoadedRef.current) return;
+            if (unsettledLoading) return;
+            initialUnsettledLoadedRef.current = true;
+            setUnsettledLoading(true);
+            setUnsettledHasMore(true);
+            setUnsettledPage(0);
+            setUnsettledExpenses([]);
+            try {
+                const response = await fetch(
+                    `${API_URL}/expense_list/${groupId}/0`,
+                    {
+                        credentials: "include",
+                    }
+                );
+                if (!response.ok) {
+                    setUnsettledHasMore(false);
+                    return;
+                }
+                const data = (await response.json()) as ExpenseData[];
+                if (data.length === 0) {
+                    setUnsettledHasMore(false);
+                    return;
+                }
+                setUnsettledExpenses(data.filter((exp) => !exp.isSettled));
+                setUnsettledPage(1);
+            } catch (error) {
+                console.error(error);
+                setUnsettledHasMore(false);
+            } finally {
+                setUnsettledLoading(false);
+            }
+        };
+
+        loadInitialUnsettled();
+    }, [groupId, unsettledLoading]);
+
+    const loadMoreUnsettledExpenses = async () => {
+        if (unsettledLoading || !unsettledHasMore) return;
+        setUnsettledLoading(true);
+        try {
+            const data = await fetchExpensePage(unsettledPage);
+            if (data.length === 0) {
+                setUnsettledHasMore(false);
+                return;
+            }
+            setUnsettledExpenses((prev) => [
+                ...prev,
+                ...data.filter((exp) => !exp.isSettled),
+            ]);
+            setUnsettledPage((prev) => prev + 1);
+        } catch (error) {
+            console.error(error);
+            setUnsettledHasMore(false);
+        } finally {
+            setUnsettledLoading(false);
+        }
+    };
+
+    const loadSettledExpenses = async () => {
+        if (settledLoading) return;
+        setSettledLoading(true);
+        setSettledHasMore(true);
+        setSettledPage(0);
+        setSettledExpenses([]);
+        try {
+            const data = await fetchExpensePage(0);
+            if (data.length === 0) {
+                setSettledHasMore(false);
+                return;
+            }
+            setSettledExpenses(data.filter((exp) => exp.isSettled));
+            setSettledPage(1);
+        } catch (error) {
+            console.error(error);
+            setSettledHasMore(false);
+        } finally {
+            setSettledLoading(false);
+        }
+    };
+
+    const loadMoreSettledExpenses = async () => {
+        if (settledLoading || !settledHasMore) return;
+        setSettledLoading(true);
+        try {
+            const data = await fetchExpensePage(settledPage);
+            if (data.length === 0) {
+                setSettledHasMore(false);
+                return;
+            }
+            setSettledExpenses((prev) => [
+                ...prev,
+                ...data.filter((exp) => exp.isSettled),
+            ]);
+            setSettledPage((prev) => prev + 1);
+        } catch (error) {
+            console.error(error);
+            setSettledHasMore(false);
+        } finally {
+            setSettledLoading(false);
+        }
+    };
 
     const handleSettle = async (e: MouseEvent<HTMLButtonElement>) => {
         e.preventDefault();
@@ -81,10 +205,18 @@ export const GroupDetailProvider = ({ children }: { children: ReactNode }) => {
             value={{
                 groupinfo,
                 balance,
-                expenseList,
+                unsettledExpenses,
+                unsettledLoading,
+                unsettledHasMore,
+                settledExpenses,
+                settledLoading,
+                settledHasMore,
                 loading,
                 groupId,
                 handleSettle,
+                loadMoreUnsettledExpenses,
+                loadSettledExpenses,
+                loadMoreSettledExpenses,
             }}
         >
             {children}

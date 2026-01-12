@@ -3,10 +3,14 @@ import { API_URL } from "../../configs/config";
 export default function GoogleSignInButton() {
     return (
         <>
-            <form action={`${API_URL}/auth/google`} method="post">
+            <form
+                action={`${API_URL}/auth/google`}
+                method="post"
+                className="w-full"
+            >
                 <button
                     aria-label="Sign in with Google"
-                    className="flex items-center gap-3 bg-[var(--google-button-dark)] rounded-full p-0.5 pr-4 transition-colors duration-300 hover:bg-google-button-dark-hover"
+                    className="mx-auto flex w-full max-w-md items-center gap-3 rounded-full bg-[var(--google-button-dark)] p-0.5 pr-4 transition-colors duration-300 hover:bg-google-button-dark-hover md:w-96"
                 >
                     <div className="flex items-center justify-center bg-white w-9 h-9 rounded-full">
                         <svg
@@ -34,7 +38,7 @@ export default function GoogleSignInButton() {
                             ></path>
                         </svg>
                     </div>
-                    <span className="text-sm text-white tracking-wider">
+                    <span className="text-sm text-white tracking-wider text-center flex-1">
                         Sign in with Google
                     </span>
                 </button>

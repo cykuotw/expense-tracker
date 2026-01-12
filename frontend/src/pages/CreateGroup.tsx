@@ -15,64 +15,95 @@ const CreateGroupContent = () => {
     } = useCreateGroup();
 
     return (
-        <div className="flex justify-center items-center py-5 h-screen md:h-auto">
-            <form
-                className="flex flex-col justify-center items-center max-w-md gap-y-3"
-                onSubmit={createGroup}
-            >
-                <div className="flex flex-col py-5 text-3xl">
-                    Create New Group
-                </div>
-                <label className="floating-label w-full">
-                    <span>Group Name</span>
-                    <input
-                        type="text"
-                        className="grow input input-bordered flex items-center w-full"
-                        placeholder="Group Name"
-                        value={groupName}
-                        onChange={(e) => setGroupName(e.target.value)}
-                    />
-                </label>
-                <label className="floating-label w-full">
-                    <span>Group Description</span>
-                    <input
-                        type="text"
-                        className="grow input input-bordered flex items-center w-full"
-                        placeholder="Group Description (optional)"
-                        value={description}
-                        onChange={(e) => setDescription(e.target.value)}
-                    />
-                </label>
-                <label className="floating-label w-full">
-                    <span>Currency</span>
-                    <select
-                        className="select select-bordered w-full"
-                        value={currency}
-                        onChange={(e) => setCurrency(e.target.value)}
+        <div className="min-h-screen bg-gradient-to-br from-base-200 via-base-100 to-base-200 pb-28 md:pb-0">
+            <div className="mx-auto w-full max-w-4xl px-4 py-10 md:py-14">
+                <div className="flex flex-col gap-8">
+                    <div className="space-y-3">
+                        <div className="text-xs uppercase tracking-[0.2em] text-base-content/60">
+                            Groups
+                        </div>
+                        <h1 className="text-3xl font-semibold md:text-4xl">
+                            Create a new group
+                        </h1>
+                        <p className="max-w-xl text-sm text-base-content/70 md:text-base">
+                            Set a name, add a short description, and pick the
+                            currency your group will use.
+                        </p>
+                    </div>
+
+                    <form
+                        className="rounded-3xl border border-base-300 bg-base-100/90 p-6 shadow-sm"
+                        onSubmit={createGroup}
                     >
-                        <option value="" disabled={true}>
-                            Select Currency
-                        </option>
-                        <option value="CAD">CAD</option>
-                        <option value="USD">USD</option>
-                        <option value="NTD">NTD</option>
-                    </select>
-                </label>
-                <button
-                    type="submit"
-                    className="btn btn-active btn-neutral text-lg font-light w-full"
-                    disabled={!dataOk}
-                >
-                    Create Group
-                </button>
-                <div
-                    className={`${
-                        indicator ? "" : "hidden"
-                    } flex justify-center items-center w-full`}
-                >
-                    <span className="loading loading-spinner loading-md"></span>
+                        <div className="grid gap-5">
+                            <div>
+                                <label className="text-xs font-semibold uppercase tracking-[0.2em] text-base-content/60">
+                                    Group name
+                                </label>
+                                <label className="input input-bordered mt-2 flex items-center w-full bg-base-100">
+                                    <input
+                                        type="text"
+                                        className="grow"
+                                        placeholder="Group Name"
+                                        value={groupName}
+                                        onChange={(e) =>
+                                            setGroupName(e.target.value)
+                                        }
+                                    />
+                                </label>
+                            </div>
+                            <div>
+                                <label className="text-xs font-semibold uppercase tracking-[0.2em] text-base-content/60">
+                                    Description
+                                </label>
+                                <label className="input input-bordered mt-2 flex items-center w-full bg-base-100">
+                                    <input
+                                        type="text"
+                                        className="grow"
+                                        placeholder="Group Description (optional)"
+                                        value={description}
+                                        onChange={(e) =>
+                                            setDescription(e.target.value)
+                                        }
+                                    />
+                                </label>
+                            </div>
+                            <div>
+                                <label className="text-xs font-semibold uppercase tracking-[0.2em] text-base-content/60">
+                                    Currency
+                                </label>
+                                <select
+                                    className="select select-bordered mt-2 w-full"
+                                    value={currency}
+                                    onChange={(e) =>
+                                        setCurrency(e.target.value)
+                                    }
+                                >
+                                    <option value="" disabled={true}>
+                                        Select Currency
+                                    </option>
+                                    <option value="CAD">CAD</option>
+                                    <option value="USD">USD</option>
+                                    <option value="NTD">NTD</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <button
+                                type="submit"
+                                className="btn btn-neutral w-full sm:w-auto"
+                                disabled={!dataOk}
+                            >
+                                Create Group
+                            </button>
+                            {indicator && (
+                                <span className="loading loading-spinner loading-md"></span>
+                            )}
+                        </div>
+                    </form>
                 </div>
-            </form>
+            </div>
         </div>
     );
 };

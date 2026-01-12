@@ -17,59 +17,56 @@ export default function Navbar({ role }: NavbarProps) {
     };
 
     return (
-        <div className="navbar bg-neutral text-neutral-content hidden md:flex relative z-50">
-            <div className="navbar-start">
-                <a href="/" className="btn btn-ghost text-2xl">
-                    Expense Tracker
-                </a>
-            </div>
+        <div className="hidden md:block sticky top-0 z-50 border-b border-base-300 bg-neutral/90 text-neutral-content backdrop-blur">
+            <div className="navbar mx-auto w-full max-w-6xl px-4">
+                <div className="navbar-start">
+                    <Link to="/" className="btn btn-ghost text-xl">
+                        Expense Tracker
+                    </Link>
+                </div>
 
-            {/* middle to large screen top navbar */}
-            <div className="navbar-center hidden md:flex">
-                <ul className="menu menu-horizontal px-5 text-lg">
-                    <li>
+                <div className="navbar-center hidden md:flex">
+                    <ul className="menu menu-horizontal px-4 text-base">
                         {role === "admin" && (
-                            <Link to="/admin/invite">Invite User</Link>
-                        )}
-                    </li>
-                    <li>
-                        <Dropdown label="Group">
-                            <li className="w-max">
-                                <Link to="create_group">Create New Group</Link>
+                            <li>
+                                <Link to="/admin/invite">Invite User</Link>
                             </li>
-                        </Dropdown>
-                    </li>
-                </ul>
-            </div>
-            <div className="navbar-end">
-                <div className="flex-none">
+                        )}
+                        <li>
+                            <Dropdown label="Groups">
+                                <li className="w-max">
+                                    <Link to="/create_group">
+                                        Create New Group
+                                    </Link>
+                                </li>
+                            </Dropdown>
+                        </li>
+                    </ul>
+                </div>
+
+                <div className="navbar-end">
                     <ul className="menu menu-horizontal px-1">
                         <li>
                             <Dropdown
                                 label={
-                                    <div className="flex items-center text-lg gap-1">
-                                        <svg
-                                            xmlns="http://www.w3.org/2000/svg"
-                                            width="22"
-                                            height="22"
-                                            fill="currentColor"
-                                            className="bi bi-person-fill"
-                                            viewBox="0 0 16 16"
-                                        >
-                                            <path d="M3 14s-1 0-1-1 1-4 6-4 6 3 6 4-1 1-1 1zm5-6a3 3 0 1 0 0-6 3 3 0 0 0 0 6"></path>
-                                        </svg>
-                                        <p>Account</p>
+                                    <div className="flex items-center text-sm gap-2">
+                                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-base-200 text-base-content/70">
+                                            <svg
+                                                xmlns="http://www.w3.org/2000/svg"
+                                                width="18"
+                                                height="18"
+                                                fill="currentColor"
+                                                viewBox="0 0 16 16"
+                                            >
+                                                <path d="M3 14s-1 0-1-1 1-4 6-4 6 3 6 4-1 1-1 1zm5-6a3 3 0 1 0 0-6 3 3 0 0 0 0 6"></path>
+                                            </svg>
+                                        </div>
+                                        <span>Account</span>
                                     </div>
                                 }
                                 dropdownType="dropdown-bottom dropdown-end"
                                 contendTextConfig="text-sm"
                             >
-                                {/* <li>
-                                    <Link to="/profile">Profile</Link>
-                                </li>
-                                <li>
-                                    <Link to="/settings">Settings</Link>
-                                </li> */}
                                 <li>
                                     <button onClick={handleLogout}>
                                         Logout

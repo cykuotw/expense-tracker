@@ -32,7 +32,7 @@ const Dropdown: React.FC<DropdownProps> = ({
             }}
         >
             {/* Dropdown Button */}
-            <div role="button" className="flex items-center gap-1">
+            <div role="button" className="flex items-center gap-1 text-current">
                 {label}
                 <svg
                     className={`size-[1em] transition-transform duration-200 ${
@@ -43,7 +43,7 @@ const Dropdown: React.FC<DropdownProps> = ({
                     height="14"
                     viewBox="0 0 24 24"
                     fill="none"
-                    stroke="#ffffff"
+                    stroke="currentColor"
                     strokeWidth="3"
                     strokeLinecap="round"
                     strokeLinejoin="round"
@@ -54,7 +54,7 @@ const Dropdown: React.FC<DropdownProps> = ({
 
             {/* Dropdown Content */}
             <ul
-                className={`dropdown-content menu bg-base-100 text-base-content ${contendTextConfig} z-10 my-3 space-y-2 py-3 shadow items-center absolute`}
+                className={`dropdown-content menu bg-base-100 text-base-content ${contendTextConfig} z-10 my-3 space-y-2 py-3 shadow items-center absolute border border-base-300`}
             >
                 {children}
             </ul>

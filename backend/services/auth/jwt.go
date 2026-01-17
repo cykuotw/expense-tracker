@@ -14,12 +14,23 @@ import (
 	"github.com/google/uuid"
 )
 
+type Claims struct {
+	UserID string `json:"userID"`
+	jwt.RegisteredClaims
+}
+
 func CreateJWT(secret []byte, userID uuid.UUID) (string, error) {
 	expiration := time.Second * time.Duration(config.Envs.JWTExpirationInSeconds)
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"userID":    userID.String(),
-		"expiredAt": time.Now().Add(expiration).Unix(),
-	})
+	now := time.Now()
+	claims := Claims{
+		UserID: userID.String(),
+		RegisteredClaims: jwt.RegisteredClaims{
+			IssuedAt:  jwt.NewNumericDate(now),
+			ExpiresAt: jwt.NewNumericDate(now.Add(expiration)),
+		},
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 
 	tokenString, err := token.SignedString(secret)
 	if err != nil {
@@ -30,9 +41,8 @@ func CreateJWT(secret []byte, userID uuid.UUID) (string, error) {
 }
 
 func validateJWT(c *gin.Context) error {
-	token, err := extractToken(c)
-
-	if err != nil || !token.Valid {
+	_, err := extractToken(c)
+	if err != nil {
 		return types.ErrInvalidToken
 	}
 
@@ -52,30 +62,23 @@ func JWTAuthMiddleware() gin.HandlerFunc {
 }
 
 func ExtractJWTClaim(c *gin.Context, key string) (string, error) {
-	token, err := extractToken(c)
-	if err != nil || !token.Valid {
+	claims, err := extractToken(c)
+	if err != nil {
 		return "", types.ErrInvalidToken
 	}
 
-	claims, ok := token.Claims.(jwt.MapClaims)
-	if !ok {
-		return "", fmt.Errorf("invalid token claims")
-	}
-
-	claim, exists := claims[key]
-	if !exists {
+	switch key {
+	case "userID":
+		if claims.UserID == "" {
+			return "", fmt.Errorf("claim '%s' not found", key)
+		}
+		return claims.UserID, nil
+	default:
 		return "", fmt.Errorf("claim '%s' not found", key)
 	}
-
-	claimStr, ok := claim.(string)
-	if !ok {
-		return "", fmt.Errorf("claim '%s' is not a string", key)
-	}
-
-	return claimStr, nil
 }
 
-func extractToken(c *gin.Context) (*jwt.Token, error) {
+func extractToken(c *gin.Context) (*Claims, error) {
 	var tokenStr string
 
 	if cookie, err := c.Cookie("access_token"); err == nil {
@@ -92,7 +95,8 @@ func extractToken(c *gin.Context) (*jwt.Token, error) {
 		tokenStr = tks[1]
 	}
 
-	token, err := jwt.Parse(tokenStr, func(t *jwt.Token) (interface{}, error) {
+	claims := &Claims{}
+	token, err := jwt.ParseWithClaims(tokenStr, claims, func(t *jwt.Token) (interface{}, error) {
 		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("Unexpected signing method: %v", t.Header["alg"])
 		}
@@ -101,6 +105,9 @@ func extractToken(c *gin.Context) (*jwt.Token, error) {
 	if err != nil {
 		return nil, err
 	}
+	if !token.Valid {
+		return nil, types.ErrInvalidToken
+	}
 
-	return token, nil
+	return claims, nil
 }

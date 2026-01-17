@@ -23,6 +23,8 @@ type Config struct {
 
 	JWTSecret              string
 	JWTExpirationInSeconds int64
+	RefreshJWTSecret       string
+	RefreshJWTExpirationInSeconds int64
 
 	GoogleClientId     string
 	GoogleClientSecret string
@@ -66,6 +68,8 @@ func initConfig() Config {
 
 		JWTSecret:              getEnv("JWT_SECRET", "secretstring"),
 		JWTExpirationInSeconds: getEnvInt("JWT_EXP", 3600*24*7),
+		RefreshJWTSecret:       getEnv("REFRESH_JWT_SECRET", getEnv("JWT_SECRET", "secretstring")),
+		RefreshJWTExpirationInSeconds: getEnvInt("REFRESH_JWT_EXP", 3600*24*30),
 
 		GoogleClientId:     getEnv("GOOGLE_CLIENT_ID", ""),
 		GoogleClientSecret: getEnv("GOOGLE_CLIENT_SECRET", ""),

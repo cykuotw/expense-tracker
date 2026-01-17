@@ -10,14 +10,16 @@ import (
 type Handler struct {
 	store           types.UserStore
 	invitationStore types.InvitationStore
+	refreshStore    types.RefreshTokenStore
 }
 
-func NewHandler(store types.UserStore, invitationStore types.InvitationStore) *Handler {
+func NewHandler(store types.UserStore, invitationStore types.InvitationStore, refreshStore types.RefreshTokenStore) *Handler {
 	initThirdParty()
 
 	return &Handler{
 		store:           store,
 		invitationStore: invitationStore,
+		refreshStore:    refreshStore,
 	}
 }
 
@@ -26,6 +28,7 @@ func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 	router.GET("/auth/:provider/callback", common.Make(h.handleThirdPartyCallback))
 
 	router.GET("/auth/me", common.Make(h.handleAuthMe))
+	router.POST("/auth/refresh", common.Make(h.handleRefresh))
 
 	router.POST("/register", h.handleRegister)
 	router.POST("/login", h.handleLogin)

@@ -1,6 +1,8 @@
 package auth
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"expense-tracker/backend/config"
 	"expense-tracker/backend/types"
 	"expense-tracker/backend/utils"
@@ -15,7 +17,8 @@ import (
 )
 
 type Claims struct {
-	UserID string `json:"userID"`
+	UserID    string `json:"userID"`
+	TokenType string `json:"token_type"`
 	jwt.RegisteredClaims
 }
 
@@ -23,7 +26,8 @@ func CreateJWT(secret []byte, userID uuid.UUID) (string, error) {
 	expiration := time.Second * time.Duration(config.Envs.JWTExpirationInSeconds)
 	now := time.Now()
 	claims := Claims{
-		UserID: userID.String(),
+		UserID:    userID.String(),
+		TokenType: "access",
 		RegisteredClaims: jwt.RegisteredClaims{
 			IssuedAt:  jwt.NewNumericDate(now),
 			ExpiresAt: jwt.NewNumericDate(now.Add(expiration)),
@@ -40,8 +44,32 @@ func CreateJWT(secret []byte, userID uuid.UUID) (string, error) {
 	return tokenString, nil
 }
 
+func CreateRefreshJWT(secret []byte, userID uuid.UUID) (string, string, time.Time, error) {
+	expiration := time.Second * time.Duration(config.Envs.RefreshJWTExpirationInSeconds)
+	now := time.Now()
+	tokenID := uuid.NewString()
+	expiresAt := now.Add(expiration)
+	claims := Claims{
+		UserID:    userID.String(),
+		TokenType: "refresh",
+		RegisteredClaims: jwt.RegisteredClaims{
+			ID:        tokenID,
+			IssuedAt:  jwt.NewNumericDate(now),
+			ExpiresAt: jwt.NewNumericDate(expiresAt),
+		},
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	tokenString, err := token.SignedString(secret)
+	if err != nil {
+		return "", "", time.Time{}, err
+	}
+
+	return tokenString, tokenID, expiresAt, nil
+}
+
 func validateJWT(c *gin.Context) error {
-	_, err := extractToken(c)
+	_, err := extractToken(c, "access")
 	if err != nil {
 		return types.ErrInvalidToken
 	}
@@ -62,7 +90,7 @@ func JWTAuthMiddleware() gin.HandlerFunc {
 }
 
 func ExtractJWTClaim(c *gin.Context, key string) (string, error) {
-	claims, err := extractToken(c)
+	claims, err := extractToken(c, "access")
 	if err != nil {
 		return "", types.ErrInvalidToken
 	}
@@ -78,7 +106,21 @@ func ExtractJWTClaim(c *gin.Context, key string) (string, error) {
 	}
 }
 
-func extractToken(c *gin.Context) (*Claims, error) {
+func HashToken(token string) string {
+	hash := sha256.Sum256([]byte(token))
+	return hex.EncodeToString(hash[:])
+}
+
+func ParseTokenString(tokenStr string, expectedType string) (*Claims, error) {
+	secret := config.Envs.JWTSecret
+	if expectedType == "refresh" {
+		secret = config.Envs.RefreshJWTSecret
+	}
+
+	return parseTokenString(tokenStr, secret, expectedType)
+}
+
+func extractToken(c *gin.Context, expectedType string) (*Claims, error) {
 	var tokenStr string
 
 	if cookie, err := c.Cookie("access_token"); err == nil {
@@ -95,17 +137,24 @@ func extractToken(c *gin.Context) (*Claims, error) {
 		tokenStr = tks[1]
 	}
 
+	return ParseTokenString(tokenStr, expectedType)
+}
+
+func parseTokenString(tokenStr string, secret string, expectedType string) (*Claims, error) {
 	claims := &Claims{}
 	token, err := jwt.ParseWithClaims(tokenStr, claims, func(t *jwt.Token) (interface{}, error) {
 		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("Unexpected signing method: %v", t.Header["alg"])
 		}
-		return []byte(config.Envs.JWTSecret), nil
+		return []byte(secret), nil
 	})
 	if err != nil {
 		return nil, err
 	}
 	if !token.Valid {
+		return nil, types.ErrInvalidToken
+	}
+	if expectedType != "" && claims.TokenType != expectedType {
 		return nil, types.ErrInvalidToken
 	}
 

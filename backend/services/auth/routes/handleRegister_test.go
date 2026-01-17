@@ -15,7 +15,8 @@ import (
 func TestServiceRegister(t *testing.T) {
 	userStore := &mockStoreRegister{}
 	invitationStore := &mockInvitationStore{}
-	handler := NewHandler(userStore, invitationStore)
+	refreshStore := &mockRefreshStore{}
+	handler := NewHandler(userStore, invitationStore, refreshStore)
 
 	t.Run("valid", func(t *testing.T) {
 		payload := types.RegisterUserPayload{

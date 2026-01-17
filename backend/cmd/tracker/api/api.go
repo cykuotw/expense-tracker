@@ -50,8 +50,9 @@ func (s *APIServer) Run() error {
 	userHandler.RegisterRoutes(public)
 	invitationStore := invitation.NewStore(s.db)
 	invitationHandler := invitation.NewHandler(invitationStore)
+	refreshStore := auth.NewRefreshStore(s.db)
 
-	authHandler := authRoute.NewHandler(userStore, invitationStore)
+	authHandler := authRoute.NewHandler(userStore, invitationStore, refreshStore)
 	authHandler.RegisterRoutes(public)
 
 	protected := public.Group("")

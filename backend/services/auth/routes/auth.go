@@ -117,9 +117,29 @@ func (h *Handler) handleThirdPartyCallback(c *gin.Context) error {
 		return err
 	}
 
+	refreshToken, refreshID, refreshExp, err := auth.CreateRefreshJWT([]byte(config.Envs.RefreshJWTSecret), user.ID)
+	if err != nil {
+		utils.WriteError(c, http.StatusInternalServerError, err)
+		return err
+	}
+	if err := h.refreshStore.CreateRefreshToken(types.RefreshToken{
+		ID:        uuid.MustParse(refreshID),
+		UserID:    user.ID,
+		TokenHash: auth.HashToken(refreshToken),
+		ExpiresAt: refreshExp,
+		CreatedAt: time.Now(),
+	}); err != nil {
+		utils.WriteError(c, http.StatusInternalServerError, err)
+		return err
+	}
+
 	c.SetCookie(
 		"access_token", token,
 		int(config.Envs.JWTExpirationInSeconds),
+		"/", "localhost", false, true)
+	c.SetCookie(
+		"refresh_token", refreshToken,
+		int(config.Envs.RefreshJWTExpirationInSeconds),
 		"/", "localhost", false, true)
 
 	frontendUrl := fmt.Sprintf("http://%s", config.Envs.FrontendReactURL)

@@ -13,8 +13,8 @@ import (
 )
 
 func TestArchiveGroup(t *testing.T) {
-	store := &mockArchiveGroupStore{}
-	userStore := &mockArchiveGroupUserStore{}
+	store := archiveGroupStoreMock()
+	userStore := archiveGroupUserStoreMock()
 	handler := NewHandler(store, userStore)
 
 	t.Run("valid", func(t *testing.T) {

@@ -15,10 +15,10 @@ import (
 )
 
 func TestRouteSettleExpense(t *testing.T) {
-	store := &mockSettelExpenseStore{}
-	userStore := &mockSettelExpenseUserStore{}
-	groupStore := &mockUSettelExpenseGroupStore{}
-	controller := &mockExpenseController{}
+	store := settleExpenseStoreMock()
+	userStore := settleExpenseUserStoreMock()
+	groupStore := settleExpenseGroupStoreMock()
+	controller := expenseControllerMock()
 
 	handler := NewHandler(store, userStore, groupStore, controller)
 

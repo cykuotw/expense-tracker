@@ -15,8 +15,8 @@ import (
 )
 
 func TestGetGroupList(t *testing.T) {
-	store := &mockGetGroupListStore{}
-	userStore := &mockGetGroupListUserStore{}
+	store := getGroupListStoreMock()
+	userStore := getGroupListUserStoreMock()
 	handler := NewHandler(store, userStore)
 
 	t.Run("valid", func(t *testing.T) {

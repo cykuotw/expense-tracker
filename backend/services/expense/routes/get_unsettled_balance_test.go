@@ -17,10 +17,10 @@ import (
 )
 
 func TestRouteGetUnsettledBalance(t *testing.T) {
-	store := &mockGetUnsettledBalanceStore{}
-	userStore := &mockGetUnsettledBalanceUserStore{}
-	groupStore := &mockGetUnsettledBalanceGroupStore{}
-	controller := &mockGetUnsettledBalanceController{}
+	store := getUnsettledBalanceStoreMock()
+	userStore := getUnsettledBalanceUserStoreMock()
+	groupStore := getUnsettledBalanceGroupStoreMock()
+	controller := getUnsettledBalanceControllerMock()
 
 	handler := NewHandler(store, userStore, groupStore, controller)
 

@@ -17,10 +17,10 @@ import (
 )
 
 func TestRouteGetExpenseDetail(t *testing.T) {
-	store := &mockGetExpenseDetailStore{}
-	userStore := &mockGetExpenseDetailUserStore{}
-	groupStore := &mockGetExpenseDetailGroupStore{}
-	controller := &mockExpenseController{}
+	store := getExpenseDetailStoreMock()
+	userStore := getExpenseDetailUserStoreMock()
+	groupStore := getExpenseDetailGroupStoreMock()
+	controller := expenseControllerMock()
 
 	handler := NewHandler(store, userStore, groupStore, controller)
 

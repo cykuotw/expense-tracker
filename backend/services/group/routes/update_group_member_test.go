@@ -18,8 +18,8 @@ import (
 var mockRequesterId = uuid.New()
 
 func TestUpdateGroupMemberRoute(t *testing.T) {
-	store := &mockUpdateGroupMemberStore{}
-	userStore := &mockUpdateGroupMemberUserStore{}
+	store := updateGroupMemberStoreMock()
+	userStore := updateGroupMemberUserStoreMock()
 	handler := NewHandler(store, userStore)
 
 	// // define test cases

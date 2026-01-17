@@ -19,10 +19,10 @@ import (
 )
 
 func TestRouteCreateExpense(t *testing.T) {
-	store := &mockCreateExpenseStore{}
-	userStore := &mockCreateExpenseUserStore{}
-	groupStore := &mockCreateExpenseGroupStore{}
-	controller := &mockExpenseController{}
+	store := createExpenseStoreMock()
+	userStore := createExpenseUserStoreMock()
+	groupStore := createExpenseGroupStoreMock()
+	controller := expenseControllerMock()
 
 	handler := NewHandler(store, userStore, groupStore, controller)
 
@@ -70,7 +70,7 @@ func TestRouteCreateExpense(t *testing.T) {
 				Ledgers:        nil,
 			},
 			expectFail:       true,
-			expectStatusCode: http.StatusBadRequest,
+			expectStatusCode: http.StatusForbidden,
 		},
 		{
 			name: "invalid group id",

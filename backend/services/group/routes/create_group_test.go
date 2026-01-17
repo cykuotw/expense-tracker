@@ -16,8 +16,8 @@ import (
 )
 
 func TestCreateGroup(t *testing.T) {
-	store := &mockCreateGroupStore{}
-	userStore := &mockCreateGroupUserStore{}
+	store := createGroupStoreMock()
+	userStore := createGroupUserStoreMock()
 	handler := NewHandler(store, userStore)
 
 	t.Run("valid", func(t *testing.T) {

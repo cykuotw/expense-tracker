@@ -6,385 +6,254 @@ import (
 	"github.com/google/uuid"
 )
 
-type mockCreateGroupStore struct{}
+// base group store
 
-func (m *mockCreateGroupStore) CreateGroup(group types.Group) error {
+type mockGroupStore struct {
+	CreateGroupFn          func(group types.Group) error
+	GetGroupByIDFn         func(id string) (*types.Group, error)
+	GetGroupByIDAndUserFn  func(groupID string, userID string) (*types.Group, error)
+	GetGroupListByUserFn   func(userid string) ([]*types.Group, error)
+	GetGroupMemberByGroupIDFn func(groupId string) ([]*types.User, error)
+	UpdateGroupMemberFn    func(action string, userid string, groupid string) error
+	UpdateGroupStatusFn    func(groupid string, isActive bool) error
+	GetGroupCurrencyFn     func(groupID string) (string, error)
+	GetRelatedUserFn       func(currentUser string, groupId string) ([]*types.RelatedMember, error)
+	CheckGroupExistByIdFn  func(id string) (bool, error)
+	CheckGroupUserPairExistFn func(groupId string, userId string) (bool, error)
+}
+
+func (m *mockGroupStore) CreateGroup(group types.Group) error {
+	if m.CreateGroupFn != nil {
+		return m.CreateGroupFn(group)
+	}
 	return nil
 }
-func (m *mockCreateGroupStore) GetGroupByID(id string) (*types.Group, error) {
+func (m *mockGroupStore) GetGroupByID(id string) (*types.Group, error) {
+	if m.GetGroupByIDFn != nil {
+		return m.GetGroupByIDFn(id)
+	}
 	return nil, nil
 }
-func (s *mockCreateGroupStore) GetGroupByIDAndUser(groupID string, userID string) (*types.Group, error) {
+func (m *mockGroupStore) GetGroupByIDAndUser(groupID string, userID string) (*types.Group, error) {
+	if m.GetGroupByIDAndUserFn != nil {
+		return m.GetGroupByIDAndUserFn(groupID, userID)
+	}
 	return nil, nil
 }
-func (m *mockCreateGroupStore) GetGroupListByUser(userid string) ([]*types.Group, error) {
+func (m *mockGroupStore) GetGroupListByUser(userid string) ([]*types.Group, error) {
+	if m.GetGroupListByUserFn != nil {
+		return m.GetGroupListByUserFn(userid)
+	}
 	return nil, nil
 }
-func (m *mockCreateGroupStore) GetGroupMemberByGroupID(groupId string) ([]*types.User, error) {
+func (m *mockGroupStore) GetGroupMemberByGroupID(groupId string) ([]*types.User, error) {
+	if m.GetGroupMemberByGroupIDFn != nil {
+		return m.GetGroupMemberByGroupIDFn(groupId)
+	}
 	return nil, nil
 }
-func (m *mockCreateGroupStore) UpdateGroupMember(action string, userid string, groupid string) error {
+func (m *mockGroupStore) UpdateGroupMember(action string, userid string, groupid string) error {
+	if m.UpdateGroupMemberFn != nil {
+		return m.UpdateGroupMemberFn(action, userid, groupid)
+	}
 	return nil
 }
-func (m *mockCreateGroupStore) UpdateGroupStatus(groupid string, isActive bool) error {
+func (m *mockGroupStore) UpdateGroupStatus(groupid string, isActive bool) error {
+	if m.UpdateGroupStatusFn != nil {
+		return m.UpdateGroupStatusFn(groupid, isActive)
+	}
 	return nil
 }
-func (m *mockCreateGroupStore) GetGroupCurrency(groupID string) (string, error) {
+func (m *mockGroupStore) GetGroupCurrency(groupID string) (string, error) {
+	if m.GetGroupCurrencyFn != nil {
+		return m.GetGroupCurrencyFn(groupID)
+	}
 	return "", nil
 }
-func (m *mockCreateGroupStore) GetRelatedUser(currentUser string, groupId string) ([]*types.RelatedMember, error) {
-	return nil, nil
-}
-func (m *mockCreateGroupStore) CheckGroupExistById(id string) (bool, error) {
-	return false, nil
-}
-func (m *mockCreateGroupStore) CheckGroupUserPairExist(groupId string, userId string) (bool, error) {
-	return false, nil
-}
-
-type mockCreateGroupUserStore struct{}
-
-func (m *mockCreateGroupUserStore) GetUserByEmail(email string) (*types.User, error) {
-	return nil, nil
-}
-func (m *mockCreateGroupUserStore) GetUserByUsername(username string) (*types.User, error) {
-	return nil, nil
-}
-func (m *mockCreateGroupUserStore) GetUserByID(id string) (*types.User, error) {
-	user := types.User{
-		ID: mockUserId,
+func (m *mockGroupStore) GetRelatedUser(currentUser string, groupId string) ([]*types.RelatedMember, error) {
+	if m.GetRelatedUserFn != nil {
+		return m.GetRelatedUserFn(currentUser, groupId)
 	}
-	return &user, nil
+	return nil, nil
 }
-func (m *mockCreateGroupUserStore) CreateUser(user types.User) error {
+func (m *mockGroupStore) CheckGroupExistById(id string) (bool, error) {
+	if m.CheckGroupExistByIdFn != nil {
+		return m.CheckGroupExistByIdFn(id)
+	}
+	return false, nil
+}
+func (m *mockGroupStore) CheckGroupUserPairExist(groupId string, userId string) (bool, error) {
+	if m.CheckGroupUserPairExistFn != nil {
+		return m.CheckGroupUserPairExistFn(groupId, userId)
+	}
+	return false, nil
+}
+
+// base user store
+
+type mockUserStore struct {
+	GetUserByEmailFn        func(email string) (*types.User, error)
+	GetUserByUsernameFn     func(username string) (*types.User, error)
+	GetUserByIDFn           func(id string) (*types.User, error)
+	CreateUserFn            func(user types.User) error
+	GetUsernameByIDFn       func(userid string) (string, error)
+	CheckEmailExistFn       func(email string) (bool, error)
+	CheckUserExistByEmailFn func(email string) (bool, error)
+	CheckUserExistByIDFn    func(id string) (bool, error)
+	CheckUserExistByUserFn  func(username string) (bool, error)
+}
+
+func (m *mockUserStore) GetUserByEmail(email string) (*types.User, error) {
+	if m.GetUserByEmailFn != nil {
+		return m.GetUserByEmailFn(email)
+	}
+	return nil, nil
+}
+func (m *mockUserStore) GetUserByUsername(username string) (*types.User, error) {
+	if m.GetUserByUsernameFn != nil {
+		return m.GetUserByUsernameFn(username)
+	}
+	return nil, nil
+}
+func (m *mockUserStore) GetUserByID(id string) (*types.User, error) {
+	if m.GetUserByIDFn != nil {
+		return m.GetUserByIDFn(id)
+	}
+	return nil, nil
+}
+func (m *mockUserStore) CreateUser(user types.User) error {
+	if m.CreateUserFn != nil {
+		return m.CreateUserFn(user)
+	}
 	return nil
 }
-func (m *mockCreateGroupUserStore) GetUsernameByID(userid string) (string, error) {
+func (m *mockUserStore) GetUsernameByID(userid string) (string, error) {
+	if m.GetUsernameByIDFn != nil {
+		return m.GetUsernameByIDFn(userid)
+	}
 	return "", nil
 }
-func (m *mockCreateGroupUserStore) CheckEmailExist(email string) (bool, error) {
+func (m *mockUserStore) CheckEmailExist(email string) (bool, error) {
+	if m.CheckEmailExistFn != nil {
+		return m.CheckEmailExistFn(email)
+	}
 	return false, nil
 }
-func (m *mockCreateGroupUserStore) CheckUserExistByEmail(email string) (bool, error) {
+func (m *mockUserStore) CheckUserExistByEmail(email string) (bool, error) {
+	if m.CheckUserExistByEmailFn != nil {
+		return m.CheckUserExistByEmailFn(email)
+	}
 	return false, nil
 }
-func (m *mockCreateGroupUserStore) CheckUserExistByID(id string) (bool, error) {
+func (m *mockUserStore) CheckUserExistByID(id string) (bool, error) {
+	if m.CheckUserExistByIDFn != nil {
+		return m.CheckUserExistByIDFn(id)
+	}
 	return false, nil
 }
-func (m *mockCreateGroupUserStore) CheckUserExistByUsername(username string) (bool, error) {
+func (m *mockUserStore) CheckUserExistByUsername(username string) (bool, error) {
+	if m.CheckUserExistByUserFn != nil {
+		return m.CheckUserExistByUserFn(username)
+	}
 	return false, nil
 }
 
-type mockGetGroupStore struct{}
+func groupStoreMock() *mockGroupStore { return &mockGroupStore{} }
+func userStoreMock() *mockUserStore   { return &mockUserStore{} }
 
-func (m *mockGetGroupStore) CreateGroup(group types.Group) error {
-	return nil
-}
-func (m *mockGetGroupStore) GetGroupByID(id string) (*types.Group, error) {
-	return nil, nil
-}
-func (s *mockGetGroupStore) GetGroupByIDAndUser(groupID string, userID string) (*types.Group, error) {
-	if userID != mockUserId.String() {
-		return nil, types.ErrUserNotExist
-	}
-	if groupID != mockGroupId.String() {
-		return nil, types.ErrGroupNotExist
-	}
+func createGroupStoreMock() *mockGroupStore { return groupStoreMock() }
 
-	return &types.Group{}, nil
-}
-func (m *mockGetGroupStore) GetGroupListByUser(userid string) ([]*types.Group, error) {
-	return nil, nil
-}
-func (m *mockGetGroupStore) GetGroupMemberByGroupID(groupId string) ([]*types.User, error) {
-	users := []*types.User{
-		{
-			ID:       mockUserId,
-			Username: uuid.New().String(),
-		},
+func createGroupUserStoreMock() *mockUserStore {
+	store := userStoreMock()
+	store.GetUserByIDFn = func(id string) (*types.User, error) {
+		return &types.User{ID: mockUserId}, nil
 	}
-	for i := 1; i < mockMemberNum; i++ {
-		user := types.User{
-			ID:       uuid.New(),
-			Username: uuid.New().String(),
+	return store
+}
+
+func getGroupStoreMock() *mockGroupStore {
+	store := groupStoreMock()
+	store.GetGroupByIDAndUserFn = func(groupID string, userID string) (*types.Group, error) {
+		if userID != mockUserId.String() {
+			return nil, types.ErrUserNotExist
 		}
-		users = append(users, &user)
-	}
-	return users, nil
-}
-func (m *mockGetGroupStore) UpdateGroupMember(action string, userid string, groupid string) error {
-	return nil
-}
-func (m *mockGetGroupStore) UpdateGroupStatus(groupid string, isActive bool) error {
-	return nil
-}
-func (m *mockGetGroupStore) GetGroupCurrency(groupID string) (string, error) {
-	return "", nil
-}
-func (m *mockGetGroupStore) GetRelatedUser(currentUser string, groupId string) ([]*types.RelatedMember, error) {
-	return nil, nil
-}
-func (m *mockGetGroupStore) CheckGroupExistById(id string) (bool, error) {
-	return false, nil
-}
-func (m *mockGetGroupStore) CheckGroupUserPairExist(groupId string, userId string) (bool, error) {
-	return false, nil
-}
-
-type mockGetGroupUserStore struct{}
-
-func (m *mockGetGroupUserStore) GetUserByEmail(email string) (*types.User, error) {
-	return nil, nil
-}
-func (m *mockGetGroupUserStore) GetUserByUsername(username string) (*types.User, error) {
-	return nil, nil
-}
-func (m *mockGetGroupUserStore) GetUserByID(id string) (*types.User, error) {
-	user := types.User{
-		ID: mockUserId,
-	}
-	return &user, nil
-}
-func (m *mockGetGroupUserStore) CreateUser(user types.User) error {
-	return nil
-}
-func (m *mockGetGroupUserStore) GetUsernameByID(userid string) (string, error) {
-	return "", nil
-}
-func (m *mockGetGroupUserStore) CheckEmailExist(email string) (bool, error) {
-	return false, nil
-}
-func (m *mockGetGroupUserStore) CheckUserExistByEmail(email string) (bool, error) {
-	return false, nil
-}
-func (m *mockGetGroupUserStore) CheckUserExistByID(id string) (bool, error) {
-	return false, nil
-}
-func (m *mockGetGroupUserStore) CheckUserExistByUsername(username string) (bool, error) {
-	return false, nil
-}
-
-type mockGetGroupListStore struct{}
-
-func (m *mockGetGroupListStore) CreateGroup(group types.Group) error {
-	return nil
-}
-func (m *mockGetGroupListStore) GetGroupByID(id string) (*types.Group, error) {
-	return nil, nil
-}
-func (s *mockGetGroupListStore) GetGroupByIDAndUser(groupID string, userID string) (*types.Group, error) {
-	return nil, nil
-}
-func (m *mockGetGroupListStore) GetGroupListByUser(userid string) ([]*types.Group, error) {
-	if userid != mockUserId.String() {
-		return nil, nil
-	}
-	var groups []*types.Group
-
-	for i := 0; i < mockGroupListLen; i++ {
-		group := types.Group{
-			ID:        uuid.New(),
-			GroupName: uuid.New().String(),
+		if groupID != mockGroupId.String() {
+			return nil, types.ErrGroupNotExist
 		}
-		groups = append(groups, &group)
+		return &types.Group{}, nil
 	}
-	return groups, nil
-}
-func (m *mockGetGroupListStore) GetGroupMemberByGroupID(groupId string) ([]*types.User, error) {
-	return nil, nil
-}
-func (m *mockGetGroupListStore) UpdateGroupMember(action string, userid string, groupid string) error {
-	return nil
-}
-func (m *mockGetGroupListStore) UpdateGroupStatus(groupid string, isActive bool) error {
-	return nil
-}
-func (m *mockGetGroupListStore) GetGroupCurrency(groupID string) (string, error) {
-	return "", nil
-}
-func (m *mockGetGroupListStore) GetRelatedUser(currentUser string, groupId string) ([]*types.RelatedMember, error) {
-	return nil, nil
-}
-func (m *mockGetGroupListStore) CheckGroupExistById(id string) (bool, error) {
-	return false, nil
-}
-func (m *mockGetGroupListStore) CheckGroupUserPairExist(groupId string, userId string) (bool, error) {
-	return false, nil
-}
-
-type mockGetGroupListUserStore struct{}
-
-func (m *mockGetGroupListUserStore) GetUserByEmail(email string) (*types.User, error) {
-	return nil, nil
-}
-func (m *mockGetGroupListUserStore) GetUserByUsername(username string) (*types.User, error) {
-	return nil, nil
-}
-func (m *mockGetGroupListUserStore) GetUserByID(id string) (*types.User, error) {
-	return nil, nil
-}
-func (m *mockGetGroupListUserStore) CreateUser(user types.User) error {
-	return nil
-}
-func (m *mockGetGroupListUserStore) GetUsernameByID(userid string) (string, error) {
-	return "", nil
-}
-func (m *mockGetGroupListUserStore) CheckEmailExist(email string) (bool, error) {
-	return false, nil
-}
-func (m *mockGetGroupListUserStore) CheckUserExistByEmail(email string) (bool, error) {
-	return false, nil
-}
-func (m *mockGetGroupListUserStore) CheckUserExistByID(id string) (bool, error) {
-	return false, nil
-}
-func (m *mockGetGroupListUserStore) CheckUserExistByUsername(username string) (bool, error) {
-	return false, nil
-}
-
-type mockUpdateGroupMemberStore struct{}
-
-func (m *mockUpdateGroupMemberStore) CreateGroup(group types.Group) error {
-	return nil
-}
-func (m *mockUpdateGroupMemberStore) GetGroupByID(id string) (*types.Group, error) {
-	return nil, nil
-}
-func (s *mockUpdateGroupMemberStore) GetGroupByIDAndUser(groupID string, userID string) (*types.Group, error) {
-	return nil, nil
-}
-func (m *mockUpdateGroupMemberStore) GetGroupListByUser(userid string) ([]*types.Group, error) {
-	return nil, nil
-}
-func (m *mockUpdateGroupMemberStore) GetGroupMemberByGroupID(groupId string) ([]*types.User, error) {
-	return nil, nil
-}
-func (m *mockUpdateGroupMemberStore) UpdateGroupMember(action string, userid string, groupid string) error {
-	return nil
-}
-func (m *mockUpdateGroupMemberStore) UpdateGroupStatus(groupid string, isActive bool) error {
-	return nil
-}
-func (m *mockUpdateGroupMemberStore) GetGroupCurrency(groupID string) (string, error) {
-	return "", nil
-}
-func (m *mockUpdateGroupMemberStore) GetRelatedUser(currentUser string, groupId string) ([]*types.RelatedMember, error) {
-	return nil, nil
-}
-func (m *mockUpdateGroupMemberStore) CheckGroupExistById(id string) (bool, error) {
-	if id != mockGroupId.String() {
-		return false, nil
+	store.GetGroupMemberByGroupIDFn = func(groupId string) ([]*types.User, error) {
+		users := []*types.User{{ID: mockUserId, Username: uuid.New().String()}}
+		for i := 1; i < mockMemberNum; i++ {
+			user := types.User{ID: uuid.New(), Username: uuid.New().String()}
+			users = append(users, &user)
+		}
+		return users, nil
 	}
-	return true, nil
+	return store
 }
-func (m *mockUpdateGroupMemberStore) CheckGroupUserPairExist(groupId string, userId string) (bool, error) {
-	if groupId != mockGroupId.String() {
-		return false, nil
+
+func getGroupUserStoreMock() *mockUserStore {
+	store := userStoreMock()
+	store.GetUserByIDFn = func(id string) (*types.User, error) {
+		return &types.User{ID: mockUserId}, nil
 	}
-	if userId != mockRequesterId.String() {
-		return false, nil
+	return store
+}
+
+func getGroupListStoreMock() *mockGroupStore {
+	store := groupStoreMock()
+	store.GetGroupListByUserFn = func(userid string) ([]*types.Group, error) {
+		if userid != mockUserId.String() {
+			return nil, nil
+		}
+		groups := make([]*types.Group, 0, mockGroupListLen)
+		for i := 0; i < mockGroupListLen; i++ {
+			group := types.Group{ID: uuid.New(), GroupName: uuid.New().String()}
+			groups = append(groups, &group)
+		}
+		return groups, nil
 	}
-	return true, nil
+	return store
 }
 
-type mockUpdateGroupMemberUserStore struct{}
-
-func (m *mockUpdateGroupMemberUserStore) GetUserByEmail(email string) (*types.User, error) {
-	return nil, nil
-}
-func (m *mockUpdateGroupMemberUserStore) GetUserByUsername(username string) (*types.User, error) {
-	return nil, nil
-}
-func (m *mockUpdateGroupMemberUserStore) GetUserByID(id string) (*types.User, error) {
-	return nil, nil
-}
-func (m *mockUpdateGroupMemberUserStore) CreateUser(user types.User) error {
-	return nil
-}
-func (m *mockUpdateGroupMemberUserStore) GetUsernameByID(userid string) (string, error) {
-	return "", nil
-}
-func (m *mockUpdateGroupMemberUserStore) CheckEmailExist(email string) (bool, error) {
-	return false, nil
-}
-func (m *mockUpdateGroupMemberUserStore) CheckUserExistByEmail(email string) (bool, error) {
-	return false, nil
-}
-func (m *mockUpdateGroupMemberUserStore) CheckUserExistByID(id string) (bool, error) {
-	if id != mockUserId.String() {
-		return false, nil
+func getGroupListUserStoreMock() *mockUserStore {
+	store := userStoreMock()
+	store.GetUserByIDFn = func(id string) (*types.User, error) {
+		return &types.User{ID: mockUserId}, nil
 	}
-	return true, nil
-}
-func (m *mockUpdateGroupMemberUserStore) CheckUserExistByUsername(username string) (bool, error) {
-	return false, nil
+	return store
 }
 
-type mockArchiveGroupStore struct{}
-
-func (m *mockArchiveGroupStore) CreateGroup(group types.Group) error {
-	return nil
-}
-func (m *mockArchiveGroupStore) GetGroupByID(id string) (*types.Group, error) {
-	if id != mockGroupId.String() {
-		return nil, types.ErrGroupNotExist
+func updateGroupMemberStoreMock() *mockGroupStore {
+	store := groupStoreMock()
+	store.CheckGroupExistByIdFn = func(id string) (bool, error) {
+		return id == mockGroupId.String(), nil
 	}
-	return nil, nil
-}
-func (s *mockArchiveGroupStore) GetGroupByIDAndUser(groupID string, userID string) (*types.Group, error) {
-	return nil, nil
-}
-func (m *mockArchiveGroupStore) GetGroupListByUser(userid string) ([]*types.Group, error) {
-	return nil, nil
-}
-func (m *mockArchiveGroupStore) GetGroupMemberByGroupID(groupId string) ([]*types.User, error) {
-	return nil, nil
-}
-func (m *mockArchiveGroupStore) UpdateGroupMember(action string, userid string, groupid string) error {
-	return nil
-}
-func (m *mockArchiveGroupStore) UpdateGroupStatus(groupid string, isActive bool) error {
-	return nil
-}
-func (m *mockArchiveGroupStore) GetGroupCurrency(groupID string) (string, error) {
-	return "", nil
-}
-func (m *mockArchiveGroupStore) GetRelatedUser(currentUser string, groupId string) ([]*types.RelatedMember, error) {
-	return nil, nil
-}
-func (m *mockArchiveGroupStore) CheckGroupExistById(id string) (bool, error) {
-	return false, nil
-}
-func (m *mockArchiveGroupStore) CheckGroupUserPairExist(groupId string, userId string) (bool, error) {
-	return false, nil
+	store.CheckGroupUserPairExistFn = func(groupId string, userId string) (bool, error) {
+		return groupId == mockGroupId.String() && userId == mockRequesterId.String(), nil
+	}
+	return store
 }
 
-type mockArchiveGroupUserStore struct{}
+func updateGroupMemberUserStoreMock() *mockUserStore {
+	store := userStoreMock()
+	store.CheckUserExistByIDFn = func(id string) (bool, error) {
+		return id == mockUserId.String(), nil
+	}
+	return store
+}
 
-func (m *mockArchiveGroupUserStore) GetUserByEmail(email string) (*types.User, error) {
-	return nil, nil
+func archiveGroupStoreMock() *mockGroupStore {
+	store := groupStoreMock()
+	store.GetGroupByIDFn = func(id string) (*types.Group, error) {
+		if id != mockGroupId.String() {
+			return nil, types.ErrGroupNotExist
+		}
+		return &types.Group{}, nil
+	}
+	store.UpdateGroupStatusFn = func(groupid string, isActive bool) error { return nil }
+	return store
 }
-func (m *mockArchiveGroupUserStore) GetUserByUsername(username string) (*types.User, error) {
-	return nil, nil
-}
-func (m *mockArchiveGroupUserStore) GetUserByID(id string) (*types.User, error) {
-	return nil, nil
-}
-func (m *mockArchiveGroupUserStore) CreateUser(user types.User) error {
-	return nil
-}
-func (m *mockArchiveGroupUserStore) GetUsernameByID(userid string) (string, error) {
-	return "", nil
-}
-func (m *mockArchiveGroupUserStore) CheckEmailExist(email string) (bool, error) {
-	return false, nil
-}
-func (m *mockArchiveGroupUserStore) CheckUserExistByEmail(email string) (bool, error) {
-	return false, nil
-}
-func (m *mockArchiveGroupUserStore) CheckUserExistByID(id string) (bool, error) {
-	return false, nil
-}
-func (m *mockArchiveGroupUserStore) CheckUserExistByUsername(username string) (bool, error) {
-	return false, nil
-}
+
+func archiveGroupUserStoreMock() *mockUserStore { return userStoreMock() }

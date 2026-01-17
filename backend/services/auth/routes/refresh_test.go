@@ -51,8 +51,8 @@ func (s *refreshStoreState) RevokeRefreshToken(id string) error {
 }
 
 func TestRefreshSuccess(t *testing.T) {
-	userStore := &mockStoreLogin{}
-	invitationStore := &mockInvitationStore{}
+	userStore := loginUserStoreMock()
+	invitationStore := invitationStoreMock()
 	refreshStore := newRefreshStoreState()
 	handler := NewHandler(userStore, invitationStore, refreshStore)
 
@@ -91,8 +91,8 @@ func TestRefreshSuccess(t *testing.T) {
 }
 
 func TestRefreshRevoked(t *testing.T) {
-	userStore := &mockStoreLogin{}
-	invitationStore := &mockInvitationStore{}
+	userStore := loginUserStoreMock()
+	invitationStore := invitationStoreMock()
 	refreshStore := newRefreshStoreState()
 	handler := NewHandler(userStore, invitationStore, refreshStore)
 
@@ -129,8 +129,8 @@ func TestRefreshRevoked(t *testing.T) {
 }
 
 func TestRefreshExpired(t *testing.T) {
-	userStore := &mockStoreLogin{}
-	invitationStore := &mockInvitationStore{}
+	userStore := loginUserStoreMock()
+	invitationStore := invitationStoreMock()
 	refreshStore := newRefreshStoreState()
 	handler := NewHandler(userStore, invitationStore, refreshStore)
 
@@ -171,8 +171,8 @@ func TestRefreshExpired(t *testing.T) {
 }
 
 func TestLogoutRevokesRefreshToken(t *testing.T) {
-	userStore := &mockStoreLogin{}
-	invitationStore := &mockInvitationStore{}
+	userStore := loginUserStoreMock()
+	invitationStore := invitationStoreMock()
 	refreshStore := newRefreshStoreState()
 	handler := NewHandler(userStore, invitationStore, refreshStore)
 

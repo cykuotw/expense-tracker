@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"expense-tracker/backend/config"
 	"expense-tracker/backend/services/auth"
+	"expense-tracker/backend/services/middleware/extractors"
+	"expense-tracker/backend/services/middleware/validation"
 	"expense-tracker/backend/types"
 	"net/http"
 	"net/http/httptest"
@@ -54,7 +56,7 @@ func TestRouteGetExpenseList(t *testing.T) {
 			groupID:          mockGroupID.String(),
 			page:             mockTotalPage + 1,
 			expectFail:       true,
-			expectStatusCode: http.StatusBadRequest,
+			expectStatusCode: http.StatusOK,
 			expectResponse:   nil,
 		},
 		{
@@ -98,13 +100,14 @@ func TestRouteGetExpenseList(t *testing.T) {
 			rr := httptest.NewRecorder()
 			gin.SetMode(gin.ReleaseMode)
 			router := gin.New()
-			router.GET("/expense_list/:groupId", handler.handleGetExpenseList)
-			router.GET("/expense_list/:groupId/:page", handler.handleGetExpenseList)
+			router.Use(extractors.ExtractUserIdFromJWT())
+			router.GET("/expense_list/:groupId", validation.ValidateGroupUserPairExist(groupStore), handler.handleGetExpenseList)
+			router.GET("/expense_list/:groupId/:page", validation.ValidateGroupUserPairExist(groupStore), handler.handleGetExpenseList)
 
 			router.ServeHTTP(rr, req)
 
 			var rsp []types.ExpenseResponseBrief
-			if !test.expectFail {
+			if !test.expectFail || test.expectStatusCode == http.StatusOK {
 				err = json.NewDecoder(rr.Body).Decode(&rsp)
 				if err != nil {
 					t.Fatal()
@@ -112,7 +115,7 @@ func TestRouteGetExpenseList(t *testing.T) {
 			}
 
 			assert.Equal(t, test.expectStatusCode, rr.Code)
-			if !test.expectFail {
+			if !test.expectFail || test.expectStatusCode == http.StatusOK {
 				if assert.Equal(t, len(test.expectResponse), len(rsp)) {
 					for i, r := range rsp {
 						assert.Equal(t, test.expectResponse[i].ExpenseID, r.ExpenseID)
@@ -137,48 +140,4 @@ var mockGetExpenseListRsp = []types.ExpenseResponseBrief{
 	{
 		ExpenseID: mockExpenseIDs[2],
 	},
-}
-
-type mockGetExpenseListStore struct {
-	mockExpenseStore
-}
-
-func (s *mockGetExpenseListStore) GetExpenseList(groupID string, page int64) ([]*types.Expense, error) {
-	if page > int64(mockTotalPage) {
-		return nil, types.ErrNoRemainingExpenses
-	}
-
-	expense := []*types.Expense{
-		{
-			ID: mockExpenseIDs[0],
-		},
-		{
-			ID: mockExpenseIDs[1],
-		},
-		{
-			ID: mockExpenseIDs[2],
-		},
-	}
-	return expense, nil
-}
-
-type mockGetExpenseListGroupStore struct {
-	mockGroupStore
-}
-
-func (m *mockGetExpenseListGroupStore) CheckGroupExistById(id string) (bool, error) {
-	if id == mockGroupID.String() {
-		return true, nil
-	}
-	return false, nil
-}
-func (m *mockGetExpenseListGroupStore) CheckGroupUserPairExist(groupId string, userId string) (bool, error) {
-	if groupId == mockGroupID.String() && userId == mockUserID.String() {
-		return true, nil
-	}
-	return false, nil
-}
-
-type mockGetExpenseListUserStore struct {
-	mockUserStore
 }

@@ -1,8 +1,6 @@
 package store_test
 
 import (
-	"expense-tracker/backend/config"
-	"expense-tracker/backend/db"
 	expense "expense-tracker/backend/services/expense/stores"
 	"expense-tracker/backend/types"
 	"strconv"
@@ -16,8 +14,7 @@ import (
 
 func TestUpdateExpenseSettleInGroup(t *testing.T) {
 	// prepare test data
-	cfg := config.Envs
-	db, _ := db.NewPostgreSQLStorage(cfg)
+	db := openTestDB(t)
 	store := expense.NewStore(db)
 
 	toBeSettleExpCount := 5
@@ -118,8 +115,7 @@ func TestUpdateExpenseSettleInGroup(t *testing.T) {
 
 func TestUpdateExpense(t *testing.T) {
 	// prepare test data
-	cfg := config.Envs
-	db, _ := db.NewPostgreSQLStorage(cfg)
+	db := openTestDB(t)
 	store := expense.NewStore(db)
 
 	mockExpense := types.Expense{

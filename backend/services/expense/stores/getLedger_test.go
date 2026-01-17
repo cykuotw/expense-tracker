@@ -1,8 +1,6 @@
 package store_test
 
 import (
-	"expense-tracker/backend/config"
-	"expense-tracker/backend/db"
 	expense "expense-tracker/backend/services/expense/stores"
 	"expense-tracker/backend/types"
 	"strconv"
@@ -16,8 +14,7 @@ import (
 
 func TestGetLedgersByExpenseID(t *testing.T) {
 	// prepare test data
-	cfg := config.Envs
-	db, _ := db.NewPostgreSQLStorage(cfg)
+	db := openTestDB(t)
 	store := expense.NewStore(db)
 
 	mockExpenseID := uuid.New()
@@ -87,8 +84,7 @@ func TestGetLedgersByExpenseID(t *testing.T) {
 
 func TestGetLedgerUnsettledFromGroup(t *testing.T) {
 	// prepare test data
-	cfg := config.Envs
-	db, _ := db.NewPostgreSQLStorage(cfg)
+	db := openTestDB(t)
 	store := expense.NewStore(db)
 
 	unsettledExpenseCount := 3

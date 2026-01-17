@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"expense-tracker/backend/config"
 	"expense-tracker/backend/services/auth"
+	"expense-tracker/backend/services/middleware/extractors"
+	"expense-tracker/backend/services/middleware/validation"
 	"expense-tracker/backend/types"
 	"net/http"
 	"net/http/httptest"
@@ -81,7 +83,12 @@ func TestRouteGetUnsettledBalance(t *testing.T) {
 			rr := httptest.NewRecorder()
 			gin.SetMode(gin.ReleaseMode)
 			router := gin.New()
-			router.GET("/balance/:groupId", handler.handleGetUnsettledBalance)
+			router.GET(
+				"/balance/:groupId",
+				extractors.ExtractUserIdFromJWT(),
+				validation.ValidateGroupUserPairExist(groupStore),
+				handler.handleGetUnsettledBalance,
+			)
 
 			router.ServeHTTP(rr, req)
 
@@ -132,39 +139,4 @@ var mockBalance = []*types.Balance{
 		SenderUserID:   mockSenderIDs[2],
 		ReceiverUserID: mockReceiverIDs[2],
 	},
-}
-
-type mockGetUnsettledBalanceStore struct {
-	mockExpenseStore
-}
-
-func (s *mockGetUnsettledBalanceStore) GetLedgerUnsettledFromGroup(groupID string) ([]*types.Ledger, error) {
-	if groupID != mockGroupID.String() {
-		return nil, nil
-	}
-
-	return mockLedger, nil
-}
-
-type mockGetUnsettledBalanceGroupStore struct {
-	mockGroupStore
-}
-
-func (m *mockGetUnsettledBalanceGroupStore) CheckGroupUserPairExist(groupId string, userId string) (bool, error) {
-	if groupId == mockGroupID.String() && userId == mockUserID.String() {
-		return true, nil
-	}
-	return false, nil
-}
-
-type mockGetUnsettledBalanceUserStore struct {
-	mockUserStore
-}
-
-type mockGetUnsettledBalanceController struct {
-	mockExpenseController
-}
-
-func (c *mockGetUnsettledBalanceController) DebtSimplify(ledgers []*types.Ledger) []*types.Balance {
-	return mockBalance
 }

@@ -3,6 +3,8 @@ package expense
 import (
 	"expense-tracker/backend/config"
 	"expense-tracker/backend/services/auth"
+	"expense-tracker/backend/services/middleware/extractors"
+	"expense-tracker/backend/services/middleware/validation"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -60,30 +62,16 @@ func TestRouteSettleExpense(t *testing.T) {
 			rr := httptest.NewRecorder()
 			gin.SetMode(gin.ReleaseMode)
 			router := gin.New()
-			router.PUT("/settle_expense/:groupId", handler.handleSettleExpense)
+			router.PUT(
+				"/settle_expense/:groupId",
+				extractors.ExtractUserIdFromJWT(),
+				validation.ValidateGroupUserPairExist(groupStore),
+				handler.handleSettleExpense,
+			)
 
 			router.ServeHTTP(rr, req)
 
 			assert.Equal(t, test.expectStatusCode, rr.Code)
 		})
 	}
-}
-
-type mockSettelExpenseStore struct {
-	mockExpenseStore
-}
-
-type mockUSettelExpenseGroupStore struct {
-	mockGroupStore
-}
-
-func (m *mockUSettelExpenseGroupStore) CheckGroupUserPairExist(groupId string, userId string) (bool, error) {
-	if groupId == mockGroupID.String() && userId == mockUserID.String() {
-		return true, nil
-	}
-	return false, nil
-}
-
-type mockSettelExpenseUserStore struct {
-	mockUserStore
 }

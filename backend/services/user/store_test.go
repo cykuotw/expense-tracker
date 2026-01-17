@@ -2,8 +2,6 @@ package user_test
 
 import (
 	"database/sql"
-	"expense-tracker/backend/config"
-	"expense-tracker/backend/db"
 	"expense-tracker/backend/services/auth"
 	"expense-tracker/backend/services/user"
 	"expense-tracker/backend/types"
@@ -17,8 +15,7 @@ import (
 
 func TestGetUserByEmail(t *testing.T) {
 	// prepare test data
-	cfg := config.Envs
-	db, _ := db.NewPostgreSQLStorage(cfg)
+	db := openTestDB(t)
 
 	mockPassword, _ := auth.HashPassword("pword")
 	mockEmail := "a@test.com"
@@ -80,8 +77,7 @@ func TestGetUserByEmail(t *testing.T) {
 
 func TestGetUserByID(t *testing.T) {
 	// prepare test data
-	cfg := config.Envs
-	db, _ := db.NewPostgreSQLStorage(cfg)
+	db := openTestDB(t)
 
 	mockPassword, _ := auth.HashPassword("pword")
 	mockID := uuid.New()
@@ -143,8 +139,7 @@ func TestGetUserByID(t *testing.T) {
 
 func TestGetUsernameByID(t *testing.T) {
 	// prepare test data
-	cfg := config.Envs
-	db, _ := db.NewPostgreSQLStorage(cfg)
+	db := openTestDB(t)
 
 	mockPassword, _ := auth.HashPassword("pword")
 	mockID := uuid.New()

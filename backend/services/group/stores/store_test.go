@@ -2,8 +2,6 @@ package group_test
 
 import (
 	"database/sql"
-	"expense-tracker/backend/config"
-	"expense-tracker/backend/db"
 	"expense-tracker/backend/services/auth"
 	group "expense-tracker/backend/services/group/stores"
 	"expense-tracker/backend/types"
@@ -17,8 +15,7 @@ import (
 
 func TestCreateGroup(t *testing.T) {
 	// prepare test data
-	cfg := config.Envs
-	db, _ := db.NewPostgreSQLStorage(cfg)
+	db := openTestDB(t)
 	store := group.NewStore(db)
 
 	// define test cases
@@ -59,8 +56,7 @@ func TestCreateGroup(t *testing.T) {
 
 func TestGetGroupByID(t *testing.T) {
 	// prepare test data
-	cfg := config.Envs
-	db, _ := db.NewPostgreSQLStorage(cfg)
+	db := openTestDB(t)
 	mockGroupID := uuid.New()
 	mockGroup := types.Group{
 		ID:           mockGroupID,
@@ -114,8 +110,7 @@ func TestGetGroupByID(t *testing.T) {
 
 func TestGetGroupByIDAndUser(t *testing.T) {
 	// prepare test data
-	cfg := config.Envs
-	db, _ := db.NewPostgreSQLStorage(cfg)
+	db := openTestDB(t)
 	mockGroupID := uuid.New()
 	mockGroup := types.Group{
 		ID:           mockGroupID,
@@ -220,8 +215,7 @@ func TestGetGroupByIDAndUser(t *testing.T) {
 
 func TestGetGroupListByUser(t *testing.T) {
 	// prepare test data
-	cfg := config.Envs
-	db, _ := db.NewPostgreSQLStorage(cfg)
+	db := openTestDB(t)
 	mockGroupID := uuid.New()
 	mockGroup := types.Group{
 		ID: mockGroupID,
@@ -298,8 +292,7 @@ func TestGetGroupListByUser(t *testing.T) {
 
 func TestGetGroupMemberByGroupID(t *testing.T) {
 	// prepare test data
-	cfg := config.Envs
-	db, _ := db.NewPostgreSQLStorage(cfg)
+	db := openTestDB(t)
 	mockGroupID := uuid.New()
 	mockGroup := types.Group{
 		ID: mockGroupID,
@@ -374,8 +367,7 @@ func TestGetGroupMemberByGroupID(t *testing.T) {
 	}
 }
 func TestGetGroupCurrency(t *testing.T) {
-	cfg := config.Envs
-	db, _ := db.NewPostgreSQLStorage(cfg)
+	db := openTestDB(t)
 	mockGroupID := uuid.New()
 	mockCurrency := "CAD"
 	mockGroup := types.Group{
@@ -428,8 +420,7 @@ func TestGetGroupCurrency(t *testing.T) {
 
 func TestGetRelatedUser(t *testing.T) {
 	// prepare test data
-	cfg := config.Envs
-	db, _ := db.NewPostgreSQLStorage(cfg)
+	db := openTestDB(t)
 	mockCurrentUserID := uuid.New()
 	mockCurrentUser := types.User{
 		ID: mockCurrentUserID,
@@ -533,8 +524,7 @@ func TestGetRelatedUser(t *testing.T) {
 
 func TestUpdateGroupMember(t *testing.T) {
 	// prepare test data
-	cfg := config.Envs
-	db, _ := db.NewPostgreSQLStorage(cfg)
+	db := openTestDB(t)
 	mockGroupID := uuid.New()
 	mockUserID := uuid.New()
 
@@ -688,8 +678,7 @@ func TestUpdateGroupMember(t *testing.T) {
 
 func TestUpdateGroupStatus(t *testing.T) {
 	// prepare test data
-	cfg := config.Envs
-	db, _ := db.NewPostgreSQLStorage(cfg)
+	db := openTestDB(t)
 	mockGroupIDT := uuid.New()
 	mockGroupT := types.Group{
 		ID:       mockGroupIDT,

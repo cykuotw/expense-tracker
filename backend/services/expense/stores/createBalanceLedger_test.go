@@ -2,8 +2,6 @@ package store_test
 
 import (
 	"database/sql"
-	"expense-tracker/backend/config"
-	"expense-tracker/backend/db"
 	expense "expense-tracker/backend/services/expense/stores"
 	"fmt"
 	"testing"
@@ -13,8 +11,7 @@ import (
 
 func TestCreateBalanceLedger(t *testing.T) {
 	// prepare test data
-	cfg := config.Envs
-	db, _ := db.NewPostgreSQLStorage(cfg)
+	db := openTestDB(t)
 	store := expense.NewStore(db)
 
 	type testcase struct {

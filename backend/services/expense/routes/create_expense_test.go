@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"expense-tracker/backend/config"
 	"expense-tracker/backend/services/auth"
+	"expense-tracker/backend/services/middleware/extractors"
+	"expense-tracker/backend/services/middleware/validation"
 	"expense-tracker/backend/types"
 	"net/http"
 	"net/http/httptest"
@@ -87,7 +89,7 @@ func TestRouteCreateExpense(t *testing.T) {
 				Ledgers:        nil,
 			},
 			expectFail:       true,
-			expectStatusCode: http.StatusBadRequest,
+			expectStatusCode: http.StatusForbidden,
 		},
 		{
 			name: "invalid group id",
@@ -129,47 +131,17 @@ func TestRouteCreateExpense(t *testing.T) {
 			rr := httptest.NewRecorder()
 			gin.SetMode(gin.ReleaseMode)
 			router := gin.New()
-			router.POST("/create_expense", handler.handleCreateExpense)
+			router.POST(
+				"/create_expense",
+				extractors.ExtractUserIdFromJWT(),
+				extractors.ExtractExpensePayload(),
+				validation.ValidateGroupUserPairExist(groupStore),
+				handler.handleCreateExpense,
+			)
 
 			router.ServeHTTP(rr, req)
 
 			assert.Equal(t, test.expectStatusCode, rr.Code)
 		})
 	}
-}
-
-type mockCreateExpenseStore struct {
-	mockExpenseStore
-}
-
-type mockCreateExpenseGroupStore struct {
-	mockGroupStore
-}
-
-func (m *mockCreateExpenseGroupStore) CheckGroupExistById(id string) (bool, error) {
-	if id == mockGroupID.String() {
-		return true, nil
-	}
-	return false, nil
-}
-func (m *mockCreateExpenseGroupStore) CheckGroupUserPairExist(groupId string, userId string) (bool, error) {
-	if (groupId == mockGroupID.String()) && (userId == mockCreatorID.String()) {
-		return true, nil
-	}
-	return false, nil
-}
-
-type mockCreateExpenseUserStore struct {
-	mockUserStore
-}
-
-func (m *mockCreateExpenseUserStore) CheckUserExistByID(id string) (bool, error) {
-	if id == mockCreatorID.String() || id == mockUserID.String() {
-		return true, nil
-	}
-	return false, nil
-}
-
-type mockExpenseController struct {
-	mockController
 }

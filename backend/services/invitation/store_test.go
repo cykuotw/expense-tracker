@@ -2,8 +2,6 @@ package invitation_test
 
 import (
 	"database/sql"
-	"expense-tracker/backend/config"
-	"expense-tracker/backend/db"
 	"expense-tracker/backend/services/invitation"
 	"expense-tracker/backend/types"
 	"fmt"
@@ -15,8 +13,7 @@ import (
 )
 
 func TestCreateInvitation(t *testing.T) {
-	cfg := config.Envs
-	dbConn, _ := db.NewPostgreSQLStorage(cfg)
+	dbConn := openTestDB(t)
 	store := invitation.NewStore(dbConn)
 
 	// Setup inviter (User)
@@ -48,8 +45,7 @@ func TestCreateInvitation(t *testing.T) {
 }
 
 func TestGetInvitationByToken(t *testing.T) {
-	cfg := config.Envs
-	dbConn, _ := db.NewPostgreSQLStorage(cfg)
+	dbConn := openTestDB(t)
 	store := invitation.NewStore(dbConn)
 
 	inviterID := uuid.New()
@@ -80,8 +76,7 @@ func TestGetInvitationByToken(t *testing.T) {
 }
 
 func TestMarkInvitationUsed(t *testing.T) {
-	cfg := config.Envs
-	dbConn, _ := db.NewPostgreSQLStorage(cfg)
+	dbConn := openTestDB(t)
 	store := invitation.NewStore(dbConn)
 
 	inviterID := uuid.New()
@@ -113,8 +108,7 @@ func TestMarkInvitationUsed(t *testing.T) {
 }
 
 func TestExpireInvitation(t *testing.T) {
-	cfg := config.Envs
-	dbConn, _ := db.NewPostgreSQLStorage(cfg)
+	dbConn := openTestDB(t)
 	store := invitation.NewStore(dbConn)
 
 	inviterID := uuid.New()

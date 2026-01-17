@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"expense-tracker/backend/config"
 	"expense-tracker/backend/services/auth"
+	"expense-tracker/backend/services/middleware/extractors"
+	"expense-tracker/backend/services/middleware/validation"
 	"expense-tracker/backend/types"
 	"net/http"
 	"net/http/httptest"
@@ -86,64 +88,18 @@ func TestRouteUpdateExpenseDetail(t *testing.T) {
 			rr := httptest.NewRecorder()
 			gin.SetMode(gin.ReleaseMode)
 			router := gin.New()
-			router.PUT("/expense/:expenseId", handler.handleUpdateExpense)
+			router.PUT(
+				"/expense/:expenseId",
+				extractors.ExtractUserIdFromJWT(),
+				validation.ValidateExpenseExist(store),
+				extractors.ExtractExpenseUpdatePayload(),
+				validation.ValidateGroupUserPairExist(groupStore),
+				handler.handleUpdateExpense,
+			)
 
 			router.ServeHTTP(rr, req)
 
 			assert.Equal(t, test.expectStatusCode, rr.Code)
 		})
 	}
-}
-
-type mockUpdateExpenseDetailStore struct {
-	mockExpenseStore
-}
-
-func (s *mockUpdateExpenseDetailStore) GetExpenseByID(expenseID string) (*types.Expense, error) {
-	if expenseID != mockExpenseID.String() {
-		return nil, types.ErrExpenseNotExist
-	}
-	expense := &types.Expense{
-		ID:      mockExpenseID,
-		GroupID: mockGroupID,
-	}
-	return expense, nil
-}
-func (m *mockUpdateExpenseDetailStore) CheckExpenseExistByID(id string) (bool, error) {
-	if id == mockExpenseID.String() {
-		return true, nil
-	}
-	return false, nil
-}
-
-type mockUpdateExpenseDetailGroupStore struct {
-	mockGroupStore
-}
-
-func (s *mockUpdateExpenseDetailGroupStore) GetGroupByIDAndUser(groupID string, userID string) (*types.Group, error) {
-	if groupID != mockGroupID.String() {
-		return nil, types.ErrGroupNotExist
-	}
-	if userID != mockUserID.String() {
-		return nil, types.ErrUserNotPermitted
-	}
-	return nil, nil
-}
-func (m *mockUpdateExpenseDetailGroupStore) CheckGroupUserPairExist(groupId string, userId string) (bool, error) {
-	if groupId == mockGroupID.String() && userId == mockUserID.String() {
-		return true, nil
-	}
-	return false, nil
-}
-
-type mockUpdateExpenseDetailUserStore struct {
-	mockUserStore
-}
-
-func (m *mockUpdateExpenseDetailUserStore) GetUserByID(id string) (*types.User, error) {
-	user := &types.User{
-		ID:       mockUserID,
-		Username: "test user",
-	}
-	return user, nil
 }

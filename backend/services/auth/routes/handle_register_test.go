@@ -25,6 +25,7 @@ func TestServiceRegister(t *testing.T) {
 			Lastname:  "lname",
 			Email:     "adsf@test.com",
 			Password:  "longpassword",
+			Token:     "test-invite-token",
 		}
 		marshalled, _ := json.Marshal(payload)
 		req, err := http.NewRequest(http.MethodPost, "/register", bytes.NewBuffer(marshalled))
@@ -63,52 +64,4 @@ func TestServiceRegister(t *testing.T) {
 
 		assert.Equal(t, http.StatusBadRequest, rr.Code)
 	})
-}
-
-type mockStoreRegister struct{}
-
-func (m *mockStoreRegister) GetUserByEmail(email string) (*types.User, error) {
-	return nil, types.ErrUserNotExist
-}
-func (m *mockStoreRegister) GetUserByUsername(username string) (*types.User, error) {
-	return nil, types.ErrUserNotExist
-}
-func (m *mockStoreRegister) GetUserByID(id string) (*types.User, error) {
-	return nil, nil
-}
-func (m *mockStoreRegister) CreateUser(user types.User) error {
-	return nil
-}
-func (m *mockStoreRegister) GetUsernameByID(userid string) (string, error) {
-	return "", nil
-}
-func (m *mockStoreRegister) CheckEmailExist(email string) (bool, error) {
-	return false, nil
-}
-func (m *mockStoreRegister) CheckUserExistByEmail(email string) (bool, error) {
-	return false, nil
-}
-func (m *mockStoreRegister) CheckUserExistByID(id string) (bool, error) {
-	return false, nil
-}
-func (m *mockStoreRegister) CheckUserExistByUsername(username string) (bool, error) {
-	return false, nil
-}
-
-type mockInvitationStore struct{}
-
-func (m *mockInvitationStore) CreateInvitation(invitation types.Invitation) error {
-	return nil
-}
-func (m *mockInvitationStore) GetInvitationByToken(token string) (*types.Invitation, error) {
-	return &types.Invitation{}, nil
-}
-func (m *mockInvitationStore) MarkInvitationUsed(token string, email string) error {
-	return nil
-}
-func (m *mockInvitationStore) ExpireInvitation(token string) error {
-	return nil
-}
-func (m *mockInvitationStore) GetInvitations() ([]types.Invitation, error) {
-	return []types.Invitation{}, nil
 }

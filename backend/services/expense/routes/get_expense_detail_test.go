@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"expense-tracker/backend/config"
 	"expense-tracker/backend/services/auth"
+	"expense-tracker/backend/services/middleware/extractors"
+	"expense-tracker/backend/services/middleware/validation"
 	"expense-tracker/backend/types"
 	"net/http"
 	"net/http/httptest"
@@ -81,7 +83,14 @@ func TestRouteGetExpenseDetail(t *testing.T) {
 			rr := httptest.NewRecorder()
 			gin.SetMode(gin.ReleaseMode)
 			router := gin.New()
-			router.GET("/expense/:expenseId", handler.handleGetExpenseDetail)
+			router.GET(
+				"/expense/:expenseId",
+				extractors.ExtractUserIdFromJWT(),
+				validation.ValidateExpenseExist(store),
+				extractors.ExtractExpenseFromStore(store),
+				validation.ValidateGroupUserPairExist(groupStore),
+				handler.handleGetExpenseDetail,
+			)
 
 			router.ServeHTTP(rr, req)
 
@@ -100,45 +109,4 @@ func TestRouteGetExpenseDetail(t *testing.T) {
 			}
 		})
 	}
-}
-
-type mockGetExpenseDetailStore struct {
-	mockExpenseStore
-}
-
-func (s *mockGetExpenseDetailStore) GetExpenseByID(expenseID string) (*types.Expense, error) {
-	expense := &types.Expense{
-		ID:      mockExpenseID,
-		GroupID: mockGroupID,
-	}
-	return expense, nil
-}
-func (m *mockGetExpenseDetailStore) CheckExpenseExistByID(id string) (bool, error) {
-	if id == mockExpenseID.String() {
-		return true, nil
-	}
-	return false, nil
-}
-
-type mockGetExpenseDetailGroupStore struct {
-	mockGroupStore
-}
-
-func (m *mockGetExpenseDetailGroupStore) CheckGroupUserPairExist(groupId string, userId string) (bool, error) {
-	if groupId == mockGroupID.String() && userId == mockUserID.String() {
-		return true, nil
-	}
-	return false, nil
-}
-
-type mockGetExpenseDetailUserStore struct {
-	mockUserStore
-}
-
-func (m *mockGetExpenseDetailUserStore) GetUserByID(id string) (*types.User, error) {
-	user := &types.User{
-		ID:       mockUserID,
-		Username: "test user",
-	}
-	return user, nil
 }

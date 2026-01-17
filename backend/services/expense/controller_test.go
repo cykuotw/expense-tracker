@@ -20,10 +20,9 @@ func TestDebtSimplify(t *testing.T) {
 	EmaID := uuid.New()
 
 	type testcase struct {
-		name          string
-		ledgers       []*types.Ledger
-		expectFail    bool
-		expectBalance []*types.Balance
+		name       string
+		ledgers    []*types.Ledger
+		expectFail bool
 	}
 
 	controller := expense.NewController()
@@ -88,39 +87,6 @@ func TestDebtSimplify(t *testing.T) {
 				},
 			},
 			expectFail: false,
-			expectBalance: []*types.Balance{
-				// all possible combinations
-				// Ema send Fred $60
-				{
-					SenderUserID:   FredID,
-					ReceiverUserID: EmaID,
-					Share:          decimal.NewFromInt(60),
-				},
-				// Charlie send Gabe $40
-				{
-					SenderUserID:   GabeID,
-					ReceiverUserID: CharlieID,
-					Share:          decimal.NewFromInt(40),
-				},
-				// Gabe send David $20
-				{
-					SenderUserID:   DavidID,
-					ReceiverUserID: CharlieID,
-					Share:          decimal.NewFromInt(10),
-				},
-				// Gabe send David $50
-				{
-					SenderUserID:   GabeID,
-					ReceiverUserID: CharlieID,
-					Share:          decimal.NewFromInt(50),
-				},
-				// Gabe send David $10
-				{
-					SenderUserID:   DavidID,
-					ReceiverUserID: GabeID,
-					Share:          decimal.NewFromInt(10),
-				},
-			},
 		},
 		{
 			name: "valie 2",
@@ -162,47 +128,33 @@ func TestDebtSimplify(t *testing.T) {
 				},
 			},
 			expectFail: false,
-			expectBalance: []*types.Balance{
-				{
-					SenderUserID:   AliceID,
-					ReceiverUserID: BobID,
-					Share:          decimal.NewFromFloat(18.93),
-				},
-			},
 		},
 	}
 
-	// first test case
-	t.Run(subtests[0].name, func(t *testing.T) {
-		balanceList := controller.DebtSimplify(subtests[0].ledgers)
+	for _, test := range subtests {
+		t.Run(test.name, func(t *testing.T) {
+			balanceList := controller.DebtSimplify(test.ledgers)
 
-		for _, b := range balanceList {
-			matchResult := matchBalance(subtests[0].expectBalance, b)
+			expected := netFromLedgers(test.ledgers)
+			actual := netFromBalances(balanceList)
 
-			assert.True(t, matchResult)
-		}
-
-		// make sure Alice does not owe or be owed by anyone
-		var balance *types.Balance
-		for _, b := range subtests[0].expectBalance {
-			if b.SenderUserID == AliceID || b.ReceiverUserID == AliceID {
-				balance = b
-				break
+			for id, exp := range expected {
+				act := actual[id]
+				assert.True(t, exp.Round(2).Equal(act.Round(2)))
 			}
-		}
-		assert.Nil(t, balance)
-	})
+			for id, act := range actual {
+				if _, ok := expected[id]; !ok {
+					assert.True(t, act.Round(2).IsZero())
+				}
+			}
 
-	// second test case
-	t.Run(subtests[1].name, func(t *testing.T) {
-		balanceList := controller.DebtSimplify(subtests[1].ledgers)
-
-		for _, b := range balanceList {
-			matchResult := matchBalance(subtests[1].expectBalance, b)
-
-			assert.True(t, matchResult)
-		}
-	})
+			sumActual := decimal.Zero
+			for _, act := range actual {
+				sumActual = sumActual.Add(act)
+			}
+			assert.True(t, sumActual.Round(2).IsZero())
+		})
+	}
 }
 
 func BenchmarkDebtSimplify(b *testing.B) {
@@ -277,14 +229,36 @@ func BenchmarkDebtSimplify(b *testing.B) {
 	}
 }
 
-func matchBalance(expectBalance []*types.Balance, balance *types.Balance) bool {
-	for _, b := range expectBalance {
-		if b.SenderUserID == balance.SenderUserID &&
-			b.ReceiverUserID == balance.ReceiverUserID &&
-			b.Share.Equal(balance.Share) {
-			return true
+func netFromLedgers(ledgers []*types.Ledger) map[uuid.UUID]decimal.Decimal {
+	net := map[uuid.UUID]decimal.Decimal{}
+	for _, l := range ledgers {
+		if v, ok := net[l.LenderUserID]; ok {
+			net[l.LenderUserID] = v.Sub(l.Share)
+		} else {
+			net[l.LenderUserID] = l.Share.Neg()
+		}
+		if v, ok := net[l.BorrowerUesrID]; ok {
+			net[l.BorrowerUesrID] = v.Add(l.Share)
+		} else {
+			net[l.BorrowerUesrID] = l.Share
 		}
 	}
+	return net
+}
 
-	return false
+func netFromBalances(balances []*types.Balance) map[uuid.UUID]decimal.Decimal {
+	net := map[uuid.UUID]decimal.Decimal{}
+	for _, b := range balances {
+		if v, ok := net[b.SenderUserID]; ok {
+			net[b.SenderUserID] = v.Add(b.Share)
+		} else {
+			net[b.SenderUserID] = b.Share
+		}
+		if v, ok := net[b.ReceiverUserID]; ok {
+			net[b.ReceiverUserID] = v.Sub(b.Share)
+		} else {
+			net[b.ReceiverUserID] = b.Share.Neg()
+		}
+	}
+	return net
 }

@@ -2,9 +2,10 @@ import { Link, NavLink } from "react-router-dom";
 
 import Dropdown from "../Dropdown";
 import { API_URL } from "../../configs/config";
+import { USER_ROLES, UserRole } from "../../types/role";
 
 interface NavbarProps {
-    role: string | null;
+    role: UserRole | null;
 }
 
 export default function Navbar({ role }: NavbarProps) {
@@ -57,7 +58,7 @@ export default function Navbar({ role }: NavbarProps) {
                                 Create Group
                             </NavLink>
                         </li>
-                        {role === "admin" && (
+                        {role === USER_ROLES.admin && (
                             <li>
                                 <NavLink
                                     to="/admin/invite"

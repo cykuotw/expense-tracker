@@ -8,6 +8,7 @@ import { useState, useEffect } from "react";
 import { Toaster } from "react-hot-toast";
 
 import { API_URL } from "./configs/config";
+import { UserRole } from "./types/role";
 
 import NavbarLayout from "./layouts/NavbarLayout";
 import Login from "./pages/Login";
@@ -27,7 +28,7 @@ import InviteUser from "./pages/InviteUser";
 function AppRoutes() {
     const [authState, setAuthState] = useState<{
         isAuthenticated: boolean;
-        role: string | null;
+        role: UserRole | null;
     } | null>(null);
     const location = useLocation();
 
@@ -40,8 +41,11 @@ function AppRoutes() {
                 });
 
                 if (response.ok) {
-                    const data = await response.json();
-                    setAuthState({ isAuthenticated: true, role: data.role });
+                    const data = (await response.json()) as { role?: UserRole };
+                    setAuthState({
+                        isAuthenticated: true,
+                        role: data.role ?? null,
+                    });
                 } else {
                     setAuthState({ isAuthenticated: false, role: null });
                 }

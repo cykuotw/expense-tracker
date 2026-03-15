@@ -1,8 +1,9 @@
 import { Navigate, Outlet } from "react-router-dom";
+import { USER_ROLES, UserRole } from "../../types/role";
 
 interface AdminGuardProps {
     isAuthenticated: boolean;
-    role: string | null;
+    role: UserRole | null;
 }
 
 const AdminGuard = ({ isAuthenticated, role }: AdminGuardProps) => {
@@ -10,7 +11,7 @@ const AdminGuard = ({ isAuthenticated, role }: AdminGuardProps) => {
         return <Navigate to="/login" replace />;
     }
 
-    if (role !== "admin") {
+    if (role !== USER_ROLES.admin) {
         return <Navigate to="/" replace />;
     }
 

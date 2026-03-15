@@ -2,9 +2,10 @@ import { useState } from "react";
 import { NavLink } from "react-router-dom";
 
 import { API_URL } from "../../configs/config";
+import { USER_ROLES, UserRole } from "../../types/role";
 
 interface NavbarMobileProps {
-    role: string | null;
+    role: UserRole | null;
 }
 
 export default function NavbarMobile({ role }: NavbarMobileProps) {
@@ -89,7 +90,7 @@ export default function NavbarMobile({ role }: NavbarMobileProps) {
                     </span>
                 </button>
 
-                {role === "admin" && (
+                {role === USER_ROLES.admin && (
                     <NavLink
                         to="/admin/invite"
                         className={({ isActive }) =>

@@ -2,13 +2,8 @@ import { InviteUserProvider } from "../contexts/InviteUserContext";
 import { useInviteUser } from "../hooks/InviteUserContextHooks";
 
 const InviteUserContent = () => {
-    const {
-        loading,
-        invitations,
-        handleSubmit,
-        copyLink,
-        expireInvitation,
-    } = useInviteUser();
+    const { loading, invitations, handleSubmit, copyLink, expireInvitation } =
+        useInviteUser();
 
     const isExpired = (expiresAt: string) => {
         return new Date(expiresAt) < new Date();
@@ -38,7 +33,10 @@ const InviteUserContent = () => {
                                     Generate a new invite link for a user.
                                 </p>
                             </div>
-                            <form onSubmit={handleSubmit} className="w-full sm:w-auto">
+                            <form
+                                onSubmit={handleSubmit}
+                                className="w-full sm:w-auto"
+                            >
                                 <button
                                     type="submit"
                                     className="btn btn-neutral w-full sm:w-auto"
@@ -76,12 +74,12 @@ const InviteUserContent = () => {
                                 <tbody>
                                     {invitations.map((inv) => (
                                         <tr key={inv.id}>
-                                            <td>
+                                            <td className="text-sm">
                                                 {inv.usedAt && inv.email
                                                     ? inv.email
                                                     : "-"}
                                             </td>
-                                            <td>
+                                            <td className="text-sm">
                                                 {inv.usedAt ? (
                                                     <span className="badge badge-success">
                                                         Used
@@ -96,40 +94,40 @@ const InviteUserContent = () => {
                                                     </span>
                                                 )}
                                             </td>
-                                            <td>
+                                            <td className="whitespace-nowrap text-sm">
                                                 {new Date(
-                                                    inv.createdAt
+                                                    inv.createdAt,
                                                 ).toLocaleDateString()}
                                             </td>
-                                            <td>
+                                            <td className="whitespace-nowrap text-sm">
                                                 {new Date(
-                                                    inv.expiresAt
+                                                    inv.expiresAt,
                                                 ).toLocaleDateString()}
                                             </td>
-                                            <td>
+                                            <td className="min-w-[10rem] align-top">
                                                 {!inv.usedAt && (
-                                                    <div className="flex flex-col gap-2 sm:flex-row">
+                                                    <div className="flex min-w-[8.5rem] flex-col gap-2 sm:min-w-0 sm:flex-row">
                                                         <button
-                                                            className="btn btn-xs btn-ghost"
+                                                            className="btn btn-sm btn-ghost w-full justify-center whitespace-nowrap sm:w-auto"
                                                             disabled={isExpired(
-                                                                inv.expiresAt
+                                                                inv.expiresAt,
                                                             )}
                                                             onClick={() =>
                                                                 copyLink(
-                                                                    inv.token
+                                                                    inv.token,
                                                                 )
                                                             }
                                                         >
                                                             Copy Link
                                                         </button>
                                                         <button
-                                                            className="btn btn-xs btn-error btn-outline"
+                                                            className="btn btn-sm btn-error btn-outline w-full justify-center whitespace-nowrap sm:w-auto"
                                                             disabled={isExpired(
-                                                                inv.expiresAt
+                                                                inv.expiresAt,
                                                             )}
                                                             onClick={() =>
                                                                 expireInvitation(
-                                                                    inv.token
+                                                                    inv.token,
                                                                 )
                                                             }
                                                         >

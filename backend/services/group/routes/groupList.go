@@ -27,11 +27,19 @@ func (h *Handler) handleGetGroupList(c *gin.Context) {
 	// make response
 	var response []types.GetGroupListResponse
 	for _, group := range groups {
+		balanceStatus, balanceAmount, err := h.store.GetGroupCardBalanceSummary(group.ID.String(), userID)
+		if err != nil {
+			utils.WriteError(c, http.StatusInternalServerError, err)
+			return
+		}
+
 		res := types.GetGroupListResponse{
-			ID:          group.ID.String(),
-			GroupName:   group.GroupName,
-			Description: group.Description,
-			Currency:    group.Currency,
+			ID:            group.ID.String(),
+			GroupName:     group.GroupName,
+			Description:   group.Description,
+			Currency:      group.Currency,
+			BalanceStatus: balanceStatus,
+			BalanceAmount: balanceAmount,
 		}
 		response = append(response, res)
 	}

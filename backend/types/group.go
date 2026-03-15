@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/shopspring/decimal"
 )
 
 type GroupStore interface {
@@ -11,6 +12,7 @@ type GroupStore interface {
 
 	GetGroupByID(id string) (*Group, error)
 	GetGroupListByUser(userid string) ([]*Group, error)
+	GetGroupCardBalanceSummary(groupID string, userID string) (GroupBalanceStatus, decimal.Decimal, error)
 	GetGroupMemberByGroupID(groupId string) ([]*User, error)
 	GetGroupByIDAndUser(groupID string, userID string) (*Group, error)
 	GetGroupCurrency(groupID string) (string, error)
@@ -63,9 +65,19 @@ type RelatedMember struct {
 	ExistInGroup bool   `json:"existInGroup"`
 }
 
+type GroupBalanceStatus string
+
+const (
+	GroupBalanceStatusSettled GroupBalanceStatus = "settled"
+	GroupBalanceStatusOwed    GroupBalanceStatus = "owed"
+	GroupBalanceStatusOwing   GroupBalanceStatus = "owing"
+)
+
 type GetGroupListResponse struct {
-	ID          string `json:"id"`
-	GroupName   string `json:"groupName"`
-	Description string `json:"description"`
-	Currency    string `json:"currency"`
+	ID            string             `json:"id"`
+	GroupName     string             `json:"groupName"`
+	Description   string             `json:"description"`
+	Currency      string             `json:"currency"`
+	BalanceStatus GroupBalanceStatus `json:"balanceStatus"`
+	BalanceAmount decimal.Decimal    `json:"balanceAmount"`
 }

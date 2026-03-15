@@ -48,6 +48,9 @@ func TestGetGroupList(t *testing.T) {
 
 		assert.Equal(t, http.StatusOK, rr.Code)
 		assert.Equal(t, mockGroupListLen, len(rsp))
+		for _, group := range rsp {
+			assert.Equal(t, types.GroupBalanceStatusSettled, group.BalanceStatus)
+		}
 	})
 	t.Run("invalid user", func(t *testing.T) {
 		req, err := http.NewRequest(http.MethodGet, "/groups", nil)

@@ -1,7 +1,12 @@
+export type GroupBalanceStatus = "settled" | "owed" | "owing";
+
 export interface GroupCardData {
     id: string;
     groupName: string;
     description: string;
+    currency: string;
+    balanceStatus: GroupBalanceStatus;
+    balanceAmount: string;
 }
 
 export interface GroupMember {

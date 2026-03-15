@@ -13,25 +13,22 @@ const AddMemberContent = () => {
     } = useAddMember();
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-base-200 via-base-100 to-base-200 pb-28 md:pb-0">
-            <div className="mx-auto w-full max-w-5xl px-4 py-10 md:py-14">
-                <div className="flex flex-col gap-8">
-                    <div className="space-y-3">
-                        <div className="text-xs uppercase tracking-[0.2em] text-base-content/60">
-                            Group Members
-                        </div>
-                        <h1 className="text-3xl font-semibold md:text-4xl">
-                            Add members
-                        </h1>
-                        <p className="max-w-xl text-sm text-base-content/70 md:text-base">
+        <div className="page-shell">
+            <div className="page-container max-w-5xl">
+                <div className="page-header">
+                    <div className="page-header__copy">
+                        <div className="page-eyebrow">Group Members</div>
+                        <h1 className="page-title">Add members</h1>
+                        <p className="page-copy">
                             Add existing friends or invite a new person by
                             email.
                         </p>
                     </div>
+                </div>
 
-                    <div className="grid gap-6 lg:grid-cols-5">
+                <div className="grid gap-6 lg:grid-cols-5">
                         <form
-                            className="rounded-3xl border border-base-300 bg-base-100/90 p-6 shadow-sm lg:col-span-3"
+                            className="panel-card rounded-[2rem] p-6 lg:col-span-3"
                             onSubmit={handleSubmitRelatedUsers}
                         >
                             <div className="text-sm font-semibold uppercase tracking-[0.2em] text-base-content/60">
@@ -79,7 +76,7 @@ const AddMemberContent = () => {
                             </div>
                         </form>
 
-                        <div className="rounded-3xl border border-base-300 bg-base-100/90 p-6 shadow-sm lg:col-span-2">
+                        <div className="panel-card rounded-[2rem] p-6 lg:col-span-2">
                             <div className="text-sm font-semibold uppercase tracking-[0.2em] text-base-content/60">
                                 Invite by email
                             </div>
@@ -112,7 +109,6 @@ const AddMemberContent = () => {
                             </div>
                         </div>
                     </div>
-                </div>
             </div>
         </div>
     );

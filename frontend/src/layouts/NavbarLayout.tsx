@@ -9,12 +9,12 @@ interface NavbarLayoutProps {
 
 export default function NavbarLayout({ role }: NavbarLayoutProps) {
     return (
-        <>
+        <div className="app-shell">
             <Navbar role={role} />
             <NavbarMobile role={role} />
-            <div id="main-content">
+            <main id="main-content" className="app-shell__content">
                 <Outlet />
-            </div>
-        </>
+            </main>
+        </div>
     );
 }

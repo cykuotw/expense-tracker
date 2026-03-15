@@ -15,22 +15,20 @@ const InviteUserContent = () => {
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-base-200 via-base-100 to-base-200 pb-28 md:pb-0">
-            <div className="mx-auto w-full max-w-6xl px-4 py-10 md:py-14">
-                <div className="flex flex-col gap-8">
-                    <div className="space-y-3">
-                        <div className="text-xs uppercase tracking-[0.2em] text-base-content/60">
-                            Invitations
-                        </div>
-                        <h1 className="text-3xl font-semibold md:text-4xl">
-                            Invite users
-                        </h1>
-                        <p className="max-w-xl text-sm text-base-content/70 md:text-base">
+        <div className="page-shell">
+            <div className="page-container">
+                <div className="page-header">
+                    <div className="page-header__copy">
+                        <div className="page-eyebrow">Invitations</div>
+                        <h1 className="page-title">Invite users</h1>
+                        <p className="page-copy">
                             Create invite links and track their status.
                         </p>
                     </div>
+                </div>
 
-                    <div className="rounded-3xl border border-base-300 bg-base-100/90 p-6 shadow-sm">
+                <div className="flex flex-col gap-8">
+                    <div className="panel-card rounded-[2rem] p-6 shadow-sm">
                         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                             <div>
                                 <div className="text-sm font-semibold uppercase tracking-[0.2em] text-base-content/60">
@@ -55,7 +53,7 @@ const InviteUserContent = () => {
                         </div>
                     </div>
 
-                    <div className="rounded-3xl border border-base-300 bg-base-100/90 p-6 shadow-sm">
+                    <div className="panel-card rounded-[2rem] p-6 shadow-sm">
                         <div className="flex items-center justify-between">
                             <h2 className="text-lg font-semibold">
                                 Active invitations

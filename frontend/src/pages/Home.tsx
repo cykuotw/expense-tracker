@@ -17,25 +17,26 @@ const HomeContent = () => {
     const hasGroups = groupCards.length > 0;
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-base-200 via-base-100 to-base-200 pb-28 md:pb-0">
-            <div className="mx-auto w-full max-w-6xl px-4 py-10 md:py-14">
-                <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
-                    <div className="space-y-3">
-                        <div className="text-xs uppercase tracking-[0.2em] text-base-content/60">
-                            Groups
-                        </div>
-                        <h1 className="text-3xl font-semibold md:text-4xl">
-                            Keep expenses organized
+        <div className="page-shell">
+            <div className="page-container">
+                <div className="page-header">
+                    <div className="page-header__copy">
+                        <div className="page-eyebrow">Groups</div>
+                        <h1 className="page-title">
+                            Keep every expense in one calm place
                         </h1>
-                        <p className="max-w-xl text-sm text-base-content/70 md:text-base">
-                            Track balances, settle up faster, and keep every
-                            group in one place.
+                        <p className="page-copy">
+                            Review your active groups, jump into balances, and
+                            create a new space when a trip, home, or shared tab
+                            starts getting messy.
                         </p>
                     </div>
-                    <div className="flex flex-col items-start gap-3 md:items-end">
-                        <div className="text-sm text-base-content/70">
-                            {groupCards.length} group
-                            {groupCards.length === 1 ? "" : "s"}
+                    <div className="page-actions">
+                        <div className="rounded-3xl bg-base-100/70 px-4 py-3 text-sm text-base-content/70">
+                            <span className="font-semibold text-base-content stat-number">
+                                {groupCards.length}
+                            </span>{" "}
+                            active group{groupCards.length === 1 ? "" : "s"}
                         </div>
                         <Link
                             to="/create_group"
@@ -46,14 +47,50 @@ const HomeContent = () => {
                     </div>
                 </div>
 
+                <div className="grid gap-5 lg:grid-cols-[1.2fr_0.8fr]">
+                    <section className="panel-card rounded-[2rem] p-6 md:p-8">
+                        <div className="section-label">Overview</div>
+                        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                            <div className="metric-card rounded-[1.5rem] p-5">
+                                <div className="text-sm text-base-content/60">
+                                    Total groups
+                                </div>
+                                <div className="mt-3 text-3xl font-bold tracking-[-0.04em] text-primary stat-number">
+                                    {groupCards.length}
+                                </div>
+                            </div>
+                            <div className="metric-card rounded-[1.5rem] p-5">
+                                <div className="text-sm text-base-content/60">
+                                    Next best action
+                                </div>
+                                <div className="mt-3 text-lg font-semibold text-base-content">
+                                    {hasGroups
+                                        ? "Review unsettled balances"
+                                        : "Create your first group"}
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+                    <aside className="panel-card rounded-[2rem] p-6 md:p-8">
+                        <div className="section-label">Summary</div>
+                        <h2 className="mt-3 text-2xl font-semibold tracking-[-0.03em] text-base-content">
+                            Stay on top of active groups
+                        </h2>
+                        <p className="mt-3 text-sm leading-6 text-base-content/70">
+                            Open a group to review balances, recent expenses,
+                            and any members that still need to settle up.
+                        </p>
+                    </aside>
+                </div>
+
                 {hasGroups ? (
-                    <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                    <div className="mt-8 grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
                         {groupCards.map((group) => (
                             <GroupCard key={group.id} {...group} />
                         ))}
                     </div>
                 ) : (
-                    <div className="mt-14 rounded-3xl border border-base-300 bg-base-100/80 p-10 text-center shadow-sm">
+                    <div className="panel-card mt-8 rounded-[2rem] p-10 text-center">
                         <div className="mx-auto max-w-md space-y-3">
                             <h2 className="text-xl font-semibold">
                                 No groups yet

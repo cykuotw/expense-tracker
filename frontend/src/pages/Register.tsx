@@ -15,19 +15,17 @@ const RegisterContent = () => {
     } = useRegister();
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-base-200 via-base-100 to-base-200 pb-20 md:pb-0">
-            <div className="mx-auto flex w-full max-w-4xl flex-col px-4 py-12 md:py-16">
-                <div className="mb-8 space-y-3">
-                    <div className="text-xs uppercase tracking-[0.2em] text-base-content/60">
-                        Join the group
+        <div className="page-shell">
+            <div className="page-container max-w-4xl">
+                <div className="page-header">
+                    <div className="page-header__copy">
+                        <div className="page-eyebrow">Join the group</div>
+                        <h1 className="page-title">Create your account</h1>
+                        <p className="page-copy">
+                            Use your invite to join the group and start tracking
+                            expenses.
+                        </p>
                     </div>
-                    <h1 className="text-3xl font-semibold md:text-4xl">
-                        Create your account
-                    </h1>
-                    <p className="max-w-xl text-sm text-base-content/70 md:text-base">
-                        Use your invite to join the group and start tracking
-                        expenses.
-                    </p>
                 </div>
 
                 {validating ? (
@@ -35,12 +33,12 @@ const RegisterContent = () => {
                         <span className="loading loading-spinner loading-lg"></span>
                     </div>
                 ) : !token || !tokenValid ? (
-                    <div className="rounded-3xl border border-error/30 bg-base-100/90 p-6 text-sm text-error shadow-sm">
+                    <div className="panel-card rounded-[2rem] border-error/30 p-6 text-sm text-error">
                         {error ||
                             "Registration requires a valid invitation link."}
                     </div>
                 ) : (
-                    <div className="rounded-3xl border border-base-300 bg-base-100/90 p-6 shadow-sm">
+                    <div className="panel-card rounded-[2rem] p-6 md:p-8">
                         <form onSubmit={handleSubmit}>
                             <div className="grid gap-5 md:grid-cols-2">
                                 <div>

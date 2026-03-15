@@ -12,13 +12,25 @@ export default function LoginForm() {
     } = useLogin();
 
     return (
-        <>
-            <form
-                className="flex w-full max-w-md flex-col items-center gap-3 md:mx-auto"
-                onSubmit={handleLoginSubmit}
-            >
-                <div className="text-2xl">Sign In</div>
-                <label className="input flex items-center gap-2 w-full md:w-96">
+        <form
+            className="mx-auto flex w-full max-w-md flex-col gap-4"
+            onSubmit={handleLoginSubmit}
+        >
+            <div>
+                <div className="section-label">Sign in</div>
+                <h2 className="mt-2 text-2xl font-semibold tracking-[-0.03em] text-base-content">
+                    Continue to your workspace
+                </h2>
+            </div>
+
+            <div>
+                <label
+                    htmlFor="email"
+                    className="mb-2 block text-sm font-semibold text-base-content/80"
+                >
+                    Email
+                </label>
+                <label className="input flex items-center gap-2 w-full">
                     <svg
                         xmlns="http://www.w3.org/2000/svg"
                         viewBox="0 0 16 16"
@@ -38,7 +50,16 @@ export default function LoginForm() {
                         required
                     />
                 </label>
-                <label className="input flex items-center gap-2 w-full md:w-96">
+            </div>
+
+            <div>
+                <label
+                    htmlFor="password"
+                    className="mb-2 block text-sm font-semibold text-base-content/80"
+                >
+                    Password
+                </label>
+                <label className="input flex items-center gap-2 w-full">
                     <svg
                         xmlns="http://www.w3.org/2000/svg"
                         viewBox="0 0 16 16"
@@ -62,24 +83,24 @@ export default function LoginForm() {
                         required
                     />
                 </label>
-                <button
-                    type="submit"
-                    className="btn btn-neutral w-full md:w-96 text-lg font-light"
-                >
-                    Login
-                </button>
-                <div id="indicator" className={`${loading ? "" : "hidden"}`}>
-                    <div className="flex justify-center items-center w-full">
-                        <span className="loading loading-spinner loading-md"></span>
-                    </div>
+            </div>
+
+            <button type="submit" className="btn btn-neutral w-full text-lg">
+                Login
+            </button>
+            <div id="indicator" className={`${loading ? "" : "hidden"}`}>
+                <div className="flex justify-center items-center w-full">
+                    <span className="loading loading-spinner loading-md"></span>
                 </div>
-                <div
-                    id="feedback"
-                    className={`text-red-500 ${feedback ? "" : "hidden"}`}
-                >
-                    {feedback}
-                </div>
-            </form>
-        </>
+            </div>
+            <div
+                id="feedback"
+                className={`rounded-2xl border border-error/20 bg-error/8 px-4 py-3 text-sm text-error ${
+                    feedback ? "" : "hidden"
+                }`}
+            >
+                {feedback}
+            </div>
+        </form>
     );
 }

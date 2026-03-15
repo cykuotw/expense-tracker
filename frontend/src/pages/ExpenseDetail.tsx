@@ -18,26 +18,26 @@ const ExpenseDetailContent = () => {
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-base-200 via-base-100 to-base-200 pb-28 md:pb-0">
-            <div className="mx-auto w-full max-w-4xl px-4 py-10 md:py-14">
+        <div className="page-shell">
+            <div className="page-container max-w-4xl">
                 <div className="flex flex-col gap-6">
-                    <div className="space-y-3">
-                        <div className="text-xs uppercase tracking-[0.2em] text-base-content/60">
-                            Expense Detail
+                    <div className="page-header">
+                        <div className="page-header__copy">
+                            <div className="page-eyebrow">Expense Detail</div>
+                            <h1 className="page-title">
+                                {expenseDetail?.description}
+                            </h1>
+                            <p className="page-copy">
+                                Added by {expenseDetail?.createdByUsername} on{" "}
+                                {formattedDate}
+                            </p>
                         </div>
-                        <h1 className="text-3xl font-semibold md:text-4xl">
-                            {expenseDetail?.description}
-                        </h1>
-                        <p className="text-sm text-base-content/70 md:text-base">
-                            Added by {expenseDetail?.createdByUsername} on{" "}
-                            {formattedDate}
-                        </p>
                     </div>
 
-                    <div className="rounded-3xl border border-base-300 bg-base-100/90 p-6 shadow-sm">
+                    <div className="panel-card rounded-[2rem] p-6 md:p-8">
                         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                             <div>
-                                <div className="text-xs uppercase tracking-[0.2em] text-base-content/60">
+                                <div className="section-label">
                                     Total
                                 </div>
                                 <div className="mt-2 text-4xl font-semibold text-success">
@@ -45,7 +45,7 @@ const ExpenseDetailContent = () => {
                                     {expenseDetail?.currency}
                                 </div>
                             </div>
-                            <div className="rounded-2xl border border-base-200 bg-base-100 px-4 py-3 text-sm text-base-content/70">
+                            <div className="metric-card rounded-[1.5rem] px-4 py-3 text-sm text-base-content/70">
                                 Category: {expenseDetail?.expenseType}
                             </div>
                         </div>

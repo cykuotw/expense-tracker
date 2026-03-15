@@ -37,25 +37,22 @@ const CreateExpenseContent = () => {
     } = useCreateExpense();
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-base-200 via-base-100 to-base-200 pb-28 md:pb-0">
-            <div className="mx-auto w-full max-w-5xl px-4 py-10 md:py-14">
-                <div className="flex flex-col gap-8">
-                    <div className="space-y-3">
-                        <div className="text-xs uppercase tracking-[0.2em] text-base-content/60">
-                            Expense
-                        </div>
-                        <h1 className="text-3xl font-semibold md:text-4xl">
-                            Add expense
-                        </h1>
-                        <p className="max-w-xl text-sm text-base-content/70 md:text-base">
+        <div className="page-shell">
+            <div className="page-container max-w-5xl">
+                <div className="page-header">
+                    <div className="page-header__copy">
+                        <div className="page-eyebrow">Expense</div>
+                        <h1 className="page-title">Add expense</h1>
+                        <p className="page-copy">
                             Track what was paid and split it across the group.
                         </p>
                     </div>
+                </div>
 
-                    <form
-                        className="rounded-3xl border border-base-300 bg-base-100/90 p-6 shadow-sm"
-                        onSubmit={handleCreateExpense}
-                    >
+                <form
+                    className="panel-card rounded-[2rem] p-6 md:p-8"
+                    onSubmit={handleCreateExpense}
+                >
                         <div className="grid gap-5 md:grid-cols-2">
                             <div className="md:col-span-2">
                                 <label className="text-xs font-semibold uppercase tracking-[0.2em] text-base-content/60">
@@ -390,8 +387,7 @@ const CreateExpenseContent = () => {
                                 <span className="loading loading-spinner loading-md"></span>
                             </div>
                         )}
-                    </form>
-                </div>
+                </form>
             </div>
         </div>
     );

@@ -52,22 +52,18 @@ const GroupDetailContent = () => {
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-base-200 via-base-100 to-base-200 pb-28 md:pb-0">
-            <div className="mx-auto w-full max-w-6xl px-4 py-10 md:py-14">
-                <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
-                    <div className="space-y-3">
-                        <div className="text-xs uppercase tracking-[0.2em] text-base-content/60">
-                            Group Overview
-                        </div>
-                        <h1 className="text-3xl font-semibold md:text-4xl">
-                            {groupinfo?.groupName}
-                        </h1>
-                        <p className="max-w-xl text-sm text-base-content/70 md:text-base">
+        <div className="page-shell">
+            <div className="page-container">
+                <div className="page-header">
+                    <div className="page-header__copy">
+                        <div className="page-eyebrow">Group Overview</div>
+                        <h1 className="page-title">{groupinfo?.groupName}</h1>
+                        <p className="page-copy">
                             Track balances, add expenses, and settle up when you
                             are ready.
                         </p>
                     </div>
-                    <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
+                    <div className="page-actions w-full sm:w-auto">
                         <Link
                             to={`/create_expense?g=${groupId}`}
                             className="btn btn-neutral w-full sm:w-auto"
@@ -81,7 +77,7 @@ const GroupDetailContent = () => {
                             Add Members
                         </Link>
                         <button
-                            className="btn btn-outline btn-error w-full sm:w-auto"
+                            className="btn btn-error w-full sm:w-auto"
                             onClick={() => {
                                 const dialog = document.getElementById(
                                     "settle_confirm"
@@ -94,13 +90,12 @@ const GroupDetailContent = () => {
                     </div>
                 </div>
 
-                <div className="mt-10 rounded-3xl border border-base-300 bg-base-100/90 p-6 shadow-sm">
-                    <div className="text-sm font-semibold uppercase tracking-[0.2em] text-base-content/60">
-                        Balances
-                    </div>
-                    <div className="mt-4 grid gap-3 md:grid-cols-2">
+                <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
+                    <section className="panel-card rounded-[2rem] p-6 md:p-8">
+                        <div className="section-label">Balances</div>
+                        <div className="mt-4 grid gap-3">
                         {!balance?.balances || balance.balances.length === 0 ? (
-                            <div className="rounded-2xl border border-base-200 bg-base-100 p-4 text-sm text-base-content/70">
+                            <div className="metric-card rounded-[1.5rem] p-4 text-sm text-base-content/70">
                                 All balanced. No one owes anything.
                             </div>
                         ) : (
@@ -109,7 +104,7 @@ const GroupDetailContent = () => {
                                     return (
                                         <div
                                             key={b.id}
-                                            className="rounded-2xl border border-base-200 bg-base-100 p-4 text-sm"
+                                            className="metric-card rounded-[1.5rem] p-4 text-sm"
                                         >
                                             <div className="font-semibold">
                                                 {b.senderUsername} owes you
@@ -124,7 +119,7 @@ const GroupDetailContent = () => {
                                     return (
                                         <div
                                             key={b.id}
-                                            className="rounded-2xl border border-base-200 bg-base-100 p-4 text-sm"
+                                            className="metric-card rounded-[1.5rem] p-4 text-sm"
                                         >
                                             <div className="font-semibold">
                                                 You owe {b.receiverUsername}
@@ -137,21 +132,19 @@ const GroupDetailContent = () => {
                                 }
                             })
                         )}
-                    </div>
-                </div>
-
-                <div className="mt-10 space-y-8">
-                    <div>
-                        <div className="text-sm font-semibold uppercase tracking-[0.2em] text-base-content/60">
-                            Unsettled
                         </div>
-                        <div
-                            className="mt-4 space-y-4"
-                            id="unsettled-expenses"
-                        >
+                    </section>
+
+                    <section className="space-y-8">
+                        <div className="panel-card rounded-[2rem] p-6 md:p-8">
+                            <div className="section-label">Unsettled</div>
+                            <div
+                                className="mt-4 space-y-4"
+                                id="unsettled-expenses"
+                            >
                             {unsettledExpenses.length === 0 &&
                             !unsettledLoading ? (
-                                <div className="rounded-2xl border border-base-200 bg-base-100 p-6 text-sm text-base-content/70">
+                                <div className="metric-card rounded-[1.5rem] p-6 text-sm text-base-content/70">
                                     No expenses yet.
                                 </div>
                             ) : (
@@ -179,14 +172,13 @@ const GroupDetailContent = () => {
                                     </button>
                                 </div>
                             )}
+                            </div>
                         </div>
-                    </div>
-                    <div>
-                        <div className="text-sm font-semibold uppercase tracking-[0.2em] text-base-content/60">
-                            Settled
-                        </div>
-                        {!showSettled ? (
-                            <div className="mt-4">
+
+                        <div className="panel-card rounded-[2rem] p-6 md:p-8">
+                            <div className="section-label">Settled</div>
+                            {!showSettled ? (
+                                <div className="mt-4">
                                 <button
                                     className="btn btn-ghost w-full sm:w-auto"
                                     onClick={async () => {
@@ -196,12 +188,12 @@ const GroupDetailContent = () => {
                                 >
                                     Load Settled Expenses
                                 </button>
-                            </div>
-                        ) : (
-                            <div className="mt-4 space-y-4">
+                                </div>
+                            ) : (
+                                <div className="mt-4 space-y-4">
                                 {settledExpenses.length === 0 &&
                                 !settledLoading ? (
-                                    <div className="rounded-2xl border border-base-200 bg-base-100 p-6 text-sm text-base-content/70">
+                                    <div className="metric-card rounded-[1.5rem] p-6 text-sm text-base-content/70">
                                         No settled expenses yet.
                                     </div>
                                 ) : (
@@ -223,9 +215,10 @@ const GroupDetailContent = () => {
                                         className="h-6"
                                     />
                                 )}
-                            </div>
-                        )}
-                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </section>
                 </div>
             </div>
 

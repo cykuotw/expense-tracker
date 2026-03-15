@@ -32,7 +32,14 @@ const Dropdown: React.FC<DropdownProps> = ({
             }}
         >
             {/* Dropdown Button */}
-            <div role="button" className="flex items-center gap-1 text-current">
+            <button
+                type="button"
+                className="flex w-full items-center justify-between gap-2 rounded-2xl px-3 py-2 text-left text-current hover:bg-base-200/70"
+                onClick={(e) => {
+                    e.stopPropagation();
+                    setIsOpen((prev) => !prev);
+                }}
+            >
                 {label}
                 <svg
                     className={`size-[1em] transition-transform duration-200 ${
@@ -50,11 +57,13 @@ const Dropdown: React.FC<DropdownProps> = ({
                 >
                     <path d="M6 9l6 6 6-6" />
                 </svg>
-            </div>
+            </button>
 
             {/* Dropdown Content */}
             <ul
-                className={`dropdown-content menu bg-base-100 text-base-content ${contendTextConfig} z-10 my-3 space-y-2 py-3 shadow items-center absolute border border-base-300`}
+                className={`dropdown-content menu bg-base-100 text-base-content ${contendTextConfig} ${
+                    isOpen ? "" : "hidden"
+                } z-10 my-3 space-y-2 rounded-3xl py-3 shadow items-center absolute border border-base-300`}
             >
                 {children}
             </ul>

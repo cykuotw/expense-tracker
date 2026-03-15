@@ -4,6 +4,7 @@ import (
 	"expense-tracker/backend/types"
 
 	"github.com/google/uuid"
+	"github.com/shopspring/decimal"
 )
 
 var mockUserID = uuid.New()
@@ -207,6 +208,7 @@ type mockGroupStore struct {
 	GetGroupByIDFn         func(id string) (*types.Group, error)
 	GetGroupByIDAndUserFn  func(groupID string, userID string) (*types.Group, error)
 	GetGroupListByUserFn   func(userid string) ([]*types.Group, error)
+	GetGroupCardBalanceSummaryFn func(groupID string, userID string) (types.GroupBalanceStatus, decimal.Decimal, error)
 	GetGroupMemberByGroupIDFn func(groupId string) ([]*types.User, error)
 	UpdateGroupMemberFn    func(action string, userid string, groupid string) error
 	UpdateGroupStatusFn    func(groupid string, isActive bool) error
@@ -239,6 +241,12 @@ func (m *mockGroupStore) GetGroupListByUser(userid string) ([]*types.Group, erro
 		return m.GetGroupListByUserFn(userid)
 	}
 	return nil, nil
+}
+func (m *mockGroupStore) GetGroupCardBalanceSummary(groupID string, userID string) (types.GroupBalanceStatus, decimal.Decimal, error) {
+	if m.GetGroupCardBalanceSummaryFn != nil {
+		return m.GetGroupCardBalanceSummaryFn(groupID, userID)
+	}
+	return types.GroupBalanceStatusSettled, decimal.Zero, nil
 }
 func (m *mockGroupStore) GetGroupMemberByGroupID(groupId string) ([]*types.User, error) {
 	if m.GetGroupMemberByGroupIDFn != nil {

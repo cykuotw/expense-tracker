@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"strconv"
 
 	"github.com/golang-migrate/migrate/v4"
@@ -18,8 +19,13 @@ func main() {
 	psqlInfo := fmt.Sprintf("postgresql://%s:%s@%s:%s/%s?sslmode=disable",
 		cfg.DBUser, cfg.DBPassword, cfg.DBPublicHost, cfg.DBPort, cfg.DBName)
 
+	migrationsPath, err := findMigrationsPath()
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	m, err := migrate.New(
-		"file://cmd/migrate/migrations",
+		"file://"+migrationsPath,
 		psqlInfo,
 	)
 	if err != nil {
@@ -35,11 +41,13 @@ func main() {
 		if err := m.Up(); err != nil && err != migrate.ErrNoChange {
 			log.Fatal(err)
 		}
+		return
 	}
 	if cmd == "down" {
 		if err := m.Down(); err != nil && err != migrate.ErrNoChange {
 			log.Fatal(err)
 		}
+		return
 	}
 	if cmd == "step" {
 		if len(os.Args) < 3 {
@@ -52,6 +60,7 @@ func main() {
 		if err := m.Steps(n); err != nil && err != migrate.ErrNoChange {
 			log.Fatal(err)
 		}
+		return
 	}
 	if cmd == "migrate" {
 		if len(os.Args) < 3 {
@@ -64,6 +73,7 @@ func main() {
 		if err := m.Migrate(uint(v)); err != nil && err != migrate.ErrNoChange {
 			log.Fatal(err)
 		}
+		return
 	}
 	if cmd == "force" {
 		if len(os.Args) < 3 {
@@ -76,5 +86,28 @@ func main() {
 		if err := m.Force(v); err != nil {
 			log.Fatal(err)
 		}
+		return
 	}
+
+	log.Fatalf("unknown subcommand %q", cmd)
+}
+
+func findMigrationsPath() (string, error) {
+	candidates := []string{
+		"backend/cmd/migrate/migrations",
+		"cmd/migrate/migrations",
+	}
+
+	for _, candidate := range candidates {
+		info, err := os.Stat(candidate)
+		if err == nil && info.IsDir() {
+			absPath, err := filepath.Abs(candidate)
+			if err != nil {
+				return "", err
+			}
+			return absPath, nil
+		}
+	}
+
+	return "", fmt.Errorf("migration directory not found; checked %v", candidates)
 }

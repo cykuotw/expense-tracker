@@ -21,9 +21,9 @@ type Config struct {
 	DBPassword   string
 	DBName       string
 
-	JWTSecret              string
-	JWTExpirationInSeconds int64
-	RefreshJWTSecret       string
+	JWTSecret                     string
+	JWTExpirationInSeconds        int64
+	RefreshJWTSecret              string
 	RefreshJWTExpirationInSeconds int64
 
 	GoogleClientId     string
@@ -45,7 +45,7 @@ var Envs = initConfig()
 var BuildMode string
 
 func initConfig() Config {
-	godotenv.Load()
+	loadLocalEnv()
 
 	mode := getEnv("MODE", "debug")
 	if BuildMode != "" {
@@ -66,9 +66,9 @@ func initConfig() Config {
 		DBPassword:   getEnv("DB_PASSWORD", "mypassword"),
 		DBName:       getEnv("DB_NAME", "mydb"),
 
-		JWTSecret:              getEnv("JWT_SECRET", "secretstring"),
-		JWTExpirationInSeconds: getEnvInt("JWT_EXP", 3600*24*7),
-		RefreshJWTSecret:       getEnv("REFRESH_JWT_SECRET", getEnv("JWT_SECRET", "secretstring")),
+		JWTSecret:                     getEnv("JWT_SECRET", "secretstring"),
+		JWTExpirationInSeconds:        getEnvInt("JWT_EXP", 3600*24*7),
+		RefreshJWTSecret:              getEnv("REFRESH_JWT_SECRET", getEnv("JWT_SECRET", "secretstring")),
 		RefreshJWTExpirationInSeconds: getEnvInt("REFRESH_JWT_EXP", 3600*24*30),
 
 		GoogleClientId:     getEnv("GOOGLE_CLIENT_ID", ""),
@@ -82,6 +82,19 @@ func initConfig() Config {
 
 		CORSFrontendOrigin:   getEnv("CORS_FRONTEND_ORIGIN", "localhost:8050"),
 		CORSAllowCredentials: getEnvBool("CORS_ALLOW_CREDENTIALS", false),
+	}
+}
+
+func loadLocalEnv() {
+	candidates := []string{
+		".env",
+		"backend/.env",
+	}
+
+	for _, path := range candidates {
+		if err := godotenv.Load(path); err == nil {
+			return
+		}
 	}
 }
 

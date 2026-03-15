@@ -22,13 +22,10 @@ const HomeContent = () => {
                 <div className="page-header">
                     <div className="page-header__copy">
                         <div className="page-eyebrow">Groups</div>
-                        <h1 className="page-title">
-                            Keep every expense in one calm place
-                        </h1>
+                        <h1 className="page-title">Keep expenses organized</h1>
                         <p className="page-copy">
-                            Review your active groups, jump into balances, and
-                            create a new space when a trip, home, or shared tab
-                            starts getting messy.
+                            Open a group to review balances and expenses, or
+                            create a new group to get started.
                         </p>
                     </div>
                     <div className="page-actions">
@@ -49,7 +46,7 @@ const HomeContent = () => {
 
                 <div className="grid gap-5 lg:grid-cols-[1.2fr_0.8fr]">
                     <section className="panel-card rounded-[2rem] p-6 md:p-8">
-                        <div className="section-label">Overview</div>
+                        <div className="section-label">Groups</div>
                         <div className="mt-4 grid gap-4 sm:grid-cols-2">
                             <div className="metric-card rounded-[1.5rem] p-5">
                                 <div className="text-sm text-base-content/60">
@@ -61,7 +58,7 @@ const HomeContent = () => {
                             </div>
                             <div className="metric-card rounded-[1.5rem] p-5">
                                 <div className="text-sm text-base-content/60">
-                                    Next best action
+                                    Next step
                                 </div>
                                 <div className="mt-3 text-lg font-semibold text-base-content">
                                     {hasGroups
@@ -72,13 +69,16 @@ const HomeContent = () => {
                         </div>
                     </section>
                     <aside className="panel-card rounded-[2rem] p-6 md:p-8">
-                        <div className="section-label">Summary</div>
+                        <div className="section-label">Next step</div>
                         <h2 className="mt-3 text-2xl font-semibold tracking-[-0.03em] text-base-content">
-                            Stay on top of active groups
+                            {hasGroups
+                                ? "Open a group"
+                                : "Create your first group"}
                         </h2>
                         <p className="mt-3 text-sm leading-6 text-base-content/70">
-                            Open a group to review balances, recent expenses,
-                            and any members that still need to settle up.
+                            {hasGroups
+                                ? "Review balances, recent expenses, and who still needs to pay."
+                                : "Create a group to start tracking shared expenses."}
                         </p>
                     </aside>
                 </div>

@@ -56,11 +56,10 @@ const GroupDetailContent = () => {
             <div className="page-container">
                 <div className="page-header">
                     <div className="page-header__copy">
-                        <div className="page-eyebrow">Group Overview</div>
+                        <div className="page-eyebrow">Group</div>
                         <h1 className="page-title">{groupinfo?.groupName}</h1>
                         <p className="page-copy">
-                            Track balances, add expenses, and settle up when you
-                            are ready.
+                            Review balances, add expenses, and update members.
                         </p>
                     </div>
                     <div className="page-actions w-full sm:w-auto">

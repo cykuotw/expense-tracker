@@ -23,7 +23,7 @@ const ExpenseDetailContent = () => {
                 <div className="flex flex-col gap-6">
                     <div className="page-header">
                         <div className="page-header__copy">
-                            <div className="page-eyebrow">Expense Detail</div>
+                            <div className="page-eyebrow">Expense</div>
                             <h1 className="page-title">
                                 {expenseDetail?.description}
                             </h1>

@@ -21,17 +21,13 @@ export default function Navbar({ role }: NavbarProps) {
             <div className="panel-card flex w-full flex-col rounded-[2rem] p-5">
                 <div className="border-b border-base-300/70 pb-5">
                     <Link to="/" className="block rounded-2xl p-3">
-                        <div className="text-xs font-bold uppercase tracking-[0.24em] text-primary/70">
-                            Personal Finance
-                        </div>
-                        <div className="mt-2 text-2xl font-bold tracking-[-0.04em] text-base-content">
+                        <div className="text-2xl font-bold tracking-[-0.04em] text-base-content">
                             Expense Tracker
                         </div>
                     </Link>
                 </div>
 
                 <div className="mt-6">
-                    <div className="section-label px-3">Workspace</div>
                     <ul className="mt-3 flex flex-col gap-2">
                         <li>
                             <NavLink
@@ -44,7 +40,7 @@ export default function Navbar({ role }: NavbarProps) {
                                     }`
                                 }
                             >
-                                Overview
+                                Home
                             </NavLink>
                         </li>
                         <li>
@@ -104,7 +100,7 @@ export default function Navbar({ role }: NavbarProps) {
                     </div>
                     <div className="mt-4">
                         <Dropdown
-                            label="Actions"
+                            label="Account"
                             dropdownType="dropdown-top"
                             contendTextConfig="text-sm w-48"
                         >

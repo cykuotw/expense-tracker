@@ -14,12 +14,12 @@
 - Keep `.agent/tasks/todo.md` and `.agent/tasks/done.md` in sync with the task note files.
 - When a task is completed, move its note from `.agent/tasks/todo/` to `.agent/tasks/done/`, remove it from `.agent/tasks/todo.md`, and add it to `.agent/tasks/done.md`.
 - Do not mark a task done or move it to `.agent/tasks/done/` unless the user explicitly tells you to.
-- A plan is not required for task-tracking housekeeping such as updating todo/done indexes, moving task notes, or keeping those files aligned.
+- A plan is not required for skill installation or task-tracking housekeeping such as updating todo/done indexes, moving task notes, or keeping those files aligned.
 - Do not use Git commands unless the user explicitly asks for the specific Git command to run.
 
 ## Shared skills
 
-- Shared repo-local skills live under `.agent/skills`; tracked skills are listed in `SKILLS.md`.
+- Shared repo-local skills live under `.agent/skills`; tracked installs are recorded in `skills-lock.json`.
 - When installing a shared skill for this workspace, prefer `.agent/skills`.
-- Update `SKILLS.md` when adding or updating a shared skill.
+- Keep `skills-lock.json` in sync when adding or updating shared skills.
 - Check `.agent/skills` before assuming a required skill is missing.

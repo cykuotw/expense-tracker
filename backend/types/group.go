@@ -11,8 +11,7 @@ type GroupStore interface {
 	CreateGroup(group Group) error
 
 	GetGroupByID(id string) (*Group, error)
-	GetGroupListByUser(userid string) ([]*Group, error)
-	GetGroupCardBalanceSummary(groupID string, userID string) (GroupBalanceStatus, decimal.Decimal, error)
+	GetGroupListByUser(userid string) ([]GetGroupListResponse, error)
 	GetGroupMemberByGroupID(groupId string) ([]*User, error)
 	GetGroupByIDAndUser(groupID string, userID string) (*Group, error)
 	GetGroupCurrency(groupID string) (string, error)

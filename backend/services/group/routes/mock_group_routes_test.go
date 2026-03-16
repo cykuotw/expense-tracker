@@ -4,7 +4,6 @@ import (
 	"expense-tracker/backend/types"
 
 	"github.com/google/uuid"
-	"github.com/shopspring/decimal"
 )
 
 // base group store
@@ -13,8 +12,7 @@ type mockGroupStore struct {
 	CreateGroupFn          func(group types.Group) error
 	GetGroupByIDFn         func(id string) (*types.Group, error)
 	GetGroupByIDAndUserFn  func(groupID string, userID string) (*types.Group, error)
-	GetGroupListByUserFn   func(userid string) ([]*types.Group, error)
-	GetGroupCardBalanceSummaryFn func(groupID string, userID string) (types.GroupBalanceStatus, decimal.Decimal, error)
+	GetGroupListByUserFn   func(userid string) ([]types.GetGroupListResponse, error)
 	GetGroupMemberByGroupIDFn    func(groupId string) ([]*types.User, error)
 	UpdateGroupMemberFn    func(action string, userid string, groupid string) error
 	UpdateGroupStatusFn    func(groupid string, isActive bool) error
@@ -42,17 +40,11 @@ func (m *mockGroupStore) GetGroupByIDAndUser(groupID string, userID string) (*ty
 	}
 	return nil, nil
 }
-func (m *mockGroupStore) GetGroupListByUser(userid string) ([]*types.Group, error) {
+func (m *mockGroupStore) GetGroupListByUser(userid string) ([]types.GetGroupListResponse, error) {
 	if m.GetGroupListByUserFn != nil {
 		return m.GetGroupListByUserFn(userid)
 	}
 	return nil, nil
-}
-func (m *mockGroupStore) GetGroupCardBalanceSummary(groupID string, userID string) (types.GroupBalanceStatus, decimal.Decimal, error) {
-	if m.GetGroupCardBalanceSummaryFn != nil {
-		return m.GetGroupCardBalanceSummaryFn(groupID, userID)
-	}
-	return types.GroupBalanceStatusSettled, decimal.Zero, nil
 }
 func (m *mockGroupStore) GetGroupMemberByGroupID(groupId string) ([]*types.User, error) {
 	if m.GetGroupMemberByGroupIDFn != nil {
@@ -211,19 +203,20 @@ func getGroupUserStoreMock() *mockUserStore {
 
 func getGroupListStoreMock() *mockGroupStore {
 	store := groupStoreMock()
-	store.GetGroupListByUserFn = func(userid string) ([]*types.Group, error) {
+	store.GetGroupListByUserFn = func(userid string) ([]types.GetGroupListResponse, error) {
 		if userid != mockUserId.String() {
 			return nil, nil
 		}
-		groups := make([]*types.Group, 0, mockGroupListLen)
+		groups := make([]types.GetGroupListResponse, 0, mockGroupListLen)
 		for i := 0; i < mockGroupListLen; i++ {
-			group := types.Group{ID: uuid.New(), GroupName: uuid.New().String()}
-			groups = append(groups, &group)
+			group := types.GetGroupListResponse{
+				ID:            uuid.New().String(),
+				GroupName:     uuid.New().String(),
+				BalanceStatus: types.GroupBalanceStatusSettled,
+			}
+			groups = append(groups, group)
 		}
 		return groups, nil
-	}
-	store.GetGroupCardBalanceSummaryFn = func(groupID string, userID string) (types.GroupBalanceStatus, decimal.Decimal, error) {
-		return types.GroupBalanceStatusSettled, decimal.Zero, nil
 	}
 	return store
 }

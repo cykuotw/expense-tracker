@@ -246,7 +246,7 @@ func TestGetGroupListByUser(t *testing.T) {
 		name         string
 		mockUserID   string
 		expectFail   bool
-		expectGroups []*types.Group
+		expectGroups []types.GetGroupListResponse
 		expectError  error
 	}
 
@@ -255,12 +255,12 @@ func TestGetGroupListByUser(t *testing.T) {
 			name:       "valid",
 			mockUserID: mockUserID.String(),
 			expectFail: false,
-			expectGroups: []*types.Group{
+			expectGroups: []types.GetGroupListResponse{
 				{
-					ID: mockGroupID,
+					ID: mockGroupID.String(),
 				},
 				{
-					ID: mockGroupID2,
+					ID: mockGroupID2.String(),
 				},
 			},
 			expectError: nil,
@@ -285,6 +285,15 @@ func TestGetGroupListByUser(t *testing.T) {
 			} else {
 				assert.NotNil(t, groups)
 				assert.Equal(t, len(test.expectGroups), len(groups))
+				actualIDs := make([]string, 0, len(groups))
+				expectedIDs := make([]string, 0, len(test.expectGroups))
+				for _, group := range groups {
+					actualIDs = append(actualIDs, group.ID)
+				}
+				for _, group := range test.expectGroups {
+					expectedIDs = append(expectedIDs, group.ID)
+				}
+				assert.ElementsMatch(t, expectedIDs, actualIDs)
 				assert.Nil(t, err)
 			}
 		})

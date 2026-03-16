@@ -1,38 +1,85 @@
-# **Expense Tracker 💰**
+# Expense Tracker
 
-A **Splitwise-like** fullstack web service for tracking personal and household expenses.  
-Why reinvent the wheel when there's already a great app out there? **Because I can.**  
-And because **exploring new technologies is way more fun than just using someone else’s work.** 😎
+A Splitwise-like fullstack app for tracking shared expenses, balances, groups, and invitations.
 
-## **🚀 Technologies**
+## Stack
 
-### **Backend**
+- Backend: Go, Gin, PostgreSQL
+- Frontend: React, TypeScript, Vite, Tailwind CSS, DaisyUI
+- Auth: cookie-based auth, refresh tokens, Google OAuth
 
--   **Go** – Because speed and concurrency are my best friends.
--   **Gin** – A fast and handy web framework for Go.
--   **PostgreSQL** – Because data persistence is important (unlike my New Year’s resolutions).
+## Local Run
 
-### **Frontend**
+### Backend
 
--   **React** – Switched from HTMX for **more power and flexibility**.
--   **TypeScript** – Strict types mean fewer bugs, and fewer bugs mean less debugging.
--   **TailwindCSS 4** – Utility-first styling that **keeps CSS fun and efficient**.
--   **DaisyUI 5** – Making Tailwind components even prettier.
+Requirements:
+- Go
+- PostgreSQL
+- migration tool if you want to create new migrations
 
-## **🔮 Future Features**
+Common commands:
 
-✨ **OCR Receipt Recognition** – Because manually entering expenses is **so last decade**.  
-✨ **Auto-Fill Expenses** – Let AI handle the boring stuff while you focus on spending wisely… or not.
+```bash
+make build
+make run
+```
 
-## **💡 Why This Project?**
+Database migration commands:
 
-Sure, **Splitwise exists**, but where’s the fun in using something pre-made?  
-This project is a playground to **explore backend optimizations, frontend efficiency, and AWS deployment strategies**.
+```bash
+make migrate-up
+make migrate-down
+make migrate-step n=1
+```
 
-> _After all, if software engineers didn't reinvent the wheel, we'd still be riding square ones._ 🔄💡
+### Frontend
 
-🚀 **Stay tuned for updates!**
+```bash
+cd frontend
+npm install
+npm run dev
+```
 
----
+Production build:
 
-<sub><sup>This README was drafted by me and enriched by everyone's dude, ChatGPT.</sup></sub>
+```bash
+cd frontend
+npm run build
+```
+
+## Config
+
+The app uses environment variables for:
+- backend listen address
+- frontend/API origins
+- PostgreSQL connection
+- JWT and refresh token settings
+- Google OAuth client settings
+- cookie and CORS behavior
+
+For local development, frontend and backend should use matching origins consistently, for example all `localhost` instead of mixing `localhost` and `127.0.0.1`.
+
+## Current Auth / Browser Setup
+
+- cookie-based auth with access and refresh tokens
+- CSRF protection for mutating browser requests
+- split-origin friendly config for frontend and API
+- Google OAuth callback handled by the backend
+
+## Deployment Direction
+
+Current deployment plan is:
+- frontend on S3 + CloudFront
+- backend on EC2 behind nginx
+- PostgreSQL on a separate EC2 instance
+- GitHub Actions for CI/CD
+
+HTTPS is expected to terminate at nginx for the backend.
+
+## Roadmap
+
+Planned follow-up work includes:
+- tracing and monitoring logs
+- ISO-based multi-currency support
+- OCR support for receipts
+- deployment automation and backup hardening

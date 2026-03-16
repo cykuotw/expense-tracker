@@ -1,7 +1,8 @@
 import { useState, ReactNode, FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
-import { API_URL } from "../configs/config";
+import { useAuth } from "../hooks/AuthContextHooks";
 import { LoginContext } from "../hooks/LoginContextHooks";
+import { apiFetch, getResponseErrorMessage } from "../lib/api";
 
 export const LoginProvider = ({ children }: { children: ReactNode }) => {
     const [email, setEmail] = useState("");
@@ -10,6 +11,7 @@ export const LoginProvider = ({ children }: { children: ReactNode }) => {
     const [loading, setLoading] = useState(false);
 
     const navigate = useNavigate();
+    const { markLoggedIn } = useAuth();
 
     const handleLoginSubmit = async (e: FormEvent) => {
         e.preventDefault();
@@ -17,15 +19,22 @@ export const LoginProvider = ({ children }: { children: ReactNode }) => {
         setFeedback("");
 
         try {
-            const response = await fetch(`${API_URL}/login`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email: email, password: password }),
-                credentials: "include",
-            });
+            const response = await apiFetch(
+                "/login",
+                {
+                    method: "POST",
+                    body: JSON.stringify({ email: email, password: password }),
+                },
+                { authMode: "none" }
+            );
 
-            const data = await response.json();
-            if (!response.ok) throw new Error(data.message || "Login failed");
+            if (!response.ok) {
+                throw new Error(
+                    await getResponseErrorMessage(response, "Login failed")
+                );
+            }
+
+            await markLoggedIn();
 
             setFeedback("✅ Login successful!");
 

@@ -8,7 +8,7 @@ import {
 } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "react-hot-toast";
-import { API_URL } from "../configs/config";
+import { apiFetch } from "../lib/api";
 import {
     ExpenseDetailData,
     ExpenseTypeItem,
@@ -114,9 +114,8 @@ export const EditExpenseProvider = ({ children }: { children: ReactNode }) => {
                 ),
             };
 
-            const response = await fetch(`${API_URL}/expense/${expenseId}`, {
+            const response = await apiFetch(`/expense/${expenseId}`, {
                 method: "PUT",
-                credentials: "include",
                 body: JSON.stringify(payload),
             });
             if (!response.ok) {
@@ -143,9 +142,8 @@ export const EditExpenseProvider = ({ children }: { children: ReactNode }) => {
 
     useEffect(() => {
         const fetchGroupList = async () => {
-            const response = await fetch(`${API_URL}/groups`, {
+            const response = await apiFetch("/groups", {
                 method: "GET",
-                credentials: "include",
             });
             if (!response.ok) return;
 
@@ -159,9 +157,8 @@ export const EditExpenseProvider = ({ children }: { children: ReactNode }) => {
         };
 
         const fetchExpeseTypes = async () => {
-            const response = await fetch(`${API_URL}/expense_types`, {
+            const response = await apiFetch("/expense_types", {
                 method: "GET",
-                credentials: "include",
             });
             if (!response.ok) return;
 
@@ -193,9 +190,8 @@ export const EditExpenseProvider = ({ children }: { children: ReactNode }) => {
         };
 
         const fetchExpenseDetail = async () => {
-            const response = await fetch(`${API_URL}/expense/${expenseId}`, {
+            const response = await apiFetch(`/expense/${expenseId}`, {
                 method: "GET",
-                credentials: "include",
             });
             if (!response.ok) return;
 
@@ -217,11 +213,10 @@ export const EditExpenseProvider = ({ children }: { children: ReactNode }) => {
                 })),
             }));
 
-            const responseGroupMember = await fetch(
-                `${API_URL}/group_member/${data.groupId}`,
+            const responseGroupMember = await apiFetch(
+                `/group_member/${data.groupId}`,
                 {
                     method: "GET",
-                    credentials: "include",
                 }
             );
             if (!responseGroupMember.ok) return;

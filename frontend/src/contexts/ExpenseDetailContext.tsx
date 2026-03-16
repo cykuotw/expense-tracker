@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, ReactNode, FormEvent } from "react";
 import { useParams } from "react-router-dom";
-import { API_URL } from "../configs/config";
+import { apiFetch } from "../lib/api";
 import { ExpenseDetailData } from "../types/expense";
 import { ExpenseDetailContext } from "../hooks/ExpenseDetailContextHooks";
 
@@ -27,16 +27,12 @@ export const ExpenseDetailProvider = ({
 
         const fetchExpenseDetail = async () => {
             try {
-                const response = await fetch(
-                    `${API_URL}/expense/${expenseId}`,
-                    {
-                        method: "GET",
-                        credentials: "include",
-                        headers: {
-                            "Content-Type": "application/json",
-                        },
-                    }
-                );
+                const response = await apiFetch(`/expense/${expenseId}`, {
+                    method: "GET",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                });
                 const data: ExpenseDetailData = await response.json();
                 setExpenseDetail(data);
             } catch (error) {
@@ -52,14 +48,10 @@ export const ExpenseDetailProvider = ({
         if (!expenseDetail?.groupId || !expenseId) return;
 
         try {
-            const response = await fetch(
-                `${API_URL}/delete_expense/${expenseId}`,
-                {
-                    method: "PUT",
-                    headers: { "Content-Type": "application/json" },
-                    credentials: "include",
-                }
-            );
+            const response = await apiFetch(`/delete_expense/${expenseId}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+            });
 
             if (response.status === 200) {
                 window.location.href = `/group/${expenseDetail.groupId}`;

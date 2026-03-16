@@ -80,16 +80,7 @@ func (h *Handler) handleRefresh(c *gin.Context) error {
 		return err
 	}
 
-	c.SetCookie(
-		"access_token", accessToken,
-		int(config.Envs.JWTExpirationInSeconds),
-		"/", "localhost", false, true,
-	)
-	c.SetCookie(
-		"refresh_token", newRefreshToken,
-		int(config.Envs.RefreshJWTExpirationInSeconds),
-		"/", "localhost", false, true,
-	)
+	setAuthCookies(c, accessToken, newRefreshToken)
 
 	utils.WriteJSON(c, http.StatusOK, nil)
 	return nil

@@ -1,21 +1,11 @@
 import { Link, NavLink } from "react-router-dom";
 
 import Dropdown from "../Dropdown";
-import { API_URL } from "../../configs/config";
-import { USER_ROLES, UserRole } from "../../types/role";
+import { useAuth } from "../../hooks/AuthContextHooks";
+import { USER_ROLES } from "../../types/role";
 
-interface NavbarProps {
-    role: UserRole | null;
-}
-
-export default function Navbar({ role }: NavbarProps) {
-    const handleLogout = async () => {
-        await fetch(`${API_URL}/logout`, {
-            method: "POST",
-            credentials: "include",
-        });
-        window.location.href = "/login";
-    };
+export default function Navbar() {
+    const { role, logout } = useAuth();
 
     return (
         <aside className="app-shell__desktop-nav">
@@ -106,7 +96,9 @@ export default function Navbar({ role }: NavbarProps) {
                             contendTextConfig="text-sm w-48"
                         >
                             <li className="w-full">
-                                <button onClick={handleLogout}>Logout</button>
+                                <button onClick={() => void logout()}>
+                                    Logout
+                                </button>
                             </li>
                         </Dropdown>
                     </div>

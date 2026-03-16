@@ -1,7 +1,7 @@
 import { useState, useEffect, ReactNode, FormEvent } from "react";
 import { toast } from "react-hot-toast";
-import { API_URL } from "../configs/config";
 import { InviteUserContext, Invitation } from "../hooks/InviteUserContextHooks";
+import { apiFetch, getResponseErrorMessage } from "../lib/api";
 
 export const InviteUserProvider = ({ children }: { children: ReactNode }) => {
     const [loading, setLoading] = useState(false);
@@ -9,9 +9,7 @@ export const InviteUserProvider = ({ children }: { children: ReactNode }) => {
 
     const fetchInvitations = async () => {
         try {
-            const response = await fetch(`${API_URL}/invitations`, {
-                credentials: "include",
-            });
+            const response = await apiFetch("/invitations");
             if (response.ok) {
                 const data = await response.json();
                 setInvitations(data);
@@ -29,18 +27,18 @@ export const InviteUserProvider = ({ children }: { children: ReactNode }) => {
         e.preventDefault();
         setLoading(true);
         try {
-            const response = await fetch(`${API_URL}/invitations`, {
+            const response = await apiFetch("/invitations", {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                credentials: "include",
                 body: JSON.stringify({}),
             });
 
             if (!response.ok) {
-                const data = await response.json();
-                throw new Error(data.error || "Failed to create invitation");
+                throw new Error(
+                    await getResponseErrorMessage(
+                        response,
+                        "Failed to create invitation"
+                    )
+                );
             }
 
             toast.success("Invitation created", { duration: 1000 });
@@ -63,17 +61,20 @@ export const InviteUserProvider = ({ children }: { children: ReactNode }) => {
 
     const expireInvitation = async (tokenToExpire: string) => {
         try {
-            const response = await fetch(
-                `${API_URL}/invitations/${tokenToExpire}/expire`,
+            const response = await apiFetch(
+                `/invitations/${tokenToExpire}/expire`,
                 {
                     method: "POST",
-                    credentials: "include",
                 }
             );
 
             if (!response.ok) {
-                const data = await response.json();
-                throw new Error(data.error || "Failed to expire invitation");
+                throw new Error(
+                    await getResponseErrorMessage(
+                        response,
+                        "Failed to expire invitation"
+                    )
+                );
             }
 
             fetchInvitations();

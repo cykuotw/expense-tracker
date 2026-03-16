@@ -1,6 +1,6 @@
 import { useState, useEffect, ReactNode, MouseEvent, useRef } from "react";
 import { useParams } from "react-router-dom";
-import { API_URL } from "../configs/config";
+import { apiFetch } from "../lib/api";
 import { GroupInfo } from "../types/group";
 import { BalanceData } from "../types/balance";
 import { ExpenseData } from "../types/expense";
@@ -30,12 +30,8 @@ export const GroupDetailProvider = ({ children }: { children: ReactNode }) => {
             setLoading(true);
             try {
                 const [groupRes, balanceRes] = await Promise.all([
-                    fetch(`${API_URL}/group/${groupId}`, {
-                        credentials: "include",
-                    }),
-                    fetch(`${API_URL}/balance/${groupId}`, {
-                        credentials: "include",
-                    }),
+                    apiFetch(`/group/${groupId}`),
+                    apiFetch(`/balance/${groupId}`),
                 ]);
 
                 if (groupRes.ok) setGroupInfo(await groupRes.json());
@@ -52,12 +48,7 @@ export const GroupDetailProvider = ({ children }: { children: ReactNode }) => {
 
     const fetchExpensePage = async (page: number) => {
         if (!groupId) return [];
-        const response = await fetch(
-            `${API_URL}/expense_list/${groupId}/${page}`,
-            {
-                credentials: "include",
-            }
-        );
+        const response = await apiFetch(`/expense_list/${groupId}/${page}`);
         if (!response.ok) return [];
         return (await response.json()) as ExpenseData[];
     };
@@ -74,12 +65,7 @@ export const GroupDetailProvider = ({ children }: { children: ReactNode }) => {
             setUnsettledPage(0);
             setUnsettledExpenses([]);
             try {
-                const response = await fetch(
-                    `${API_URL}/expense_list/${groupId}/0`,
-                    {
-                        credentials: "include",
-                    }
-                );
+                const response = await apiFetch(`/expense_list/${groupId}/0`);
                 if (!response.ok) {
                     setUnsettledHasMore(false);
                     return;
@@ -173,16 +159,12 @@ export const GroupDetailProvider = ({ children }: { children: ReactNode }) => {
         if (!groupId) return;
 
         try {
-            const response = await fetch(
-                `${API_URL}/settle_expense/${groupId}`,
-                {
-                    method: "PUT",
-                    credentials: "include",
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
-                }
-            );
+            const response = await apiFetch(`/settle_expense/${groupId}`, {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+            });
             if (response.ok) {
                 console.log("Settlement successful");
             } else {

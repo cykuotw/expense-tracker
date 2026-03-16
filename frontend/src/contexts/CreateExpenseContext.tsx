@@ -1,7 +1,7 @@
 import { useState, useEffect, ReactNode, FormEvent, ReactElement } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "react-hot-toast";
-import { API_URL } from "../configs/config";
+import { apiFetch } from "../lib/api";
 import { ExpenseCreateData, ExpenseTypeItem } from "../types/expense";
 import { GroupListItem, GroupMember } from "../types/group";
 import { LedgerCreateData } from "../types/ledger";
@@ -101,9 +101,8 @@ export const CreateExpenseProvider = ({
             ),
         };
 
-        const response = await fetch(`${API_URL}/create_expense`, {
+        const response = await apiFetch("/create_expense", {
             method: "POST",
-            credentials: "include",
             headers: {
                 "Content-Type": "application/json",
             },
@@ -130,9 +129,8 @@ export const CreateExpenseProvider = ({
 
     useEffect(() => {
         const fetchGroupList = async () => {
-            const response = await fetch(`${API_URL}/groups`, {
+            const response = await apiFetch("/groups", {
                 method: "GET",
-                credentials: "include",
             });
             if (!response.ok) return;
 
@@ -140,9 +138,8 @@ export const CreateExpenseProvider = ({
             setGroupList(data);
         };
         const fetchExpeseTypes = async () => {
-            const response = await fetch(`${API_URL}/expense_types`, {
+            const response = await apiFetch("/expense_types", {
                 method: "GET",
-                credentials: "include",
             });
             if (!response.ok) return;
 
@@ -181,9 +178,8 @@ export const CreateExpenseProvider = ({
             }
         };
         const fetchGroupMembers = async () => {
-            const response = await fetch(`${API_URL}/group_member/${groupId}`, {
+            const response = await apiFetch(`/group_member/${groupId}`, {
                 method: "GET",
-                credentials: "include",
             });
             if (!response.ok) return;
 

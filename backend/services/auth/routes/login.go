@@ -43,7 +43,7 @@ func (h *Handler) handleLogin(c *gin.Context) {
 	}
 
 	secret := []byte(config.Envs.JWTSecret)
-	token, err := auth.CreateJWT(secret, user.ID)
+	accessToken, err := auth.CreateJWT(secret, user.ID)
 	if err != nil {
 		utils.WriteError(c, http.StatusInternalServerError, err)
 		return
@@ -65,15 +65,6 @@ func (h *Handler) handleLogin(c *gin.Context) {
 		return
 	}
 
-	c.SetCookie(
-		"access_token", token,
-		int(config.Envs.JWTExpirationInSeconds),
-		"/", "localhost", false, true,
-	)
-	c.SetCookie(
-		"refresh_token", refreshToken,
-		int(config.Envs.RefreshJWTExpirationInSeconds),
-		"/", "localhost", false, true,
-	)
+	setAuthCookies(c, accessToken, refreshToken)
 	utils.WriteJSON(c, http.StatusOK, nil)
 }

@@ -2,6 +2,7 @@ package extractors
 
 import (
 	"expense-tracker/backend/services/auth"
+	"expense-tracker/backend/utils"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -11,7 +12,8 @@ func ExtractUserIdFromJWT() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID, err := auth.ExtractJWTClaim(c, "userID")
 		if err != nil {
-			c.AbortWithError(http.StatusInternalServerError, err)
+			utils.WriteError(c, http.StatusUnauthorized, err)
+			c.Abort()
 			return
 		}
 

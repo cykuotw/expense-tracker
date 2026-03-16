@@ -27,7 +27,7 @@ func (h *HandlerProtected) handleUserInfo(c *gin.Context) {
 	// get user id from jwt
 	userID, err := auth.ExtractJWTClaim(c, "userID")
 	if err != nil {
-		utils.WriteError(c, http.StatusInternalServerError, err)
+		utils.WriteError(c, http.StatusUnauthorized, err)
 		return
 	}
 

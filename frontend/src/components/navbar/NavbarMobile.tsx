@@ -1,23 +1,12 @@
 import { useState } from "react";
 import { NavLink } from "react-router-dom";
 
-import { API_URL } from "../../configs/config";
-import { USER_ROLES, UserRole } from "../../types/role";
+import { useAuth } from "../../hooks/AuthContextHooks";
+import { USER_ROLES } from "../../types/role";
 
-interface NavbarMobileProps {
-    role: UserRole | null;
-}
-
-export default function NavbarMobile({ role }: NavbarMobileProps) {
+export default function NavbarMobile() {
     const [accountOpen, setAccountOpen] = useState(false);
-
-    const handleLogout = async () => {
-        await fetch(`${API_URL}/logout`, {
-            method: "POST",
-            credentials: "include",
-        });
-        window.location.href = "/login";
-    };
+    const { role, logout } = useAuth();
 
     return (
         <>
@@ -150,7 +139,7 @@ export default function NavbarMobile({ role }: NavbarMobileProps) {
                         <button
                             type="button"
                             className="btn btn-error w-full"
-                            onClick={handleLogout}
+                            onClick={() => void logout()}
                         >
                             Logout
                         </button>

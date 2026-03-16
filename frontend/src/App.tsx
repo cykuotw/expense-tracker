@@ -2,14 +2,11 @@ import {
     BrowserRouter as Router,
     Routes,
     Route,
-    useLocation,
 } from "react-router-dom";
-import { useState, useEffect } from "react";
 import { Toaster } from "react-hot-toast";
 
-import { API_URL } from "./configs/config";
-import { UserRole } from "./types/role";
-
+import { AuthProvider } from "./contexts/AuthContext";
+import { useAuth } from "./hooks/AuthContextHooks";
 import NavbarLayout from "./layouts/NavbarLayout";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -26,38 +23,9 @@ import EditExpense from "./pages/EditExpense";
 import InviteUser from "./pages/InviteUser";
 
 function AppRoutes() {
-    const [authState, setAuthState] = useState<{
-        isAuthenticated: boolean;
-        role: UserRole | null;
-    } | null>(null);
-    const location = useLocation();
+    const { loading } = useAuth();
 
-    useEffect(() => {
-        const checkAuth = async () => {
-            try {
-                const response = await fetch(`${API_URL}/auth/me`, {
-                    method: "GET",
-                    credentials: "include",
-                });
-
-                if (response.ok) {
-                    const data = (await response.json()) as { role?: UserRole };
-                    setAuthState({
-                        isAuthenticated: true,
-                        role: data.role ?? null,
-                    });
-                } else {
-                    setAuthState({ isAuthenticated: false, role: null });
-                }
-            } catch {
-                setAuthState({ isAuthenticated: false, role: null });
-            }
-        };
-
-        checkAuth();
-    }, [location.pathname]);
-
-    if (authState === null) {
+    if (loading) {
         return (
             <div className="flex items-center justify-center h-screen">
                 <span className="loading loading-spinner loading-xl"></span>
@@ -67,21 +35,13 @@ function AppRoutes() {
 
     return (
         <Routes>
-            <Route
-                element={
-                    <GuestGuard isAuthenticated={authState.isAuthenticated} />
-                }
-            >
+            <Route element={<GuestGuard />}>
                 <Route path="/register" element={<Register />} />
                 <Route path="/login" element={<Login />} />
             </Route>
 
-            <Route
-                element={
-                    <AuthGuard isAuthenticated={authState.isAuthenticated} />
-                }
-            >
-                <Route element={<NavbarLayout role={authState.role} />}>
+            <Route element={<AuthGuard />}>
+                <Route element={<NavbarLayout />}>
                     <Route path="/" element={<Home />} />
 
                     <Route path="/group/:id" element={<GroupDetail />} />
@@ -94,15 +54,8 @@ function AppRoutes() {
                 </Route>
             </Route>
 
-            <Route
-                element={
-                    <AdminGuard
-                        isAuthenticated={authState.isAuthenticated}
-                        role={authState.role}
-                    />
-                }
-            >
-                <Route element={<NavbarLayout role={authState.role} />}>
+            <Route element={<AdminGuard />}>
+                <Route element={<NavbarLayout />}>
                     <Route path="/admin/invite" element={<InviteUser />} />
                 </Route>
             </Route>
@@ -113,8 +66,10 @@ function AppRoutes() {
 function App() {
     return (
         <Router>
-            <Toaster position="bottom-center" />
-            <AppRoutes />
+            <AuthProvider>
+                <Toaster position="bottom-center" />
+                <AppRoutes />
+            </AuthProvider>
         </Router>
     );
 }

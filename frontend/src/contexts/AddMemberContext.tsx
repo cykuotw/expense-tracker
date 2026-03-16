@@ -2,7 +2,7 @@ import { useState, useEffect, ReactNode, FormEvent } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "react-hot-toast";
 import { isEmail } from "validator";
-import { API_URL } from "../configs/config";
+import { apiFetch } from "../lib/api";
 import { RelatedUser } from "../types/group";
 import { UserData } from "../types/user";
 import useDebounce from "../hooks/useDebounce";
@@ -29,16 +29,12 @@ export const AddMemberProvider = ({ children }: { children: ReactNode }) => {
     useEffect(() => {
         const fetchRelatedUsers = async () => {
             try {
-                const response = await fetch(
-                    `${API_URL}/related_member?g=${groupId}`,
-                    {
-                        method: "GET",
-                        credentials: "include",
-                        headers: {
-                            "Content-Type": "application/json",
-                        },
-                    }
-                );
+                const response = await apiFetch(`/related_member?g=${groupId}`, {
+                    method: "GET",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                });
                 const data = await response.json();
                 setRelatedUserList(data);
             } catch (error) {
@@ -68,9 +64,8 @@ export const AddMemberProvider = ({ children }: { children: ReactNode }) => {
         try {
             await Promise.all(
                 payloads.map(async (payload) => {
-                    const response = await fetch(`${API_URL}/group_member`, {
+                    const response = await apiFetch("/group_member", {
                         method: "PUT",
-                        credentials: "include",
                         headers: {
                             "Content-Type": "application/json",
                         },
@@ -115,14 +110,14 @@ export const AddMemberProvider = ({ children }: { children: ReactNode }) => {
 
             setLoading(true);
             try {
-                const response = await fetch(`${API_URL}/checkEmail`, {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
+                const response = await apiFetch(
+                    "/checkEmail",
+                    {
+                        method: "POST",
+                        body: JSON.stringify({ email: debouncedEmail }),
                     },
-                    credentials: "include",
-                    body: JSON.stringify({ email: debouncedEmail }),
-                });
+                    { authMode: "none" }
+                );
                 const data = await response.json();
                 emailExist = Boolean(data.exist);
             } catch (error) {
@@ -146,18 +141,15 @@ export const AddMemberProvider = ({ children }: { children: ReactNode }) => {
             }
 
             try {
-                const response = await fetch(
-                    `${API_URL}/userInfo?email=${debouncedEmail}`,
+                const response = await apiFetch(
+                    `/userInfo?email=${debouncedEmail}`,
                     {
                         method: "POST",
-                        headers: {
-                            "Content-Type": "application/json",
-                        },
-                        credentials: "include",
                         body: JSON.stringify({
                             email: debouncedEmail,
                         }),
-                    }
+                    },
+                    { authMode: "none" }
                 );
                 const data = (await response.json()) as UserData;
                 if (!response.ok) {

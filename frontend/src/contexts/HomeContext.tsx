@@ -1,5 +1,5 @@
 import { useState, useEffect, ReactNode } from "react";
-import { API_URL } from "../configs/config";
+import { apiFetch } from "../lib/api";
 import { GroupCardData } from "../types/group";
 import { HomeContext } from "./HomeContextHooks";
 
@@ -10,9 +10,8 @@ export const HomeProvider = ({ children }: { children: ReactNode }) => {
     useEffect(() => {
         const fetchGroups = async () => {
             try {
-                const response = await fetch(`${API_URL}/groups`, {
+                const response = await apiFetch("/groups", {
                     method: "GET",
-                    credentials: "include",
                     headers: {
                         "Content-Type": "application/json",
                     },

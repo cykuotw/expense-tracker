@@ -111,7 +111,7 @@ func (h *Handler) handleThirdPartyCallback(c *gin.Context) error {
 	}
 
 	secret := []byte(config.Envs.JWTSecret)
-	token, err := auth.CreateJWT(secret, user.ID)
+	accessToken, err := auth.CreateJWT(secret, user.ID)
 	if err != nil {
 		utils.WriteError(c, http.StatusInternalServerError, err)
 		return err
@@ -133,14 +133,7 @@ func (h *Handler) handleThirdPartyCallback(c *gin.Context) error {
 		return err
 	}
 
-	c.SetCookie(
-		"access_token", token,
-		int(config.Envs.JWTExpirationInSeconds),
-		"/", "localhost", false, true)
-	c.SetCookie(
-		"refresh_token", refreshToken,
-		int(config.Envs.RefreshJWTExpirationInSeconds),
-		"/", "localhost", false, true)
+	setAuthCookies(c, accessToken, refreshToken)
 
 	frontendUrl := fmt.Sprintf("http://%s", config.Envs.FrontendReactURL)
 	c.Redirect(http.StatusTemporaryRedirect, frontendUrl)

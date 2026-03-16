@@ -1,12 +1,9 @@
 import { Navigate, Outlet } from "react-router-dom";
-import { USER_ROLES, UserRole } from "../../types/role";
+import { useAuth } from "../../hooks/AuthContextHooks";
+import { USER_ROLES } from "../../types/role";
 
-interface AdminGuardProps {
-    isAuthenticated: boolean;
-    role: UserRole | null;
-}
-
-const AdminGuard = ({ isAuthenticated, role }: AdminGuardProps) => {
+const AdminGuard = () => {
+    const { isAuthenticated, role } = useAuth();
     if (!isAuthenticated) {
         return <Navigate to="/login" replace />;
     }

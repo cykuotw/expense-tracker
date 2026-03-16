@@ -1,7 +1,7 @@
 import { useState, useEffect, ReactNode, FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-hot-toast";
-import { API_URL } from "../configs/config";
+import { apiFetch, getResponseErrorMessage } from "../lib/api";
 import { GroupNewData } from "../types/group";
 import { CreateGroupContext } from "../hooks/CreateGroupContextHooks";
 
@@ -31,18 +31,18 @@ export const CreateGroupProvider = ({ children }: { children: ReactNode }) => {
         try {
             setIndicator(true);
 
-            const response = await fetch(`${API_URL}/create_group`, {
+            const response = await apiFetch("/create_group", {
                 method: "POST",
-                credentials: "include",
-                headers: {
-                    "Content-Type": "application/json",
-                },
                 body: JSON.stringify(payload),
             });
 
             if (!response.ok) {
-                const errorData = await response.json();
-                toast.error(errorData.message || "Failed to create group");
+                toast.error(
+                    await getResponseErrorMessage(
+                        response,
+                        "Failed to create group"
+                    )
+                );
                 return;
             }
 

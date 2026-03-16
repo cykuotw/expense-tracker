@@ -1,6 +1,6 @@
 import { useState, useEffect, FormEvent, ChangeEvent, ReactNode } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { API_URL } from "../configs/config";
+import { apiFetch, getResponseErrorMessage } from "../lib/api";
 import { RegisterContext } from "../hooks/RegisterContextHooks";
 
 export const RegisterProvider = ({ children }: { children: ReactNode }) => {
@@ -28,7 +28,11 @@ export const RegisterProvider = ({ children }: { children: ReactNode }) => {
 
         const validateToken = async () => {
             try {
-                const response = await fetch(`${API_URL}/invitations/${token}`);
+                const response = await apiFetch(
+                    `/invitations/${token}`,
+                    {},
+                    { authMode: "none" }
+                );
                 if (response.ok) {
                     const data = await response.json();
                     if (data.valid) {
@@ -58,20 +62,25 @@ export const RegisterProvider = ({ children }: { children: ReactNode }) => {
         setError("");
 
         try {
-            const response = await fetch(`${API_URL}/register`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
+            const response = await apiFetch(
+                "/register",
+                {
+                    method: "POST",
+                    body: JSON.stringify({
+                        ...formData,
+                        token: token,
+                    }),
                 },
-                body: JSON.stringify({
-                    ...formData,
-                    token: token,
-                }),
-            });
+                { authMode: "none" }
+            );
 
             if (!response.ok) {
-                const data = await response.json();
-                throw new Error(data.error || "Registration failed");
+                throw new Error(
+                    await getResponseErrorMessage(
+                        response,
+                        "Registration failed"
+                    )
+                );
             }
 
             navigate("/login");

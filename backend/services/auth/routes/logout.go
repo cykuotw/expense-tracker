@@ -13,8 +13,7 @@ func (h *Handler) handleLogout(c *gin.Context) error {
 		}
 	}
 
-	c.SetCookie("access_token", "", -1, "/", "localhost", false, true)
-	c.SetCookie("refresh_token", "", -1, "/", "localhost", false, true)
+	clearAuthCookies(c)
 
 	return nil
 }

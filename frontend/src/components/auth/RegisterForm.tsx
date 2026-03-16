@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { isEmail } from "validator";
 
-import { API_URL } from "../../configs/config";
+import { apiFetch } from "../../lib/api";
 import useDebounce from "../../hooks/useDebounce";
 
 export default function RegisterForm() {
@@ -25,13 +25,14 @@ export default function RegisterForm() {
         const checkEmailValid = async () => {
             setLoading(true);
             try {
-                const response = await fetch(`${API_URL}/checkEmail`, {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
+                const response = await apiFetch(
+                    "/checkEmail",
+                    {
+                        method: "POST",
+                        body: JSON.stringify({ email: debouncedEmail }),
                     },
-                    body: JSON.stringify({ email: debouncedEmail }),
-                });
+                    { authMode: "none" }
+                );
                 const data = await response.json();
 
                 if (data.exist) {

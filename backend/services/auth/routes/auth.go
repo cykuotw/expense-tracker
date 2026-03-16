@@ -7,6 +7,7 @@ import (
 	"expense-tracker/backend/utils"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -22,6 +23,7 @@ func initThirdParty() {
 	store := sessions.NewCookieStore([]byte(config.Envs.ThirdPartySessionSecret))
 	store.MaxAge(int(config.Envs.ThirdPartySessionMaxAge))
 	store.Options.Path = "/"
+	store.Options.Domain = config.Envs.AuthCookieDomain
 	store.Options.HttpOnly = true
 	store.Options.Secure = config.Envs.AuthCookieSecure
 
@@ -42,9 +44,11 @@ func (h *Handler) handleThirdParty(c *gin.Context) error {
 	c.Request.URL.RawQuery = query.Encode()
 
 	if _, err := gothic.CompleteUserAuth(c.Writer, c.Request); err == nil {
+		alignOAuthSessionCookieHeaders(c)
 		c.Redirect(http.StatusTemporaryRedirect, "/register")
 	} else {
 		gothic.BeginAuthHandler(c.Writer, c.Request)
+		alignOAuthSessionCookieHeaders(c)
 	}
 
 	return nil
@@ -58,6 +62,7 @@ func (h *Handler) handleThirdPartyCallback(c *gin.Context) error {
 	c.Request.URL.RawQuery = query.Encode()
 
 	gothUser, err := gothic.CompleteUserAuth(c.Writer, c.Request)
+	alignOAuthSessionCookieHeaders(c)
 	if err != nil {
 		fmt.Println(err)
 		c.Status(http.StatusInternalServerError)
@@ -138,6 +143,41 @@ func (h *Handler) handleThirdPartyCallback(c *gin.Context) error {
 	c.Redirect(http.StatusTemporaryRedirect, config.Envs.FrontendOrigin)
 
 	return nil
+}
+
+func alignOAuthSessionCookieHeaders(c *gin.Context) {
+	cookies := c.Writer.Header().Values("Set-Cookie")
+	if len(cookies) == 0 {
+		return
+	}
+
+	updated := make([]string, 0, len(cookies))
+	for _, cookie := range cookies {
+		if !strings.HasPrefix(cookie, gothic.SessionName+"=") || strings.Contains(strings.ToLower(cookie), "samesite=") {
+			updated = append(updated, cookie)
+			continue
+		}
+
+		updated = append(updated, cookie+"; "+sameSiteAttribute(config.Envs.AuthCookieSameSite))
+	}
+
+	c.Writer.Header().Del("Set-Cookie")
+	for _, cookie := range updated {
+		c.Writer.Header().Add("Set-Cookie", cookie)
+	}
+}
+
+func sameSiteAttribute(mode http.SameSite) string {
+	switch mode {
+	case http.SameSiteStrictMode:
+		return "SameSite=Strict"
+	case http.SameSiteNoneMode:
+		return "SameSite=None"
+	case http.SameSiteDefaultMode:
+		return "SameSite"
+	default:
+		return "SameSite=Lax"
+	}
 }
 
 func (h *Handler) handleAuthMe(c *gin.Context) error {

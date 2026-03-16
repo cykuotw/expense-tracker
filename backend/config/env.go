@@ -1,6 +1,7 @@
 package config
 
 import (
+	"net/http"
 	"os"
 	"strconv"
 	"strings"
@@ -38,8 +39,9 @@ type Config struct {
 	CORSAllowedOrigins   []string
 	CORSAllowCredentials bool
 
-	AuthCookieDomain string
-	AuthCookieSecure bool
+	AuthCookieDomain   string
+	AuthCookieSecure   bool
+	AuthCookieSameSite http.SameSite
 }
 
 var Envs = initConfig()
@@ -87,8 +89,9 @@ func initConfig() Config {
 		),
 		CORSAllowCredentials: getEnvBool("CORS_ALLOW_CREDENTIALS", false),
 
-		AuthCookieDomain: getEnv("AUTH_COOKIE_DOMAIN", ""),
-		AuthCookieSecure: getEnvBool("AUTH_COOKIE_SECURE", false),
+		AuthCookieDomain:   getEnv("AUTH_COOKIE_DOMAIN", ""),
+		AuthCookieSecure:   getEnvBool("AUTH_COOKIE_SECURE", false),
+		AuthCookieSameSite: getEnvSameSite("AUTH_COOKIE_SAME_SITE", http.SameSiteLaxMode),
 	}
 }
 
@@ -130,6 +133,22 @@ func getEnvBool(key string, fallback bool) bool {
 			return true
 		case "False", "false", "0", "no":
 			return false
+		}
+	}
+	return fallback
+}
+
+func getEnvSameSite(key string, fallback http.SameSite) http.SameSite {
+	if value, ok := os.LookupEnv(key); ok {
+		switch strings.ToLower(strings.TrimSpace(value)) {
+		case "lax":
+			return http.SameSiteLaxMode
+		case "strict":
+			return http.SameSiteStrictMode
+		case "none":
+			return http.SameSiteNoneMode
+		case "default":
+			return http.SameSiteDefaultMode
 		}
 	}
 	return fallback

@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/joho/godotenv"
 )
@@ -10,10 +11,9 @@ import (
 type Config struct {
 	Mode string
 
-	BackendURL       string
-	FrontendURL      string
-	FrontendReactURL string
-	APIPath          string
+	BackendURL     string
+	FrontendOrigin string
+	APIPath        string
 
 	DBPublicHost string
 	DBPort       string
@@ -35,8 +35,11 @@ type Config struct {
 
 	ExpensesPerPage int64
 
-	CORSFrontendOrigin   string
+	CORSAllowedOrigins   []string
 	CORSAllowCredentials bool
+
+	AuthCookieDomain string
+	AuthCookieSecure bool
 }
 
 var Envs = initConfig()
@@ -55,10 +58,9 @@ func initConfig() Config {
 	return Config{
 		Mode: mode,
 
-		BackendURL:       getEnv("BACKEND_URL", "localhost:8000"),
-		FrontendURL:      getEnv("FRONTEND_URL", "localhost:8050"),
-		FrontendReactURL: getEnv("FRONTEND_REACT_URL", "localhost:5173"),
-		APIPath:          getEnv("API_URL", ""),
+		BackendURL:     getEnv("BACKEND_URL", "127.0.0.1:8000"),
+		FrontendOrigin: normalizeOrigin(getEnv("FRONTEND_ORIGIN", "http://localhost:5173")),
+		APIPath:        getEnv("API_URL", ""),
 
 		DBPublicHost: getEnv("DB_PUBLIC_HOST", "localhost"),
 		DBPort:       getEnv("DB_PORT", "5432"),
@@ -80,8 +82,13 @@ func initConfig() Config {
 
 		ExpensesPerPage: getEnvInt("EXPENSES_PER_PAGE", 25),
 
-		CORSFrontendOrigin:   getEnv("CORS_FRONTEND_ORIGIN", "localhost:8050"),
+		CORSAllowedOrigins: parseOrigins(
+			getEnv("CORS_ALLOWED_ORIGINS", "http://localhost:5173"),
+		),
 		CORSAllowCredentials: getEnvBool("CORS_ALLOW_CREDENTIALS", false),
+
+		AuthCookieDomain: getEnv("AUTH_COOKIE_DOMAIN", ""),
+		AuthCookieSecure: getEnvBool("AUTH_COOKIE_SECURE", false),
 	}
 }
 
@@ -126,4 +133,33 @@ func getEnvBool(key string, fallback bool) bool {
 		}
 	}
 	return fallback
+}
+
+func parseOrigins(value string) []string {
+	if value == "" {
+		return nil
+	}
+
+	parts := strings.Split(value, ",")
+	origins := make([]string, 0, len(parts))
+	for _, part := range parts {
+		origin := normalizeOrigin(strings.TrimSpace(part))
+		if origin == "" {
+			continue
+		}
+		origins = append(origins, origin)
+	}
+
+	return origins
+}
+
+func normalizeOrigin(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return ""
+	}
+	if strings.HasPrefix(value, "http://") || strings.HasPrefix(value, "https://") {
+		return value
+	}
+	return "http://" + value
 }

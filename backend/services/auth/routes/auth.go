@@ -23,7 +23,7 @@ func initThirdParty() {
 	store.MaxAge(int(config.Envs.ThirdPartySessionMaxAge))
 	store.Options.Path = "/"
 	store.Options.HttpOnly = true
-	store.Options.Secure = false // set to true when https
+	store.Options.Secure = config.Envs.AuthCookieSecure
 
 	gothic.Store = store
 	goth.UseProviders(
@@ -135,8 +135,7 @@ func (h *Handler) handleThirdPartyCallback(c *gin.Context) error {
 
 	setAuthCookies(c, accessToken, refreshToken)
 
-	frontendUrl := fmt.Sprintf("http://%s", config.Envs.FrontendReactURL)
-	c.Redirect(http.StatusTemporaryRedirect, frontendUrl)
+	c.Redirect(http.StatusTemporaryRedirect, config.Envs.FrontendOrigin)
 
 	return nil
 }

@@ -34,7 +34,7 @@ func (h *Handler) handleGetGroup(c *gin.Context) {
 	// get members of the group
 	users, err := h.store.GetGroupMemberByGroupID(groupId)
 	if err != nil {
-		utils.WriteJSON(c, http.StatusInternalServerError, err)
+		utils.WriteError(c, http.StatusInternalServerError, err)
 		return
 	}
 

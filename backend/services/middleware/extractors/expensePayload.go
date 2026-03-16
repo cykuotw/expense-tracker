@@ -12,7 +12,7 @@ func ExtractExpensePayload() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var payload types.ExpensePayload
 		if err := utils.ParseJSON(c, &payload); err != nil {
-			c.AbortWithError(http.StatusBadRequest, err)
+			utils.AbortWithError(c, http.StatusBadRequest, err)
 			return
 		}
 
@@ -40,7 +40,7 @@ func ExtractExpenseUpdatePayload() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var payload types.ExpenseUpdatePayload
 		if err := utils.ParseJSON(c, &payload); err != nil {
-			c.AbortWithError(http.StatusBadRequest, err)
+			utils.AbortWithError(c, http.StatusBadRequest, err)
 			return
 		}
 

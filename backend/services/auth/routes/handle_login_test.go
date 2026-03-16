@@ -58,5 +58,24 @@ func TestServiceLogin(t *testing.T) {
 		router.ServeHTTP(rr, req)
 
 		assert.Equal(t, http.StatusBadRequest, rr.Code)
+		var response struct {
+			Error   string `json:"error"`
+			Code    string `json:"code"`
+			Details []struct {
+				Field string `json:"field"`
+				Code  string `json:"code"`
+			} `json:"details"`
+		}
+		err = json.Unmarshal(rr.Body.Bytes(), &response)
+		assert.NoError(t, err)
+		assert.Equal(t, "invalid payload", response.Error)
+		assert.Equal(t, "invalid_payload", response.Code)
+		if assert.NotEmpty(t, response.Details) {
+			fields := make([]string, 0, len(response.Details))
+			for _, detail := range response.Details {
+				fields = append(fields, detail.Field)
+			}
+			assert.Contains(t, fields, "email")
+		}
 	})
 }

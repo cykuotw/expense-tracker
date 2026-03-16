@@ -31,6 +31,6 @@ func WriteError(c *gin.Context, status int, err error) {
 	if err == nil {
 		WriteJSON(c, status, nil)
 	} else {
-		WriteJSON(c, status, map[string]string{"error": err.Error()})
+		WriteJSON(c, status, normalizeError(status, err))
 	}
 }

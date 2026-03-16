@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"encoding/json"
 	"expense-tracker/backend/config"
 	"expense-tracker/backend/types"
 	"expense-tracker/backend/utils"
@@ -58,7 +59,14 @@ func TestCSRFMiddlewareRejectsMissingToken(t *testing.T) {
 	router.ServeHTTP(rr, req)
 
 	assert.Equal(t, http.StatusForbidden, rr.Code)
-	assert.Contains(t, rr.Body.String(), types.ErrInvalidCSRFToken.Error())
+	var response struct {
+		Error string `json:"error"`
+		Code  string `json:"code"`
+	}
+	err := json.Unmarshal(rr.Body.Bytes(), &response)
+	assert.NoError(t, err)
+	assert.Equal(t, types.ErrInvalidCSRFToken.Error(), response.Error)
+	assert.Equal(t, "invalid_csrf_token", response.Code)
 }
 
 func TestCSRFMiddlewareRejectsUntrustedOrigin(t *testing.T) {

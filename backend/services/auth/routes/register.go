@@ -23,8 +23,7 @@ func (h *Handler) handleRegister(c *gin.Context) {
 
 	if err := utils.Validate.Struct(payload); err != nil {
 		errors := err.(validator.ValidationErrors)
-		utils.WriteError(c, http.StatusBadRequest,
-			fmt.Errorf("invalid payload %v", errors))
+		utils.WriteError(c, http.StatusBadRequest, utils.NewValidationError(errors))
 		return
 	}
 

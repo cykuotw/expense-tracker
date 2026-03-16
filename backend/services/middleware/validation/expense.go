@@ -2,6 +2,7 @@ package validation
 
 import (
 	"expense-tracker/backend/types"
+	"expense-tracker/backend/utils"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -13,11 +14,11 @@ func ValidateExpenseExist(store types.ExpenseStore) gin.HandlerFunc {
 
 		exist, err := store.CheckExpenseExistByID(expenseID)
 		if err != nil {
-			c.AbortWithStatusJSON(http.StatusInternalServerError, err)
+			utils.AbortWithError(c, http.StatusInternalServerError, err)
 			return
 		}
 		if !exist {
-			c.AbortWithStatusJSON(http.StatusBadRequest, types.ErrExpenseNotExist)
+			utils.AbortWithError(c, http.StatusBadRequest, types.ErrExpenseNotExist)
 			return
 		}
 

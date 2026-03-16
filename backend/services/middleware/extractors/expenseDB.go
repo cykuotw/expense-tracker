@@ -2,6 +2,7 @@ package extractors
 
 import (
 	"expense-tracker/backend/types"
+	"expense-tracker/backend/utils"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -13,7 +14,7 @@ func ExtractExpenseFromStore(store types.ExpenseStore) gin.HandlerFunc {
 
 		expense, err := store.GetExpenseByID(expenseID)
 		if err != nil {
-			c.AbortWithError(http.StatusInternalServerError, err)
+			utils.AbortWithError(c, http.StatusInternalServerError, err)
 			return
 		}
 

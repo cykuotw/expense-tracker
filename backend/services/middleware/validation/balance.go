@@ -2,6 +2,7 @@ package validation
 
 import (
 	"expense-tracker/backend/types"
+	"expense-tracker/backend/utils"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -19,11 +20,11 @@ func ValidateBalanceExist(store types.ExpenseStore) gin.HandlerFunc {
 
 		exist, err := store.CheckBalanceExistByID(balanceId)
 		if err != nil {
-			c.AbortWithStatusJSON(http.StatusInternalServerError, err)
+			utils.AbortWithError(c, http.StatusInternalServerError, err)
 			return
 		}
 		if !exist {
-			c.AbortWithStatusJSON(http.StatusBadRequest, types.ErrBalanceNotExist)
+			utils.AbortWithError(c, http.StatusBadRequest, types.ErrBalanceNotExist)
 			return
 		}
 

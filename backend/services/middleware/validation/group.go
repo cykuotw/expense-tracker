@@ -2,6 +2,7 @@ package validation
 
 import (
 	"expense-tracker/backend/types"
+	"expense-tracker/backend/utils"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -19,11 +20,11 @@ func ValidateGroupExist(store types.GroupStore) gin.HandlerFunc {
 
 		exist, err := store.CheckGroupExistById(groupID)
 		if err != nil {
-			c.AbortWithStatusJSON(http.StatusInternalServerError, err)
+			utils.AbortWithError(c, http.StatusInternalServerError, err)
 			return
 		}
 		if !exist {
-			c.AbortWithStatusJSON(http.StatusBadRequest, types.ErrGroupNotExist)
+			utils.AbortWithError(c, http.StatusBadRequest, types.ErrGroupNotExist)
 			return
 		}
 

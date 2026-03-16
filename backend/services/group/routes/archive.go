@@ -12,7 +12,7 @@ func (h *Handler) handleArchiveGroup(c *gin.Context) {
 	groupID := c.Param("groupId")
 	_, err := h.store.GetGroupByID(groupID)
 	if err != nil {
-		utils.WriteJSON(c, http.StatusBadRequest, err)
+		utils.WriteError(c, http.StatusBadRequest, err)
 		return
 	}
 

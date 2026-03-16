@@ -1,33 +1,23 @@
 package route
 
 import (
+	"crypto/rand"
+	"encoding/base64"
 	"expense-tracker/backend/config"
 	"expense-tracker/backend/services/auth"
 	"expense-tracker/backend/types"
 	"expense-tracker/backend/utils"
 	"fmt"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"github.com/gorilla/sessions"
 	"github.com/markbates/goth"
-	"github.com/markbates/goth/gothic"
 	"github.com/markbates/goth/providers/google"
 )
 
 func initThirdParty() {
-	// OAuth 2.0 setup
-	store := sessions.NewCookieStore([]byte(config.Envs.ThirdPartySessionSecret))
-	store.MaxAge(int(config.Envs.ThirdPartySessionMaxAge))
-	store.Options.Path = "/"
-	store.Options.Domain = config.Envs.AuthCookieDomain
-	store.Options.HttpOnly = true
-	store.Options.Secure = config.Envs.AuthCookieSecure
-
-	gothic.Store = store
 	goth.UseProviders(
 		google.New(config.Envs.GoogleClientId,
 			config.Envs.GoogleClientSecret,
@@ -38,36 +28,73 @@ func initThirdParty() {
 
 func (h *Handler) handleThirdParty(c *gin.Context) error {
 	provider := c.Param("provider")
-
-	query := c.Request.URL.Query()
-	query.Add("provider", provider)
-	c.Request.URL.RawQuery = query.Encode()
-
-	if _, err := gothic.CompleteUserAuth(c.Writer, c.Request); err == nil {
-		alignOAuthSessionCookieHeaders(c)
-		c.Redirect(http.StatusTemporaryRedirect, "/register")
-	} else {
-		gothic.BeginAuthHandler(c.Writer, c.Request)
-		alignOAuthSessionCookieHeaders(c)
+	gothProvider, err := goth.GetProvider(provider)
+	if err != nil {
+		utils.WriteError(c, http.StatusBadRequest, err)
+		return err
 	}
 
+	state, err := generateOAuthState()
+	if err != nil {
+		utils.WriteError(c, http.StatusInternalServerError, err)
+		return err
+	}
+
+	session, err := gothProvider.BeginAuth(state)
+	if err != nil {
+		utils.WriteError(c, http.StatusInternalServerError, err)
+		return err
+	}
+
+	storeOAuthSession(c, provider, state, session.Marshal())
+
+	authURL, err := session.GetAuthURL()
+	if err != nil {
+		utils.WriteError(c, http.StatusInternalServerError, err)
+		return err
+	}
+
+	c.Redirect(http.StatusTemporaryRedirect, authURL)
 	return nil
 }
 
 func (h *Handler) handleThirdPartyCallback(c *gin.Context) error {
 	provider := c.Param("provider")
-
-	query := c.Request.URL.Query()
-	query.Add("provider", provider)
-	c.Request.URL.RawQuery = query.Encode()
-
-	gothUser, err := gothic.CompleteUserAuth(c.Writer, c.Request)
-	alignOAuthSessionCookieHeaders(c)
+	gothProvider, err := goth.GetProvider(provider)
 	if err != nil {
-		fmt.Println(err)
-		c.Status(http.StatusInternalServerError)
+		utils.WriteError(c, http.StatusBadRequest, err)
 		return err
 	}
+
+	stateCookie, sessionCookie, err := loadOAuthSession(c, provider)
+	if err != nil {
+		utils.WriteError(c, http.StatusUnauthorized, err)
+		return err
+	}
+
+	if c.Query("state") == "" || c.Query("state") != stateCookie {
+		utils.WriteError(c, http.StatusUnauthorized, types.ErrInvalidCSRFToken)
+		return types.ErrInvalidCSRFToken
+	}
+
+	session, err := gothProvider.UnmarshalSession(sessionCookie)
+	if err != nil {
+		utils.WriteError(c, http.StatusUnauthorized, err)
+		return err
+	}
+
+	if _, err := session.Authorize(gothProvider, c.Request.URL.Query()); err != nil {
+		utils.WriteError(c, http.StatusInternalServerError, err)
+		return err
+	}
+
+	gothUser, err := gothProvider.FetchUser(session)
+	if err != nil {
+		utils.WriteError(c, http.StatusInternalServerError, err)
+		return err
+	}
+
+	clearOAuthSession(c, provider)
 
 	exist, err := h.store.CheckEmailExist(gothUser.Email)
 	if err != nil {
@@ -145,39 +172,12 @@ func (h *Handler) handleThirdPartyCallback(c *gin.Context) error {
 	return nil
 }
 
-func alignOAuthSessionCookieHeaders(c *gin.Context) {
-	cookies := c.Writer.Header().Values("Set-Cookie")
-	if len(cookies) == 0 {
-		return
+func generateOAuthState() (string, error) {
+	bytes := make([]byte, 32)
+	if _, err := rand.Read(bytes); err != nil {
+		return "", err
 	}
-
-	updated := make([]string, 0, len(cookies))
-	for _, cookie := range cookies {
-		if !strings.HasPrefix(cookie, gothic.SessionName+"=") || strings.Contains(strings.ToLower(cookie), "samesite=") {
-			updated = append(updated, cookie)
-			continue
-		}
-
-		updated = append(updated, cookie+"; "+sameSiteAttribute(config.Envs.AuthCookieSameSite))
-	}
-
-	c.Writer.Header().Del("Set-Cookie")
-	for _, cookie := range updated {
-		c.Writer.Header().Add("Set-Cookie", cookie)
-	}
-}
-
-func sameSiteAttribute(mode http.SameSite) string {
-	switch mode {
-	case http.SameSiteStrictMode:
-		return "SameSite=Strict"
-	case http.SameSiteNoneMode:
-		return "SameSite=None"
-	case http.SameSiteDefaultMode:
-		return "SameSite"
-	default:
-		return "SameSite=Lax"
-	}
+	return base64.RawURLEncoding.EncodeToString(bytes), nil
 }
 
 func (h *Handler) handleAuthMe(c *gin.Context) error {
@@ -197,4 +197,66 @@ func (h *Handler) handleAuthMe(c *gin.Context) error {
 	utils.WriteJSON(c, http.StatusOK, gin.H{"userID": userId, "role": user.Role})
 
 	return nil
+}
+
+func storeOAuthSession(c *gin.Context, provider string, state string, session string) {
+	http.SetCookie(c.Writer, buildOAuthCookie(oauthStateCookieName(provider), state, int(config.Envs.ThirdPartySessionMaxAge), c))
+	http.SetCookie(c.Writer, buildOAuthCookie(oauthSessionCookieName(provider), encodeOAuthSession(session), int(config.Envs.ThirdPartySessionMaxAge), c))
+}
+
+func loadOAuthSession(c *gin.Context, provider string) (string, string, error) {
+	state, err := c.Cookie(oauthStateCookieName(provider))
+	if err != nil {
+		return "", "", fmt.Errorf("missing oauth state")
+	}
+
+	encodedSession, err := c.Cookie(oauthSessionCookieName(provider))
+	if err != nil {
+		return "", "", fmt.Errorf("missing oauth session")
+	}
+
+	session, err := decodeOAuthSession(encodedSession)
+	if err != nil {
+		return "", "", err
+	}
+
+	return state, session, nil
+}
+
+func clearOAuthSession(c *gin.Context, provider string) {
+	http.SetCookie(c.Writer, buildOAuthCookie(oauthStateCookieName(provider), "", -1, c))
+	http.SetCookie(c.Writer, buildOAuthCookie(oauthSessionCookieName(provider), "", -1, c))
+}
+
+func oauthStateCookieName(provider string) string {
+	return fmt.Sprintf("oauth_%s_state", provider)
+}
+
+func oauthSessionCookieName(provider string) string {
+	return fmt.Sprintf("oauth_%s_session", provider)
+}
+
+func buildOAuthCookie(name string, value string, maxAge int, c *gin.Context) *http.Cookie {
+	return &http.Cookie{
+		Name:     name,
+		Value:    value,
+		Path:     "/",
+		Domain:   config.Envs.AuthCookieDomain,
+		MaxAge:   maxAge,
+		HttpOnly: true,
+		Secure:   resolveAuthCookieSecure(c),
+		SameSite: config.Envs.AuthCookieSameSite,
+	}
+}
+
+func encodeOAuthSession(value string) string {
+	return base64.RawURLEncoding.EncodeToString([]byte(value))
+}
+
+func decodeOAuthSession(value string) (string, error) {
+	decoded, err := base64.RawURLEncoding.DecodeString(value)
+	if err != nil {
+		return "", err
+	}
+	return string(decoded), nil
 }

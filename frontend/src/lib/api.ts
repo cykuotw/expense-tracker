@@ -11,6 +11,8 @@ type AuthFailureHandler = (() => void) | null;
 
 let refreshPromise: Promise<boolean> | null = null;
 let authFailureHandler: AuthFailureHandler = null;
+let csrfToken: string | null = null;
+let csrfPromise: Promise<string | null> | null = null;
 
 export function setApiAuthFailureHandler(handler: AuthFailureHandler) {
     authFailureHandler = handler;
@@ -18,7 +20,7 @@ export function setApiAuthFailureHandler(handler: AuthFailureHandler) {
 
 async function refreshAccessToken() {
     if (!refreshPromise) {
-        refreshPromise = fetch(`${API_URL}/auth/refresh`, {
+        refreshPromise = csrfFetch(`${API_URL}/auth/refresh`, {
             method: "POST",
             credentials: "include",
         })
@@ -30,6 +32,55 @@ async function refreshAccessToken() {
     }
 
     return refreshPromise;
+}
+
+function isMutatingMethod(method?: string) {
+    const normalizedMethod = (method ?? "GET").toUpperCase();
+    return ["POST", "PUT", "PATCH", "DELETE"].includes(normalizedMethod);
+}
+
+async function ensureCSRFToken() {
+    if (csrfToken) {
+        return csrfToken;
+    }
+
+    if (!csrfPromise) {
+        csrfPromise = fetch(`${API_URL}/auth/csrf`, {
+            method: "GET",
+            credentials: "include",
+        })
+            .then(async (response) => {
+                if (!response.ok) {
+                    return null;
+                }
+
+                const data = (await response.json()) as { csrfToken?: string };
+                csrfToken = typeof data.csrfToken === "string" ? data.csrfToken : null;
+                return csrfToken;
+            })
+            .catch(() => null)
+            .finally(() => {
+                csrfPromise = null;
+            });
+    }
+
+    return csrfPromise;
+}
+
+async function csrfFetch(input: string, init: RequestInit = {}) {
+    const headers = new Headers(init.headers);
+
+    if (isMutatingMethod(init.method)) {
+        const token = await ensureCSRFToken();
+        if (token) {
+            headers.set("X-CSRF-Token", token);
+        }
+    }
+
+    return fetch(input, {
+        ...init,
+        headers,
+    });
 }
 
 export async function apiFetch(
@@ -44,7 +95,7 @@ export async function apiFetch(
         headers.set("Content-Type", "application/json");
     }
 
-    const response = await fetch(`${API_URL}${path}`, {
+    const response = await csrfFetch(`${API_URL}${path}`, {
         ...init,
         credentials: "include",
         headers,

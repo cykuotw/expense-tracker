@@ -44,6 +44,7 @@ func (s *APIServer) Run() error {
 	router.Use(middleware.CORSMiddleware())
 
 	public := router.Group(config.Envs.APIPath)
+	public.Use(middleware.CSRFMiddleware())
 
 	userStore := user.NewStore(s.db)
 	userHandler := user.NewHandler(userStore)

@@ -24,6 +24,7 @@ func NewHandler(store types.UserStore, invitationStore types.InvitationStore, re
 }
 
 func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
+	router.GET("/auth/csrf", common.Make(h.handleCSRFToken))
 	router.POST("/auth/:provider", common.Make(h.handleThirdParty))
 	router.GET("/auth/:provider/callback", common.Make(h.handleThirdPartyCallback))
 

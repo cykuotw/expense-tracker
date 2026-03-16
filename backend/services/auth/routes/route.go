@@ -14,8 +14,6 @@ type Handler struct {
 }
 
 func NewHandler(store types.UserStore, invitationStore types.InvitationStore, refreshStore types.RefreshTokenStore) *Handler {
-	initThirdParty()
-
 	return &Handler{
 		store:           store,
 		invitationStore: invitationStore,

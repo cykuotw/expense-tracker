@@ -31,38 +31,31 @@ func TestStoreOAuthSessionUsesConfiguredCookiePolicy(t *testing.T) {
 	c, _ := gin.CreateTestContext(rr)
 	c.Request = httptest.NewRequest(http.MethodGet, "/", nil)
 
-	storeOAuthSession(c, "google", "state-token", "session-json")
+	storeOAuthState(c, "google", "state-token")
 
 	cookies := rr.Result().Cookies()
-	if assert.Len(t, cookies, 2) {
+	if assert.Len(t, cookies, 1) {
 		assert.Equal(t, "oauth_google_state", cookies[0].Name)
 		assert.Equal(t, "api.example.com", cookies[0].Domain)
 		assert.Equal(t, http.SameSiteLaxMode, cookies[0].SameSite)
 		assert.True(t, cookies[0].HttpOnly)
-
-		assert.Equal(t, "oauth_google_session", cookies[1].Name)
-		assert.Equal(t, "api.example.com", cookies[1].Domain)
-		assert.Equal(t, http.SameSiteLaxMode, cookies[1].SameSite)
-		assert.True(t, cookies[1].HttpOnly)
 	}
 }
 
-func TestLoadOAuthSessionRoundTrip(t *testing.T) {
+func TestLoadOAuthStateRoundTrip(t *testing.T) {
 	gin.SetMode(gin.ReleaseMode)
 	rr := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(rr)
 	c.Request = httptest.NewRequest(http.MethodGet, "/", nil)
 	c.Request.AddCookie(&http.Cookie{Name: oauthStateCookieName("google"), Value: "state-token"})
-	c.Request.AddCookie(&http.Cookie{Name: oauthSessionCookieName("google"), Value: encodeOAuthSession(`{"AuthURL":"https://example.com"}`)})
 
-	state, session, err := loadOAuthSession(c, "google")
+	state, err := loadOAuthState(c, "google")
 
 	assert.NoError(t, err)
 	assert.Equal(t, "state-token", state)
-	assert.Equal(t, `{"AuthURL":"https://example.com"}`, session)
 }
 
-func TestClearOAuthSessionExpiresCookies(t *testing.T) {
+func TestClearOAuthStateExpiresCookie(t *testing.T) {
 	originalSameSite := config.Envs.AuthCookieSameSite
 	config.Envs.AuthCookieSameSite = http.SameSiteLaxMode
 	t.Cleanup(func() {
@@ -74,11 +67,10 @@ func TestClearOAuthSessionExpiresCookies(t *testing.T) {
 	c, _ := gin.CreateTestContext(rr)
 	c.Request = httptest.NewRequest(http.MethodGet, "/", nil)
 
-	clearOAuthSession(c, "google")
+	clearOAuthState(c, "google")
 
 	cookies := rr.Result().Cookies()
-	if assert.Len(t, cookies, 2) {
+	if assert.Len(t, cookies, 1) {
 		assert.Equal(t, -1, cookies[0].MaxAge)
-		assert.Equal(t, -1, cookies[1].MaxAge)
 	}
 }

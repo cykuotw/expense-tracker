@@ -6,6 +6,11 @@
       "sourceType": "github",
       "computedHash": "7bbf0f48704f5c40436e3466d7ef9bcbafe35a84eb8c3e9d0ab76408a57bac5c"
     },
+    "code-review": {
+      "source": "getsentry/skills",
+      "sourceType": "github",
+      "computedHash": "bd658c4c393897545e4003be00e64f28f802c6d500c380b280a2dab500e87012"
+    },
     "ckm:brand": {
       "source": "nextlevelbuilder/ui-ux-pro-max-skill",
       "sourceType": "github",
@@ -31,10 +36,20 @@
       "sourceType": "github",
       "computedHash": "9ae38e4e201f338b6150e462b98a2db0f2ae7c180c77e8cfb1d33eba9d33bf33"
     },
+    "find-bugs": {
+      "source": "getsentry/skills",
+      "sourceType": "github",
+      "computedHash": "e2734b71665c3bd0670a5f439ba96b8184d2b37aa4cea2ad16d1f116bd5d2de1"
+    },
     "shadcn": {
       "source": "shadcn/ui",
       "sourceType": "github",
       "computedHash": "1ec42c9b918b315d8e5c6c856b78c3c4725fc93dea30b9b7e9975c69848fcce6"
+    },
+    "security-best-practices": {
+      "source": "openai/skills",
+      "sourceType": "github",
+      "computedHash": "3f2c037579dbb1809bcf4f5e4d3d9f77b63ea4ba092d01f0a8ea0c6811048f55"
     },
     "tailwind-design-system": {
       "source": "wshobson/agents",
@@ -50,6 +65,16 @@
       "source": "vercel-labs/agent-skills",
       "sourceType": "github",
       "computedHash": "afeca00ac2f492d88fdd010e73d91719a5b57c564bb4a73325b0bd77e11323ab"
+    },
+    "web-perf": {
+      "source": "cloudflare/skills",
+      "sourceType": "github",
+      "computedHash": "31f096e4e36efdb68432dcf1bee825a56ce778658238006edf70fefc9a3e82e7"
+    },
+    "webapp-testing": {
+      "source": "anthropics/skills",
+      "sourceType": "github",
+      "computedHash": "81475949f1e6dc1f3337de117d03ff1496503389ad7b117ae34ad16754ce4953"
     }
   }
 }

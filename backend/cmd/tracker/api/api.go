@@ -16,8 +16,16 @@ import (
 	"expense-tracker/backend/services/user"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
+)
+
+const (
+	readHeaderTimeout = 5 * time.Second
+	readTimeout       = 10 * time.Second
+	writeTimeout      = 15 * time.Second
+	idleTimeout       = 60 * time.Second
 )
 
 type APIServer struct {
@@ -34,24 +42,25 @@ func NewAPIServer(addr string, db *sql.DB) *APIServer {
 	}
 }
 
-func (s *APIServer) Run() error {
-	gin.SetMode(config.Envs.Mode)
-
+func newBaseRouter() *gin.Engine {
 	router := gin.New()
 	if config.Envs.Mode != "release" {
 		router.Use(gin.Logger())
 	}
-	router.Use(middleware.CORSMiddleware())
+	router.Use(gin.Recovery(), middleware.CORSMiddleware())
+	return router
+}
 
+func registerRoutes(router *gin.Engine, db *sql.DB) {
 	public := router.Group(config.Envs.APIPath)
 	public.Use(middleware.CSRFMiddleware())
 
-	userStore := user.NewStore(s.db)
+	userStore := user.NewStore(db)
 	userHandler := user.NewHandler(userStore)
 	userHandler.RegisterRoutes(public)
-	invitationStore := invitation.NewStore(s.db)
+	invitationStore := invitation.NewStore(db)
 	invitationHandler := invitation.NewHandler(invitationStore)
-	refreshStore := auth.NewRefreshStore(s.db)
+	refreshStore := auth.NewRefreshStore(db)
 
 	authHandler := authRoute.NewHandler(userStore, invitationStore, refreshStore)
 	authHandler.RegisterRoutes(public)
@@ -66,21 +75,36 @@ func (s *APIServer) Run() error {
 	userProtectedHandler := user.NewProtectedHandler(userStore)
 	userProtectedHandler.RegisterRoutes(protected)
 
-	groupStore := groupStore.NewStore(s.db)
+	groupStore := groupStore.NewStore(db)
 	groupHandler := groupRoute.NewHandler(groupStore, userStore)
 	groupHandler.RegisterRoutes(protected)
 
-	expenseStore := expenseStore.NewStore(s.db)
+	expenseStore := expenseStore.NewStore(db)
 	expenseController := expense.NewController()
 	expenseHandler := expenseRoute.NewHandler(expenseStore, userStore, groupStore, expenseController)
 	expenseHandler.RegisterRoutes(protected)
+}
+
+func newHTTPServer(addr string, handler http.Handler) *http.Server {
+	return &http.Server{
+		Addr:              addr,
+		Handler:           handler,
+		ReadHeaderTimeout: readHeaderTimeout,
+		ReadTimeout:       readTimeout,
+		WriteTimeout:      writeTimeout,
+		IdleTimeout:       idleTimeout,
+	}
+}
+
+func (s *APIServer) Run() error {
+	gin.SetMode(config.Envs.Mode)
+
+	router := newBaseRouter()
+	registerRoutes(router, s.db)
 
 	log.Println("API Server Listening on", s.addr)
 
-	s.engine = &http.Server{
-		Addr:    s.addr,
-		Handler: router,
-	}
+	s.engine = newHTTPServer(s.addr, router)
 
 	return s.engine.ListenAndServe()
 }

@@ -4,7 +4,7 @@ import (
 	"context"
 	"expense-tracker/backend/cmd/tracker/api"
 	"expense-tracker/backend/config"
-	"expense-tracker/backend/db"
+	dbstore "expense-tracker/backend/db"
 	"log"
 	"net/http"
 	"os/signal"
@@ -12,22 +12,29 @@ import (
 	"time"
 )
 
+func closeDBPool(storage interface{ Close() error }) {
+	if err := storage.Close(); err != nil {
+		log.Printf("failed to close db pool: %v", err)
+	}
+}
+
 func main() {
 	cfg := config.Envs
 
-	db, err := db.NewPostgreSQLStorage(cfg)
+	storage, err := dbstore.NewPostgreSQLStorage(cfg)
 	if err != nil {
 		log.Fatal(err)
 	}
-	err = db.Ping()
-	if err != nil {
+
+	if err := storage.Ping(); err != nil {
+		closeDBPool(storage)
 		log.Fatal(err)
 	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	apiServer := api.NewAPIServer(config.Envs.BackendURL, db)
+	apiServer := api.NewAPIServer(config.Envs.BackendURL, storage)
 	go func() {
 		if err := apiServer.Run(); err != nil && err != http.ErrServerClosed {
 			log.Fatal(err)
@@ -39,10 +46,12 @@ func main() {
 	stop()
 	log.Println("Shutting down system")
 
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
-	if err := apiServer.Shutdown(ctx); err != nil {
+	if err := apiServer.Shutdown(shutdownCtx); err != nil {
+		closeDBPool(storage)
 		log.Fatal(err)
 	}
-	log.Println("\tAPI Server is shut down")
+	closeDBPool(storage)
+	log.Println("	API Server is shut down")
 }

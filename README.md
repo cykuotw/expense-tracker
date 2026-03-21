@@ -59,6 +59,13 @@ The app uses environment variables for:
 
 For local development, frontend and backend should use matching origins consistently, for example all `localhost` instead of mixing `localhost` and `127.0.0.1`.
 
+Frontend API config notes:
+- `VITE_API_ORIGIN` may be a full origin such as `http://localhost:8000` or `https://api.example.com`
+- `VITE_API_ORIGIN` may also be a bare host such as `localhost:8000` or `api.example.com`
+- when a bare host is used, the frontend reuses the current browser protocol instead of forcing `http://`
+- leaving `VITE_API_ORIGIN` empty keeps API requests relative to the current origin
+- `VITE_API_PATH` is appended as-is after the origin
+
 ## Current Auth / Browser Setup
 
 - cookie-based auth with access and refresh tokens

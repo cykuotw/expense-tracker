@@ -52,6 +52,10 @@ func newBaseRouter() *gin.Engine {
 }
 
 func registerRoutes(router *gin.Engine, db *sql.DB) {
+	router.GET(config.Envs.APIPath+"/health", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"status": "ok"})
+	})
+
 	public := router.Group(config.Envs.APIPath)
 	public.Use(middleware.CSRFMiddleware())
 

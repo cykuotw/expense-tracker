@@ -11,6 +11,14 @@
 - You make the plan before the code change, and ask for permission before any code changes.
 - Update `.agent/tasks/todo.md` with the plan so other agents can follow it.
 - Active task notes live in `.agent/tasks/todo/`; completed task notes live in `.agent/tasks/done/`.
+- Task notes in `.agent/tasks/todo/` and `.agent/tasks/done/` must use YAML frontmatter.
+- Frontmatter fields and allowed values are defined in `.agent/tasks/task-metadata.md`.
+- Required frontmatter keys are `status`, `priority`, `type`, and `kind`; `area` is optional.
+- `status` must match the directory: use `todo` under `.agent/tasks/todo/` and `done` under `.agent/tasks/done/`.
+- Keep `.agent/tasks/todo.md` and `.agent/tasks/done.md` as plain indexes; task metadata belongs in the task files, not in the indexes.
+- Do not encode priority in task filenames; use a stable descriptive slug and keep priority only in frontmatter.
+- Prefer task notes to use the sections `Goals`, `Scope`, and `Acceptance Criteria` when they help clarify the work.
+- For multi-phase task series, use a shared `Series` label in each note and add a `Phases` section in the overview note when useful.
 - Keep `.agent/tasks/todo.md` and `.agent/tasks/done.md` in sync with the task note files.
 - When a task is completed, move its note from `.agent/tasks/todo/` to `.agent/tasks/done/`, remove it from `.agent/tasks/todo.md`, and add it to `.agent/tasks/done.md`.
 - Do not mark a task done or move it to `.agent/tasks/done/` unless the user explicitly tells you to.

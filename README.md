@@ -57,24 +57,6 @@ See the example environment files for the supported configuration:
 
 Use those files as the source of truth for local setup and deployment configuration.
 
-## Current Auth / Browser Setup
-
-- cookie-based auth with access and refresh tokens
-- CSRF protection for mutating browser requests
-- split-origin friendly config for frontend and API
-- Google OAuth callback handled by the backend
-
-## Deployment Direction
-
-Current deployment plan is:
-
-- frontend on S3 + CloudFront
-- backend on EC2 behind nginx
-- PostgreSQL on a separate EC2 instance
-- GitHub Actions for CI/CD
-
-HTTPS is expected to terminate at nginx for the backend.
-
 ## AI Agent Workflow
 
 This repo uses a lightweight task-note workflow for AI-assisted changes:

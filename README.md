@@ -13,6 +13,7 @@ A Splitwise-like fullstack app for tracking shared expenses, balances, groups, a
 ### Backend
 
 Requirements:
+
 - Go
 - PostgreSQL
 - migration tool if you want to create new migrations
@@ -49,22 +50,12 @@ npm run build
 
 ## Config
 
-The app uses environment variables for:
-- backend listen address
-- frontend/API origins
-- PostgreSQL connection
-- JWT and refresh token settings
-- Google OAuth client settings
-- cookie and CORS behavior
+See the example environment files for the supported configuration:
 
-For local development, frontend and backend should use matching origins consistently, for example all `localhost` instead of mixing `localhost` and `127.0.0.1`.
+- `backend/.env.example`
+- `frontend/.env.example`
 
-Frontend API config notes:
-- `VITE_API_ORIGIN` may be a full origin such as `http://localhost:8000` or `https://api.example.com`
-- `VITE_API_ORIGIN` may also be a bare host such as `localhost:8000` or `api.example.com`
-- when a bare host is used, the frontend reuses the current browser protocol instead of forcing `http://`
-- leaving `VITE_API_ORIGIN` empty keeps API requests relative to the current origin
-- `VITE_API_PATH` is appended as-is after the origin
+Use those files as the source of truth for local setup and deployment configuration.
 
 ## Current Auth / Browser Setup
 
@@ -76,6 +67,7 @@ Frontend API config notes:
 ## Deployment Direction
 
 Current deployment plan is:
+
 - frontend on S3 + CloudFront
 - backend on EC2 behind nginx
 - PostgreSQL on a separate EC2 instance
@@ -86,6 +78,7 @@ HTTPS is expected to terminate at nginx for the backend.
 ## AI Agent Workflow
 
 This repo uses a lightweight task-note workflow for AI-assisted changes:
+
 - review `.agent/tasks/todo.md` before starting implementation work
 - keep active task notes under `.agent/tasks/todo/`
 - move completed task notes to `.agent/tasks/done/` only when the user explicitly confirms the task is done
@@ -97,6 +90,7 @@ Refer to `AGENTS.md` for the full repository-specific agent instructions and con
 ## Roadmap
 
 Planned follow-up work includes:
+
 - tracing and monitoring logs
 - ISO-based multi-currency support
 - OCR support for receipts

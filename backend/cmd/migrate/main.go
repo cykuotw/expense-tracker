@@ -2,6 +2,7 @@ package main
 
 import (
 	"expense-tracker/backend/config"
+	dbstore "expense-tracker/backend/db"
 	"fmt"
 	"log"
 	"os"
@@ -16,8 +17,7 @@ import (
 func main() {
 	cfg := config.Envs
 
-	psqlInfo := fmt.Sprintf("postgresql://%s:%s@%s:%s/%s?sslmode=disable",
-		cfg.DBUser, cfg.DBPassword, cfg.DBPublicHost, cfg.DBPort, cfg.DBName)
+	psqlInfo := dbstore.BuildPostgreSQLDSN(cfg)
 
 	migrationsPath, err := findMigrationsPath()
 	if err != nil {
@@ -94,6 +94,7 @@ func main() {
 
 func findMigrationsPath() (string, error) {
 	candidates := []string{
+		"migrations",
 		"backend/cmd/migrate/migrations",
 		"cmd/migrate/migrations",
 	}

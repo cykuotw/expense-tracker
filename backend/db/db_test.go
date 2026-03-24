@@ -37,13 +37,14 @@ func TestNewPostgreSQLStorageConfiguresConnectionPool(t *testing.T) {
 }
 
 func TestBuildPostgreSQLDSN(t *testing.T) {
-	dsn := buildPostgreSQLDSN(config.Config{
+	dsn := BuildPostgreSQLDSN(config.Config{
 		DBUser:       "tracker",
 		DBPassword:   "password",
 		DBPublicHost: "db.example.com",
 		DBPort:       "5432",
 		DBName:       "expenses",
+		DBSSLMode:    "require",
 	})
 
-	assert.Equal(t, "postgres://tracker:password@db.example.com:5432/expenses", dsn)
+	assert.Equal(t, "postgres://tracker:password@db.example.com:5432/expenses?sslmode=require", dsn)
 }

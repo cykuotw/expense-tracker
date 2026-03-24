@@ -21,6 +21,7 @@ type Config struct {
 	DBUser       string
 	DBPassword   string
 	DBName       string
+	DBSSLMode    string
 
 	JWTSecret                     string
 	JWTExpirationInSeconds        int64
@@ -69,6 +70,7 @@ func initConfig() Config {
 		DBUser:       getEnv("DB_USER", "tracker"),
 		DBPassword:   getEnv("DB_PASSWORD", "mypassword"),
 		DBName:       getEnv("DB_NAME", "mydb"),
+		DBSSLMode:    getEnv("DB_SSLMODE", "disable"),
 
 		JWTSecret:                     getEnv("JWT_SECRET", "secretstring"),
 		JWTExpirationInSeconds:        getEnvInt("JWT_EXP", 3600*24*7),
@@ -97,7 +99,9 @@ func initConfig() Config {
 
 func loadLocalEnv() {
 	candidates := []string{
+		".env.local",
 		".env",
+		"backend/.env.local",
 		"backend/.env",
 	}
 

@@ -25,9 +25,9 @@ func defaultPoolConfig() poolConfig {
 	}
 }
 
-func buildPostgreSQLDSN(cfg config.Config) string {
-	return fmt.Sprintf("postgres://%s:%s@%s:%s/%s",
-		cfg.DBUser, cfg.DBPassword, cfg.DBPublicHost, cfg.DBPort, cfg.DBName)
+func BuildPostgreSQLDSN(cfg config.Config) string {
+	return fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=%s",
+		cfg.DBUser, cfg.DBPassword, cfg.DBPublicHost, cfg.DBPort, cfg.DBName, cfg.DBSSLMode)
 }
 
 func configureConnectionPool(db *sql.DB, cfg poolConfig) {
@@ -38,7 +38,7 @@ func configureConnectionPool(db *sql.DB, cfg poolConfig) {
 }
 
 func NewPostgreSQLStorage(cfg config.Config) (*sql.DB, error) {
-	db, err := sql.Open("pgx", buildPostgreSQLDSN(cfg))
+	db, err := sql.Open("pgx", BuildPostgreSQLDSN(cfg))
 	if err != nil {
 		return nil, err
 	}

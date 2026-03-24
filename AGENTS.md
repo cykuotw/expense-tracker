@@ -2,7 +2,7 @@
 
 ## Security
 
-- Do not read or access `.env`, `.env.*`, `secrets/**`, or `**/*.pem` files.
+- Do not read or access `.env`, `.env.*`, `.tfvars`, `secrets/**`, or `**/*.pem` files.
 - If access to any sensitive file is required, ask the user first.
 
 ## Development process

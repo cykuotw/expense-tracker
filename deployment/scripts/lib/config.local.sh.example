@@ -1,0 +1,8 @@
+# Copy this file to config.local.sh and adjust for your machine.
+AWS_REGION="us-east-1"
+TF_VARS_FILE="filename.tfvars" # just filename
+
+# Optional: enable automatic Let's Encrypt provisioning after nginx is deployed.
+CERTBOT_ENABLED="false"
+CERTBOT_EMAIL="you@example.com"
+CERTBOT_STAGING="false"

@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if command -v dnf >/dev/null 2>&1; then
+  dnf install -y nginx certbot python3-certbot-nginx
+elif command -v yum >/dev/null 2>&1; then
+  yum install -y nginx certbot python3-certbot-nginx
+fi
+
+if ! getent group expense-tracker >/dev/null 2>&1; then
+  groupadd --system expense-tracker
+fi
+
+if ! id -u expense-tracker >/dev/null 2>&1; then
+  useradd --system --gid expense-tracker --home-dir ${app_dir} --create-home --shell "$(command -v nologin || echo /sbin/nologin)" expense-tracker
+fi
+
+mkdir -p ${app_dir}
+mkdir -p ${backend_env_dir}
+chown -R expense-tracker:expense-tracker ${app_dir}
+chmod 0755 ${app_dir}
+chown root:root ${backend_env_dir}
+chmod 0750 ${backend_env_dir}

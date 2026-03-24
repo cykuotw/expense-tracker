@@ -1,0 +1,18 @@
+[Unit]
+Description=Expense Tracker API
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+User=expense-tracker
+Group=expense-tracker
+WorkingDirectory=/opt/expense-tracker
+EnvironmentFile=/etc/expense-tracker/backend.env
+ExecStart=/opt/expense-tracker/bin/tracker
+Restart=always
+RestartSec=5
+LimitNOFILE=65535
+
+[Install]
+WantedBy=multi-user.target

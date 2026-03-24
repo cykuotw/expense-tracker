@@ -1,16 +1,29 @@
-build:  
+BUILD_DIR ?= bin
+GOOS ?= linux
+GOARCH ?= amd64
+
+build:
 	@go mod tidy
-	@go build -o bin/tracker cmd/tracker/main.go
+	@go build -o $(BUILD_DIR)/tracker ./backend/cmd/tracker
 
 build-prod:
+	@mkdir -p $(BUILD_DIR)
 	@go mod tidy
-	@go build -ldflags="-s -w -X expense-tracker/config.BuildMode=release" -o bin/tracker-prod cmd/tracker/main.go
+	@GOOS=$(GOOS) GOARCH=$(GOARCH) CGO_ENABLED=0 go build -ldflags="-s -w -X expense-tracker/backend/config.BuildMode=release" -o $(BUILD_DIR)/tracker ./backend/cmd/tracker
 
-test: 
+test:
 	@go test -v ./...
 
 run: build
-	@./bin/tracker
+	@./$(BUILD_DIR)/tracker
+
+build-frontend:
+	@cd frontend && pnpm run build
+
+build-deploy-backend:
+	@mkdir -p $(BUILD_DIR)
+	@GOOS=$(GOOS) GOARCH=$(GOARCH) CGO_ENABLED=0 go build -ldflags="-s -w -X expense-tracker/backend/config.BuildMode=release" -o $(BUILD_DIR)/tracker ./backend/cmd/tracker
+	@GOOS=$(GOOS) GOARCH=$(GOARCH) CGO_ENABLED=0 go build -o $(BUILD_DIR)/tracker-migrate ./backend/cmd/migrate
 
 migration:
 	@migrate create --ext sql -dir backend/cmd/migrate/migrations $(filter-out $@,$(MAKECMDGOALS))
@@ -29,3 +42,18 @@ migrate-to:
 
 migrate-force:
 	@go run backend/cmd/migrate/main.go force $(v)
+
+deploy:
+	@./deployment/scripts/deploy.sh
+
+destroy:
+	@./deployment/scripts/destroy.sh
+
+config.local.sh copytf-init:
+	@terraform -chdir=deployment/tf init -input=false
+
+tf-plan:
+	@terraform -chdir=deployment/tf plan
+
+tf-apply:
+	@terraform -chdir=deployment/tf apply

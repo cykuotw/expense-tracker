@@ -1,8 +1,10 @@
 locals {
-  name_prefix   = "${var.project_name}-${var.environment}"
-  frontend_fqdn = "${var.frontend_subdomain}.${var.root_domain}"
-  api_fqdn      = "${var.api_subdomain}.${var.root_domain}"
-  db_password_ssm_parameter_name = "/${var.project_name}/${var.environment}/backend/db_password"
+  name_prefix                           = "${var.project_name}-${var.environment}"
+  frontend_fqdn                         = "${var.frontend_subdomain}.${var.root_domain}"
+  api_fqdn                              = "${var.api_subdomain}.${var.root_domain}"
+  db_admin_password_ssm_parameter_name  = "/${var.project_name}/${var.environment}/db/admin_password"
+  db_migration_password_ssm_parameter_name = "/${var.project_name}/${var.environment}/db/migration_password"
+  db_app_password_ssm_parameter_name    = "/${var.project_name}/${var.environment}/db/app_password"
   common_tags = merge(
     {
       Project     = var.project_name
@@ -194,6 +196,28 @@ resource "aws_iam_role_policy" "artifact_access" {
   })
 }
 
+resource "aws_iam_role_policy" "db_credentials_access" {
+  name = "${local.name_prefix}-db-credentials-access"
+  role = aws_iam_role.backend.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "ssm:GetParameter"
+        ]
+        Resource = [
+          aws_ssm_parameter.db_admin_password.arn,
+          aws_ssm_parameter.db_migration_password.arn,
+          aws_ssm_parameter.db_app_password.arn,
+        ]
+      }
+    ]
+  })
+}
+
 resource "aws_iam_instance_profile" "backend" {
   name = "${local.name_prefix}-backend-profile"
   role = aws_iam_role.backend.name
@@ -232,8 +256,8 @@ resource "aws_db_instance" "db" {
   storage_type               = "gp3"
   storage_encrypted          = true
   db_name                    = var.db_name
-  username                   = var.db_username
-  password                   = var.db_password
+  username                   = var.db_admin_username
+  password                   = var.db_admin_password
   port                       = var.db_port
   backup_retention_period    = var.db_backup_retention_period
   db_subnet_group_name       = aws_db_subnet_group.db.name
@@ -247,10 +271,26 @@ resource "aws_db_instance" "db" {
   tags                       = local.common_tags
 }
 
-resource "aws_ssm_parameter" "db_password" {
-  name      = local.db_password_ssm_parameter_name
+resource "aws_ssm_parameter" "db_admin_password" {
+  name      = local.db_admin_password_ssm_parameter_name
   type      = "SecureString"
-  value     = var.db_password
+  value     = var.db_admin_password
+  overwrite = true
+  tags      = local.common_tags
+}
+
+resource "aws_ssm_parameter" "db_migration_password" {
+  name      = local.db_migration_password_ssm_parameter_name
+  type      = "SecureString"
+  value     = var.db_migration_password
+  overwrite = true
+  tags      = local.common_tags
+}
+
+resource "aws_ssm_parameter" "db_app_password" {
+  name      = local.db_app_password_ssm_parameter_name
+  type      = "SecureString"
+  value     = var.db_app_password
   overwrite = true
   tags      = local.common_tags
 }

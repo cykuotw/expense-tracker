@@ -43,14 +43,36 @@ variable "db_name" {
   description = "Primary PostgreSQL database name"
 }
 
-variable "db_username" {
+variable "db_admin_username" {
   type        = string
   description = "Master username for the RDS PostgreSQL instance"
 }
 
-variable "db_password" {
+variable "db_admin_password" {
   type        = string
   description = "Master password for the RDS PostgreSQL instance"
+  sensitive   = true
+}
+
+variable "db_migration_username" {
+  type        = string
+  description = "Username used for schema migrations and database bootstrap"
+}
+
+variable "db_migration_password" {
+  type        = string
+  description = "Password used for the migration database user"
+  sensitive   = true
+}
+
+variable "db_app_username" {
+  type        = string
+  description = "Username used by the running backend service"
+}
+
+variable "db_app_password" {
+  type        = string
+  description = "Password used by the runtime application database user"
   sensitive   = true
 }
 

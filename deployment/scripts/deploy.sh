@@ -59,6 +59,17 @@ require_file() {
   fi
 }
 
+fetch_ssm_parameter() {
+  local name="$1"
+  local value
+  value="$(aws --region "$AWS_REGION" ssm get-parameter --name "$name" --with-decryption --query "Parameter.Value" --output text)"
+  if [[ -z "$value" ]]; then
+    fail "empty SSM parameter value for $name"
+    exit 1
+  fi
+  printf '%s\n' "$value"
+}
+
 replace_env_key() {
   local file="$1"
   local key="$2"
@@ -72,7 +83,8 @@ path = pathlib.Path(sys.argv[1])
 key = sys.argv[2]
 value = sys.argv[3]
 text = path.read_text()
-line = f"{key}={value}"
+escaped = value.replace("\\", "\\\\").replace('"', '\\"').replace("$", "\\$").replace("`", "\\`")
+line = f'{key}="{escaped}"'
 pattern = re.compile(rf"^{re.escape(key)}=.*$", re.MULTILINE)
 if pattern.search(text):
     text = pattern.sub(line, text, count=1)
@@ -100,8 +112,12 @@ ARTIFACT_BUCKET="$(terraform_output artifact_bucket_name)"
 DB_HOST="$(terraform_output db_host)"
 DB_PORT="$(terraform_output db_port)"
 DB_NAME="$(terraform_output db_name)"
-DB_USERNAME="$(terraform_output db_username)"
-DB_PASSWORD_SSM_PARAMETER_NAME="$(terraform_output db_password_ssm_parameter_name)"
+DB_ADMIN_USERNAME="$(terraform_output db_admin_username)"
+DB_ADMIN_PASSWORD_SSM_PARAMETER_NAME="$(terraform_output db_admin_password_ssm_parameter_name)"
+DB_MIGRATION_USERNAME="$(terraform_output db_migration_username)"
+DB_MIGRATION_PASSWORD_SSM_PARAMETER_NAME="$(terraform_output db_migration_password_ssm_parameter_name)"
+DB_APP_USERNAME="$(terraform_output db_app_username)"
+DB_APP_PASSWORD_SSM_PARAMETER_NAME="$(terraform_output db_app_password_ssm_parameter_name)"
 FRONTEND_FQDN="$(terraform_output frontend_fqdn)"
 API_FQDN="$(terraform_output api_fqdn)"
 CLOUDFRONT_DISTRIBUTION_ID="$(terraform_output cloudfront_distribution_id)"
@@ -124,11 +140,7 @@ if [[ "$CERTBOT_ENABLED" == "true" && -z "$CERTBOT_EMAIL" ]]; then
   exit 1
 fi
 
-DB_PASSWORD="$(aws --region "$AWS_REGION" ssm get-parameter --name "$DB_PASSWORD_SSM_PARAMETER_NAME" --with-decryption --query "Parameter.Value" --output text)"
-if [[ -z "$DB_PASSWORD" ]]; then
-  fail "empty DB password from SSM parameter $DB_PASSWORD_SSM_PARAMETER_NAME"
-  exit 1
-fi
+DB_APP_PASSWORD="__REMOTE_DB_PASSWORD__"
 
 BACKEND_ENV_LOCAL="$BUILD_ROOT/backend.env"
 cp "$BACKEND_ENV_SOURCE_FILE" "$BACKEND_ENV_LOCAL"
@@ -137,9 +149,9 @@ replace_env_key "$BACKEND_ENV_LOCAL" CORS_ALLOWED_ORIGINS "$FRONTEND_ORIGIN"
 replace_env_key "$BACKEND_ENV_LOCAL" AUTH_COOKIE_DOMAIN ".$FRONTEND_FQDN"
 replace_env_key "$BACKEND_ENV_LOCAL" DB_PUBLIC_HOST "$DB_HOST"
 replace_env_key "$BACKEND_ENV_LOCAL" DB_PORT "$DB_PORT"
-replace_env_key "$BACKEND_ENV_LOCAL" DB_USER "$DB_USERNAME"
+replace_env_key "$BACKEND_ENV_LOCAL" DB_USER "$DB_APP_USERNAME"
 replace_env_key "$BACKEND_ENV_LOCAL" DB_NAME "$DB_NAME"
-replace_env_key "$BACKEND_ENV_LOCAL" DB_PASSWORD "$DB_PASSWORD"
+replace_env_key "$BACKEND_ENV_LOCAL" DB_PASSWORD "$DB_APP_PASSWORD"
 replace_env_key "$BACKEND_ENV_LOCAL" DB_SSLMODE "require"
 replace_env_key "$BACKEND_ENV_LOCAL" GOOGLE_CALLBACK_URL "$API_ORIGIN/api/v0/auth/google/callback"
 
@@ -198,8 +210,28 @@ sudo systemctl daemon-reload
 set -a
 source '$BACKEND_ENV_PATH'
 set +a
+DB_APP_USER="__REMOTE_DB_USER__"
+DB_APP_PASSWORD="__REMOTE_DB_PASSWORD__"
+DB_ADMIN_PASSWORD="__REMOTE_FETCH_ADMIN_PASSWORD__"
+if [[ -z "__REMOTE_DB_ADMIN_PASSWORD__" ]]; then
+  echo "empty DB admin password from SSM parameter $DB_ADMIN_PASSWORD_SSM_PARAMETER_NAME" >&2
+  exit 1
+fi
+DB_MIGRATION_PASSWORD="__REMOTE_FETCH_MIGRATION_PASSWORD__"
+if [[ -z "__REMOTE_DB_MIGRATION_PASSWORD__" ]]; then
+  echo "empty DB migration password from SSM parameter $DB_MIGRATION_PASSWORD_SSM_PARAMETER_NAME" >&2
+  exit 1
+fi
+export DB_ADMIN_USER='$DB_ADMIN_USERNAME'
+export DB_ADMIN_PASSWORD
+export DB_MIGRATION_USER='$DB_MIGRATION_USERNAME'
+export DB_MIGRATION_PASSWORD
+export DB_APP_USER
+export DB_APP_PASSWORD
 cd '$APP_DIR'
-'$APP_DIR/bin/tracker-migrate' up
+'$APP_DIR/bin/tracker-db-bootstrap'
+DB_USER='$DB_MIGRATION_USERNAME' DB_PASSWORD="__REMOTE_DB_MIGRATION_PASSWORD__" '$APP_DIR/bin/tracker-migrate' up
+unset DB_ADMIN_USER DB_ADMIN_PASSWORD DB_MIGRATION_USER DB_MIGRATION_PASSWORD DB_APP_USER DB_APP_PASSWORD
 sudo systemctl enable '$SYSTEMD_SERVICE_NAME'
 sudo systemctl restart '$SYSTEMD_SERVICE_NAME'
 sudo systemctl status '$SYSTEMD_SERVICE_NAME' --no-pager
@@ -232,6 +264,28 @@ EOF_CERTBOT_HOOK
   fi
 fi
 EOF_REMOTE
+
+REMOTE_COMMANDS="$(REMOTE_COMMANDS="$REMOTE_COMMANDS" AWS_REGION="$AWS_REGION" DB_ADMIN_PASSWORD_SSM_PARAMETER_NAME="$DB_ADMIN_PASSWORD_SSM_PARAMETER_NAME" DB_MIGRATION_PASSWORD_SSM_PARAMETER_NAME="$DB_MIGRATION_PASSWORD_SSM_PARAMETER_NAME" python3 - <<'PY2'
+import os
+import shlex
+
+text = os.environ["REMOTE_COMMANDS"]
+aws_region = shlex.quote(os.environ["AWS_REGION"])
+admin_param = shlex.quote(os.environ["DB_ADMIN_PASSWORD_SSM_PARAMETER_NAME"])
+migration_param = shlex.quote(os.environ["DB_MIGRATION_PASSWORD_SSM_PARAMETER_NAME"])
+replacements = {
+    "__REMOTE_DB_USER__": "$DB_USER",
+    "__REMOTE_DB_PASSWORD__": "$DB_PASSWORD",
+    "__REMOTE_FETCH_ADMIN_PASSWORD__": f"$(aws --region {aws_region} ssm get-parameter --name {admin_param} --with-decryption --query 'Parameter.Value' --output text)",
+    "__REMOTE_DB_ADMIN_PASSWORD__": "$DB_ADMIN_PASSWORD",
+    "__REMOTE_FETCH_MIGRATION_PASSWORD__": f"$(aws --region {aws_region} ssm get-parameter --name {migration_param} --with-decryption --query 'Parameter.Value' --output text)",
+    "__REMOTE_DB_MIGRATION_PASSWORD__": "$DB_MIGRATION_PASSWORD",
+}
+for old, new in replacements.items():
+    text = text.replace(old, new)
+print(text)
+PY2
+)"
 
 step 'Running remote deploy through SSM'
 SSM_PARAMETERS="$(REMOTE_COMMANDS="$REMOTE_COMMANDS" python3 - <<'PY2'

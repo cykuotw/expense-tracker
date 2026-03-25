@@ -33,9 +33,34 @@ output "db_name" {
   description = "RDS PostgreSQL database name"
 }
 
-output "db_username" {
+output "db_admin_username" {
   value       = aws_db_instance.db.username
-  description = "RDS PostgreSQL master username"
+  description = "RDS PostgreSQL master username reserved for administration and bootstrap"
+}
+
+output "db_admin_password_ssm_parameter_name" {
+  value       = aws_ssm_parameter.db_admin_password.name
+  description = "SSM parameter name containing the RDS PostgreSQL master password"
+}
+
+output "db_migration_username" {
+  value       = var.db_migration_username
+  description = "PostgreSQL username used for migrations"
+}
+
+output "db_migration_password_ssm_parameter_name" {
+  value       = aws_ssm_parameter.db_migration_password.name
+  description = "SSM parameter name containing the migration database password"
+}
+
+output "db_app_username" {
+  value       = var.db_app_username
+  description = "PostgreSQL username used by the running backend service"
+}
+
+output "db_app_password_ssm_parameter_name" {
+  value       = aws_ssm_parameter.db_app_password.name
+  description = "SSM parameter name containing the backend runtime database password"
 }
 
 output "cloudfront_distribution_id" {
@@ -56,9 +81,4 @@ output "frontend_fqdn" {
 output "api_fqdn" {
   value       = var.create_api_dns_record ? aws_route53_record.api[0].fqdn : local.api_fqdn
   description = "API DNS name"
-}
-
-output "db_password_ssm_parameter_name" {
-  value       = aws_ssm_parameter.db_password.name
-  description = "SSM parameter name containing the backend database password"
 }

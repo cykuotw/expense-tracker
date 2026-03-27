@@ -75,15 +75,64 @@ terraform_cmd() {
   esac
 }
 
+missing_deploy_outputs_hint() {
+  printf "terraform state has no deploy outputs in %s; this usually means infra was destroyed, you just ran 'make destroy', or terraform apply has not been run yet. Run 'make deploy infra' to recreate infra outputs, or 'make deploy all' to recreate infra and continue the full deploy\n" "$TF_DIR" >&2
+}
+
 terraform_output() {
   local name="$1"
   local value
-  if ! value="$(terraform -chdir="$TF_DIR" output -raw "$name" 2>/dev/null)"; then
-    fail "missing terraform output: $name"
-    exit 1
-  fi
-  if [[ -z "$value" ]]; then
-    fail "empty terraform output: $name"
+  local status
+  if value="$(
+    python3 - "$TF_DIR" "$name" <<'PY2'
+import json
+import subprocess
+import sys
+
+tf_dir = sys.argv[1]
+name = sys.argv[2]
+proc = subprocess.run(
+    ["terraform", f"-chdir={tf_dir}", "output", "-json"],
+    capture_output=True,
+    text=True,
+)
+if proc.returncode != 0:
+    raise SystemExit(2)
+outputs = json.loads(proc.stdout)
+if not outputs:
+    raise SystemExit(3)
+entry = outputs.get(name)
+if entry is None:
+    raise SystemExit(4)
+value = entry.get("value")
+if value in ("", None):
+    raise SystemExit(5)
+if isinstance(value, (dict, list)):
+    print(json.dumps(value))
+else:
+    print(value)
+PY2
+  )"; then
+    :
+  else
+    status=$?
+    case "$status" in
+      2)
+        fail "failed to read terraform output '$name' from $TF_DIR; if you just ran 'make destroy', run 'make deploy infra' or 'make deploy all' first"
+        ;;
+      3)
+        missing_deploy_outputs_hint
+        ;;
+      4)
+        fail "missing required terraform output: $name; if infra was recently destroyed or changed, run 'make deploy infra' or 'make deploy all' to refresh state outputs"
+        ;;
+      5)
+        fail "empty required terraform output: $name; check terraform state and outputs before deploying, or rerun 'make deploy infra' if infra was recently recreated"
+        ;;
+      *)
+        fail "failed to resolve terraform output: $name"
+        ;;
+    esac
     exit 1
   fi
   printf '%s\n' "$value"
@@ -92,9 +141,54 @@ terraform_output() {
 terraform_output_optional() {
   local name="$1"
   local value
-  if ! value="$(terraform -chdir="$TF_DIR" output -raw "$name" 2>/dev/null)"; then
-    fail "missing terraform output: $name"
-    exit 1
+  local status
+  if value="$(
+    python3 - "$TF_DIR" "$name" <<'PY2'
+import json
+import subprocess
+import sys
+
+tf_dir = sys.argv[1]
+name = sys.argv[2]
+proc = subprocess.run(
+    ["terraform", f"-chdir={tf_dir}", "output", "-json"],
+    capture_output=True,
+    text=True,
+)
+if proc.returncode != 0:
+    raise SystemExit(2)
+outputs = json.loads(proc.stdout)
+if not outputs:
+    raise SystemExit(3)
+entry = outputs.get(name)
+if entry is None:
+    raise SystemExit(0)
+value = entry.get("value")
+if value in ("", None):
+    raise SystemExit(0)
+if isinstance(value, (dict, list)):
+    print(json.dumps(value))
+else:
+    print(value)
+PY2
+  )"; then
+    :
+  else
+    status=$?
+    case "$status" in
+      2)
+        fail "failed to read terraform outputs from $TF_DIR; if you just ran 'make destroy', run 'make deploy infra' or 'make deploy all' first"
+        exit 1
+        ;;
+      3)
+        missing_deploy_outputs_hint
+        exit 1
+        ;;
+      *)
+        printf '\n'
+        return
+        ;;
+    esac
   fi
   printf '%s\n' "$value"
 }

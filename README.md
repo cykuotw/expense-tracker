@@ -57,6 +57,19 @@ See the example environment files for the supported configuration:
 
 Use those files as the source of truth for local setup and deployment configuration.
 
+## Deployment
+
+Deployment automation lives under `deployment/`.
+
+- `make deploy`: deploy backend and frontend
+- `make deploy all`: apply infra, deploy backend, deploy frontend, then deploy edge
+- `make deploy infra`: apply Terraform-managed infrastructure only
+- `make deploy backend`: build and release the backend only
+- `make deploy frontend`: build and publish frontend assets only
+- `make deploy edge`: build and release nginx/TLS edge only
+
+See `deployment/README.md` for the deployment contract and command layout.
+
 ## AI Agent Workflow
 
 This repo uses a lightweight task-note workflow for AI-assisted changes:

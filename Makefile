@@ -2,6 +2,32 @@ BUILD_DIR ?= bin
 GOOS ?= linux
 GOARCH ?= amd64
 
+.PHONY: \
+	all \
+	app \
+	backend \
+	build \
+	build-deploy-backend \
+	build-frontend \
+	build-prod \
+	deploy \
+	destroy \
+	edge \
+	frontend \
+	help \
+	infra \
+	migrate-down \
+	migrate-force \
+	migrate-step \
+	migrate-to \
+	migrate-up \
+	migration \
+	run \
+	test \
+	tf-apply \
+	tf-init \
+	tf-plan
+
 build:
 	@go mod tidy
 	@go build -o $(BUILD_DIR)/tracker ./backend/cmd/tracker
@@ -46,7 +72,10 @@ migrate-force:
 	@go run backend/cmd/migrate/main.go force $(v)
 
 deploy:
-	@./deployment/scripts/deploy.sh
+	@./deployment/scripts/deploy.sh $(filter-out $@,$(MAKECMDGOALS))
+
+all app infra frontend backend edge help:
+	@:
 
 destroy:
 	@./deployment/scripts/destroy.sh

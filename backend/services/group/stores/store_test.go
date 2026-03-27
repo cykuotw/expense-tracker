@@ -269,7 +269,7 @@ func TestGetGroupListByUser(t *testing.T) {
 			name:         "invalid userid",
 			mockUserID:   uuid.NewString(),
 			expectFail:   true,
-			expectGroups: nil,
+			expectGroups: []types.GetGroupListResponse{},
 			expectError:  nil,
 		},
 	}
@@ -280,7 +280,8 @@ func TestGetGroupListByUser(t *testing.T) {
 			groups, err := store.GetGroupListByUser(test.mockUserID)
 
 			if test.expectFail {
-				assert.Nil(t, groups)
+				assert.NotNil(t, groups)
+				assert.Len(t, groups, 0)
 				assert.Equal(t, test.expectError, err)
 			} else {
 				assert.NotNil(t, groups)

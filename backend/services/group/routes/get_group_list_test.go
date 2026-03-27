@@ -1,6 +1,7 @@
 package group
 
 import (
+	"bytes"
 	"encoding/json"
 	"expense-tracker/backend/config"
 	"expense-tracker/backend/services/auth"
@@ -72,14 +73,16 @@ func TestGetGroupList(t *testing.T) {
 		router.GET("/groups", handler.handleGetGroupList)
 
 		router.ServeHTTP(rr, req)
+		rawBody := bytes.TrimSpace(rr.Body.Bytes())
 
 		var rsp []types.GetGroupListResponse
-		err = json.NewDecoder(rr.Body).Decode(&rsp)
+		err = json.NewDecoder(bytes.NewReader(rawBody)).Decode(&rsp)
 		if err != nil {
 			t.Fatal(err)
 		}
 
 		assert.Equal(t, http.StatusOK, rr.Code)
+		assert.Equal(t, "[]", string(rawBody))
 		assert.Equal(t, 0, len(rsp))
 	})
 }

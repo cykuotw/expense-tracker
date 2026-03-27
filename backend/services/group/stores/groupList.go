@@ -69,7 +69,7 @@ func (s *Store) GetGroupListByUser(userID string) ([]types.GetGroupListResponse,
 	}
 	defer rows.Close()
 
-	var groups []types.GetGroupListResponse
+	groups := make([]types.GetGroupListResponse, 0)
 	for rows.Next() {
 		var group types.GetGroupListResponse
 		var status string
@@ -93,10 +93,6 @@ func (s *Store) GetGroupListByUser(userID string) ([]types.GetGroupListResponse,
 
 	if err := rows.Err(); err != nil {
 		return nil, err
-	}
-
-	if len(groups) == 0 {
-		return nil, nil
 	}
 
 	return groups, nil

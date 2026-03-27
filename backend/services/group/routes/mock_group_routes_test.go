@@ -9,16 +9,16 @@ import (
 // base group store
 
 type mockGroupStore struct {
-	CreateGroupFn          func(group types.Group) error
-	GetGroupByIDFn         func(id string) (*types.Group, error)
-	GetGroupByIDAndUserFn  func(groupID string, userID string) (*types.Group, error)
-	GetGroupListByUserFn   func(userid string) ([]types.GetGroupListResponse, error)
-	GetGroupMemberByGroupIDFn    func(groupId string) ([]*types.User, error)
-	UpdateGroupMemberFn    func(action string, userid string, groupid string) error
-	UpdateGroupStatusFn    func(groupid string, isActive bool) error
-	GetGroupCurrencyFn     func(groupID string) (string, error)
-	GetRelatedUserFn       func(currentUser string, groupId string) ([]*types.RelatedMember, error)
-	CheckGroupExistByIdFn  func(id string) (bool, error)
+	CreateGroupFn             func(group types.Group) error
+	GetGroupByIDFn            func(id string) (*types.Group, error)
+	GetGroupByIDAndUserFn     func(groupID string, userID string) (*types.Group, error)
+	GetGroupListByUserFn      func(userid string) ([]types.GetGroupListResponse, error)
+	GetGroupMemberByGroupIDFn func(groupId string) ([]*types.User, error)
+	UpdateGroupMemberFn       func(action string, userid string, groupid string) error
+	UpdateGroupStatusFn       func(groupid string, isActive bool) error
+	GetGroupCurrencyFn        func(groupID string) (string, error)
+	GetRelatedUserFn          func(currentUser string, groupId string) ([]*types.RelatedMember, error)
+	CheckGroupExistByIdFn     func(id string) (bool, error)
 	CheckGroupUserPairExistFn func(groupId string, userId string) (bool, error)
 }
 
@@ -205,7 +205,7 @@ func getGroupListStoreMock() *mockGroupStore {
 	store := groupStoreMock()
 	store.GetGroupListByUserFn = func(userid string) ([]types.GetGroupListResponse, error) {
 		if userid != mockUserId.String() {
-			return nil, nil
+			return []types.GetGroupListResponse{}, nil
 		}
 		groups := make([]types.GetGroupListResponse, 0, mockGroupListLen)
 		for i := 0; i < mockGroupListLen; i++ {

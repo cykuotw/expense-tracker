@@ -138,6 +138,12 @@ func (s *Store) CheckEmailExist(email string) (bool, error) {
 	return exist, nil
 }
 
+func (s *Store) CheckAdminUserExists() (bool, error) {
+	query := "SELECT EXISTS (SELECT 1 FROM users WHERE role = 'admin');"
+
+	return s.checkUserExist(query)
+}
+
 func (s *Store) CreateUser(user types.User) error {
 	createTime := user.CreateTime.UTC().Format("2006-01-02 15:04:05-0700")
 	query := "INSERT INTO users (" +

@@ -108,6 +108,19 @@ fetch_or_create_ssm_parameter() {
   printf '%s\n' "$value"
 }
 
+delete_ssm_parameter_if_exists() {
+  local name="$1"
+  local output
+  if output="$(aws --region "$AWS_REGION" ssm delete-parameter --name "$name" 2>&1)"; then
+    return
+  fi
+  if [[ "$output" == *"ParameterNotFound"* ]]; then
+    return
+  fi
+  fail "failed to delete temporary SSM parameter $name: $output"
+  exit 1
+}
+
 replace_env_key() {
   local file="$1"
   local key="$2"
@@ -164,6 +177,52 @@ require_root() {
     exit 1
   fi
 }
+
+bootstrap_first_admin_if_requested() (
+  set -euo pipefail
+
+  if [[ -z "${FIRST_ADMIN_EMAIL_SSM_PARAMETER_NAME:-}" ]]; then
+    step 'Skipping first-admin bootstrap'
+    exit 0
+  fi
+
+  for key in \
+    FIRST_ADMIN_EMAIL_SSM_PARAMETER_NAME \
+    FIRST_ADMIN_PASSWORD_SSM_PARAMETER_NAME \
+    FIRST_ADMIN_FIRSTNAME_SSM_PARAMETER_NAME \
+    FIRST_ADMIN_LASTNAME_SSM_PARAMETER_NAME
+  do
+    require_env "$key"
+  done
+
+  cleanup() {
+    delete_ssm_parameter_if_exists "$FIRST_ADMIN_EMAIL_SSM_PARAMETER_NAME"
+    delete_ssm_parameter_if_exists "$FIRST_ADMIN_PASSWORD_SSM_PARAMETER_NAME"
+    delete_ssm_parameter_if_exists "$FIRST_ADMIN_FIRSTNAME_SSM_PARAMETER_NAME"
+    delete_ssm_parameter_if_exists "$FIRST_ADMIN_LASTNAME_SSM_PARAMETER_NAME"
+    if [[ -n "${FIRST_ADMIN_NICKNAME_SSM_PARAMETER_NAME:-}" ]]; then
+      delete_ssm_parameter_if_exists "$FIRST_ADMIN_NICKNAME_SSM_PARAMETER_NAME"
+    fi
+  }
+  trap cleanup EXIT
+
+  step 'Bootstrapping first admin user'
+  require_file "$APP_DIR/bin/tracker-bootstrap-first-admin"
+  export FIRST_ADMIN_EMAIL
+  FIRST_ADMIN_EMAIL="$(fetch_ssm_parameter "$FIRST_ADMIN_EMAIL_SSM_PARAMETER_NAME")"
+  export FIRST_ADMIN_PASSWORD
+  FIRST_ADMIN_PASSWORD="$(fetch_ssm_parameter "$FIRST_ADMIN_PASSWORD_SSM_PARAMETER_NAME")"
+  export FIRST_ADMIN_FIRSTNAME
+  FIRST_ADMIN_FIRSTNAME="$(fetch_ssm_parameter "$FIRST_ADMIN_FIRSTNAME_SSM_PARAMETER_NAME")"
+  export FIRST_ADMIN_LASTNAME
+  FIRST_ADMIN_LASTNAME="$(fetch_ssm_parameter "$FIRST_ADMIN_LASTNAME_SSM_PARAMETER_NAME")"
+  export FIRST_ADMIN_NICKNAME="${FIRST_ADMIN_NICKNAME:-}"
+  if [[ -n "${FIRST_ADMIN_NICKNAME_SSM_PARAMETER_NAME:-}" ]]; then
+    FIRST_ADMIN_NICKNAME="$(fetch_ssm_parameter "$FIRST_ADMIN_NICKNAME_SSM_PARAMETER_NAME")"
+  fi
+
+  "$APP_DIR/bin/tracker-bootstrap-first-admin"
+)
 
 # ------------
 # Init release context
@@ -336,6 +395,7 @@ export DB_APP_PASSWORD="$DB_PASSWORD"
 cd "$APP_DIR"
 "$APP_DIR/bin/tracker-db-bootstrap"
 DB_USER="$DB_MIGRATION_USERNAME" DB_PASSWORD="$DB_MIGRATION_PASSWORD" "$APP_DIR/bin/tracker-migrate" up
+bootstrap_first_admin_if_requested
 unset DB_ADMIN_USER DB_ADMIN_PASSWORD DB_MIGRATION_USER DB_MIGRATION_PASSWORD DB_APP_USER DB_APP_PASSWORD
 
 # ------------

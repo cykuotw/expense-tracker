@@ -31,6 +31,16 @@ raise SystemExit(1)
 PY2
 }
 
+tf_var_string_optional() {
+  local name="$1"
+  local value=""
+  if value="$(tf_var_string "$name" 2>/dev/null)"; then
+    printf '%s\n' "$value"
+    return
+  fi
+  printf '\n'
+}
+
 resolve_aws_region() {
   if [[ -n "${AWS_REGION:-}" ]]; then
     return

@@ -12,7 +12,7 @@ This Terraform layout provisions the active AWS infrastructure for the project.
 - artifact S3 bucket in the configured AWS region
 - RDS PostgreSQL instance in the configured AWS region
 - SSM SecureString parameters for the database admin, migration, and app passwords
-- SSM String parameters for deploy-managed runtime config such as frontend origin, cookie domain, DB coordinates, and Google callback URL
+- SSM String parameters for deploy-managed runtime config such as frontend origin, CORS credential policy, cookie domain, DB coordinates, and Google callback URL
 - SSM SecureString parameters for optional Google OAuth credentials
 - CloudFront distribution for the configured frontend hostname
 - Route 53 alias record for the frontend hostname
@@ -37,6 +37,8 @@ Terraform also defines stable SSM parameter names for `JWT_SECRET`, `REFRESH_JWT
 The remote deploy script creates those SecureString parameters on first deploy if they do not already exist.
 If Google OAuth credentials are provided in `terraform.tfvars`, Terraform stores those in SSM as well.
 The backend EC2 role is allowed to read those specific parameters so deploy can finalize runtime configuration on-host without copying a local secret-bearing env file into the release artifact or depending on stale host-side leftovers.
+The backend EC2 role is also allowed to read and delete temporary deploy-time first-admin bootstrap parameters under the scoped `/project/environment/deploy/first_admin/*` prefix.
+The selected tfvars file can also carry the first-admin bootstrap inputs; the local deploy script reads those values directly from tfvars, then hands them to the remote host through temporary SSM parameters instead of persisting them in Terraform-managed runtime config.
 
 ## Deployment Split
 

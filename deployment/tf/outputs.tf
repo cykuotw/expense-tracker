@@ -73,6 +73,11 @@ output "cors_allowed_origins_ssm_parameter_name" {
   description = "SSM parameter name containing the backend runtime CORS_ALLOWED_ORIGINS value"
 }
 
+output "cors_allow_credentials_ssm_parameter_name" {
+  value       = aws_ssm_parameter.runtime_config["cors_allow_credentials"].name
+  description = "SSM parameter name containing the backend runtime CORS_ALLOW_CREDENTIALS value"
+}
+
 output "auth_cookie_domain_ssm_parameter_name" {
   value       = aws_ssm_parameter.runtime_config["auth_cookie_domain"].name
   description = "SSM parameter name containing the backend runtime AUTH_COOKIE_DOMAIN value"

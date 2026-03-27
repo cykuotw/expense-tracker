@@ -76,6 +76,37 @@ variable "db_app_password" {
   sensitive   = true
 }
 
+variable "first_admin_email" {
+  type        = string
+  description = "Optional email address for bootstrapping the first application admin during deploy"
+  default     = ""
+}
+
+variable "first_admin_password" {
+  type        = string
+  description = "Optional password for bootstrapping the first application admin during deploy"
+  sensitive   = true
+  default     = ""
+}
+
+variable "first_admin_firstname" {
+  type        = string
+  description = "Optional first name for bootstrapping the first application admin during deploy"
+  default     = ""
+}
+
+variable "first_admin_lastname" {
+  type        = string
+  description = "Optional last name for bootstrapping the first application admin during deploy"
+  default     = ""
+}
+
+variable "first_admin_nickname" {
+  type        = string
+  description = "Optional nickname for bootstrapping the first application admin during deploy"
+  default     = ""
+}
+
 variable "google_client_id" {
   type        = string
   description = "Optional Google OAuth client ID for the backend runtime"

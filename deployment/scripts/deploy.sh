@@ -44,6 +44,28 @@ SYSTEMD_UNIT_TEMPLATE="deployment/systemd/expense-tracker.service"
 REMOTE_DEPLOY_SCRIPT_SRC="deployment/remote/deploy-release.sh"
 RELEASE_MANIFEST_PATH="$DEPLOY_STAGE_DIR/release-manifest.env"
 RUNTIME_ENV_SSM_PARAMETERS_PATH="$DEPLOY_STAGE_DIR/runtime-env-ssm.env"
+FIRST_ADMIN_BOOTSTRAP_SSM_PARAMETER_PREFIX=""
+FIRST_ADMIN_BOOTSTRAP_ENABLED=false
+FIRST_ADMIN_BOOTSTRAP_PARAMETER_NAMES=()
+PROJECT_NAME="$(tf_var_string project_name)"
+DEPLOY_ENVIRONMENT="$(tf_var_string_optional environment)"
+DEPLOY_ENVIRONMENT="${DEPLOY_ENVIRONMENT:-dev}"
+FIRST_ADMIN_EMAIL="$(tf_var_string_optional first_admin_email)"
+FIRST_ADMIN_PASSWORD="$(tf_var_string_optional first_admin_password)"
+FIRST_ADMIN_FIRSTNAME="$(tf_var_string_optional first_admin_firstname)"
+FIRST_ADMIN_LASTNAME="$(tf_var_string_optional first_admin_lastname)"
+FIRST_ADMIN_NICKNAME="$(tf_var_string_optional first_admin_nickname)"
+FIRST_ADMIN_BOOTSTRAP_SSM_PARAMETER_PREFIX="/$PROJECT_NAME/$DEPLOY_ENVIRONMENT/deploy/first_admin"
+
+if [[ -n "$FIRST_ADMIN_EMAIL$FIRST_ADMIN_PASSWORD$FIRST_ADMIN_FIRSTNAME$FIRST_ADMIN_LASTNAME$FIRST_ADMIN_NICKNAME" ]]; then
+  FIRST_ADMIN_BOOTSTRAP_ENABLED=true
+  for required_var in FIRST_ADMIN_EMAIL FIRST_ADMIN_PASSWORD FIRST_ADMIN_FIRSTNAME FIRST_ADMIN_LASTNAME; do
+    if [[ -z "${!required_var:-}" ]]; then
+      fail "define $required_var in $(tf_vars_file_path) when bootstrapping the first admin during deploy"
+      exit 1
+    fi
+  done
+fi
 
 # ------------
 # Print deploy configuration
@@ -53,6 +75,8 @@ step 'Deploy configuration'
 printf '  AWS_REGION=%s\n' "$AWS_REGION"
 printf '  TF_DIR=%s\n' "$TF_DIR"
 printf '  TF_VARS_FILE=%s\n' "$TF_VARS_FILE"
+printf '  PROJECT_NAME=%s\n' "$PROJECT_NAME"
+printf '  DEPLOY_ENVIRONMENT=%s\n' "$DEPLOY_ENVIRONMENT"
 printf '  APP_DIR=%s\n' "$APP_DIR"
 printf '  BACKEND_ENV_PATH=%s\n' "$BACKEND_ENV_PATH"
 printf '  BACKEND_URL=%s\n' "$BACKEND_URL"
@@ -73,6 +97,8 @@ printf '  SYSTEMD_UNIT_TEMPLATE=%s\n' "$SYSTEMD_UNIT_TEMPLATE"
 printf '  REMOTE_DEPLOY_SCRIPT_SRC=%s\n' "$REMOTE_DEPLOY_SCRIPT_SRC"
 printf '  RELEASE_MANIFEST_PATH=%s\n' "$RELEASE_MANIFEST_PATH"
 printf '  RUNTIME_ENV_SSM_PARAMETERS_PATH=%s\n' "$RUNTIME_ENV_SSM_PARAMETERS_PATH"
+printf '  FIRST_ADMIN_BOOTSTRAP_ENABLED=%s\n' "$FIRST_ADMIN_BOOTSTRAP_ENABLED"
+printf '  FIRST_ADMIN_BOOTSTRAP_SSM_PARAMETER_PREFIX=%s\n' "$FIRST_ADMIN_BOOTSTRAP_SSM_PARAMETER_PREFIX"
 printf '  API_HTTP_HEALTHCHECK_URL=%s\n' "$API_HTTP_HEALTHCHECK_URL"
 printf '  API_HTTPS_HEALTHCHECK_URL=%s\n' "$API_HTTPS_HEALTHCHECK_URL"
 printf '  CERTBOT_ENABLED=%s\n' "$CERTBOT_ENABLED"
@@ -130,6 +156,32 @@ build_ssm_parameters() {
   printf '%s\n' "$json"
 }
 
+create_ssm_parameter() {
+  local name="$1"
+  local type="$2"
+  local value="$3"
+  aws --region "$AWS_REGION" ssm put-parameter --name "$name" --type "$type" --value "$value" --overwrite >/dev/null
+}
+
+delete_ssm_parameter_if_exists() {
+  local name="$1"
+  local output
+  if output="$(aws --region "$AWS_REGION" ssm delete-parameter --name "$name" 2>&1)"; then
+    return
+  fi
+  if [[ "$output" == *"ParameterNotFound"* ]]; then
+    return
+  fi
+  warn "failed to delete temporary SSM parameter $name: $output"
+}
+
+cleanup_first_admin_bootstrap_parameters() {
+  local name
+  for name in "${FIRST_ADMIN_BOOTSTRAP_PARAMETER_NAMES[@]:-}"; do
+    delete_ssm_parameter_if_exists "$name"
+  done
+}
+
 replace_env_key() {
   local file="$1"
   local key="$2"
@@ -155,6 +207,8 @@ else:
 path.write_text(text)
 PY2
 }
+
+trap cleanup_first_admin_bootstrap_parameters EXIT
 
 # ------------
 # Prepare local staging directories
@@ -191,6 +245,7 @@ DB_MIGRATION_USERNAME="$(terraform_output db_migration_username)"
 DB_MIGRATION_PASSWORD_SSM_PARAMETER_NAME="$(terraform_output db_migration_password_ssm_parameter_name)"
 FRONTEND_ORIGIN_SSM_PARAMETER_NAME="$(terraform_output frontend_origin_ssm_parameter_name)"
 CORS_ALLOWED_ORIGINS_SSM_PARAMETER_NAME="$(terraform_output cors_allowed_origins_ssm_parameter_name)"
+CORS_ALLOW_CREDENTIALS_SSM_PARAMETER_NAME="$(terraform_output cors_allow_credentials_ssm_parameter_name)"
 AUTH_COOKIE_DOMAIN_SSM_PARAMETER_NAME="$(terraform_output auth_cookie_domain_ssm_parameter_name)"
 DB_PUBLIC_HOST_SSM_PARAMETER_NAME="$(terraform_output db_public_host_ssm_parameter_name)"
 DB_PORT_SSM_PARAMETER_NAME="$(terraform_output db_port_ssm_parameter_name)"
@@ -269,6 +324,7 @@ PY2
 RUNTIME_ENV_REQUIRED_KEYS=(
   FRONTEND_ORIGIN
   CORS_ALLOWED_ORIGINS
+  CORS_ALLOW_CREDENTIALS
   AUTH_COOKIE_DOMAIN
   DB_PUBLIC_HOST
   DB_PORT
@@ -289,6 +345,7 @@ write_shell_var "$RUNTIME_ENV_SSM_PARAMETERS_PATH" RUNTIME_ENV_REQUIRED_KEYS "${
 write_shell_var "$RUNTIME_ENV_SSM_PARAMETERS_PATH" RUNTIME_ENV_OPTIONAL_KEYS "${RUNTIME_ENV_OPTIONAL_KEYS[*]}"
 write_shell_var "$RUNTIME_ENV_SSM_PARAMETERS_PATH" RUNTIME_ENV_SSM_PARAMETER_NAME__FRONTEND_ORIGIN "$FRONTEND_ORIGIN_SSM_PARAMETER_NAME"
 write_shell_var "$RUNTIME_ENV_SSM_PARAMETERS_PATH" RUNTIME_ENV_SSM_PARAMETER_NAME__CORS_ALLOWED_ORIGINS "$CORS_ALLOWED_ORIGINS_SSM_PARAMETER_NAME"
+write_shell_var "$RUNTIME_ENV_SSM_PARAMETERS_PATH" RUNTIME_ENV_SSM_PARAMETER_NAME__CORS_ALLOW_CREDENTIALS "$CORS_ALLOW_CREDENTIALS_SSM_PARAMETER_NAME"
 write_shell_var "$RUNTIME_ENV_SSM_PARAMETERS_PATH" RUNTIME_ENV_SSM_PARAMETER_NAME__AUTH_COOKIE_DOMAIN "$AUTH_COOKIE_DOMAIN_SSM_PARAMETER_NAME"
 write_shell_var "$RUNTIME_ENV_SSM_PARAMETERS_PATH" RUNTIME_ENV_SSM_PARAMETER_NAME__DB_PUBLIC_HOST "$DB_PUBLIC_HOST_SSM_PARAMETER_NAME"
 write_shell_var "$RUNTIME_ENV_SSM_PARAMETERS_PATH" RUNTIME_ENV_SSM_PARAMETER_NAME__DB_PORT "$DB_PORT_SSM_PARAMETER_NAME"
@@ -324,6 +381,47 @@ write_shell_var "$RELEASE_MANIFEST_PATH" API_FQDN "$API_FQDN"
 write_shell_var "$RELEASE_MANIFEST_PATH" CERTBOT_ENABLED "$CERTBOT_ENABLED"
 write_shell_var "$RELEASE_MANIFEST_PATH" CERTBOT_EMAIL "$CERTBOT_EMAIL"
 write_shell_var "$RELEASE_MANIFEST_PATH" CERTBOT_STAGING "$CERTBOT_STAGING"
+
+# Package first-admin bootstrap inputs as temporary SSM parameter names so deploy can seed the
+# first admin without embedding those values into the runtime env file or release artifact.
+if [[ "$FIRST_ADMIN_BOOTSTRAP_ENABLED" == "true" ]]; then
+  step 'Packaging deploy-time first-admin bootstrap inputs'
+  FIRST_ADMIN_BOOTSTRAP_SESSION_ID="$(python3 - <<'PY2'
+import uuid
+
+print(uuid.uuid4())
+PY2
+)"
+  FIRST_ADMIN_BOOTSTRAP_BASE_PARAMETER_NAME="${FIRST_ADMIN_BOOTSTRAP_SSM_PARAMETER_PREFIX%/}/$FIRST_ADMIN_BOOTSTRAP_SESSION_ID"
+  FIRST_ADMIN_EMAIL_SSM_PARAMETER_NAME="$FIRST_ADMIN_BOOTSTRAP_BASE_PARAMETER_NAME/email"
+  FIRST_ADMIN_PASSWORD_SSM_PARAMETER_NAME="$FIRST_ADMIN_BOOTSTRAP_BASE_PARAMETER_NAME/password"
+  FIRST_ADMIN_FIRSTNAME_SSM_PARAMETER_NAME="$FIRST_ADMIN_BOOTSTRAP_BASE_PARAMETER_NAME/firstname"
+  FIRST_ADMIN_LASTNAME_SSM_PARAMETER_NAME="$FIRST_ADMIN_BOOTSTRAP_BASE_PARAMETER_NAME/lastname"
+  FIRST_ADMIN_NICKNAME_SSM_PARAMETER_NAME=""
+
+  create_ssm_parameter "$FIRST_ADMIN_EMAIL_SSM_PARAMETER_NAME" String "$FIRST_ADMIN_EMAIL"
+  create_ssm_parameter "$FIRST_ADMIN_PASSWORD_SSM_PARAMETER_NAME" SecureString "$FIRST_ADMIN_PASSWORD"
+  create_ssm_parameter "$FIRST_ADMIN_FIRSTNAME_SSM_PARAMETER_NAME" String "$FIRST_ADMIN_FIRSTNAME"
+  create_ssm_parameter "$FIRST_ADMIN_LASTNAME_SSM_PARAMETER_NAME" String "$FIRST_ADMIN_LASTNAME"
+  FIRST_ADMIN_BOOTSTRAP_PARAMETER_NAMES=(
+    "$FIRST_ADMIN_EMAIL_SSM_PARAMETER_NAME"
+    "$FIRST_ADMIN_PASSWORD_SSM_PARAMETER_NAME"
+    "$FIRST_ADMIN_FIRSTNAME_SSM_PARAMETER_NAME"
+    "$FIRST_ADMIN_LASTNAME_SSM_PARAMETER_NAME"
+  )
+
+  write_shell_var "$RELEASE_MANIFEST_PATH" FIRST_ADMIN_EMAIL_SSM_PARAMETER_NAME "$FIRST_ADMIN_EMAIL_SSM_PARAMETER_NAME"
+  write_shell_var "$RELEASE_MANIFEST_PATH" FIRST_ADMIN_PASSWORD_SSM_PARAMETER_NAME "$FIRST_ADMIN_PASSWORD_SSM_PARAMETER_NAME"
+  write_shell_var "$RELEASE_MANIFEST_PATH" FIRST_ADMIN_FIRSTNAME_SSM_PARAMETER_NAME "$FIRST_ADMIN_FIRSTNAME_SSM_PARAMETER_NAME"
+  write_shell_var "$RELEASE_MANIFEST_PATH" FIRST_ADMIN_LASTNAME_SSM_PARAMETER_NAME "$FIRST_ADMIN_LASTNAME_SSM_PARAMETER_NAME"
+
+  if [[ -n "$FIRST_ADMIN_NICKNAME" ]]; then
+    FIRST_ADMIN_NICKNAME_SSM_PARAMETER_NAME="$FIRST_ADMIN_BOOTSTRAP_BASE_PARAMETER_NAME/nickname"
+    create_ssm_parameter "$FIRST_ADMIN_NICKNAME_SSM_PARAMETER_NAME" String "$FIRST_ADMIN_NICKNAME"
+    FIRST_ADMIN_BOOTSTRAP_PARAMETER_NAMES+=("$FIRST_ADMIN_NICKNAME_SSM_PARAMETER_NAME")
+    write_shell_var "$RELEASE_MANIFEST_PATH" FIRST_ADMIN_NICKNAME_SSM_PARAMETER_NAME "$FIRST_ADMIN_NICKNAME_SSM_PARAMETER_NAME"
+  fi
+fi
 
 # ------------
 # Upload release artifacts

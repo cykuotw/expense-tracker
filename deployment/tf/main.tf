@@ -10,8 +10,10 @@ locals {
   third_party_session_secret_ssm_parameter_name = "/${var.project_name}/${var.environment}/app/third_party_session_secret"
   google_client_id_ssm_parameter_name   = "/${var.project_name}/${var.environment}/app/google_client_id"
   google_client_secret_ssm_parameter_name = "/${var.project_name}/${var.environment}/app/google_client_secret"
+  first_admin_bootstrap_ssm_parameter_prefix = "/${var.project_name}/${var.environment}/deploy/first_admin"
   frontend_origin_ssm_parameter_name    = "/${var.project_name}/${var.environment}/runtime/frontend_origin"
   cors_allowed_origins_ssm_parameter_name = "/${var.project_name}/${var.environment}/runtime/cors_allowed_origins"
+  cors_allow_credentials_ssm_parameter_name = "/${var.project_name}/${var.environment}/runtime/cors_allow_credentials"
   auth_cookie_domain_ssm_parameter_name = "/${var.project_name}/${var.environment}/runtime/auth_cookie_domain"
   db_public_host_ssm_parameter_name     = "/${var.project_name}/${var.environment}/runtime/db_public_host"
   db_port_ssm_parameter_name            = "/${var.project_name}/${var.environment}/runtime/db_port"
@@ -30,6 +32,10 @@ locals {
     cors_allowed_origins = {
       name  = local.cors_allowed_origins_ssm_parameter_name
       value = "https://${local.frontend_fqdn}"
+    }
+    cors_allow_credentials = {
+      name  = local.cors_allow_credentials_ssm_parameter_name
+      value = "true"
     }
     auth_cookie_domain = {
       name  = local.auth_cookie_domain_ssm_parameter_name
@@ -290,6 +296,16 @@ resource "aws_iam_role_policy" "db_credentials_access" {
           local.jwt_secret_ssm_parameter_arn,
           local.refresh_jwt_secret_ssm_parameter_arn,
           local.third_party_session_secret_ssm_parameter_arn,
+        ]
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "ssm:GetParameter",
+          "ssm:DeleteParameter"
+        ]
+        Resource = [
+          "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter${local.first_admin_bootstrap_ssm_parameter_prefix}/*",
         ]
       }
     ]

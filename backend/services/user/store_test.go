@@ -201,6 +201,35 @@ func TestGetUsernameByID(t *testing.T) {
 	}
 }
 
+func TestCheckAdminUserExists(t *testing.T) {
+	db := openTestDB(t)
+	store := user.NewStore(db)
+
+	adminID := uuid.New()
+	query := fmt.Sprintf(
+		"INSERT INTO users ("+
+			"id, username, firstname, lastname, nickname, "+
+			"email, password_hash, external_type, external_id, "+
+			"create_time_utc, is_active, role"+
+			") VALUES ('%s','%s','%s','%s','%s','%s','%s','','','%s',true,'admin');",
+		adminID,
+		"admin user",
+		"Admin",
+		"User",
+		"admin",
+		"admin-"+adminID.String()[:8]+"@example.com",
+		"hash",
+		time.Now().UTC().Format("2006-01-02 15:04:05-0700"),
+	)
+	_, execErr := db.Exec(query)
+	assert.NoError(t, execErr)
+	defer cleanUser(db, adminID)
+
+	exists, err := store.CheckAdminUserExists()
+	assert.NoError(t, err)
+	assert.True(t, exists)
+}
+
 func insertUser(db *sql.DB, user types.User) {
 	createTime := user.CreateTime.UTC().Format("2006-01-02 15:04:05-0700")
 	query := fmt.Sprintf(

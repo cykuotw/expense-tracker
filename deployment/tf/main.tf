@@ -5,6 +5,61 @@ locals {
   db_admin_password_ssm_parameter_name  = "/${var.project_name}/${var.environment}/db/admin_password"
   db_migration_password_ssm_parameter_name = "/${var.project_name}/${var.environment}/db/migration_password"
   db_app_password_ssm_parameter_name    = "/${var.project_name}/${var.environment}/db/app_password"
+  jwt_secret_ssm_parameter_name         = "/${var.project_name}/${var.environment}/app/jwt_secret"
+  refresh_jwt_secret_ssm_parameter_name = "/${var.project_name}/${var.environment}/app/refresh_jwt_secret"
+  third_party_session_secret_ssm_parameter_name = "/${var.project_name}/${var.environment}/app/third_party_session_secret"
+  google_client_id_ssm_parameter_name   = "/${var.project_name}/${var.environment}/app/google_client_id"
+  google_client_secret_ssm_parameter_name = "/${var.project_name}/${var.environment}/app/google_client_secret"
+  frontend_origin_ssm_parameter_name    = "/${var.project_name}/${var.environment}/runtime/frontend_origin"
+  cors_allowed_origins_ssm_parameter_name = "/${var.project_name}/${var.environment}/runtime/cors_allowed_origins"
+  auth_cookie_domain_ssm_parameter_name = "/${var.project_name}/${var.environment}/runtime/auth_cookie_domain"
+  db_public_host_ssm_parameter_name     = "/${var.project_name}/${var.environment}/runtime/db_public_host"
+  db_port_ssm_parameter_name            = "/${var.project_name}/${var.environment}/runtime/db_port"
+  db_user_ssm_parameter_name            = "/${var.project_name}/${var.environment}/runtime/db_user"
+  db_name_ssm_parameter_name            = "/${var.project_name}/${var.environment}/runtime/db_name"
+  db_sslmode_ssm_parameter_name         = "/${var.project_name}/${var.environment}/runtime/db_sslmode"
+  google_callback_url_ssm_parameter_name = "/${var.project_name}/${var.environment}/runtime/google_callback_url"
+  jwt_secret_ssm_parameter_arn          = "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter${local.jwt_secret_ssm_parameter_name}"
+  refresh_jwt_secret_ssm_parameter_arn  = "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter${local.refresh_jwt_secret_ssm_parameter_name}"
+  third_party_session_secret_ssm_parameter_arn = "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter${local.third_party_session_secret_ssm_parameter_name}"
+  runtime_config_parameters = {
+    frontend_origin = {
+      name  = local.frontend_origin_ssm_parameter_name
+      value = "https://${local.frontend_fqdn}"
+    }
+    cors_allowed_origins = {
+      name  = local.cors_allowed_origins_ssm_parameter_name
+      value = "https://${local.frontend_fqdn}"
+    }
+    auth_cookie_domain = {
+      name  = local.auth_cookie_domain_ssm_parameter_name
+      value = ".${local.frontend_fqdn}"
+    }
+    db_public_host = {
+      name  = local.db_public_host_ssm_parameter_name
+      value = aws_db_instance.db.address
+    }
+    db_port = {
+      name  = local.db_port_ssm_parameter_name
+      value = tostring(var.db_port)
+    }
+    db_user = {
+      name  = local.db_user_ssm_parameter_name
+      value = var.db_app_username
+    }
+    db_name = {
+      name  = local.db_name_ssm_parameter_name
+      value = aws_db_instance.db.db_name
+    }
+    db_sslmode = {
+      name  = local.db_sslmode_ssm_parameter_name
+      value = "require"
+    }
+    google_callback_url = {
+      name  = local.google_callback_url_ssm_parameter_name
+      value = "https://${local.api_fqdn}/api/v0/auth/google/callback"
+    }
+  }
   common_tags = merge(
     {
       Project     = var.project_name
@@ -18,6 +73,8 @@ locals {
 data "aws_vpc" "default" {
   default = true
 }
+
+data "aws_caller_identity" "current" {}
 
 data "aws_subnets" "default" {
   filter {
@@ -208,10 +265,31 @@ resource "aws_iam_role_policy" "db_credentials_access" {
         Action = [
           "ssm:GetParameter"
         ]
+        Resource = compact(concat(
+          [
+            aws_ssm_parameter.db_admin_password.arn,
+            aws_ssm_parameter.db_migration_password.arn,
+            aws_ssm_parameter.db_app_password.arn,
+            local.jwt_secret_ssm_parameter_arn,
+            local.refresh_jwt_secret_ssm_parameter_arn,
+            local.third_party_session_secret_ssm_parameter_arn,
+          ],
+          [for parameter in values(aws_ssm_parameter.runtime_config) : parameter.arn],
+          [
+            try(aws_ssm_parameter.google_client_id[0].arn, null),
+            try(aws_ssm_parameter.google_client_secret[0].arn, null),
+          ],
+        ))
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "ssm:PutParameter"
+        ]
         Resource = [
-          aws_ssm_parameter.db_admin_password.arn,
-          aws_ssm_parameter.db_migration_password.arn,
-          aws_ssm_parameter.db_app_password.arn,
+          local.jwt_secret_ssm_parameter_arn,
+          local.refresh_jwt_secret_ssm_parameter_arn,
+          local.third_party_session_secret_ssm_parameter_arn,
         ]
       }
     ]
@@ -291,6 +369,33 @@ resource "aws_ssm_parameter" "db_app_password" {
   name      = local.db_app_password_ssm_parameter_name
   type      = "SecureString"
   value     = var.db_app_password
+  overwrite = true
+  tags      = local.common_tags
+}
+
+resource "aws_ssm_parameter" "runtime_config" {
+  for_each  = local.runtime_config_parameters
+  name      = each.value.name
+  type      = "String"
+  value     = each.value.value
+  overwrite = true
+  tags      = local.common_tags
+}
+
+resource "aws_ssm_parameter" "google_client_id" {
+  count     = var.google_client_id != "" ? 1 : 0
+  name      = local.google_client_id_ssm_parameter_name
+  type      = "SecureString"
+  value     = var.google_client_id
+  overwrite = true
+  tags      = local.common_tags
+}
+
+resource "aws_ssm_parameter" "google_client_secret" {
+  count     = var.google_client_secret != "" ? 1 : 0
+  name      = local.google_client_secret_ssm_parameter_name
+  type      = "SecureString"
+  value     = var.google_client_secret
   overwrite = true
   tags      = local.common_tags
 }

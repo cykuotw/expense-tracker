@@ -12,6 +12,8 @@ This Terraform layout provisions the active AWS infrastructure for the project.
 - artifact S3 bucket in the configured AWS region
 - RDS PostgreSQL instance in the configured AWS region
 - SSM SecureString parameters for the database admin, migration, and app passwords
+- SSM String parameters for deploy-managed runtime config such as frontend origin, cookie domain, DB coordinates, and Google callback URL
+- SSM SecureString parameters for optional Google OAuth credentials
 - CloudFront distribution for the configured frontend hostname
 - Route 53 alias record for the frontend hostname
 - Route 53 A record for the API hostname
@@ -26,11 +28,15 @@ CloudFront can only use ACM certificates from `us-east-1`, even if the rest of t
 This Terraform layout does not set `price_class` on the frontend distribution.
 That keeps the distribution aligned with the CloudFront flat-rate plan flow you are using in the console.
 
-## Database Credentials
+## Runtime Secrets
 
 Terraform provisions the RDS master login and stores its password in SSM for administrative bootstrap use.
 Terraform also stores separate migration-user and app-user passwords in SSM.
-The backend EC2 role is allowed to read those specific parameters so deploy can bootstrap roles and run migrations on-host without writing the admin credential into the runtime env file.
+Terraform publishes the deploy-managed non-secret runtime config in SSM as well so the host can render a complete backend env from one parameter source.
+Terraform also defines stable SSM parameter names for `JWT_SECRET`, `REFRESH_JWT_SECRET`, and `THIRD_PARTY_SESSION_SECRET`.
+The remote deploy script creates those SecureString parameters on first deploy if they do not already exist.
+If Google OAuth credentials are provided in `terraform.tfvars`, Terraform stores those in SSM as well.
+The backend EC2 role is allowed to read those specific parameters so deploy can finalize runtime configuration on-host without copying a local secret-bearing env file into the release artifact or depending on stale host-side leftovers.
 
 ## Deployment Split
 

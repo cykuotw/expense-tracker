@@ -50,7 +50,7 @@ deploy:
 destroy:
 	@./deployment/scripts/destroy.sh
 
-config.local.sh copytf-init:
+tf-init:
 	@terraform -chdir=deployment/tf init -input=false
 
 tf-plan:

@@ -76,6 +76,19 @@ variable "db_app_password" {
   sensitive   = true
 }
 
+variable "google_client_id" {
+  type        = string
+  description = "Optional Google OAuth client ID for the backend runtime"
+  default     = ""
+}
+
+variable "google_client_secret" {
+  type        = string
+  description = "Optional Google OAuth client secret for the backend runtime"
+  sensitive   = true
+  default     = ""
+}
+
 variable "db_port" {
   type        = number
   description = "PostgreSQL port for the RDS instance"
@@ -152,6 +165,24 @@ variable "backend_env_dir" {
   type        = string
   description = "Directory containing the backend environment file on the EC2 host"
   default     = "/etc/expense-tracker"
+}
+
+variable "certbot_enabled" {
+  type        = bool
+  description = "Whether deploy should request or renew the API TLS certificate through certbot"
+  default     = false
+}
+
+variable "certbot_email" {
+  type        = string
+  description = "Email address used for certbot ACME registration when certbot is enabled"
+  default     = ""
+}
+
+variable "certbot_staging" {
+  type        = bool
+  description = "Whether deploy should use Let's Encrypt staging when running certbot"
+  default     = false
 }
 
 variable "ingress_cidr_blocks" {

@@ -4,23 +4,14 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 source "$SCRIPT_DIR/lib/format.sh"
-
-if [[ ! -f "$SCRIPT_DIR/lib/config.local.sh" ]]; then
-  fail "Missing local config: $SCRIPT_DIR/lib/config.local.sh"
-  printf 'Create it with: cp %s %s\n'     "$SCRIPT_DIR/lib/config.local.sh.example"     "$SCRIPT_DIR/lib/config.local.sh" >&2
-  exit 1
-fi
-source "$SCRIPT_DIR/lib/config.local.sh"
-
 source "$SCRIPT_DIR/lib/config.sh"
 source "$SCRIPT_DIR/lib/terraform.sh"
 
-: "${AWS_REGION:?set AWS_REGION}"
-: "${TF_VARS_FILE:?set TF_VARS_FILE}"
 if [[ ! -f "$(tf_vars_file_path)" ]]; then
   fail "missing TF_VARS_FILE: $(tf_vars_file_path)"
   exit 1
 fi
+resolve_aws_region
 
 step 'Destroy configuration'
 printf '  AWS_REGION=%s\n' "$AWS_REGION"

@@ -1,32 +1,53 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# ------------
+# Init local deploy context
+# ------------
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 source "$SCRIPT_DIR/lib/format.sh"
-
-if [[ ! -f "$SCRIPT_DIR/lib/config.local.sh" ]]; then
-  fail "Missing local config: $SCRIPT_DIR/lib/config.local.sh"
-  printf 'Create it with: cp %s %s\n' \
-    "$SCRIPT_DIR/lib/config.local.sh.example" \
-    "$SCRIPT_DIR/lib/config.local.sh" >&2
-  exit 1
-fi
-source "$SCRIPT_DIR/lib/config.local.sh"
-
 source "$SCRIPT_DIR/lib/config.sh"
 source "$SCRIPT_DIR/lib/terraform.sh"
 
-: "${AWS_REGION:?set AWS_REGION}"
-: "${TF_VARS_FILE:?set TF_VARS_FILE}"
 if [[ ! -f "$(tf_vars_file_path)" ]]; then
   fail "missing TF_VARS_FILE: $(tf_vars_file_path)"
   exit 1
 fi
+
+if ! CERTBOT_ENABLED="$(tf_var_string certbot_enabled 2>/dev/null)"; then
+  fail "define certbot_enabled in $(tf_vars_file_path)"
+  exit 1
+fi
+if ! CERTBOT_STAGING="$(tf_var_string certbot_staging 2>/dev/null)"; then
+  fail "define certbot_staging in $(tf_vars_file_path)"
+  exit 1
+fi
+if certbot_email_override="$(tf_var_string certbot_email 2>/dev/null)"; then
+  CERTBOT_EMAIL="$certbot_email_override"
+elif [[ "$CERTBOT_ENABLED" == "true" ]]; then
+  fail "define certbot_email in $(tf_vars_file_path) when certbot_enabled=true"
+  exit 1
+else
+  CERTBOT_EMAIL=""
+fi
+
+resolve_aws_region
 BACKEND_ENV_DIR="$(dirname "$BACKEND_ENV_PATH")"
 STAGE_DIR="$BUILD_ROOT/backend"
+RUNTIME_STAGE_DIR="$STAGE_DIR/runtime"
+DEPLOY_STAGE_DIR="$STAGE_DIR/deploy"
 BACKEND_ARCHIVE="$BUILD_ROOT/backend-release.tar.gz"
 NGINX_CONFIG_TEMPLATE="deployment/nginx/expense-tracker.conf"
+SYSTEMD_UNIT_TEMPLATE="deployment/systemd/expense-tracker.service"
+REMOTE_DEPLOY_SCRIPT_SRC="deployment/remote/deploy-release.sh"
+RELEASE_MANIFEST_PATH="$DEPLOY_STAGE_DIR/release-manifest.env"
+RUNTIME_ENV_SSM_PARAMETERS_PATH="$DEPLOY_STAGE_DIR/runtime-env-ssm.env"
+
+# ------------
+# Print deploy configuration
+# ------------
 
 step 'Deploy configuration'
 printf '  AWS_REGION=%s\n' "$AWS_REGION"
@@ -34,22 +55,33 @@ printf '  TF_DIR=%s\n' "$TF_DIR"
 printf '  TF_VARS_FILE=%s\n' "$TF_VARS_FILE"
 printf '  APP_DIR=%s\n' "$APP_DIR"
 printf '  BACKEND_ENV_PATH=%s\n' "$BACKEND_ENV_PATH"
-printf '  BACKEND_ENV_SOURCE_FILE=%s\n' "$BACKEND_ENV_SOURCE_FILE"
+printf '  BACKEND_URL=%s\n' "$BACKEND_URL"
+printf '  API_URL=%s\n' "$API_URL"
 printf '  SYSTEMD_SERVICE_NAME=%s\n' "$SYSTEMD_SERVICE_NAME"
 printf '  GOOS=%s\n' "$GOOS"
 printf '  GOARCH=%s\n' "$GOARCH"
 printf '  BUILD_ROOT=%s\n' "$BUILD_ROOT"
 printf '  STAGE_DIR=%s\n' "$STAGE_DIR"
+printf '  RUNTIME_STAGE_DIR=%s\n' "$RUNTIME_STAGE_DIR"
+printf '  DEPLOY_STAGE_DIR=%s\n' "$DEPLOY_STAGE_DIR"
 printf '  FRONTEND_DIST_DIR=%s\n' "$FRONTEND_DIST_DIR"
 printf '  MIGRATIONS_SRC_DIR=%s\n' "$MIGRATIONS_SRC_DIR"
 printf '  ARTIFACT_KEY=%s\n' "$ARTIFACT_KEY"
 printf '  BACKEND_ARCHIVE=%s\n' "$BACKEND_ARCHIVE"
 printf '  NGINX_CONFIG_TEMPLATE=%s\n' "$NGINX_CONFIG_TEMPLATE"
+printf '  SYSTEMD_UNIT_TEMPLATE=%s\n' "$SYSTEMD_UNIT_TEMPLATE"
+printf '  REMOTE_DEPLOY_SCRIPT_SRC=%s\n' "$REMOTE_DEPLOY_SCRIPT_SRC"
+printf '  RELEASE_MANIFEST_PATH=%s\n' "$RELEASE_MANIFEST_PATH"
+printf '  RUNTIME_ENV_SSM_PARAMETERS_PATH=%s\n' "$RUNTIME_ENV_SSM_PARAMETERS_PATH"
 printf '  API_HTTP_HEALTHCHECK_URL=%s\n' "$API_HTTP_HEALTHCHECK_URL"
 printf '  API_HTTPS_HEALTHCHECK_URL=%s\n' "$API_HTTPS_HEALTHCHECK_URL"
 printf '  CERTBOT_ENABLED=%s\n' "$CERTBOT_ENABLED"
 printf '  CERTBOT_EMAIL=%s\n' "$CERTBOT_EMAIL"
 printf '  CERTBOT_STAGING=%s\n' "$CERTBOT_STAGING"
+
+# ------------
+# Common helpers
+# ------------
 
 require_file() {
   local path="$1"
@@ -59,15 +91,43 @@ require_file() {
   fi
 }
 
-fetch_ssm_parameter() {
-  local name="$1"
-  local value
-  value="$(aws --region "$AWS_REGION" ssm get-parameter --name "$name" --with-decryption --query "Parameter.Value" --output text)"
-  if [[ -z "$value" ]]; then
-    fail "empty SSM parameter value for $name"
-    exit 1
-  fi
-  printf '%s\n' "$value"
+write_shell_var() {
+  local file="$1"
+  local key="$2"
+  local value="$3"
+  printf '%s=%q\n' "$key" "$value" >>"$file"
+}
+
+shell_quote() {
+  printf '%q' "$1"
+}
+
+json_escape() {
+  local value="$1"
+  value="${value//\\/\\\\}"
+  value="${value//\"/\\\"}"
+  value="${value//$'\n'/\\n}"
+  value="${value//$'\r'/\\r}"
+  value="${value//$'\t'/\\t}"
+  value="${value//$'\f'/\\f}"
+  value="${value//$'\b'/\\b}"
+  printf '%s' "$value"
+}
+
+build_ssm_parameters() {
+  local commands=("$@")
+  local json='{"commands":['
+  local index
+
+  for index in "${!commands[@]}"; do
+    if (( index > 0 )); then
+      json+=','
+    fi
+    json+="\"$(json_escape "${commands[$index]}")\""
+  done
+
+  json+=']}'
+  printf '%s\n' "$json"
 }
 
 replace_env_key() {
@@ -96,12 +156,28 @@ path.write_text(text)
 PY2
 }
 
+# ------------
+# Prepare local staging directories
+# ------------
+
 rm -rf "$BUILD_ROOT"
-mkdir -p "$STAGE_DIR/bin" "$STAGE_DIR/migrations" "$STAGE_DIR/systemd" "$STAGE_DIR/nginx"
+mkdir -p \
+  "$RUNTIME_STAGE_DIR/bin" \
+  "$RUNTIME_STAGE_DIR/migrations" \
+  "$RUNTIME_STAGE_DIR/systemd" \
+  "$RUNTIME_STAGE_DIR/nginx" \
+  "$DEPLOY_STAGE_DIR"
 
-require_file "$BACKEND_ENV_SOURCE_FILE"
+# Validate static local inputs before provisioning or packaging anything.
 require_file "$NGINX_CONFIG_TEMPLATE"
+require_file "$SYSTEMD_UNIT_TEMPLATE"
+require_file "$REMOTE_DEPLOY_SCRIPT_SRC"
 
+# ------------
+# Apply Terraform and resolve deploy contract
+# ------------
+
+# Apply infra first so the deploy uses the latest host, bucket, and SSM output values.
 step 'Applying Terraform'
 terraform_cmd init -input=false
 terraform_cmd apply -auto-approve -input=false
@@ -109,61 +185,57 @@ terraform_cmd apply -auto-approve -input=false
 INSTANCE_ID="$(terraform_output backend_instance_id)"
 FRONTEND_BUCKET="$(terraform_output frontend_bucket_name)"
 ARTIFACT_BUCKET="$(terraform_output artifact_bucket_name)"
-DB_HOST="$(terraform_output db_host)"
-DB_PORT="$(terraform_output db_port)"
-DB_NAME="$(terraform_output db_name)"
 DB_ADMIN_USERNAME="$(terraform_output db_admin_username)"
 DB_ADMIN_PASSWORD_SSM_PARAMETER_NAME="$(terraform_output db_admin_password_ssm_parameter_name)"
 DB_MIGRATION_USERNAME="$(terraform_output db_migration_username)"
 DB_MIGRATION_PASSWORD_SSM_PARAMETER_NAME="$(terraform_output db_migration_password_ssm_parameter_name)"
-DB_APP_USERNAME="$(terraform_output db_app_username)"
-DB_APP_PASSWORD_SSM_PARAMETER_NAME="$(terraform_output db_app_password_ssm_parameter_name)"
-FRONTEND_FQDN="$(terraform_output frontend_fqdn)"
+FRONTEND_ORIGIN_SSM_PARAMETER_NAME="$(terraform_output frontend_origin_ssm_parameter_name)"
+CORS_ALLOWED_ORIGINS_SSM_PARAMETER_NAME="$(terraform_output cors_allowed_origins_ssm_parameter_name)"
+AUTH_COOKIE_DOMAIN_SSM_PARAMETER_NAME="$(terraform_output auth_cookie_domain_ssm_parameter_name)"
+DB_PUBLIC_HOST_SSM_PARAMETER_NAME="$(terraform_output db_public_host_ssm_parameter_name)"
+DB_PORT_SSM_PARAMETER_NAME="$(terraform_output db_port_ssm_parameter_name)"
+DB_USER_SSM_PARAMETER_NAME="$(terraform_output db_user_ssm_parameter_name)"
+DB_NAME_SSM_PARAMETER_NAME="$(terraform_output db_name_ssm_parameter_name)"
+DB_PASSWORD_SSM_PARAMETER_NAME="$(terraform_output db_app_password_ssm_parameter_name)"
+DB_SSLMODE_SSM_PARAMETER_NAME="$(terraform_output db_sslmode_ssm_parameter_name)"
+GOOGLE_CALLBACK_URL_SSM_PARAMETER_NAME="$(terraform_output google_callback_url_ssm_parameter_name)"
+JWT_SECRET_SSM_PARAMETER_NAME="$(terraform_output jwt_secret_ssm_parameter_name)"
+REFRESH_JWT_SECRET_SSM_PARAMETER_NAME="$(terraform_output refresh_jwt_secret_ssm_parameter_name)"
+THIRD_PARTY_SESSION_SECRET_SSM_PARAMETER_NAME="$(terraform_output third_party_session_secret_ssm_parameter_name)"
+GOOGLE_CLIENT_ID_SSM_PARAMETER_NAME="$(terraform_output_optional google_client_id_ssm_parameter_name)"
+GOOGLE_CLIENT_SECRET_SSM_PARAMETER_NAME="$(terraform_output_optional google_client_secret_ssm_parameter_name)"
 API_FQDN="$(terraform_output api_fqdn)"
 CLOUDFRONT_DISTRIBUTION_ID="$(terraform_output cloudfront_distribution_id)"
 S3_URI="s3://$ARTIFACT_BUCKET/$ARTIFACT_KEY"
-FRONTEND_ORIGIN="https://$FRONTEND_FQDN"
 API_ORIGIN="https://$API_FQDN"
 if [[ -z "$API_HTTP_HEALTHCHECK_URL" ]]; then
-  API_HTTP_HEALTHCHECK_URL="http://$API_FQDN/api/v0/health"
+  API_HTTP_HEALTHCHECK_URL="http://$API_FQDN${API_URL%/}/health"
 fi
 if [[ -z "$API_HTTPS_HEALTHCHECK_URL" ]]; then
-  API_HTTPS_HEALTHCHECK_URL="https://$API_FQDN/api/v0/health"
+  API_HTTPS_HEALTHCHECK_URL="https://$API_FQDN${API_URL%/}/health"
 fi
 
-CERTBOT_STAGING_FLAG=""
-if [[ "$CERTBOT_STAGING" == "true" ]]; then
-  CERTBOT_STAGING_FLAG="--staging"
-fi
 if [[ "$CERTBOT_ENABLED" == "true" && -z "$CERTBOT_EMAIL" ]]; then
   fail "CERTBOT_EMAIL must be set when CERTBOT_ENABLED=true"
   exit 1
 fi
 
-DB_APP_PASSWORD="__REMOTE_DB_PASSWORD__"
+# ------------
+# Build frontend and backend artifacts
+# ------------
 
-BACKEND_ENV_LOCAL="$BUILD_ROOT/backend.env"
-cp "$BACKEND_ENV_SOURCE_FILE" "$BACKEND_ENV_LOCAL"
-replace_env_key "$BACKEND_ENV_LOCAL" FRONTEND_ORIGIN "$FRONTEND_ORIGIN"
-replace_env_key "$BACKEND_ENV_LOCAL" CORS_ALLOWED_ORIGINS "$FRONTEND_ORIGIN"
-replace_env_key "$BACKEND_ENV_LOCAL" AUTH_COOKIE_DOMAIN ".$FRONTEND_FQDN"
-replace_env_key "$BACKEND_ENV_LOCAL" DB_PUBLIC_HOST "$DB_HOST"
-replace_env_key "$BACKEND_ENV_LOCAL" DB_PORT "$DB_PORT"
-replace_env_key "$BACKEND_ENV_LOCAL" DB_USER "$DB_APP_USERNAME"
-replace_env_key "$BACKEND_ENV_LOCAL" DB_NAME "$DB_NAME"
-replace_env_key "$BACKEND_ENV_LOCAL" DB_PASSWORD "$DB_APP_PASSWORD"
-replace_env_key "$BACKEND_ENV_LOCAL" DB_SSLMODE "require"
-replace_env_key "$BACKEND_ENV_LOCAL" GOOGLE_CALLBACK_URL "$API_ORIGIN/api/v0/auth/google/callback"
-
+# Build the frontend locally with the live API origin that Terraform just resolved.
 step 'Building frontend'
-VITE_API_ORIGIN="$API_ORIGIN" VITE_API_PATH="/api/v0" make build-frontend
+VITE_API_ORIGIN="$API_ORIGIN" VITE_API_PATH="$API_URL" make build-frontend
 
+# Stage a split backend release: runtime files for APP_DIR and deploy metadata for the temp release root.
 step 'Building backend'
-make build-deploy-backend BUILD_DIR="$STAGE_DIR/bin" GOOS="$GOOS" GOARCH="$GOARCH"
+make build-deploy-backend BUILD_DIR="$RUNTIME_STAGE_DIR/bin" GOOS="$GOOS" GOARCH="$GOARCH"
 
-cp -R "$MIGRATIONS_SRC_DIR/." "$STAGE_DIR/migrations/"
-cp deployment/systemd/expense-tracker.service "$STAGE_DIR/systemd/expense-tracker.service"
-python3 - "$NGINX_CONFIG_TEMPLATE" "$STAGE_DIR/nginx/expense-tracker.conf" "$API_FQDN" <<'PY2'
+cp -R "$MIGRATIONS_SRC_DIR/." "$RUNTIME_STAGE_DIR/migrations/"
+cp "$REMOTE_DEPLOY_SCRIPT_SRC" "$DEPLOY_STAGE_DIR/deploy-release.sh"
+chmod 755 "$DEPLOY_STAGE_DIR/deploy-release.sh"
+python3 - "$NGINX_CONFIG_TEMPLATE" "$RUNTIME_STAGE_DIR/nginx/expense-tracker.conf" "$API_FQDN" <<'PY2'
 import pathlib
 import sys
 
@@ -173,6 +245,91 @@ api_fqdn = sys.argv[3]
 text = source.read_text()
 target.write_text(text.replace("__API_FQDN__", api_fqdn))
 PY2
+python3 - "$SYSTEMD_UNIT_TEMPLATE" "$RUNTIME_STAGE_DIR/systemd/expense-tracker.service" "$APP_DIR" "$BACKEND_ENV_PATH" <<'PY2'
+import pathlib
+import sys
+
+source = pathlib.Path(sys.argv[1])
+target = pathlib.Path(sys.argv[2])
+app_dir = sys.argv[3]
+backend_env_path = sys.argv[4]
+text = source.read_text()
+text = text.replace("__APP_DIR__", app_dir)
+text = text.replace("__BACKEND_ENV_PATH__", backend_env_path)
+target.write_text(text)
+PY2
+
+# ------------
+# Package remote runtime env contract
+# ------------
+
+# Package the runtime env contract as SSM parameter names so the host renders a complete backend.env
+# from one source of truth instead of merging local overlays with host leftovers.
+: > "$RUNTIME_ENV_SSM_PARAMETERS_PATH"
+RUNTIME_ENV_REQUIRED_KEYS=(
+  FRONTEND_ORIGIN
+  CORS_ALLOWED_ORIGINS
+  AUTH_COOKIE_DOMAIN
+  DB_PUBLIC_HOST
+  DB_PORT
+  DB_USER
+  DB_NAME
+  DB_PASSWORD
+  DB_SSLMODE
+  GOOGLE_CALLBACK_URL
+  JWT_SECRET
+  REFRESH_JWT_SECRET
+  THIRD_PARTY_SESSION_SECRET
+)
+RUNTIME_ENV_OPTIONAL_KEYS=(
+  GOOGLE_CLIENT_ID
+  GOOGLE_CLIENT_SECRET
+)
+write_shell_var "$RUNTIME_ENV_SSM_PARAMETERS_PATH" RUNTIME_ENV_REQUIRED_KEYS "${RUNTIME_ENV_REQUIRED_KEYS[*]}"
+write_shell_var "$RUNTIME_ENV_SSM_PARAMETERS_PATH" RUNTIME_ENV_OPTIONAL_KEYS "${RUNTIME_ENV_OPTIONAL_KEYS[*]}"
+write_shell_var "$RUNTIME_ENV_SSM_PARAMETERS_PATH" RUNTIME_ENV_SSM_PARAMETER_NAME__FRONTEND_ORIGIN "$FRONTEND_ORIGIN_SSM_PARAMETER_NAME"
+write_shell_var "$RUNTIME_ENV_SSM_PARAMETERS_PATH" RUNTIME_ENV_SSM_PARAMETER_NAME__CORS_ALLOWED_ORIGINS "$CORS_ALLOWED_ORIGINS_SSM_PARAMETER_NAME"
+write_shell_var "$RUNTIME_ENV_SSM_PARAMETERS_PATH" RUNTIME_ENV_SSM_PARAMETER_NAME__AUTH_COOKIE_DOMAIN "$AUTH_COOKIE_DOMAIN_SSM_PARAMETER_NAME"
+write_shell_var "$RUNTIME_ENV_SSM_PARAMETERS_PATH" RUNTIME_ENV_SSM_PARAMETER_NAME__DB_PUBLIC_HOST "$DB_PUBLIC_HOST_SSM_PARAMETER_NAME"
+write_shell_var "$RUNTIME_ENV_SSM_PARAMETERS_PATH" RUNTIME_ENV_SSM_PARAMETER_NAME__DB_PORT "$DB_PORT_SSM_PARAMETER_NAME"
+write_shell_var "$RUNTIME_ENV_SSM_PARAMETERS_PATH" RUNTIME_ENV_SSM_PARAMETER_NAME__DB_USER "$DB_USER_SSM_PARAMETER_NAME"
+write_shell_var "$RUNTIME_ENV_SSM_PARAMETERS_PATH" RUNTIME_ENV_SSM_PARAMETER_NAME__DB_NAME "$DB_NAME_SSM_PARAMETER_NAME"
+write_shell_var "$RUNTIME_ENV_SSM_PARAMETERS_PATH" RUNTIME_ENV_SSM_PARAMETER_NAME__DB_PASSWORD "$DB_PASSWORD_SSM_PARAMETER_NAME"
+write_shell_var "$RUNTIME_ENV_SSM_PARAMETERS_PATH" RUNTIME_ENV_SSM_PARAMETER_NAME__DB_SSLMODE "$DB_SSLMODE_SSM_PARAMETER_NAME"
+write_shell_var "$RUNTIME_ENV_SSM_PARAMETERS_PATH" RUNTIME_ENV_SSM_PARAMETER_NAME__GOOGLE_CALLBACK_URL "$GOOGLE_CALLBACK_URL_SSM_PARAMETER_NAME"
+write_shell_var "$RUNTIME_ENV_SSM_PARAMETERS_PATH" RUNTIME_ENV_SSM_PARAMETER_NAME__JWT_SECRET "$JWT_SECRET_SSM_PARAMETER_NAME"
+write_shell_var "$RUNTIME_ENV_SSM_PARAMETERS_PATH" RUNTIME_ENV_SSM_PARAMETER_NAME__REFRESH_JWT_SECRET "$REFRESH_JWT_SECRET_SSM_PARAMETER_NAME"
+write_shell_var "$RUNTIME_ENV_SSM_PARAMETERS_PATH" RUNTIME_ENV_SSM_PARAMETER_NAME__THIRD_PARTY_SESSION_SECRET "$THIRD_PARTY_SESSION_SECRET_SSM_PARAMETER_NAME"
+write_shell_var "$RUNTIME_ENV_SSM_PARAMETERS_PATH" RUNTIME_ENV_SSM_PARAMETER_NAME__GOOGLE_CLIENT_ID "$GOOGLE_CLIENT_ID_SSM_PARAMETER_NAME"
+write_shell_var "$RUNTIME_ENV_SSM_PARAMETERS_PATH" RUNTIME_ENV_SSM_PARAMETER_NAME__GOOGLE_CLIENT_SECRET "$GOOGLE_CLIENT_SECRET_SSM_PARAMETER_NAME"
+
+# ------------
+# Package remote release metadata
+# ------------
+
+# Package the non-secret release context the host needs to finalize the deploy locally.
+: > "$RELEASE_MANIFEST_PATH"
+write_shell_var "$RELEASE_MANIFEST_PATH" AWS_REGION "$AWS_REGION"
+write_shell_var "$RELEASE_MANIFEST_PATH" APP_DIR "$APP_DIR"
+write_shell_var "$RELEASE_MANIFEST_PATH" BACKEND_ENV_DIR "$BACKEND_ENV_DIR"
+write_shell_var "$RELEASE_MANIFEST_PATH" BACKEND_ENV_PATH "$BACKEND_ENV_PATH"
+write_shell_var "$RELEASE_MANIFEST_PATH" BACKEND_URL "$BACKEND_URL"
+write_shell_var "$RELEASE_MANIFEST_PATH" API_URL "$API_URL"
+write_shell_var "$RELEASE_MANIFEST_PATH" SYSTEMD_SERVICE_NAME "$SYSTEMD_SERVICE_NAME"
+write_shell_var "$RELEASE_MANIFEST_PATH" DB_ADMIN_USERNAME "$DB_ADMIN_USERNAME"
+write_shell_var "$RELEASE_MANIFEST_PATH" DB_MIGRATION_USERNAME "$DB_MIGRATION_USERNAME"
+write_shell_var "$RELEASE_MANIFEST_PATH" DB_ADMIN_PASSWORD_SSM_PARAMETER_NAME "$DB_ADMIN_PASSWORD_SSM_PARAMETER_NAME"
+write_shell_var "$RELEASE_MANIFEST_PATH" DB_MIGRATION_PASSWORD_SSM_PARAMETER_NAME "$DB_MIGRATION_PASSWORD_SSM_PARAMETER_NAME"
+write_shell_var "$RELEASE_MANIFEST_PATH" API_FQDN "$API_FQDN"
+write_shell_var "$RELEASE_MANIFEST_PATH" CERTBOT_ENABLED "$CERTBOT_ENABLED"
+write_shell_var "$RELEASE_MANIFEST_PATH" CERTBOT_EMAIL "$CERTBOT_EMAIL"
+write_shell_var "$RELEASE_MANIFEST_PATH" CERTBOT_STAGING "$CERTBOT_STAGING"
+
+# ------------
+# Upload release artifacts
+# ------------
+
+# Bundle runtime and deploy metadata into a single artifact for the remote release step.
 tar -C "$STAGE_DIR" -czf "$BACKEND_ARCHIVE" .
 
 step "Uploading frontend dist to s3://$FRONTEND_BUCKET"
@@ -184,118 +341,26 @@ aws --region "$AWS_REGION" cloudfront create-invalidation   --distribution-id "$
 step "Uploading backend bundle to $S3_URI"
 aws --region "$AWS_REGION" s3 cp "$BACKEND_ARCHIVE" "$S3_URI"
 
-BACKEND_ENV_B64="$(base64 < "$BACKEND_ENV_LOCAL" | tr -d '\n')"
+# ------------
+# Trigger remote deploy through SSM
+# ------------
 
-read -r -d '' REMOTE_COMMANDS <<EOF_REMOTE || true
-set -euo pipefail
-sudo mkdir -p '$APP_DIR'
-sudo mkdir -p '$BACKEND_ENV_DIR'
-aws --region '$AWS_REGION' s3 cp '$S3_URI' /tmp/backend-release.tar.gz
-sudo tar -xzf /tmp/backend-release.tar.gz -C '$APP_DIR'
-rm -f /tmp/backend-release.tar.gz
-printf '%s' '$BACKEND_ENV_B64' | base64 -d | sudo tee '$BACKEND_ENV_PATH' >/dev/null
-sudo chown root:root '$BACKEND_ENV_PATH'
-sudo chmod 600 '$BACKEND_ENV_PATH'
-sudo chown -R expense-tracker:expense-tracker '$APP_DIR'
-sudo cp '$APP_DIR/systemd/expense-tracker.service' /etc/systemd/system/expense-tracker.service
-if command -v dnf >/dev/null 2>&1; then
-  sudo dnf install -y nginx certbot python3-certbot-nginx
-else
-  sudo yum install -y nginx certbot python3-certbot-nginx
-fi
-sudo rm -f /etc/nginx/conf.d/default.conf
-sudo cp '$APP_DIR/nginx/expense-tracker.conf' /etc/nginx/conf.d/expense-tracker.conf
-sudo nginx -t
-sudo systemctl daemon-reload
-set -a
-source '$BACKEND_ENV_PATH'
-set +a
-DB_APP_USER="__REMOTE_DB_USER__"
-DB_APP_PASSWORD="__REMOTE_DB_PASSWORD__"
-DB_ADMIN_PASSWORD="__REMOTE_FETCH_ADMIN_PASSWORD__"
-if [[ -z "__REMOTE_DB_ADMIN_PASSWORD__" ]]; then
-  echo "empty DB admin password from SSM parameter $DB_ADMIN_PASSWORD_SSM_PARAMETER_NAME" >&2
-  exit 1
-fi
-DB_MIGRATION_PASSWORD="__REMOTE_FETCH_MIGRATION_PASSWORD__"
-if [[ -z "__REMOTE_DB_MIGRATION_PASSWORD__" ]]; then
-  echo "empty DB migration password from SSM parameter $DB_MIGRATION_PASSWORD_SSM_PARAMETER_NAME" >&2
-  exit 1
-fi
-export DB_ADMIN_USER='$DB_ADMIN_USERNAME'
-export DB_ADMIN_PASSWORD
-export DB_MIGRATION_USER='$DB_MIGRATION_USERNAME'
-export DB_MIGRATION_PASSWORD
-export DB_APP_USER
-export DB_APP_PASSWORD
-cd '$APP_DIR'
-'$APP_DIR/bin/tracker-db-bootstrap'
-DB_USER='$DB_MIGRATION_USERNAME' DB_PASSWORD="__REMOTE_DB_MIGRATION_PASSWORD__" '$APP_DIR/bin/tracker-migrate' up
-unset DB_ADMIN_USER DB_ADMIN_PASSWORD DB_MIGRATION_USER DB_MIGRATION_PASSWORD DB_APP_USER DB_APP_PASSWORD
-sudo systemctl enable '$SYSTEMD_SERVICE_NAME'
-sudo systemctl restart '$SYSTEMD_SERVICE_NAME'
-sudo systemctl status '$SYSTEMD_SERVICE_NAME' --no-pager
-sudo systemctl enable nginx
-sudo systemctl restart nginx
-sudo systemctl status nginx --no-pager
-if [[ '$CERTBOT_ENABLED' == 'true' ]]; then
-  sudo mkdir -p /etc/letsencrypt/renewal-hooks/deploy
-  cat <<'EOF_CERTBOT_HOOK' | sudo tee /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh >/dev/null
-#!/usr/bin/env bash
-set -euo pipefail
-systemctl reload nginx
-EOF_CERTBOT_HOOK
-  sudo chmod 755 /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh
-  if systemctl list-unit-files | grep -q '^certbot-renew.timer'; then
-    sudo systemctl enable --now certbot-renew.timer
-  elif systemctl list-unit-files | grep -q '^certbot.timer'; then
-    sudo systemctl enable --now certbot.timer
-  fi
-  if [[ '$CERTBOT_STAGING' != 'true' ]] && sudo certbot certificates --cert-name '$API_FQDN' 2>/dev/null | grep -q 'INVALID: TEST_CERT'; then
-    sudo certbot delete --non-interactive --cert-name '$API_FQDN'
-  fi
-  sudo certbot --nginx --non-interactive --agree-tos --email '$CERTBOT_EMAIL' -d '$API_FQDN' --redirect $CERTBOT_STAGING_FLAG
-  sudo systemctl reload nginx
-  sudo systemctl status nginx --no-pager
-  if systemctl list-unit-files | grep -q '^certbot-renew.timer'; then
-    sudo systemctl status certbot-renew.timer --no-pager
-  elif systemctl list-unit-files | grep -q '^certbot.timer'; then
-    sudo systemctl status certbot.timer --no-pager
-  fi
-fi
-EOF_REMOTE
-
-REMOTE_COMMANDS="$(REMOTE_COMMANDS="$REMOTE_COMMANDS" AWS_REGION="$AWS_REGION" DB_ADMIN_PASSWORD_SSM_PARAMETER_NAME="$DB_ADMIN_PASSWORD_SSM_PARAMETER_NAME" DB_MIGRATION_PASSWORD_SSM_PARAMETER_NAME="$DB_MIGRATION_PASSWORD_SSM_PARAMETER_NAME" python3 - <<'PY2'
-import os
-import shlex
-
-text = os.environ["REMOTE_COMMANDS"]
-aws_region = shlex.quote(os.environ["AWS_REGION"])
-admin_param = shlex.quote(os.environ["DB_ADMIN_PASSWORD_SSM_PARAMETER_NAME"])
-migration_param = shlex.quote(os.environ["DB_MIGRATION_PASSWORD_SSM_PARAMETER_NAME"])
-replacements = {
-    "__REMOTE_DB_USER__": "$DB_USER",
-    "__REMOTE_DB_PASSWORD__": "$DB_PASSWORD",
-    "__REMOTE_FETCH_ADMIN_PASSWORD__": f"$(aws --region {aws_region} ssm get-parameter --name {admin_param} --with-decryption --query 'Parameter.Value' --output text)",
-    "__REMOTE_DB_ADMIN_PASSWORD__": "$DB_ADMIN_PASSWORD",
-    "__REMOTE_FETCH_MIGRATION_PASSWORD__": f"$(aws --region {aws_region} ssm get-parameter --name {migration_param} --with-decryption --query 'Parameter.Value' --output text)",
-    "__REMOTE_DB_MIGRATION_PASSWORD__": "$DB_MIGRATION_PASSWORD",
-}
-for old, new in replacements.items():
-    text = text.replace(old, new)
-print(text)
-PY2
-)"
-
+# Keep the SSM payload minimal: download, unpack, and hand off to the packaged remote script.
 step 'Running remote deploy through SSM'
-SSM_PARAMETERS="$(REMOTE_COMMANDS="$REMOTE_COMMANDS" python3 - <<'PY2'
-import json
-import os
-
-commands = [line for line in os.environ["REMOTE_COMMANDS"].splitlines() if line.strip()]
-print(json.dumps({"commands": commands}))
-PY2
-)"
+AWS_REGION_QUOTED="$(shell_quote "$AWS_REGION")"
+S3_URI_QUOTED="$(shell_quote "$S3_URI")"
+SSM_COMMANDS=(
+  'set -euo pipefail'
+  'TMP_RELEASE="$(mktemp /tmp/backend-release.XXXXXX.tar.gz)"'
+  'TMP_RELEASE_DIR="$(mktemp -d /tmp/backend-release.XXXXXX)"'
+  'cleanup() { rm -f "$TMP_RELEASE"; rm -rf "$TMP_RELEASE_DIR"; }'
+  'trap cleanup EXIT'
+  "aws --region $AWS_REGION_QUOTED s3 cp $S3_URI_QUOTED \"\$TMP_RELEASE\""
+  'tar -xzf "$TMP_RELEASE" -C "$TMP_RELEASE_DIR"'
+  'chmod 755 "$TMP_RELEASE_DIR/deploy/deploy-release.sh"'
+  '"$TMP_RELEASE_DIR/deploy/deploy-release.sh" "$TMP_RELEASE_DIR"'
+)
+SSM_PARAMETERS="$(build_ssm_parameters "${SSM_COMMANDS[@]}")"
 COMMAND_ID="$({
   aws --region "$AWS_REGION" ssm send-command     --instance-ids "$INSTANCE_ID"     --document-name AWS-RunShellScript     --comment 'expense-tracker deploy'     --parameters "$SSM_PARAMETERS"     --query 'Command.CommandId'     --output text
 } )"
@@ -333,12 +398,19 @@ if [[ "$SSM_STATUS" != "Success" || "$SSM_RESPONSE_CODE" != "0" ]]; then
   exit 1
 fi
 
-step "Checking API health at $API_HTTP_HEALTHCHECK_URL"
-curl --fail --silent --show-error --retry 15 --retry-delay 2 --retry-connrefused "$API_HTTP_HEALTHCHECK_URL" >/dev/null
+# ------------
+# Verify deployed API health
+# ------------
 
 if [[ "$CERTBOT_ENABLED" == "true" ]]; then
+  step "Checking API health via HTTP redirect at $API_HTTP_HEALTHCHECK_URL"
+  curl --fail --silent --show-error --location --retry 15 --retry-delay 2 --retry-connrefused "$API_HTTP_HEALTHCHECK_URL" >/dev/null
+
   step "Checking API health at $API_HTTPS_HEALTHCHECK_URL"
   curl --fail --silent --show-error --retry 15 --retry-delay 2 --retry-connrefused "$API_HTTPS_HEALTHCHECK_URL" >/dev/null
+else
+  step "Checking API health at $API_HTTP_HEALTHCHECK_URL"
+  curl --fail --silent --show-error --retry 15 --retry-delay 2 --retry-connrefused "$API_HTTP_HEALTHCHECK_URL" >/dev/null
 fi
 
 step 'Deploy complete'

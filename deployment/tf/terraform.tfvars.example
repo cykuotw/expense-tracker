@@ -20,6 +20,11 @@ api_subdomain              = "api.app"
 create_frontend_dns_record = true
 create_api_dns_record      = true
 frontend_certificate_arn   = "arn:aws:acm:us-east-1:123456789012:certificate/example-certificate-id"
+certbot_enabled            = false
+certbot_staging            = false
 
+# google_client_id     = "your-google-client-id"
+# google_client_secret = "your-google-client-secret"
+# certbot_email        = "ops@example.com"
 # key_name = "your-keypair"
 # ingress_cidr_blocks = ["0.0.0.0/0"]

@@ -20,19 +20,25 @@ variable "instance_type" {
   default     = "t3.micro"
 }
 
+variable "backend_root_volume_gb" {
+  type        = number
+  description = "Size of the backend EC2 root EBS volume in GiB"
+  default     = 10
+}
+
 variable "db_instance_class" {
   type        = string
   description = "RDS instance class for the PostgreSQL database"
   default     = "db.t4g.micro"
 }
 
-variable "db_allocated_storage" {
+variable "db_storage_gb" {
   type        = number
   description = "Initial allocated storage for the RDS PostgreSQL instance in GiB"
   default     = 20
 }
 
-variable "db_max_allocated_storage" {
+variable "db_max_storage_gb" {
   type        = number
   description = "Maximum autoscaled storage for the RDS PostgreSQL instance in GiB"
   default     = 100
@@ -152,6 +158,18 @@ variable "frontend_bucket_name" {
 variable "artifact_bucket_name" {
   type        = string
   description = "S3 bucket name for backend release artifacts"
+}
+
+variable "frontend_noncurrent_version_retention_days" {
+  type        = number
+  description = "Number of days to retain noncurrent object versions in the frontend bucket"
+  default     = 14
+}
+
+variable "artifact_noncurrent_version_retention_days" {
+  type        = number
+  description = "Number of days to retain noncurrent object versions in the artifact bucket"
+  default     = 30
 }
 
 variable "root_domain" {

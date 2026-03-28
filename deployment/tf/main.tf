@@ -1,29 +1,29 @@
 locals {
-  name_prefix                           = "${var.project_name}-${var.environment}"
-  frontend_fqdn                         = "${var.frontend_subdomain}.${var.root_domain}"
-  api_fqdn                              = "${var.api_subdomain}.${var.root_domain}"
-  db_admin_password_ssm_parameter_name  = "/${var.project_name}/${var.environment}/db/admin_password"
-  db_migration_password_ssm_parameter_name = "/${var.project_name}/${var.environment}/db/migration_password"
-  db_app_password_ssm_parameter_name    = "/${var.project_name}/${var.environment}/db/app_password"
-  jwt_secret_ssm_parameter_name         = "/${var.project_name}/${var.environment}/app/jwt_secret"
-  refresh_jwt_secret_ssm_parameter_name = "/${var.project_name}/${var.environment}/app/refresh_jwt_secret"
+  name_prefix                                   = "${var.project_name}-${var.environment}"
+  frontend_fqdn                                 = "${var.frontend_subdomain}.${var.root_domain}"
+  api_fqdn                                      = "${var.api_subdomain}.${var.root_domain}"
+  db_admin_password_ssm_parameter_name          = "/${var.project_name}/${var.environment}/db/admin_password"
+  db_migration_password_ssm_parameter_name      = "/${var.project_name}/${var.environment}/db/migration_password"
+  db_app_password_ssm_parameter_name            = "/${var.project_name}/${var.environment}/db/app_password"
+  jwt_secret_ssm_parameter_name                 = "/${var.project_name}/${var.environment}/app/jwt_secret"
+  refresh_jwt_secret_ssm_parameter_name         = "/${var.project_name}/${var.environment}/app/refresh_jwt_secret"
   third_party_session_secret_ssm_parameter_name = "/${var.project_name}/${var.environment}/app/third_party_session_secret"
-  google_client_id_ssm_parameter_name   = "/${var.project_name}/${var.environment}/app/google_client_id"
-  google_client_secret_ssm_parameter_name = "/${var.project_name}/${var.environment}/app/google_client_secret"
-  first_admin_bootstrap_ssm_parameter_prefix = "/${var.project_name}/${var.environment}/deploy/first_admin"
-  frontend_origin_ssm_parameter_name    = "/${var.project_name}/${var.environment}/runtime/frontend_origin"
-  cors_allowed_origins_ssm_parameter_name = "/${var.project_name}/${var.environment}/runtime/cors_allowed_origins"
-  cors_allow_credentials_ssm_parameter_name = "/${var.project_name}/${var.environment}/runtime/cors_allow_credentials"
-  auth_cookie_domain_ssm_parameter_name = "/${var.project_name}/${var.environment}/runtime/auth_cookie_domain"
-  db_public_host_ssm_parameter_name     = "/${var.project_name}/${var.environment}/runtime/db_public_host"
-  db_port_ssm_parameter_name            = "/${var.project_name}/${var.environment}/runtime/db_port"
-  db_user_ssm_parameter_name            = "/${var.project_name}/${var.environment}/runtime/db_user"
-  db_name_ssm_parameter_name            = "/${var.project_name}/${var.environment}/runtime/db_name"
-  db_sslmode_ssm_parameter_name         = "/${var.project_name}/${var.environment}/runtime/db_sslmode"
-  google_callback_url_ssm_parameter_name = "/${var.project_name}/${var.environment}/runtime/google_callback_url"
-  jwt_secret_ssm_parameter_arn          = "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter${local.jwt_secret_ssm_parameter_name}"
-  refresh_jwt_secret_ssm_parameter_arn  = "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter${local.refresh_jwt_secret_ssm_parameter_name}"
-  third_party_session_secret_ssm_parameter_arn = "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter${local.third_party_session_secret_ssm_parameter_name}"
+  google_client_id_ssm_parameter_name           = "/${var.project_name}/${var.environment}/app/google_client_id"
+  google_client_secret_ssm_parameter_name       = "/${var.project_name}/${var.environment}/app/google_client_secret"
+  first_admin_bootstrap_ssm_parameter_prefix    = "/${var.project_name}/${var.environment}/deploy/first_admin"
+  frontend_origin_ssm_parameter_name            = "/${var.project_name}/${var.environment}/runtime/frontend_origin"
+  cors_allowed_origins_ssm_parameter_name       = "/${var.project_name}/${var.environment}/runtime/cors_allowed_origins"
+  cors_allow_credentials_ssm_parameter_name     = "/${var.project_name}/${var.environment}/runtime/cors_allow_credentials"
+  auth_cookie_domain_ssm_parameter_name         = "/${var.project_name}/${var.environment}/runtime/auth_cookie_domain"
+  db_public_host_ssm_parameter_name             = "/${var.project_name}/${var.environment}/runtime/db_public_host"
+  db_port_ssm_parameter_name                    = "/${var.project_name}/${var.environment}/runtime/db_port"
+  db_user_ssm_parameter_name                    = "/${var.project_name}/${var.environment}/runtime/db_user"
+  db_name_ssm_parameter_name                    = "/${var.project_name}/${var.environment}/runtime/db_name"
+  db_sslmode_ssm_parameter_name                 = "/${var.project_name}/${var.environment}/runtime/db_sslmode"
+  google_callback_url_ssm_parameter_name        = "/${var.project_name}/${var.environment}/runtime/google_callback_url"
+  jwt_secret_ssm_parameter_arn                  = "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter${local.jwt_secret_ssm_parameter_name}"
+  refresh_jwt_secret_ssm_parameter_arn          = "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter${local.refresh_jwt_secret_ssm_parameter_name}"
+  third_party_session_secret_ssm_parameter_arn  = "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter${local.third_party_session_secret_ssm_parameter_name}"
   runtime_config_parameters = {
     frontend_origin = {
       name  = local.frontend_origin_ssm_parameter_name
@@ -118,6 +118,27 @@ resource "aws_s3_bucket_versioning" "frontend" {
   }
 }
 
+resource "aws_s3_bucket_lifecycle_configuration" "frontend" {
+  bucket = aws_s3_bucket.frontend.id
+
+  rule {
+    id     = "expire-noncurrent-versions"
+    status = "Enabled"
+
+    filter {}
+
+    noncurrent_version_expiration {
+      noncurrent_days = var.frontend_noncurrent_version_retention_days
+    }
+
+    abort_incomplete_multipart_upload {
+      days_after_initiation = 7
+    }
+  }
+
+  depends_on = [aws_s3_bucket_versioning.frontend]
+}
+
 resource "aws_s3_bucket_public_access_block" "frontend" {
   bucket = aws_s3_bucket.frontend.id
 
@@ -146,6 +167,27 @@ resource "aws_s3_bucket_versioning" "artifacts" {
   versioning_configuration {
     status = "Enabled"
   }
+}
+
+resource "aws_s3_bucket_lifecycle_configuration" "artifacts" {
+  bucket = aws_s3_bucket.artifacts.id
+
+  rule {
+    id     = "expire-noncurrent-versions"
+    status = "Enabled"
+
+    filter {}
+
+    noncurrent_version_expiration {
+      noncurrent_days = var.artifact_noncurrent_version_retention_days
+    }
+
+    abort_incomplete_multipart_upload {
+      days_after_initiation = 7
+    }
+  }
+
+  depends_on = [aws_s3_bucket_versioning.artifacts]
 }
 
 resource "aws_security_group" "backend" {
@@ -325,6 +367,13 @@ resource "aws_instance" "backend" {
   iam_instance_profile   = aws_iam_instance_profile.backend.name
   key_name               = var.key_name
 
+  root_block_device {
+    volume_size           = var.backend_root_volume_gb
+    volume_type           = "gp3"
+    encrypted             = true
+    delete_on_termination = true
+  }
+
   user_data = templatefile("${path.module}/templates/user_data.sh.tftpl", {
     app_dir         = var.app_dir
     backend_env_dir = var.backend_env_dir
@@ -345,8 +394,8 @@ resource "aws_db_instance" "db" {
   identifier                 = "${local.name_prefix}-db"
   engine                     = "postgres"
   instance_class             = var.db_instance_class
-  allocated_storage          = var.db_allocated_storage
-  max_allocated_storage      = var.db_max_allocated_storage
+  allocated_storage          = var.db_storage_gb
+  max_allocated_storage      = var.db_max_storage_gb
   storage_type               = "gp3"
   storage_encrypted          = true
   db_name                    = var.db_name

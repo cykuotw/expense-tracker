@@ -53,9 +53,8 @@ npm run build
 See the example environment files for the supported configuration:
 
 - `backend/.env.example`
-- `frontend/.env.example`
 
-Use those files as the source of truth for local setup and deployment configuration.
+Use the backend example env file as the source of truth for local setup and backend deployment configuration. Frontend API routing is configured through `public/runtime-config.js` in local development and deploy-generated `dist/runtime-config.js` in deployed builds.
 
 ## Deployment
 

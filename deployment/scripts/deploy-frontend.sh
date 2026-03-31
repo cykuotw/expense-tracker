@@ -43,7 +43,20 @@ printf '  API_URL=%s\n' "$API_URL"
 # ------------
 
 step 'Building frontend'
-VITE_API_ORIGIN="$API_ORIGIN" VITE_API_PATH="$API_URL" make build-frontend
+make build-frontend
+
+RUNTIME_CONFIG_PATH="$FRONTEND_DIST_DIR/runtime-config.js"
+RUNTIME_CONFIG_PATH="$RUNTIME_CONFIG_PATH" API_ORIGIN="$API_ORIGIN" API_URL="$API_URL" node <<'EOF'
+const fs = require("fs");
+
+const config = {
+    apiOrigin: process.env.API_ORIGIN ?? "",
+    apiPath: process.env.API_URL ?? "",
+};
+
+const runtimeConfig = `window.__APP_CONFIG__ = Object.freeze(${JSON.stringify(config, null, 4)});\n`;
+fs.writeFileSync(process.env.RUNTIME_CONFIG_PATH, runtimeConfig);
+EOF
 
 # ------------
 # Publish frontend assets

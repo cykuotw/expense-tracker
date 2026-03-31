@@ -37,12 +37,31 @@ func configureConnectionPool(db *sql.DB, cfg poolConfig) {
 	db.SetConnMaxIdleTime(cfg.connMaxIdleTime)
 }
 
+func poolConfigFromConfig(cfg config.Config) poolConfig {
+	pool := defaultPoolConfig()
+
+	if cfg.DBMaxOpenConns > 0 {
+		pool.maxOpenConns = cfg.DBMaxOpenConns
+	}
+	if cfg.DBMaxIdleConns > 0 {
+		pool.maxIdleConns = cfg.DBMaxIdleConns
+	}
+	if cfg.DBConnMaxLifetimeSeconds > 0 {
+		pool.connMaxLifetime = time.Duration(cfg.DBConnMaxLifetimeSeconds) * time.Second
+	}
+	if cfg.DBConnMaxIdleTimeSeconds > 0 {
+		pool.connMaxIdleTime = time.Duration(cfg.DBConnMaxIdleTimeSeconds) * time.Second
+	}
+
+	return pool
+}
+
 func NewPostgreSQLStorage(cfg config.Config) (*sql.DB, error) {
 	db, err := sql.Open("pgx", BuildPostgreSQLDSN(cfg))
 	if err != nil {
 		return nil, err
 	}
 
-	configureConnectionPool(db, defaultPoolConfig())
+	configureConnectionPool(db, poolConfigFromConfig(cfg))
 	return db, nil
 }

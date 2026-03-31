@@ -23,6 +23,11 @@ type Config struct {
 	DBName       string
 	DBSSLMode    string
 
+	DBMaxOpenConns           int
+	DBMaxIdleConns           int
+	DBConnMaxLifetimeSeconds int64
+	DBConnMaxIdleTimeSeconds int64
+
 	JWTSecret                     string
 	JWTExpirationInSeconds        int64
 	RefreshJWTSecret              string
@@ -71,6 +76,11 @@ func initConfig() Config {
 		DBPassword:   getEnv("DB_PASSWORD", "mypassword"),
 		DBName:       getEnv("DB_NAME", "mydb"),
 		DBSSLMode:    getEnv("DB_SSLMODE", "disable"),
+
+		DBMaxOpenConns:           int(getEnvInt("DB_MAX_OPEN_CONNS", 25)),
+		DBMaxIdleConns:           int(getEnvInt("DB_MAX_IDLE_CONNS", 10)),
+		DBConnMaxLifetimeSeconds: getEnvInt("DB_CONN_MAX_LIFETIME_SECONDS", 1800),
+		DBConnMaxIdleTimeSeconds: getEnvInt("DB_CONN_MAX_IDLE_TIME_SECONDS", 300),
 
 		JWTSecret:                     getEnv("JWT_SECRET", "secretstring"),
 		JWTExpirationInSeconds:        getEnvInt("JWT_EXP", 3600*24*7),

@@ -1,7 +1,6 @@
-package api
+package tracker
 
 import (
-	"context"
 	"database/sql"
 	"expense-tracker/backend/config"
 	"expense-tracker/backend/services/auth"
@@ -14,7 +13,6 @@ import (
 	"expense-tracker/backend/services/invitation"
 	"expense-tracker/backend/services/middleware"
 	"expense-tracker/backend/services/user"
-	"log"
 	"net/http"
 	"time"
 
@@ -28,26 +26,17 @@ const (
 	idleTimeout       = 60 * time.Second
 )
 
-type APIServer struct {
-	addr string
-	db   *sql.DB
+func NewHandler(db *sql.DB) http.Handler {
+	gin.SetMode(config.Envs.Mode)
 
-	engine *http.Server
-}
-
-func NewAPIServer(addr string, db *sql.DB) *APIServer {
-	return &APIServer{
-		addr: addr,
-		db:   db,
-	}
-}
-
-func newBaseRouter() *gin.Engine {
 	router := gin.New()
 	if config.Envs.Mode != "release" {
 		router.Use(gin.Logger())
 	}
 	router.Use(gin.Recovery(), middleware.CORSMiddleware())
+
+	registerRoutes(router, db)
+
 	return router
 }
 
@@ -62,6 +51,7 @@ func registerRoutes(router *gin.Engine, db *sql.DB) {
 	userStore := user.NewStore(db)
 	userHandler := user.NewHandler(userStore)
 	userHandler.RegisterRoutes(public)
+
 	invitationStore := invitation.NewStore(db)
 	invitationHandler := invitation.NewHandler(invitationStore)
 	refreshStore := auth.NewRefreshStore(db)
@@ -89,7 +79,7 @@ func registerRoutes(router *gin.Engine, db *sql.DB) {
 	expenseHandler.RegisterRoutes(protected)
 }
 
-func newHTTPServer(addr string, handler http.Handler) *http.Server {
+func NewHTTPServer(addr string, handler http.Handler) *http.Server {
 	return &http.Server{
 		Addr:              addr,
 		Handler:           handler,
@@ -98,21 +88,4 @@ func newHTTPServer(addr string, handler http.Handler) *http.Server {
 		WriteTimeout:      writeTimeout,
 		IdleTimeout:       idleTimeout,
 	}
-}
-
-func (s *APIServer) Run() error {
-	gin.SetMode(config.Envs.Mode)
-
-	router := newBaseRouter()
-	registerRoutes(router, s.db)
-
-	log.Println("API Server Listening on", s.addr)
-
-	s.engine = newHTTPServer(s.addr, router)
-
-	return s.engine.ListenAndServe()
-}
-
-func (s *APIServer) Shutdown(ctx context.Context) error {
-	return s.engine.Shutdown(ctx)
 }

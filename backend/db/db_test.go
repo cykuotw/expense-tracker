@@ -18,6 +18,20 @@ func TestDefaultPoolConfig(t *testing.T) {
 	assert.Equal(t, 5*time.Minute, cfg.connMaxIdleTime)
 }
 
+func TestPoolConfigFromConfigUsesOverrides(t *testing.T) {
+	cfg := poolConfigFromConfig(config.Config{
+		DBMaxOpenConns:           5,
+		DBMaxIdleConns:           3,
+		DBConnMaxLifetimeSeconds: 45,
+		DBConnMaxIdleTimeSeconds: 15,
+	})
+
+	assert.Equal(t, 5, cfg.maxOpenConns)
+	assert.Equal(t, 3, cfg.maxIdleConns)
+	assert.Equal(t, 45*time.Second, cfg.connMaxLifetime)
+	assert.Equal(t, 15*time.Second, cfg.connMaxIdleTime)
+}
+
 func TestNewPostgreSQLStorageConfiguresConnectionPool(t *testing.T) {
 	storage, err := NewPostgreSQLStorage(config.Config{
 		DBUser:       "tracker",
@@ -34,6 +48,12 @@ func TestNewPostgreSQLStorageConfiguresConnectionPool(t *testing.T) {
 	})
 
 	assert.Equal(t, defaultPoolConfig().maxOpenConns, storage.Stats().MaxOpenConnections)
+}
+
+func TestPoolConfigFromConfigFallsBackToDefaults(t *testing.T) {
+	cfg := poolConfigFromConfig(config.Config{})
+
+	assert.Equal(t, defaultPoolConfig(), cfg)
 }
 
 func TestBuildPostgreSQLDSN(t *testing.T) {

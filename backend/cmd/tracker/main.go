@@ -2,9 +2,9 @@ package main
 
 import (
 	"context"
-	"expense-tracker/backend/cmd/tracker/api"
 	"expense-tracker/backend/config"
 	dbstore "expense-tracker/backend/db"
+	trackerapp "expense-tracker/backend/internal/tracker"
 	"log"
 	"net/http"
 	"os/signal"
@@ -34,9 +34,11 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	apiServer := api.NewAPIServer(config.Envs.BackendURL, storage)
+	handler := trackerapp.NewHandler(storage)
+	apiServer := trackerapp.NewHTTPServer(cfg.BackendURL, handler)
 	go func() {
-		if err := apiServer.Run(); err != nil && err != http.ErrServerClosed {
+		log.Println("API Server Listening on", cfg.BackendURL)
+		if err := apiServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatal(err)
 		}
 	}()

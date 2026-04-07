@@ -31,3 +31,17 @@
 - When installing a shared skill for this workspace, prefer `.agent/skills`.
 - Keep `skills-lock.json` in sync when adding or updating shared skills.
 - Check `.agent/skills` before assuming a required skill is missing.
+
+## Default Response Length
+
+Unless the user explicitly asks for detail, default to concise answers.
+
+Rules:
+
+- Start with the direct answer. No preamble.
+- Short to medium by default. When uncertain, choose short.
+- Expand only if: (1) the user asks, (2) the task is genuinely complex, or (3) brevity would reduce precision, safety, or usefulness.
+- Do not expose internal reasoning unless it materially helps.
+- Do not add background sections unless necessary.
+- Do not add summaries or closing remarks unless they add necessary clarity.
+- Prefer direct, dense, low-filler answers.

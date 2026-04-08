@@ -146,10 +146,10 @@ func getEnvInt(key string, fallback int64) int64 {
 
 func getEnvBool(key string, fallback bool) bool {
 	if value, ok := os.LookupEnv(key); ok {
-		switch value {
-		case "True", "true", "1", "yes":
+		switch strings.TrimSpace(value) {
+		case "true":
 			return true
-		case "False", "false", "0", "no":
+		case "false":
 			return false
 		}
 	}

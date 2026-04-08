@@ -1,6 +1,7 @@
 package group
 
 import (
+	"database/sql"
 	"expense-tracker/backend/types"
 )
 
@@ -28,6 +29,8 @@ func (s *Store) GetGroupMemberByGroupID(groupID string) ([]*types.User, error) {
 		}
 		for rows.Next() {
 			user := new(types.User)
+			var externalType sql.NullString
+			var externalID sql.NullString
 			err := rows.Scan(
 				&user.ID,
 				&user.Username,
@@ -35,8 +38,8 @@ func (s *Store) GetGroupMemberByGroupID(groupID string) ([]*types.User, error) {
 				&user.Lastname,
 				&user.Email,
 				&user.PasswordHashed,
-				&user.ExternalType,
-				&user.ExternalID,
+				&externalType,
+				&externalID,
 				&user.CreateTime,
 				&user.IsActive,
 				&user.Nickname,
@@ -45,9 +48,18 @@ func (s *Store) GetGroupMemberByGroupID(groupID string) ([]*types.User, error) {
 			if err != nil {
 				return nil, err
 			}
+			user.ExternalType = nullStringToString(externalType)
+			user.ExternalID = nullStringToString(externalID)
 			users = append(users, user)
 		}
 	}
 
 	return users, nil
+}
+
+func nullStringToString(value sql.NullString) string {
+	if !value.Valid {
+		return ""
+	}
+	return value.String
 }

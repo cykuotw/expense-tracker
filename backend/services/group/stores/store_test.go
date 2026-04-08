@@ -6,6 +6,7 @@ import (
 	group "expense-tracker/backend/services/group/stores"
 	"expense-tracker/backend/types"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -920,14 +921,22 @@ func insertUser(db *sql.DB, user types.User) error {
 			"email, password_hash, "+
 			"external_type, external_id, "+
 			"create_time_utc, is_active"+
-			") VALUES ('%s','%s','%s','%s','%s','%s','%s','%s','%s',%t);",
+			") VALUES ('%s','%s','%s','%s','%s','%s',%s,%s,'%s',%t);",
 		user.ID, user.Username, user.Firstname, user.Lastname,
 		user.Email, user.PasswordHashed,
-		user.ExternalType, user.ExternalID,
+		sqlStringOrNull(user.ExternalType), sqlStringOrNull(user.ExternalID),
 		createTime, user.IsActive,
 	)
 	_, err := db.Exec(query)
 	return err
+}
+
+func sqlStringOrNull(value string) string {
+	normalized := strings.TrimSpace(value)
+	if normalized == "" {
+		return "NULL"
+	}
+	return fmt.Sprintf("'%s'", normalized)
 }
 
 func cleanUser(db *sql.DB, id uuid.UUID) {

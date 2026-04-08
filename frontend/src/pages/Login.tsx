@@ -1,8 +1,60 @@
+import { useCallback } from "react";
+import { toast } from "react-hot-toast";
+import { useNavigate } from "react-router-dom";
 import GoogleSignInButton from "../components/auth/GoogleSignInButton";
+import { GOOGLE_OAUTH_ENABLED } from "../configs/config";
 import LoginForm from "../components/auth/LoginForm";
 import { LoginProvider } from "../contexts/LoginContext";
+import { useAuth } from "../hooks/AuthContextHooks";
+import { apiFetch, getResponseErrorMessage } from "../lib/api";
 
 export default function Login() {
+    const navigate = useNavigate();
+    const { markLoggedIn } = useAuth();
+
+    const handleGoogleCredentialResponse = useCallback(
+        async (response: GoogleCredentialResponse) => {
+            if (!response.credential?.trim()) {
+                toast.error("Google sign-in did not return a credential.");
+                return;
+            }
+
+            try {
+                const exchangeResponse = await apiFetch(
+                    "/auth/google/exchange",
+                    {
+                        method: "POST",
+                        headers: {
+                            Authorization: `Bearer ${response.credential}`,
+                        },
+                    },
+                    { authMode: "none" },
+                );
+
+                if (!exchangeResponse.ok) {
+                    throw new Error(
+                        await getResponseErrorMessage(
+                            exchangeResponse,
+                            "Google sign-in failed",
+                        ),
+                    );
+                }
+
+                const loggedIn = await markLoggedIn();
+                if (!loggedIn) {
+                    throw new Error(
+                        "Google sign-in succeeded, but session refresh failed.",
+                    );
+                }
+
+                navigate("/", { replace: true });
+            } catch (error) {
+                toast.error((error as Error).message);
+            }
+        },
+        [markLoggedIn, navigate],
+    );
+
     return (
         <div className="page-shell">
             <div className="page-container max-w-5xl">
@@ -35,12 +87,20 @@ export default function Login() {
                         <LoginProvider>
                             <div className="space-y-6">
                                 <LoginForm />
-                                <div className="flex items-center gap-3 text-xs uppercase tracking-[0.2em] text-base-content/50">
-                                    <span className="h-px flex-1 bg-base-300"></span>
-                                    or
-                                    <span className="h-px flex-1 bg-base-300"></span>
-                                </div>
-                                <GoogleSignInButton />
+                                {GOOGLE_OAUTH_ENABLED ? (
+                                    <>
+                                        <div className="flex items-center gap-3 text-xs uppercase tracking-[0.2em] text-base-content/50">
+                                            <span className="h-px flex-1 bg-base-300"></span>
+                                            or
+                                            <span className="h-px flex-1 bg-base-300"></span>
+                                        </div>
+                                        <GoogleSignInButton
+                                            onCredentialResponse={
+                                                handleGoogleCredentialResponse
+                                            }
+                                        />
+                                    </>
+                                ) : null}
                             </div>
                         </LoginProvider>
                     </div>

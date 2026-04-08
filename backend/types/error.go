@@ -8,10 +8,20 @@ var (
 	ErrPermissionDenied = errors.New("permission denied")
 
 	// users
-	ErrUserNotExist     = errors.New("invalid username/email/password")
-	ErrPasswordNotMatch = errors.New("invalid username/email/password")
-	ErrInvalidCSRFToken = errors.New("invalid csrf token")
-	ErrInvalidJWTToken  = errors.New("invalid jwt token")
+	ErrUserNotExist               = errors.New("invalid username/email/password")
+	ErrPasswordNotMatch           = errors.New("invalid username/email/password")
+	ErrInvalidCSRFToken           = errors.New("invalid csrf token")
+	ErrInvalidJWTToken            = errors.New("invalid jwt token")
+	ErrGoogleClaimsUnavailable    = errors.New("google verified claims are unavailable")
+	ErrMissingAuthorizationHeader = errors.New("missing authorization header")
+	ErrInvalidAuthorizationHeader = errors.New("invalid authorization header")
+	ErrMissingBearerToken         = errors.New("missing bearer token")
+	ErrMissingGoogleSubject       = errors.New("missing google subject claim")
+	ErrMissingGoogleEmail         = errors.New("google email claim is required")
+	ErrInvalidGoogleIDToken       = errors.New("invalid google id token")
+	ErrInvalidGoogleIssuer        = errors.New("invalid google token issuer")
+	ErrGoogleEmailNotVerified     = errors.New("google email must be verified")
+	ErrGoogleAccountConflict      = errors.New("google account conflicts with an existing user")
 
 	// jwt
 	ErrInvalidToken = errors.New("invalid token")

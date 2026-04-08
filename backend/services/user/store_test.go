@@ -6,6 +6,7 @@ import (
 	"expense-tracker/backend/services/user"
 	"expense-tracker/backend/types"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -71,6 +72,66 @@ func TestGetUserByEmail(t *testing.T) {
 				assert.Equal(t, test.expectResult.ID, user.ID)
 				assert.Nil(t, err)
 			}
+		})
+	}
+}
+
+func TestGetUserByExternalIdentity(t *testing.T) {
+	db := openTestDB(t)
+
+	mockPassword, _ := auth.HashPassword("pword")
+	mockUser := types.User{
+		ID:             uuid.New(),
+		Username:       "google-user",
+		Nickname:       "google-user",
+		Firstname:      "Google",
+		Lastname:       "User",
+		Email:          "google-user@example.com",
+		PasswordHashed: mockPassword,
+		ExternalType:   "google",
+		ExternalID:     "google-sub-123",
+		CreateTime:     time.Now(),
+		IsActive:       true,
+	}
+	insertUser(db, mockUser)
+	defer cleanUser(db, mockUser.ID)
+
+	type testcase struct {
+		name         string
+		externalType string
+		externalID   string
+		expectFail   bool
+		expectError  error
+	}
+
+	subtests := []testcase{
+		{
+			name:         "valid",
+			externalType: "google",
+			externalID:   "google-sub-123",
+		},
+		{
+			name:         "invalid external identity",
+			externalType: "google",
+			externalID:   "missing-sub",
+			expectFail:   true,
+			expectError:  types.ErrUserNotExist,
+		},
+	}
+
+	store := user.NewStore(db)
+	for _, test := range subtests {
+		t.Run(test.name, func(t *testing.T) {
+			user, err := store.GetUserByExternalIdentity(test.externalType, test.externalID)
+
+			if test.expectFail {
+				assert.Equal(t, test.expectError, err)
+				return
+			}
+
+			assert.NoError(t, err)
+			assert.Equal(t, mockUser.ID, user.ID)
+			assert.Equal(t, mockUser.ExternalID, user.ExternalID)
 		})
 	}
 }
@@ -211,7 +272,7 @@ func TestCheckAdminUserExists(t *testing.T) {
 			"id, username, firstname, lastname, nickname, "+
 			"email, password_hash, external_type, external_id, "+
 			"create_time_utc, is_active, role"+
-			") VALUES ('%s','%s','%s','%s','%s','%s','%s','','','%s',true,'admin');",
+			") VALUES ('%s','%s','%s','%s','%s','%s','%s',NULL,NULL,'%s',true,'admin');",
 		adminID,
 		"admin user",
 		"Admin",
@@ -238,13 +299,21 @@ func insertUser(db *sql.DB, user types.User) {
 			"email, password_hash, "+
 			"external_type, external_id, "+
 			"create_time_utc, is_active"+
-			") VALUES ('%s','%s','%s','%s','%s','%s','%s','%s','%s','%s',%t);",
+			") VALUES ('%s','%s','%s','%s','%s','%s','%s',%s,%s,'%s',%t);",
 		user.ID, user.Username, user.Firstname, user.Lastname, user.Nickname,
 		user.Email, user.PasswordHashed,
-		user.ExternalType, user.ExternalID,
+		sqlStringOrNull(user.ExternalType), sqlStringOrNull(user.ExternalID),
 		createTime, user.IsActive,
 	)
 	db.Exec(query)
+}
+
+func sqlStringOrNull(value string) string {
+	normalized := strings.TrimSpace(value)
+	if normalized == "" {
+		return "NULL"
+	}
+	return fmt.Sprintf("'%s'", normalized)
 }
 
 func cleanUser(db *sql.DB, id uuid.UUID) {

@@ -1,6 +1,8 @@
 package route
 
 import (
+	"expense-tracker/backend/config"
+	googleAuth "expense-tracker/backend/services/auth/google"
 	"expense-tracker/backend/services/common"
 	"expense-tracker/backend/types"
 
@@ -11,6 +13,8 @@ type Handler struct {
 	store           types.UserStore
 	invitationStore types.InvitationStore
 	refreshStore    types.RefreshTokenStore
+	googleService   googleAuth.ServiceContract
+	googleVerifier  googleAuth.Verifier
 }
 
 func NewHandler(store types.UserStore, invitationStore types.InvitationStore, refreshStore types.RefreshTokenStore) *Handler {
@@ -18,16 +22,23 @@ func NewHandler(store types.UserStore, invitationStore types.InvitationStore, re
 		store:           store,
 		invitationStore: invitationStore,
 		refreshStore:    refreshStore,
+		googleService:   googleAuth.NewService(store),
+		googleVerifier:  googleAuth.NewClaimsVerifier(),
 	}
 }
 
 func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 	router.GET("/auth/csrf", common.Make(h.handleCSRFToken))
-	router.POST("/auth/:provider", common.Make(h.handleThirdParty))
-	router.GET("/auth/:provider/callback", common.Make(h.handleThirdPartyCallback))
-
 	router.GET("/auth/me", common.Make(h.handleAuthMe))
 	router.POST("/auth/refresh", common.Make(h.handleRefresh))
+
+	if config.Envs.GoogleOAuthConfigured() {
+		handler := h.handleGoogleExchangeInProcess
+		if config.Envs.GoogleExchangeModeIs(config.GoogleExchangeUpstreamVerified) {
+			handler = h.handleGoogleExchangeUpstreamVerified
+		}
+		router.POST("/auth/google/exchange", common.Make(handler))
+	}
 
 	router.POST("/register", h.handleRegister)
 	router.POST("/login", h.handleLogin)

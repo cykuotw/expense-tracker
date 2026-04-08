@@ -9,6 +9,7 @@ import (
 
 type baseAuthUserStore struct {
 	GetUserByEmailFn        func(email string) (*types.User, error)
+	GetUserByExternalIDFn   func(externalType string, externalID string) (*types.User, error)
 	GetUserByUsernameFn     func(username string) (*types.User, error)
 	GetUserByIDFn           func(id string) (*types.User, error)
 	CreateUserFn            func(user types.User) error
@@ -22,6 +23,12 @@ type baseAuthUserStore struct {
 func (m *baseAuthUserStore) GetUserByEmail(email string) (*types.User, error) {
 	if m.GetUserByEmailFn != nil {
 		return m.GetUserByEmailFn(email)
+	}
+	return nil, types.ErrUserNotExist
+}
+func (m *baseAuthUserStore) GetUserByExternalIdentity(externalType string, externalID string) (*types.User, error) {
+	if m.GetUserByExternalIDFn != nil {
+		return m.GetUserByExternalIDFn(externalType, externalID)
 	}
 	return nil, types.ErrUserNotExist
 }
@@ -95,11 +102,11 @@ func registerUserStoreMock() *baseAuthUserStore {
 }
 
 type baseInvitationStore struct {
-	CreateInvitationFn  func(invitation types.Invitation) error
+	CreateInvitationFn     func(invitation types.Invitation) error
 	GetInvitationByTokenFn func(token string) (*types.Invitation, error)
-	MarkInvitationUsedFn func(token string, email string) error
-	ExpireInvitationFn   func(token string) error
-	GetInvitationsFn     func() ([]types.Invitation, error)
+	MarkInvitationUsedFn   func(token string, email string) error
+	ExpireInvitationFn     func(token string) error
+	GetInvitationsFn       func() ([]types.Invitation, error)
 }
 
 func (m *baseInvitationStore) CreateInvitation(invitation types.Invitation) error {

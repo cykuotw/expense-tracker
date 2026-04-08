@@ -3,6 +3,7 @@ package user
 import (
 	"database/sql"
 	"expense-tracker/backend/types"
+	"strings"
 
 	"github.com/google/uuid"
 )
@@ -18,6 +19,29 @@ func NewStore(db *sql.DB) *Store {
 func (s *Store) GetUserByEmail(email string) (*types.User, error) {
 	query := "SELECT * FROM users WHERE email = $1;"
 	rows, err := s.db.Query(query, email)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	user := new(types.User)
+	for rows.Next() {
+		user, err = scanRowIntoUser(rows)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if user.ID == uuid.Nil {
+		return nil, types.ErrUserNotExist
+	}
+
+	return user, nil
+}
+
+func (s *Store) GetUserByExternalIdentity(externalType string, externalID string) (*types.User, error) {
+	query := "SELECT * FROM users WHERE external_type = $1 AND external_id = $2;"
+	rows, err := s.db.Query(query, externalType, externalID)
 	if err != nil {
 		return nil, err
 	}
@@ -156,7 +180,7 @@ func (s *Store) CreateUser(user types.User) error {
 	_, err := s.db.Exec(query,
 		user.ID, user.Username, user.Firstname, user.Lastname, user.Nickname,
 		user.Email, user.PasswordHashed,
-		user.ExternalType, user.ExternalID,
+		nullableString(user.ExternalType), nullableString(user.ExternalID),
 		createTime, user.IsActive,
 		user.Role)
 	if err != nil {
@@ -167,6 +191,8 @@ func (s *Store) CreateUser(user types.User) error {
 
 func scanRowIntoUser(rows *sql.Rows) (*types.User, error) {
 	user := new(types.User)
+	var externalType sql.NullString
+	var externalID sql.NullString
 
 	err := rows.Scan(
 		&user.ID,
@@ -175,8 +201,8 @@ func scanRowIntoUser(rows *sql.Rows) (*types.User, error) {
 		&user.Lastname,
 		&user.Email,
 		&user.PasswordHashed,
-		&user.ExternalType,
-		&user.ExternalID,
+		&externalType,
+		&externalID,
 		&user.CreateTime,
 		&user.IsActive,
 		&user.Nickname,
@@ -185,5 +211,22 @@ func scanRowIntoUser(rows *sql.Rows) (*types.User, error) {
 	if err != nil {
 		return nil, err
 	}
+	user.ExternalType = nullStringToString(externalType)
+	user.ExternalID = nullStringToString(externalID)
 	return user, nil
+}
+
+func nullableString(value string) interface{} {
+	normalized := strings.TrimSpace(value)
+	if normalized == "" {
+		return nil
+	}
+	return normalized
+}
+
+func nullStringToString(value sql.NullString) string {
+	if !value.Valid {
+		return ""
+	}
+	return value.String
 }

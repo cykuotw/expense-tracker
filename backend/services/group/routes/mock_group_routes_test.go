@@ -93,6 +93,7 @@ func (m *mockGroupStore) CheckGroupUserPairExist(groupId string, userId string) 
 
 type mockUserStore struct {
 	GetUserByEmailFn        func(email string) (*types.User, error)
+	GetUserByExternalIDFn   func(externalType string, externalID string) (*types.User, error)
 	GetUserByUsernameFn     func(username string) (*types.User, error)
 	GetUserByIDFn           func(id string) (*types.User, error)
 	CreateUserFn            func(user types.User) error
@@ -106,6 +107,12 @@ type mockUserStore struct {
 func (m *mockUserStore) GetUserByEmail(email string) (*types.User, error) {
 	if m.GetUserByEmailFn != nil {
 		return m.GetUserByEmailFn(email)
+	}
+	return nil, nil
+}
+func (m *mockUserStore) GetUserByExternalIdentity(externalType string, externalID string) (*types.User, error) {
+	if m.GetUserByExternalIDFn != nil {
+		return m.GetUserByExternalIDFn(externalType, externalID)
 	}
 	return nil, nil
 }

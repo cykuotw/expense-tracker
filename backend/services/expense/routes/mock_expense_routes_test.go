@@ -29,29 +29,29 @@ var mockItems = []*types.Item{
 // expense store base mock
 
 type mockExpenseStore struct {
-	CreateExpenseFn             func(expense types.Expense) error
-	CreateItemFn                func(item types.Item) error
-	CreateLedgerFn              func(ledger types.Ledger) error
-	GetExpenseByIDFn            func(expenseID string) (*types.Expense, error)
-	GetExpenseListFn            func(groupID string, page int64) ([]*types.Expense, error)
-	GetExpenseTypeFn            func() ([]*types.ExpenseType, error)
-	GetItemsByExpenseIDFn       func(expenseID string) ([]*types.Item, error)
-	GetLedgersByExpenseIDFn     func(expenseID string) ([]*types.Ledger, error)
-	GetLedgerUnsettledFromGroupFn func(expenseID string) ([]*types.Ledger, error)
-	UpdateExpenseFn             func(expense types.Expense) error
-	UpdateExpenseSettleInGroupFn func(groupID string) error
-	UpdateItemFn                func(item types.Item) error
-	UpdateLedgerFn              func(ledger types.Ledger) error
-	CheckExpenseExistByIDFn     func(id string) (bool, error)
-	GetExpenseTypeByIdFn        func(id uuid.UUID) (string, error)
-	DeleteExpenseFn             func(expense types.Expense) error
-	CreateBalancesFn            func(groupId string, balances []*types.Balance) error
-	CreateBalanceLedgerFn       func(balanceIds []uuid.UUID, ledgerIds []uuid.UUID) error
-	OutdateBalanceByGroupIdFn   func(groupId string) error
-	GetBalanceByGroupIdFn       func(groupId string) ([]types.Balance, error)
-	SettleExpenseByGroupIdFn    func(groupId string) error
-	CheckBalanceExistByIDFn     func(id string) (bool, error)
-	SettleBalanceByBalanceIdFn  func(balanceId string) error
+	CreateExpenseFn                func(expense types.Expense) error
+	CreateItemFn                   func(item types.Item) error
+	CreateLedgerFn                 func(ledger types.Ledger) error
+	GetExpenseByIDFn               func(expenseID string) (*types.Expense, error)
+	GetExpenseListFn               func(groupID string, page int64) ([]*types.Expense, error)
+	GetExpenseTypeFn               func() ([]*types.ExpenseType, error)
+	GetItemsByExpenseIDFn          func(expenseID string) ([]*types.Item, error)
+	GetLedgersByExpenseIDFn        func(expenseID string) ([]*types.Ledger, error)
+	GetLedgerUnsettledFromGroupFn  func(expenseID string) ([]*types.Ledger, error)
+	UpdateExpenseFn                func(expense types.Expense) error
+	UpdateExpenseSettleInGroupFn   func(groupID string) error
+	UpdateItemFn                   func(item types.Item) error
+	UpdateLedgerFn                 func(ledger types.Ledger) error
+	CheckExpenseExistByIDFn        func(id string) (bool, error)
+	GetExpenseTypeByIdFn           func(id uuid.UUID) (string, error)
+	DeleteExpenseFn                func(expense types.Expense) error
+	CreateBalancesFn               func(groupId string, balances []*types.Balance) error
+	CreateBalanceLedgerFn          func(balanceIds []uuid.UUID, ledgerIds []uuid.UUID) error
+	OutdateBalanceByGroupIdFn      func(groupId string) error
+	GetBalanceByGroupIdFn          func(groupId string) ([]types.Balance, error)
+	SettleExpenseByGroupIdFn       func(groupId string) error
+	CheckBalanceExistByIDFn        func(id string) (bool, error)
+	SettleBalanceByBalanceIdFn     func(balanceId string) error
 	CheckGroupBallanceAllSettledFn func(groupId string) (bool, error)
 }
 
@@ -203,16 +203,16 @@ func (s *mockExpenseStore) CheckGroupBallanceAllSettled(groupId string) (bool, e
 // group store base mock
 
 type mockGroupStore struct {
-	CreateGroupFn          func(group types.Group) error
-	GetGroupByIDFn         func(id string) (*types.Group, error)
-	GetGroupByIDAndUserFn  func(groupID string, userID string) (*types.Group, error)
-	GetGroupListByUserFn   func(userid string) ([]types.GetGroupListResponse, error)
+	CreateGroupFn             func(group types.Group) error
+	GetGroupByIDFn            func(id string) (*types.Group, error)
+	GetGroupByIDAndUserFn     func(groupID string, userID string) (*types.Group, error)
+	GetGroupListByUserFn      func(userid string) ([]types.GetGroupListResponse, error)
 	GetGroupMemberByGroupIDFn func(groupId string) ([]*types.User, error)
-	UpdateGroupMemberFn    func(action string, userid string, groupid string) error
-	UpdateGroupStatusFn    func(groupid string, isActive bool) error
-	GetGroupCurrencyFn     func(groupID string) (string, error)
-	GetRelatedUserFn       func(currentUser string, groupId string) ([]*types.RelatedMember, error)
-	CheckGroupExistByIdFn  func(id string) (bool, error)
+	UpdateGroupMemberFn       func(action string, userid string, groupid string) error
+	UpdateGroupStatusFn       func(groupid string, isActive bool) error
+	GetGroupCurrencyFn        func(groupID string) (string, error)
+	GetRelatedUserFn          func(currentUser string, groupId string) ([]*types.RelatedMember, error)
+	CheckGroupExistByIdFn     func(id string) (bool, error)
 	CheckGroupUserPairExistFn func(groupId string, userId string) (bool, error)
 }
 
@@ -287,6 +287,7 @@ func (m *mockGroupStore) CheckGroupUserPairExist(groupId string, userId string) 
 
 type mockUserStore struct {
 	GetUserByEmailFn        func(email string) (*types.User, error)
+	GetUserByExternalIDFn   func(externalType string, externalID string) (*types.User, error)
 	GetUserByUsernameFn     func(username string) (*types.User, error)
 	GetUserByIDFn           func(id string) (*types.User, error)
 	CreateUserFn            func(user types.User) error
@@ -300,6 +301,12 @@ type mockUserStore struct {
 func (m *mockUserStore) GetUserByEmail(email string) (*types.User, error) {
 	if m.GetUserByEmailFn != nil {
 		return m.GetUserByEmailFn(email)
+	}
+	return nil, nil
+}
+func (m *mockUserStore) GetUserByExternalIdentity(externalType string, externalID string) (*types.User, error) {
+	if m.GetUserByExternalIDFn != nil {
+		return m.GetUserByExternalIDFn(externalType, externalID)
 	}
 	return nil, nil
 }

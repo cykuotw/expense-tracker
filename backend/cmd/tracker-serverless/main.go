@@ -4,6 +4,7 @@ import (
 	"context"
 	"expense-tracker/backend/config"
 	dbstore "expense-tracker/backend/db"
+	"expense-tracker/backend/internal/serverless"
 	trackerapp "expense-tracker/backend/internal/tracker"
 	"log"
 
@@ -31,9 +32,14 @@ func main() {
 		log.Fatal(err)
 	}
 
-	adapter := httpadapter.New(trackerapp.NewHandler(storage))
+	handler := trackerapp.NewHandler(storage)
+	if config.Envs.GoogleExchangeModeIs(config.GoogleExchangeUpstreamVerified) {
+		handler = serverless.WrapWithGoogleAuthorizerClaims(handler)
+	}
 
-	lambda.Start(func(ctx context.Context, req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+	adapter := httpadapter.NewV2(handler)
+
+	lambda.Start(func(ctx context.Context, req events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {
 		return adapter.ProxyWithContext(ctx, req)
 	})
 }

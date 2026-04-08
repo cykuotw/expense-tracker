@@ -78,4 +78,44 @@ func TestServiceLogin(t *testing.T) {
 			assert.Contains(t, fields, "email")
 		}
 	})
+
+	t.Run("external user password login is rejected", func(t *testing.T) {
+		userStore := &baseAuthUserStore{
+			GetUserByEmailFn: func(email string) (*types.User, error) {
+				return &types.User{
+					Email:          email,
+					ExternalType:   "google",
+					PasswordHashed: "unused",
+				}, nil
+			},
+		}
+		handler := NewHandler(userStore, invitationStoreMock(), refreshStoreMock())
+
+		payload := types.LoginUserPayload{
+			Email:    "google-user@example.com",
+			Password: "anything",
+		}
+		marshalled, _ := json.Marshal(payload)
+		req, err := http.NewRequest(http.MethodPost, "/login", bytes.NewBuffer(marshalled))
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		rr := httptest.NewRecorder()
+		gin.SetMode(gin.ReleaseMode)
+		router := gin.New()
+		router.POST("/login", handler.handleLogin)
+
+		router.ServeHTTP(rr, req)
+
+		assert.Equal(t, http.StatusBadRequest, rr.Code)
+
+		var response struct {
+			Error string `json:"error"`
+			Code  string `json:"code"`
+		}
+		err = json.Unmarshal(rr.Body.Bytes(), &response)
+		assert.NoError(t, err)
+		assert.Equal(t, "invalid_credentials", response.Code)
+	})
 }

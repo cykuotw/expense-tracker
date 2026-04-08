@@ -115,6 +115,36 @@ func normalizeError(status int, err error) APIErrorResponse {
 	if errors.Is(err, types.ErrUserNotExist) || errors.Is(err, types.ErrPasswordNotMatch) {
 		return APIErrorResponse{Error: err.Error(), Code: "invalid_credentials"}
 	}
+	if errors.Is(err, types.ErrGoogleClaimsUnavailable) {
+		return APIErrorResponse{Error: err.Error(), Code: "google_claims_unavailable"}
+	}
+	if errors.Is(err, types.ErrMissingAuthorizationHeader) {
+		return APIErrorResponse{Error: err.Error(), Code: "missing_authorization_header"}
+	}
+	if errors.Is(err, types.ErrInvalidAuthorizationHeader) {
+		return APIErrorResponse{Error: err.Error(), Code: "invalid_authorization_header"}
+	}
+	if errors.Is(err, types.ErrMissingBearerToken) {
+		return APIErrorResponse{Error: err.Error(), Code: "missing_bearer_token"}
+	}
+	if errors.Is(err, types.ErrMissingGoogleSubject) {
+		return APIErrorResponse{Error: err.Error(), Code: "missing_google_subject"}
+	}
+	if errors.Is(err, types.ErrMissingGoogleEmail) {
+		return APIErrorResponse{Error: err.Error(), Code: "missing_google_email"}
+	}
+	if errors.Is(err, types.ErrInvalidGoogleIDToken) {
+		return APIErrorResponse{Error: err.Error(), Code: "invalid_google_id_token"}
+	}
+	if errors.Is(err, types.ErrInvalidGoogleIssuer) {
+		return APIErrorResponse{Error: err.Error(), Code: "invalid_google_issuer"}
+	}
+	if errors.Is(err, types.ErrGoogleEmailNotVerified) {
+		return APIErrorResponse{Error: err.Error(), Code: "google_email_not_verified"}
+	}
+	if errors.Is(err, types.ErrGoogleAccountConflict) {
+		return APIErrorResponse{Error: err.Error(), Code: "google_account_conflict"}
+	}
 	if errors.Is(err, types.ErrInvalidCSRFToken) {
 		return APIErrorResponse{Error: err.Error(), Code: "invalid_csrf_token"}
 	}

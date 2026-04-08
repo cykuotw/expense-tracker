@@ -8,6 +8,7 @@ import (
 
 type UserStore interface {
 	GetUserByEmail(email string) (*User, error)
+	GetUserByExternalIdentity(externalType string, externalID string) (*User, error)
 	GetUserByID(id string) (*User, error)
 	GetUsernameByID(userid string) (string, error)
 
@@ -55,6 +56,15 @@ type ThirdPartyUserPayload struct {
 	Email        string `json:"email"`
 	ExternalId   string `json:"externalId"`
 	ExternalType string `json:"externalType"`
+}
+
+type VerifiedGoogleClaims struct {
+	Subject       string `json:"sub"`
+	Email         string `json:"email,omitempty"`
+	EmailVerified *bool  `json:"email_verified,omitempty"`
+	GivenName     string `json:"given_name,omitempty"`
+	FamilyName    string `json:"family_name,omitempty"`
+	Name          string `json:"name,omitempty"`
 }
 
 type LoginResponse struct {

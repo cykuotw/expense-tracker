@@ -9,6 +9,8 @@ import (
 	"github.com/joho/godotenv"
 )
 
+type GoogleExchangeMode string
+
 type Config struct {
 	Mode string
 
@@ -33,12 +35,9 @@ type Config struct {
 	RefreshJWTSecret              string
 	RefreshJWTExpirationInSeconds int64
 
+	GoogleOAuthEnabled bool
 	GoogleClientId     string
-	GoogleClientSecret string
-	GoogleCallbackUrl  string
-
-	ThirdPartySessionSecret string
-	ThirdPartySessionMaxAge int64
+	GoogleExchangeMode GoogleExchangeMode
 
 	ExpensesPerPage int64
 
@@ -52,6 +51,11 @@ type Config struct {
 
 var Envs = initConfig()
 
+const (
+	GoogleExchangeInProcess        GoogleExchangeMode = "inprocess"
+	GoogleExchangeUpstreamVerified GoogleExchangeMode = "upstream_verified"
+)
+
 // passed during build time
 var BuildMode string
 
@@ -63,7 +67,7 @@ func initConfig() Config {
 		mode = BuildMode
 	}
 
-	return Config{
+	cfg := Config{
 		Mode: mode,
 
 		BackendURL:     getEnv("BACKEND_URL", "127.0.0.1:8000"),
@@ -87,12 +91,9 @@ func initConfig() Config {
 		RefreshJWTSecret:              getEnv("REFRESH_JWT_SECRET", getEnv("JWT_SECRET", "secretstring")),
 		RefreshJWTExpirationInSeconds: getEnvInt("REFRESH_JWT_EXP", 3600*24*30),
 
+		GoogleOAuthEnabled: getEnvBool("GOOGLE_OAUTH_ENABLED", false),
 		GoogleClientId:     getEnv("GOOGLE_CLIENT_ID", ""),
-		GoogleClientSecret: getEnv("GOOGLE_CLIENT_SECRET", ""),
-		GoogleCallbackUrl:  getEnv("GOOGLE_CALLBACK_URL", ""),
-
-		ThirdPartySessionSecret: getEnv("THIRD_PARTY_SESSION_SECRET", ""),
-		ThirdPartySessionMaxAge: getEnvInt("THIRD_PARTY_SESSION_MAX_AGE", 3600*24*7),
+		GoogleExchangeMode: normalizeGoogleExchangeMode(getEnv("GOOGLE_EXCHANGE_MODE", string(GoogleExchangeInProcess))),
 
 		ExpensesPerPage: getEnvInt("EXPENSES_PER_PAGE", 25),
 
@@ -105,6 +106,9 @@ func initConfig() Config {
 		AuthCookieSecure:   getEnvBool("AUTH_COOKIE_SECURE", false),
 		AuthCookieSameSite: getEnvSameSite("AUTH_COOKIE_SAME_SITE", http.SameSiteLaxMode),
 	}
+
+	validateGoogleOAuthConfig(cfg)
+	return cfg
 }
 
 func loadLocalEnv() {
@@ -195,4 +199,37 @@ func normalizeOrigin(value string) string {
 		return value
 	}
 	return "http://" + value
+}
+
+func normalizeGoogleExchangeMode(value string) GoogleExchangeMode {
+	normalized := strings.ToLower(strings.TrimSpace(value))
+	if normalized == "" {
+		return GoogleExchangeInProcess
+	}
+
+	return GoogleExchangeMode(normalized)
+}
+
+func validateGoogleOAuthConfig(cfg Config) {
+	if cfg.GoogleOAuthEnabled && strings.TrimSpace(cfg.GoogleClientId) == "" {
+		panic("invalid Google OAuth config: GOOGLE_OAUTH_ENABLED=true requires GOOGLE_CLIENT_ID")
+	}
+
+	switch cfg.GoogleExchangeMode {
+	case GoogleExchangeInProcess, GoogleExchangeUpstreamVerified:
+	default:
+		panic("invalid Google OAuth config: GOOGLE_EXCHANGE_MODE must be one of inprocess or upstream_verified")
+	}
+
+	if !cfg.GoogleOAuthConfigured() {
+		return
+	}
+}
+
+func (c Config) GoogleOAuthConfigured() bool {
+	return c.GoogleOAuthEnabled && strings.TrimSpace(c.GoogleClientId) != ""
+}
+
+func (c Config) GoogleExchangeModeIs(mode GoogleExchangeMode) bool {
+	return c.GoogleOAuthConfigured() && c.GoogleExchangeMode == mode
 }

@@ -7,30 +7,33 @@
 
 ## Development process
 
-- First read `.agent/tasks/todo.md`.
+- First read `.agents/tasks/todo.md`.
 - You make the plan before the code change, and ask for permission before any code changes.
-- Update `.agent/tasks/todo.md` with the plan so other agents can follow it.
-- Active task notes live in `.agent/tasks/todo/`; completed task notes live in `.agent/tasks/done/`.
-- Task notes in `.agent/tasks/todo/` and `.agent/tasks/done/` must use YAML frontmatter.
-- Frontmatter fields and allowed values are defined in `.agent/tasks/task-metadata.md`.
+- Update `.agents/tasks/active-plan.md` with the active implementation plan so other agents can follow the current attempt.
+- Keep `.agents/tasks/active-plan.md` for transient execution state only; durable task requirements belong in task note files.
+- Remove or clear `.agents/tasks/active-plan.md` before the final response when the implementation attempt is complete or abandoned.
+- Active task notes live in `.agents/tasks/todo/`; completed task notes live in `.agents/tasks/done/`.
+- Task notes in `.agents/tasks/todo/` and `.agents/tasks/done/` must use YAML frontmatter.
+- Frontmatter fields and allowed values are defined in `.agents/tasks/task-metadata.md`.
 - Required frontmatter keys are `status`, `priority`, `type`, and `kind`; `area` is optional.
-- `status` must match the directory: use `todo` under `.agent/tasks/todo/` and `done` under `.agent/tasks/done/`.
-- Keep `.agent/tasks/todo.md` and `.agent/tasks/done.md` as plain indexes; task metadata belongs in the task files, not in the indexes.
+- `status` must match the directory: use `todo` under `.agents/tasks/todo/` and `done` under `.agents/tasks/done/`.
+- Keep `.agents/tasks/todo.md` and `.agents/tasks/done.md` as plain indexes; task metadata belongs in the task files, not in the indexes.
+- Do not put active implementation plans in `.agents/tasks/todo.md` or `.agents/tasks/done.md`; keep those files as plain indexes.
 - Do not encode priority in task filenames; use a stable descriptive slug and keep priority only in frontmatter.
 - Prefer task notes to use the sections `Goals`, `Scope`, and `Acceptance Criteria` when they help clarify the work.
 - For multi-phase task series, use a shared `Series` label in each note and add a `Phases` section in the overview note when useful.
-- Keep `.agent/tasks/todo.md` and `.agent/tasks/done.md` in sync with the task note files.
-- When a task is completed, move its note from `.agent/tasks/todo/` to `.agent/tasks/done/`, remove it from `.agent/tasks/todo.md`, and add it to `.agent/tasks/done.md`.
-- Do not mark a task done or move it to `.agent/tasks/done/` unless the user explicitly tells you to.
+- Keep `.agents/tasks/todo.md` and `.agents/tasks/done.md` in sync with the task note files.
+- When a task is completed, move its note from `.agents/tasks/todo/` to `.agents/tasks/done/`, remove it from `.agents/tasks/todo.md`, and add it to `.agents/tasks/done.md`.
+- Do not mark a task done or move it to `.agents/tasks/done/` unless the user explicitly tells you to.
 - A plan is not required for skill installation or task-tracking housekeeping such as updating todo/done indexes, moving task notes, or keeping those files aligned.
 - Do not use Git commands unless the user explicitly asks for the specific Git command to run.
 
 ## Shared skills
 
-- Shared repo-local skills live under `.agent/skills`; tracked installs are recorded in `skills-lock.json`.
-- When installing a shared skill for this workspace, prefer `.agent/skills`.
+- Shared repo-local skills live under `.agents/skills`; tracked installs are recorded in `skills-lock.json`.
+- When installing a shared skill for this workspace, prefer `.agents/skills`.
 - Keep `skills-lock.json` in sync when adding or updating shared skills.
-- Check `.agent/skills` before assuming a required skill is missing.
+- Check `.agents/skills` before assuming a required skill is missing.
 
 ## Default Response Length
 

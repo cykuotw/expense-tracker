@@ -73,9 +73,9 @@ See `deployment/README.md` for the deployment contract and command layout.
 
 This repo uses a lightweight task-note workflow for AI-assisted changes:
 
-- review `.agent/tasks/todo.md` before starting implementation work
-- keep active task notes under `.agent/tasks/todo/`
-- move completed task notes to `.agent/tasks/done/` only when the user explicitly confirms the task is done
+- review `.agents/tasks/todo.md` before starting implementation work
+- keep active task notes under `.agents/tasks/todo/`
+- move completed task notes to `.agents/tasks/done/` only when the user explicitly confirms the task is done
 - keep the task index files aligned with the task note files when task-tracking changes are made
 
 Use this workflow to preserve context between agent sessions and make in-flight work easier to audit.

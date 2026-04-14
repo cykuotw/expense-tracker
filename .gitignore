@@ -62,8 +62,7 @@ dist-ssr
 *.sw?
 
 # AI agent files
-.agent/
-.agent
+.agents
 .codex
 
 # Terraform files

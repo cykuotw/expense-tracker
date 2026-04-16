@@ -31,6 +31,12 @@ frontend_certificate_arn   = "arn:aws:acm:us-east-1:123456789012:certificate/exa
 certbot_enabled            = false
 certbot_staging            = false
 
+# Google OAuth Terraform inputs publish backend runtime values through SSM.
+# Phase 5 frontend deploy runtime-config generation still reads GOOGLE_OAUTH_ENABLED
+# and GOOGLE_CLIENT_ID from the deploy environment or shared deploy config. Keep
+# those deploy values aligned with google_client_id until a later phase wires a
+# single source of truth through Terraform outputs.
+
 # google_client_id     = "your-google-client-id"
 # google_client_secret = "your-google-client-secret"
 # certbot_email        = "ops@example.com"

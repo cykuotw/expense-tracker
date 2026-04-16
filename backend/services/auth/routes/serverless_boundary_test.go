@@ -109,17 +109,29 @@ func TestBoundaryCSRF(t *testing.T) {
 // The Lambda authorizer wrapper supplies Google claims to the exchange route.
 func TestBoundaryGoogleExchangeUpstreamClaims(t *testing.T) {
 	fixture := newBoundaryFixture(t, boundaryConfigOptions{apiPath: "", googleExchangeMode: config.GoogleExchangeUpstreamVerified}, true)
+	claims := map[string]string{
+		"sub":            "google-sub-123",
+		"email":          "google-user@example.test",
+		"email_verified": "true",
+		"given_name":     "Google",
+		"family_name":    "User",
+	}
+
+	// Google exchange is a state-changing browser request and must use the SPA CSRF pair.
+	missingCSRFResp := fixture.proxy(gatewayRequest(http.MethodPost, "/auth/google/exchange",
+		withOrigin(boundaryFrontendOrigin),
+		withAuthorizerClaims(claims),
+	))
+	assert.Equal(t, http.StatusForbidden, missingCSRFResp.StatusCode)
+
+	csrf, csrfCookies, _ := issueCSRF(t, fixture, "/auth/csrf")
 
 	// Simulate API Gateway authorizer claims instead of making a live Google call.
 	resp := fixture.proxy(gatewayRequest(http.MethodPost, "/auth/google/exchange",
 		withOrigin(boundaryFrontendOrigin),
-		withAuthorizerClaims(map[string]string{
-			"sub":            "google-sub-123",
-			"email":          "google-user@example.test",
-			"email_verified": "true",
-			"given_name":     "Google",
-			"family_name":    "User",
-		}),
+		withCookies(csrfCookies),
+		withHeader(middleware.CSRFHeaderName, csrf),
+		withAuthorizerClaims(claims),
 	))
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 	cookies := responseSetCookies(resp)

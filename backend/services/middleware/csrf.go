@@ -31,11 +31,6 @@ func CSRFMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		if isOriginOnlyCSRFPath(c.Request.URL.Path) {
-			c.Next()
-			return
-		}
-
 		csrfHeader := c.GetHeader(CSRFHeaderName)
 		csrfCookie, err := c.Cookie(CSRFCookieName)
 		if err != nil || csrfHeader == "" || csrfHeader != csrfCookie {
@@ -122,18 +117,4 @@ func isTrustedBrowserOrigin(r *http.Request) bool {
 
 	refererOrigin := parsed.Scheme + "://" + parsed.Host
 	return strings.EqualFold(refererOrigin, config.Envs.FrontendOrigin)
-}
-
-func isOriginOnlyCSRFPath(path string) bool {
-	apiPath := strings.TrimSuffix(config.Envs.APIPath, "/")
-	authPrefix := apiPath + "/auth/"
-	if apiPath == "" {
-		authPrefix = "/auth/"
-	}
-
-	if path == apiPath+"/auth/refresh" || path == "/auth/refresh" {
-		return false
-	}
-
-	return strings.HasPrefix(path, authPrefix)
 }

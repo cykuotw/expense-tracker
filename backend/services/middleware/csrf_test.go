@@ -94,7 +94,7 @@ func TestCSRFMiddlewareRejectsUntrustedOrigin(t *testing.T) {
 	assert.Equal(t, http.StatusForbidden, rr.Code)
 }
 
-func TestCSRFMiddlewareAllowsOAuthFormPostWithTrustedOrigin(t *testing.T) {
+func TestCSRFMiddlewareRequiresTokenForGoogleExchange(t *testing.T) {
 	originalFrontendOrigin := config.Envs.FrontendOrigin
 	config.Envs.FrontendOrigin = "https://app.example.com"
 	t.Cleanup(func() {
@@ -104,17 +104,17 @@ func TestCSRFMiddlewareAllowsOAuthFormPostWithTrustedOrigin(t *testing.T) {
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.New()
 	router.Use(CSRFMiddleware())
-	router.POST("/auth/google", func(c *gin.Context) {
+	router.POST("/auth/google/exchange", func(c *gin.Context) {
 		c.Status(http.StatusOK)
 	})
 
-	req := httptest.NewRequest(http.MethodPost, "/auth/google", nil)
+	req := httptest.NewRequest(http.MethodPost, "/auth/google/exchange", nil)
 	req.Header.Set("Origin", "https://app.example.com")
 	rr := httptest.NewRecorder()
 
 	router.ServeHTTP(rr, req)
 
-	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.Equal(t, http.StatusForbidden, rr.Code)
 }
 
 func TestIssueCSRFTokenSetsCookieAndReturnsToken(t *testing.T) {
@@ -159,7 +159,7 @@ func TestCSRFMiddlewareRefererFallback(t *testing.T) {
 	assert.Equal(t, http.StatusOK, rr.Code)
 }
 
-func TestCSRFMiddlewareUsesAPIPathAwareOAuthBypass(t *testing.T) {
+func TestCSRFMiddlewareAllowsAPIPathGoogleExchangeWithValidToken(t *testing.T) {
 	originalAPIPath := config.Envs.APIPath
 	originalFrontendOrigin := config.Envs.FrontendOrigin
 	config.Envs.APIPath = "/api"
@@ -172,12 +172,14 @@ func TestCSRFMiddlewareUsesAPIPathAwareOAuthBypass(t *testing.T) {
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.New()
 	router.Use(CSRFMiddleware())
-	router.POST("/api/auth/google", func(c *gin.Context) {
+	router.POST("/api/auth/google/exchange", func(c *gin.Context) {
 		utils.WriteJSON(c, http.StatusOK, nil)
 	})
 
-	req := httptest.NewRequest(http.MethodPost, "/api/auth/google", nil)
+	req := httptest.NewRequest(http.MethodPost, "/api/auth/google/exchange", nil)
 	req.Header.Set("Origin", "https://app.example.com")
+	req.Header.Set(CSRFHeaderName, "token")
+	req.AddCookie(&http.Cookie{Name: CSRFCookieName, Value: "token"})
 	rr := httptest.NewRecorder()
 
 	router.ServeHTTP(rr, req)

@@ -26,7 +26,11 @@
 - When a task is completed, move its note from `.agents/tasks/todo/` to `.agents/tasks/done/`, remove it from `.agents/tasks/todo.md`, and add it to `.agents/tasks/done.md`.
 - Do not mark a task done or move it to `.agents/tasks/done/` unless the user explicitly tells you to.
 - A plan is not required for skill installation or task-tracking housekeeping such as updating todo/done indexes, moving task notes, or keeping those files aligned.
-- Do not use Git commands unless the user explicitly asks for the specific Git command to run.
+- Git read-only commands are allowed without extra permission when they are used to inspect repo state, diffs, history, or tracked files.
+- Allowed read-only Git commands include: `git status`, `git diff`, `git diff --cached`, `git show`, `git log`, `git branch --show-current`, `git ls-files`, `git grep`, and `git blame`.
+- Do not run Git commands that modify the worktree, index, refs, remotes, stash, tags, or repository metadata unless the user explicitly asks for that exact operation.
+- Prohibited write or state-changing Git commands include: `git add`, `git commit`, `git checkout`, `git switch`, `git restore`, `git reset`, `git clean`, `git merge`, `git rebase`, `git cherry-pick`, `git revert`, `git stash`, `git tag`, `git pull`, `git fetch`, and `git push`.
+- If a Git command is not clearly read-only, ask the user before running it.
 
 ## Shared skills
 

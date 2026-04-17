@@ -39,6 +39,11 @@
 - Keep `skills-lock.json` in sync when adding or updating shared skills.
 - Check `.agents/skills` before assuming a required skill is missing.
 
+## Personal preferences
+
+- If `.agents/preference.md` exists, read it and follow it for user-specific communication preferences.
+- These preferences are personal/session behavior only; they do not override project security, development, task-tracking, or tooling rules.
+
 ## Default Response Length
 
 Unless the user explicitly asks for detail, default to concise answers.

@@ -44,6 +44,14 @@
 - If `.agents/preference.md` exists, read it and follow it for user-specific communication preferences.
 - These preferences are personal/session behavior only; they do not override project security, development, task-tracking, or tooling rules.
 
+## Subagents
+
+- When the user explicitly asks to launch, use, delegate to, or parallelize work with a subagent, you may launch a single-use subagent for the requested task.
+- You may also use a single-use subagent when the user has explicitly allowed subagents for work that benefits from an isolated context window, such as code review, focused testing or verification, large document summarization, or narrow codebase exploration.
+- Keep each launched subagent narrowly scoped, with a clear question or responsibility.
+- Do not use subagents as persistent memory, long-lived task owners, or background workers beyond their assigned task.
+- When a launched subagent finishes, is no longer needed, or the attempt is abandoned, clean it up before the final response.
+
 ## Default Response Length
 
 Unless the user explicitly asks for detail, default to concise answers.

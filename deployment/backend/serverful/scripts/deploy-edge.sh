@@ -6,11 +6,14 @@ set -euo pipefail
 # ------------
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SERVERFUL_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+REPO_ROOT="$(cd "$SERVERFUL_ROOT/../../.." && pwd)"
 
-source "$SCRIPT_DIR/lib/format.sh"
-source "$SCRIPT_DIR/lib/config.sh"
-source "$SCRIPT_DIR/lib/terraform.sh"
-source "$SCRIPT_DIR/lib/deploy-helpers.sh"
+source "$SERVERFUL_ROOT/shared/lib/format.sh"
+source "$REPO_ROOT/deployment/backend/shared/lib/config.sh"
+source "$SERVERFUL_ROOT/shared/lib/config.sh"
+source "$SERVERFUL_ROOT/shared/lib/terraform.sh"
+source "$SERVERFUL_ROOT/shared/lib/deploy-helpers.sh"
 
 # ------------
 # Resolve deploy context
@@ -25,9 +28,9 @@ RUNTIME_STAGE_DIR="$STAGE_DIR/runtime"
 DEPLOY_STAGE_DIR="$STAGE_DIR/deploy"
 DEPLOY_LIB_DIR="$DEPLOY_STAGE_DIR/lib"
 EDGE_ARCHIVE="$BUILD_ROOT/edge-release.tar.gz"
-NGINX_CONFIG_TEMPLATE="deployment/nginx/expense-tracker.conf"
-REMOTE_DEPLOY_SCRIPT_SRC="deployment/remote/deploy-edge-release.sh"
-REMOTE_DEPLOY_COMMON_SRC="deployment/remote/lib/common.sh"
+NGINX_CONFIG_TEMPLATE="$SERVERFUL_ROOT/edge/nginx/expense-tracker.conf"
+REMOTE_DEPLOY_SCRIPT_SRC="$SERVERFUL_ROOT/edge/remote/deploy-edge-release.sh"
+REMOTE_DEPLOY_COMMON_SRC="$SERVERFUL_ROOT/shared/lib/common.sh"
 RELEASE_MANIFEST_PATH="$DEPLOY_STAGE_DIR/release-manifest.env"
 
 # ------------

@@ -6,6 +6,8 @@ set -euo pipefail
 # ------------
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/../../../.." && pwd)"
+FRONTEND_DEPLOY_SCRIPT="$REPO_ROOT/deployment/frontend/scripts/deploy-frontend.sh"
 
 # ------------
 # CLI helpers
@@ -13,7 +15,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 usage() {
   cat <<'EOF'
-Usage: ./deployment/scripts/deploy.sh [command]
+Usage: ./deployment/backend/serverful/scripts/deploy.sh [command]
 
 Commands:
   all       Apply infrastructure, then deploy backend, then deploy frontend, then deploy edge.
@@ -32,6 +34,10 @@ EOF
 run_script() {
   local script_name="$1"
   "$SCRIPT_DIR/$script_name"
+}
+
+run_frontend_deploy() {
+  "$FRONTEND_DEPLOY_SCRIPT"
 }
 
 # ------------
@@ -53,18 +59,18 @@ case "$COMMAND" in
   all)
     run_script apply-infra.sh
     run_script deploy-backend.sh
-    run_script deploy-frontend.sh
+    run_frontend_deploy
     run_script deploy-edge.sh
     ;;
   app)
     run_script deploy-backend.sh
-    run_script deploy-frontend.sh
+    run_frontend_deploy
     ;;
   infra)
     run_script apply-infra.sh
     ;;
   frontend)
-    run_script deploy-frontend.sh
+    run_frontend_deploy
     ;;
   backend)
     run_script deploy-backend.sh

@@ -6,11 +6,14 @@ set -euo pipefail
 # ------------
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SERVERFUL_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+REPO_ROOT="$(cd "$SERVERFUL_ROOT/../../.." && pwd)"
 
-source "$SCRIPT_DIR/lib/format.sh"
-source "$SCRIPT_DIR/lib/config.sh"
-source "$SCRIPT_DIR/lib/terraform.sh"
-source "$SCRIPT_DIR/lib/deploy-helpers.sh"
+source "$SERVERFUL_ROOT/shared/lib/format.sh"
+source "$REPO_ROOT/deployment/backend/shared/lib/config.sh"
+source "$SERVERFUL_ROOT/shared/lib/config.sh"
+source "$SERVERFUL_ROOT/shared/lib/terraform.sh"
+source "$SERVERFUL_ROOT/shared/lib/deploy-helpers.sh"
 
 # ------------
 # Resolve deploy context

@@ -72,19 +72,19 @@ migrate-force:
 	@go run backend/cmd/migrate/main.go force $(v)
 
 deploy:
-	@./deployment/scripts/deploy.sh $(filter-out $@,$(MAKECMDGOALS))
+	@./deployment/backend/serverful/scripts/deploy.sh $(filter-out $@,$(MAKECMDGOALS))
 
 all app infra frontend backend edge help:
 	@:
 
 destroy:
-	@./deployment/scripts/destroy.sh
+	@./deployment/backend/serverful/scripts/destroy.sh
 
 tf-init:
-	@terraform -chdir=deployment/tf init -input=false
+	@terraform -chdir=deployment/backend/serverful/tf init -input=false
 
 tf-plan:
-	@terraform -chdir=deployment/tf plan
+	@terraform -chdir=deployment/backend/serverful/tf plan
 
 tf-apply:
-	@terraform -chdir=deployment/tf apply
+	@terraform -chdir=deployment/backend/serverful/tf apply

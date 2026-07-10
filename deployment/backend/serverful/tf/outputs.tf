@@ -20,27 +20,27 @@ output "artifact_bucket_name" {
 
 output "db_host" {
   value       = aws_db_instance.db.address
-  description = "RDS PostgreSQL hostname for the backend configuration"
+  description = "Legacy/current RDS PostgreSQL hostname for the backend configuration"
 }
 
 output "db_port" {
   value       = aws_db_instance.db.port
-  description = "RDS PostgreSQL port for the backend configuration"
+  description = "Legacy/current RDS PostgreSQL port for the backend configuration"
 }
 
 output "db_name" {
   value       = aws_db_instance.db.db_name
-  description = "RDS PostgreSQL database name"
+  description = "Legacy/current RDS PostgreSQL database name"
 }
 
 output "db_admin_username" {
   value       = aws_db_instance.db.username
-  description = "RDS PostgreSQL master username reserved for administration and bootstrap"
+  description = "Legacy/current RDS PostgreSQL master username reserved for administration and bootstrap"
 }
 
 output "db_admin_password_ssm_parameter_name" {
   value       = aws_ssm_parameter.db_admin_password.name
-  description = "SSM parameter name containing the RDS PostgreSQL master password"
+  description = "SSM parameter name containing the legacy/current RDS PostgreSQL master password"
 }
 
 output "db_migration_username" {

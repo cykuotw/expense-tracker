@@ -6,11 +6,13 @@ set -euo pipefail
 # ------------
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+FRONTEND_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+REPO_ROOT="$(cd "$FRONTEND_ROOT/../.." && pwd)"
 
-source "$SCRIPT_DIR/lib/format.sh"
-source "$SCRIPT_DIR/lib/config.sh"
-source "$SCRIPT_DIR/lib/terraform.sh"
-source "$SCRIPT_DIR/lib/deploy-helpers.sh"
+source "$FRONTEND_ROOT/lib/format.sh"
+source "$FRONTEND_ROOT/lib/config.sh"
+source "$FRONTEND_ROOT/lib/terraform.sh"
+source "$FRONTEND_ROOT/lib/deploy-helpers.sh"
 
 # ------------
 # Resolve deploy contract

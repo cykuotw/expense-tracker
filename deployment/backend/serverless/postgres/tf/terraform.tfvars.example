@@ -1,0 +1,10 @@
+aws_region                     = "ca-central-1"
+vpc_id                         = "vpc-REPLACE_ME"
+subnet_id                      = "subnet-PUBLIC-REPLACE-ME"
+key_pair_name                  = "replace-with-existing-key-pair"
+enable_temporary_public_access = false
+operator_ssh_cidr              = null
+
+tags = {
+  Environment = "prod"
+}

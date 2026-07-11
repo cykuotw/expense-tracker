@@ -26,7 +26,12 @@ GOARCH ?= amd64
 	test \
 	tf-apply \
 	tf-init \
-	tf-plan
+	tf-plan \
+	postgres-setup \
+	postgres-tf-apply \
+	postgres-tf-init \
+	postgres-tf-plan \
+	postgres-tf-destroy \
 
 build:
 	@go mod tidy
@@ -88,3 +93,18 @@ tf-plan:
 
 tf-apply:
 	@terraform -chdir=deployment/backend/serverful/tf apply
+
+postgres-tf-init:
+	@terraform -chdir=deployment/backend/serverless/postgres/tf init -backend=false -input=false
+
+postgres-tf-plan:
+	@terraform -chdir=deployment/backend/serverless/postgres/tf plan
+
+postgres-tf-apply:
+	@terraform -chdir=deployment/backend/serverless/postgres/tf apply
+
+postgres-setup:
+	@./deployment/backend/serverless/postgres/scripts/setup-postgres.sh
+
+postgres-tf-destroy:
+	@terraform -chdir=deployment/backend/serverless/postgres/tf destroy

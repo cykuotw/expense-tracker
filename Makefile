@@ -32,6 +32,17 @@ GOARCH ?= amd64
 	postgres-tf-init \
 	postgres-tf-plan \
 	postgres-tf-destroy \
+	worker-build \
+	worker-check-boundaries \
+	worker-check-authorizer \
+	worker-check-static-authorizer \
+	worker-configure \
+	worker-google-exchange \
+	worker-health \
+	worker-tf-apply \
+	worker-tf-init \
+	worker-tf-plan \
+	worker-update-code
 
 build:
 	@go mod tidy
@@ -108,3 +119,36 @@ postgres-setup:
 
 postgres-tf-destroy:
 	@terraform -chdir=deployment/backend/serverless/postgres/tf destroy
+
+worker-build:
+	@./deployment/backend/serverless/worker/scripts/build-worker.sh
+
+worker-tf-init:
+	@terraform -chdir=deployment/backend/serverless/worker/tf init -backend=false -input=false
+
+worker-tf-plan: worker-build
+	@terraform -chdir=deployment/backend/serverless/worker/tf plan -input=false
+
+worker-tf-apply: worker-build
+	@terraform -chdir=deployment/backend/serverless/worker/tf apply
+
+worker-update-code:
+	@./deployment/backend/serverless/worker/scripts/update-code.sh
+
+worker-configure:
+	@./deployment/backend/serverless/worker/scripts/configure-runtime.sh
+
+worker-check-authorizer:
+	@./deployment/backend/serverless/worker/scripts/check-google-authorizer.sh
+
+worker-check-static-authorizer:
+	@./deployment/backend/serverless/worker/scripts/check-static-authorizer.sh
+
+worker-check-boundaries:
+	@./deployment/backend/serverless/worker/scripts/check-password-boundary.sh
+
+worker-health:
+	@./deployment/backend/serverless/worker/scripts/check-health.sh
+
+worker-google-exchange:
+	@./deployment/backend/serverless/worker/scripts/check-google-exchange.sh

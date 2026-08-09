@@ -2,7 +2,7 @@
 
 ## Security
 
-- Do not read or access `.env`, `.env.*`, `.tfvars`, `secrets/**`, or `**/*.pem` files.
+- Do not read or access `.env`, `.env.*`, `.tfvars`, `secrets/**`, `**/*.pem`, `**/runtime-env*.json`, or `**/worker-runtime*.json` files. This includes runtime configuration example files.
 - If access to any sensitive file is required, ask the user first.
 
 ## Development process

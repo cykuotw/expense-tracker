@@ -6,6 +6,10 @@ output "serverless_postgres_host" {
   value = aws_instance.postgres.private_ip
 }
 
+output "serverless_postgres_network_interface_id" {
+  value = aws_instance.postgres.primary_network_interface_id
+}
+
 output "serverless_postgres_temporary_public_ipv4" {
   value = try(aws_eip.temporary_postgres[0].public_ip, "")
 }

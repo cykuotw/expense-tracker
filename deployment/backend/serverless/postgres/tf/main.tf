@@ -154,13 +154,32 @@ resource "aws_vpc_security_group_egress_rule" "bootstrap_to_postgres" {
   description                  = "Bootstrap to PostgreSQL"
 }
 
+resource "aws_launch_template" "postgres" {
+  name_prefix = "${var.name_prefix}-"
+  description = "Launch configuration for the minimal PostgreSQL host"
+
+  network_interfaces {
+    associate_public_ip_address = false
+    delete_on_termination       = true
+    device_index                = 0
+    security_groups             = [aws_security_group.postgres.id]
+    subnet_id                   = var.subnet_id
+  }
+
+  tags = merge(local.tags, { Name = var.name_prefix })
+}
+
 resource "aws_instance" "postgres" {
-  ami                         = local.ami_id
-  instance_type               = var.instance_type
-  subnet_id                   = var.subnet_id
-  key_name                    = var.key_pair_name
-  associate_public_ip_address = false
-  vpc_security_group_ids      = [aws_security_group.postgres.id]
+  ami           = local.ami_id
+  instance_type = var.instance_type
+  key_name      = var.key_pair_name
+
+  # The launch template sets the primary ENI's public-IP flag at launch. This
+  # overrides a subnet that otherwise auto-assigns public IPv4 addresses.
+  launch_template {
+    id      = aws_launch_template.postgres.id
+    version = aws_launch_template.postgres.latest_version
+  }
 
   metadata_options {
     http_endpoint = "enabled"
@@ -192,6 +211,23 @@ resource "aws_instance" "postgres" {
   }
 }
 
+resource "aws_network_interface" "temporary_postgres" {
+  count = var.enable_temporary_public_access ? 1 : 0
+
+  subnet_id       = var.subnet_id
+  security_groups = [aws_security_group.postgres.id]
+  description     = "Temporary public-access network interface for PostgreSQL setup"
+  tags            = merge(local.tags, { Name = "${var.name_prefix}-temporary-access" })
+}
+
+resource "aws_network_interface_attachment" "temporary_postgres" {
+  count = var.enable_temporary_public_access ? 1 : 0
+
+  instance_id          = aws_instance.postgres.id
+  network_interface_id = aws_network_interface.temporary_postgres[0].id
+  device_index         = 1
+}
+
 resource "aws_eip" "temporary_postgres" {
   count = var.enable_temporary_public_access ? 1 : 0
 
@@ -209,6 +245,8 @@ resource "aws_eip" "temporary_postgres" {
 resource "aws_eip_association" "temporary_postgres" {
   count = var.enable_temporary_public_access ? 1 : 0
 
-  instance_id   = aws_instance.postgres.id
-  allocation_id = aws_eip.temporary_postgres[0].id
+  network_interface_id = aws_network_interface.temporary_postgres[0].id
+  allocation_id        = aws_eip.temporary_postgres[0].id
+
+  depends_on = [aws_network_interface_attachment.temporary_postgres]
 }

@@ -6,6 +6,13 @@ GOARCH ?= amd64
 	all \
 	app \
 	backend \
+	bootstrap-build \
+	bootstrap-configure \
+	bootstrap-invoke \
+	bootstrap-tf-apply \
+	bootstrap-tf-init \
+	bootstrap-tf-plan \
+	bootstrap-update-code \
 	build \
 	build-deploy-backend \
 	build-frontend \
@@ -152,3 +159,24 @@ worker-health:
 
 worker-google-exchange:
 	@./deployment/backend/serverless/worker/scripts/check-google-exchange.sh
+
+bootstrap-build:
+	@./deployment/backend/serverless/bootstrap/scripts/build-bootstrap.sh
+
+bootstrap-tf-init:
+	@terraform -chdir=deployment/backend/serverless/bootstrap/tf init -backend=false -input=false
+
+bootstrap-tf-plan: bootstrap-build
+	@terraform -chdir=deployment/backend/serverless/bootstrap/tf plan -input=false
+
+bootstrap-tf-apply: bootstrap-build
+	@terraform -chdir=deployment/backend/serverless/bootstrap/tf apply
+
+bootstrap-update-code:
+	@./deployment/backend/serverless/bootstrap/scripts/update-code.sh
+
+bootstrap-configure:
+	@./deployment/backend/serverless/bootstrap/scripts/configure-runtime.sh
+
+bootstrap-invoke:
+	@./deployment/backend/serverless/bootstrap/scripts/invoke.sh

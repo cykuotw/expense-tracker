@@ -211,23 +211,6 @@ resource "aws_instance" "postgres" {
   }
 }
 
-resource "aws_network_interface" "temporary_postgres" {
-  count = var.enable_temporary_public_access ? 1 : 0
-
-  subnet_id       = var.subnet_id
-  security_groups = [aws_security_group.postgres.id]
-  description     = "Temporary public-access network interface for PostgreSQL setup"
-  tags            = merge(local.tags, { Name = "${var.name_prefix}-temporary-access" })
-}
-
-resource "aws_network_interface_attachment" "temporary_postgres" {
-  count = var.enable_temporary_public_access ? 1 : 0
-
-  instance_id          = aws_instance.postgres.id
-  network_interface_id = aws_network_interface.temporary_postgres[0].id
-  device_index         = 1
-}
-
 resource "aws_eip" "temporary_postgres" {
   count = var.enable_temporary_public_access ? 1 : 0
 
@@ -245,8 +228,6 @@ resource "aws_eip" "temporary_postgres" {
 resource "aws_eip_association" "temporary_postgres" {
   count = var.enable_temporary_public_access ? 1 : 0
 
-  network_interface_id = aws_network_interface.temporary_postgres[0].id
+  network_interface_id = aws_instance.postgres.primary_network_interface_id
   allocation_id        = aws_eip.temporary_postgres[0].id
-
-  depends_on = [aws_network_interface_attachment.temporary_postgres]
 }

@@ -86,3 +86,4 @@ terraform.rc
 deployment/scripts/lib/config.local.sh
 deployment/backend/serverless/worker/runtime-env*.json
 !deployment/backend/serverless/worker/runtime-env.example.json
+deployment/backend/serverless/bootstrap/runtime-env*.json

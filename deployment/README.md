@@ -24,6 +24,10 @@ deployment/
         lib/
       tf/
     serverless/
+      bootstrap/
+        build/
+        scripts/
+        tf/
       postgres/
         scripts/
         tf/
@@ -70,6 +74,14 @@ deployment/
 - `make worker-health`: check the deployed API Gateway-to-Lambda request path.
 - `make worker-check-boundaries`: check deployed CORS, preflight, and password-route boundaries.
 - `GOOGLE_ID_TOKEN_FILE=/protected/google-id-token make worker-google-exchange`: verify Google exchange and the resulting application session with a short-lived token stored in a mode-`0600` file outside the repository.
+
+## Bootstrap Lambda
+
+- `make bootstrap-build`: build the private ARM64 bootstrap Lambda ZIP with bundled migrations.
+- `make bootstrap-tf-init`, `make bootstrap-tf-plan`, and `make bootstrap-tf-apply`: manage the private bootstrap Lambda infrastructure.
+- `RUNTIME_ENV_FILE=/protected/bootstrap-runtime.json make bootstrap-configure`: publish database and optional first-admin values from a mode-`0600` JSON file outside the repository.
+- `make bootstrap-update-code`: rebuild and publish code without invoking database work.
+- `make bootstrap-invoke`: directly invoke the single idempotent `all` operation.
 
 ## Safety
 

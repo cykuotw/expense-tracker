@@ -23,8 +23,34 @@ resolve_aws_region
 
 FRONTEND_BUCKET="$(terraform_output frontend_bucket_name)"
 CLOUDFRONT_DISTRIBUTION_ID="$(terraform_output cloudfront_distribution_id)"
-API_FQDN="$(terraform_output api_fqdn)"
-API_ORIGIN="https://$API_FQDN"
+
+case "$FRONTEND_DEPLOY_MODE" in
+  serverful)
+    if [[ -z "$API_ORIGIN" ]]; then
+      API_FQDN="$(terraform_output api_fqdn)"
+      API_ORIGIN="https://$API_FQDN"
+    fi
+    ;;
+  serverless)
+    worker_api_origin="$(terraform_output_from "$WORKER_TF_DIR" worker_custom_api_origin)"
+    worker_google_client_id="$(terraform_output_from "$WORKER_TF_DIR" worker_google_audience)"
+    if [[ -n "$API_ORIGIN" && "$API_ORIGIN" != "$worker_api_origin" ]]; then
+      fail 'API_ORIGIN does not match the worker custom API origin'
+      exit 1
+    fi
+    if [[ -n "$GOOGLE_CLIENT_ID" && "$GOOGLE_CLIENT_ID" != "$worker_google_client_id" ]]; then
+      fail 'GOOGLE_CLIENT_ID does not match the worker authorizer audience'
+      exit 1
+    fi
+    API_ORIGIN="$worker_api_origin"
+    GOOGLE_OAUTH_ENABLED="true"
+    GOOGLE_CLIENT_ID="$worker_google_client_id"
+    ;;
+  *)
+    fail 'FRONTEND_DEPLOY_MODE must be either "serverful" or "serverless"'
+    exit 1
+    ;;
+esac
 
 case "${GOOGLE_OAUTH_ENABLED,,}" in
   ""|false)
@@ -52,6 +78,10 @@ step 'Frontend deploy configuration'
 printf '  AWS_REGION=%s\n' "$AWS_REGION"
 printf '  TF_DIR=%s\n' "$TF_DIR"
 printf '  TF_VARS_FILE=%s\n' "$TF_VARS_FILE"
+printf '  FRONTEND_DEPLOY_MODE=%s\n' "$FRONTEND_DEPLOY_MODE"
+if [[ "$FRONTEND_DEPLOY_MODE" == "serverless" ]]; then
+  printf '  WORKER_TF_DIR=%s\n' "$WORKER_TF_DIR"
+fi
 printf '  FRONTEND_DIST_DIR=%s\n' "$FRONTEND_DIST_DIR"
 printf '  FRONTEND_BUCKET=%s\n' "$FRONTEND_BUCKET"
 printf '  CLOUDFRONT_DISTRIBUTION_ID=%s\n' "$CLOUDFRONT_DISTRIBUTION_ID"

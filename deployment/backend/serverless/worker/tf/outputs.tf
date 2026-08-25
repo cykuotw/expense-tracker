@@ -10,6 +10,18 @@ output "worker_api_endpoint" {
   value = aws_apigatewayv2_api.worker.api_endpoint
 }
 
+output "worker_api_id" {
+  value = aws_apigatewayv2_api.worker.id
+}
+
+output "worker_custom_api_hostname" {
+  value = var.api_hostname
+}
+
+output "worker_custom_api_origin" {
+  value = "https://${var.api_hostname}"
+}
+
 output "worker_google_authorizer_id" {
   value = aws_apigatewayv2_authorizer.google.id
 }

@@ -109,3 +109,12 @@ PY2
   fi
   printf '%s\n' "$value"
 }
+
+terraform_output_from() {
+  local output_tf_dir="$1"
+  local output_name="$2"
+  (
+    TF_DIR="$output_tf_dir"
+    terraform_output "$output_name"
+  )
+}

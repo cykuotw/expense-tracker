@@ -9,6 +9,7 @@ deployment/
   frontend/
     lib/
     scripts/
+    tf/
   backend/
     shared/
       lib/
@@ -45,6 +46,7 @@ deployment/
 - Go and the frontend package-manager dependencies
 - `zip`, `unzip`, `file`, and `curl`
 - `jq` and GNU `realpath`/`stat` for Lambda runtime and smoke-test scripts
+- a public Route 53 hosted zone for the selected frontend and API hostnames
 
 ## EC2 Application
 
@@ -66,6 +68,7 @@ deployment/
 
 ## Lambda Worker
 
+- Configure the ignored `deployment/backend/serverless/worker/tf/terraform.tfvars` from its checked-in example before planning, replacing the `example.com` frontend, hosted-zone, and API values with the selected deployment hostnames.
 - `make worker-build`: build the ARM64 Lambda ZIP.
 - `make worker-check-static-authorizer`: check the JWT route contract locally.
 - `make worker-tf-init`, `make worker-tf-plan`, and `make worker-tf-apply`: create and apply the reviewed saved worker plan with request processing disabled at reserved concurrency `0`.
@@ -75,9 +78,19 @@ deployment/
 - `RUNTIME_ENV_FILE=/protected/worker-runtime.json make worker-check-secret-boundary`: verify protected values are absent from local Terraform artifacts.
 - `RUNTIME_ENV_FILE=/protected/worker-runtime.json make worker-tf-destroy`: delete the worker Lambda first, wait for its ENIs, then destroy the remaining worker/API resources.
 - `make worker-update-code`: rebuild and publish code to the existing Lambda function.
-- `make worker-health`: check the deployed API Gateway-to-Lambda request path.
+- `make worker-health`: check the custom-domain API Gateway-to-Lambda request path.
+- `RUNTIME_ENV_FILE=/protected/worker-runtime.json make worker-disable-raw-endpoint`: disable and verify the raw execute-api endpoint after custom-domain browser verification.
+- `RUNTIME_ENV_FILE=/protected/worker-runtime.json make worker-enable-raw-endpoint`: re-enable and verify the raw endpoint for emergency rollback.
 - `make worker-check-boundaries`: check deployed CORS, preflight, and password-route boundaries.
 - `GOOGLE_ID_TOKEN_FILE=/protected/google-id-token make worker-google-exchange`: verify Google exchange and the resulting application session with a short-lived token stored in a mode-`0600` file outside the repository.
+
+## Serverless Frontend
+
+- Configure the ignored `deployment/frontend/tf/terraform.tfvars` from its checked-in example before planning.
+- `make frontend-tf-init`, `make frontend-tf-plan`, and `make frontend-tf-apply`: manage the dedicated private S3, CloudFront, ACM, and Route 53 frontend stack through a reviewed saved plan.
+- `make serverless-frontend-deploy`: build and publish frontend assets, derive the custom API origin and Google audience from worker outputs, and invalidate the dedicated CloudFront distribution.
+- `make frontend-tf-destroy`: destroy the independently owned frontend stack.
+- `make phase-10-check`: run the local custom-domain, frontend ownership, deployment-contract, and raw-endpoint cutover checks.
 
 ## Bootstrap Lambda
 
@@ -93,7 +106,7 @@ deployment/
 
 - Review every Terraform plan before applying it. Apply, destroy, deploy, configuration, and code-update commands modify AWS resources.
 - Keep credentials, private keys, runtime environment files, token files, and other secrets outside the repository and Terraform inputs.
-- Worker/bootstrap plan and destroy targets deliberately use `-refresh=false`. Do not run plan/apply after runtime publication; use the checked worker activation and Lambda-first destroy commands plus independent AWS verification because this workflow does not detect remote drift.
+- Worker/bootstrap plan and destroy targets deliberately use `-refresh=false`. Do not run worker plan/apply after runtime publication; use the checked worker activation, raw-endpoint toggle, and Lambda-first destroy commands plus independent AWS verification because this workflow does not detect remote drift.
 - Saved `*.tfplan` files are local review artifacts, are Git-ignored, and are removed after a successful apply.
 - Back up any required database data before destructive infrastructure changes.
 - Do not enable Lambda request processing until its database and runtime configuration are ready.

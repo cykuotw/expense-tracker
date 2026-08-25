@@ -35,6 +35,26 @@ variable "google_client_id" {
   }
 }
 
+variable "hosted_zone_name" {
+  description = "Existing public Route 53 hosted-zone name for the API custom domain."
+  type        = string
+
+  validation {
+    condition     = can(regex("^[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$", var.hosted_zone_name))
+    error_message = "hosted_zone_name must be a lowercase public DNS zone without a trailing dot."
+  }
+}
+
+variable "api_hostname" {
+  description = "Exact regional API Gateway custom hostname."
+  type        = string
+
+  validation {
+    condition     = can(regex("^[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$", var.api_hostname))
+    error_message = "api_hostname must be a lowercase DNS hostname without a scheme, path, or trailing dot."
+  }
+}
+
 variable "reserved_concurrency" {
   description = "Terraform creates the worker disabled; scripts/activate.sh owns the live transition to 3 after bootstrap."
   type        = number

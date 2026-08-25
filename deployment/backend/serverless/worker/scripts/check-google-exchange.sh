@@ -37,7 +37,10 @@ google_id_token="$(tr -d '\r\n' < "$google_id_token_file")"
 printf 'header = "Authorization: Bearer %s"\n' "$google_id_token" > "$CURL_CONFIG"
 unset google_id_token
 
-api_endpoint="$(terraform -chdir="$TF_DIR" output -raw worker_api_endpoint)"
+api_endpoint="${API_ORIGIN:-}"
+if [[ -z "$api_endpoint" ]]; then
+  api_endpoint="$(terraform -chdir="$TF_DIR" output -raw worker_custom_api_origin)"
+fi
 frontend_origin="$(terraform -chdir="$TF_DIR" output -raw worker_frontend_origin)"
 api_root="${api_endpoint%/}/api/v0"
 

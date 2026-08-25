@@ -5,6 +5,8 @@ WORKER_TF_DIR := deployment/backend/serverless/worker/tf
 WORKER_TF_PLAN ?= $(WORKER_TF_DIR)/worker.tfplan
 BOOTSTRAP_TF_DIR := deployment/backend/serverless/bootstrap/tf
 BOOTSTRAP_TF_PLAN ?= $(BOOTSTRAP_TF_DIR)/bootstrap.tfplan
+FRONTEND_TF_DIR := deployment/frontend/tf
+FRONTEND_TF_PLAN ?= $(FRONTEND_TF_DIR)/frontend.tfplan
 SERVERLESS_SCRIPTS_DIR := deployment/backend/serverless/scripts
 SERVERLESS_AWS_REGION = $(strip $(or $(AWS_REGION),$(AWS_DEFAULT_REGION),$(TF_VAR_aws_region),$(shell aws configure get region 2>/dev/null)))
 
@@ -29,6 +31,10 @@ SERVERLESS_AWS_REGION = $(strip $(or $(AWS_REGION),$(AWS_DEFAULT_REGION),$(TF_VA
 	destroy \
 	edge \
 	frontend \
+	frontend-tf-apply \
+	frontend-tf-destroy \
+	frontend-tf-init \
+	frontend-tf-plan \
 	help \
 	infra \
 	lambda-concurrency-check \
@@ -39,6 +45,8 @@ SERVERLESS_AWS_REGION = $(strip $(or $(AWS_REGION),$(AWS_DEFAULT_REGION),$(TF_VA
 	migrate-up \
 	migration \
 	phase-9-5-check \
+	phase-10-check \
+	serverless-frontend-deploy \
 	serverless-region-check \
 	run \
 	test \
@@ -59,6 +67,8 @@ SERVERLESS_AWS_REGION = $(strip $(or $(AWS_REGION),$(AWS_DEFAULT_REGION),$(TF_VA
 	worker-configure \
 	worker-google-exchange \
 	worker-health \
+	worker-disable-raw-endpoint \
+	worker-enable-raw-endpoint \
 	worker-tf-apply \
 	worker-tf-destroy \
 	worker-tf-init \
@@ -186,6 +196,12 @@ worker-check-boundaries:
 worker-health:
 	@./deployment/backend/serverless/worker/scripts/check-health.sh
 
+worker-disable-raw-endpoint:
+	@./deployment/backend/serverless/worker/scripts/set-raw-endpoint.sh disabled
+
+worker-enable-raw-endpoint:
+	@./deployment/backend/serverless/worker/scripts/set-raw-endpoint.sh enabled
+
 worker-google-exchange:
 	@./deployment/backend/serverless/worker/scripts/check-google-exchange.sh
 
@@ -231,3 +247,23 @@ lambda-concurrency-check: serverless-region-check
 
 phase-9-5-check:
 	@$(SERVERLESS_SCRIPTS_DIR)/check-phase-9-5.sh
+
+frontend-tf-init:
+	@terraform -chdir=$(FRONTEND_TF_DIR) init -backend=false -input=false
+
+frontend-tf-plan:
+	@terraform -chdir=$(FRONTEND_TF_DIR) plan -input=false -out="$(abspath $(FRONTEND_TF_PLAN))"
+
+frontend-tf-apply:
+	@test -f "$(FRONTEND_TF_PLAN)" || { printf 'error: saved frontend plan not found; run make frontend-tf-plan first\n' >&2; exit 1; }
+	@terraform -chdir=$(FRONTEND_TF_DIR) apply -input=false "$(abspath $(FRONTEND_TF_PLAN))"
+	@rm -f "$(FRONTEND_TF_PLAN)"
+
+frontend-tf-destroy:
+	@terraform -chdir=$(FRONTEND_TF_DIR) destroy
+
+serverless-frontend-deploy:
+	@FRONTEND_DEPLOY_MODE=serverless TF_DIR="$(FRONTEND_TF_DIR)" WORKER_TF_DIR="$(WORKER_TF_DIR)" ./deployment/frontend/scripts/deploy-frontend.sh
+
+phase-10-check:
+	@$(SERVERLESS_SCRIPTS_DIR)/check-phase-10.sh

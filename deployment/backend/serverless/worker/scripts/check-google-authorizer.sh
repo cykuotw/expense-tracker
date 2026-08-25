@@ -10,7 +10,10 @@ cleanup() {
 }
 trap cleanup EXIT
 
-api_endpoint="$(terraform -chdir="$TF_DIR" output -raw worker_api_endpoint)"
+api_endpoint="${API_ORIGIN:-}"
+if [[ -z "$api_endpoint" ]]; then
+  api_endpoint="$(terraform -chdir="$TF_DIR" output -raw worker_custom_api_origin)"
+fi
 exchange_url="${api_endpoint%/}/api/v0/auth/google/exchange"
 
 missing_status="$(curl -sS -o "$RESPONSE_FILE" -w '%{http_code}' -X POST "$exchange_url")"

@@ -16,7 +16,10 @@ fail() {
   exit 1
 }
 
-api_endpoint="$(terraform -chdir="$TF_DIR" output -raw worker_api_endpoint)"
+api_endpoint="${API_ORIGIN:-}"
+if [[ -z "$api_endpoint" ]]; then
+  api_endpoint="$(terraform -chdir="$TF_DIR" output -raw worker_custom_api_origin)"
+fi
 frontend_origin="$(terraform -chdir="$TF_DIR" output -raw worker_frontend_origin)"
 api_root="${api_endpoint%/}/api/v0"
 

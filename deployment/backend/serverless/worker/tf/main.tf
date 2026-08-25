@@ -23,6 +23,11 @@ data "aws_security_group" "worker_client" {
   vpc_id = data.aws_subnet.postgres.vpc_id
 }
 
+data "aws_route53_zone" "selected" {
+  name         = var.hosted_zone_name
+  private_zone = false
+}
+
 locals {
   api_path      = "/api/v0"
   google_issuer = "https://accounts.google.com"
@@ -146,6 +151,59 @@ resource "aws_apigatewayv2_api" "worker" {
   protocol_type                = "HTTP"
   disable_execute_api_endpoint = false
   tags                         = local.tags
+
+  lifecycle {
+    ignore_changes = [disable_execute_api_endpoint]
+  }
+}
+
+resource "aws_acm_certificate" "api" {
+  domain_name       = var.api_hostname
+  validation_method = "DNS"
+  tags              = local.tags
+
+  lifecycle {
+    create_before_destroy = true
+
+    precondition {
+      condition     = var.api_hostname == var.hosted_zone_name || endswith(var.api_hostname, ".${var.hosted_zone_name}")
+      error_message = "api_hostname must belong to hosted_zone_name."
+    }
+  }
+}
+
+resource "aws_route53_record" "api_certificate_validation" {
+  for_each = {
+    for option in aws_acm_certificate.api.domain_validation_options : option.domain_name => {
+      name   = option.resource_record_name
+      record = option.resource_record_value
+      type   = option.resource_record_type
+    }
+  }
+
+  allow_overwrite = true
+  zone_id         = data.aws_route53_zone.selected.zone_id
+  name            = each.value.name
+  type            = each.value.type
+  ttl             = 60
+  records         = [each.value.record]
+}
+
+resource "aws_acm_certificate_validation" "api" {
+  certificate_arn         = aws_acm_certificate.api.arn
+  validation_record_fqdns = [for record in aws_route53_record.api_certificate_validation : record.fqdn]
+}
+
+resource "aws_apigatewayv2_domain_name" "api" {
+  domain_name = var.api_hostname
+
+  domain_name_configuration {
+    certificate_arn = aws_acm_certificate_validation.api.certificate_arn
+    endpoint_type   = "REGIONAL"
+    security_policy = "TLS_1_2"
+  }
+
+  tags = local.tags
 }
 
 resource "aws_apigatewayv2_integration" "worker" {
@@ -189,6 +247,24 @@ resource "aws_apigatewayv2_stage" "default" {
   name        = "$default"
   auto_deploy = true
   tags        = local.tags
+}
+
+resource "aws_apigatewayv2_api_mapping" "api" {
+  api_id      = aws_apigatewayv2_api.worker.id
+  domain_name = aws_apigatewayv2_domain_name.api.id
+  stage       = aws_apigatewayv2_stage.default.id
+}
+
+resource "aws_route53_record" "api" {
+  zone_id = data.aws_route53_zone.selected.zone_id
+  name    = var.api_hostname
+  type    = "A"
+
+  alias {
+    name                   = aws_apigatewayv2_domain_name.api.domain_name_configuration[0].target_domain_name
+    zone_id                = aws_apigatewayv2_domain_name.api.domain_name_configuration[0].hosted_zone_id
+    evaluate_target_health = false
+  }
 }
 
 resource "aws_lambda_permission" "api_gateway" {

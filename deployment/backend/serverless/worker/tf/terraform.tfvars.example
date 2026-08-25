@@ -1,4 +1,6 @@
-aws_region       = "ca-central-1"
-frontend_origin  = "https://app.example.com"
-google_client_id = "REPLACE_WITH_GOOGLE_WEB_CLIENT_ID.apps.googleusercontent.com"
+aws_region         = "ca-central-1"
+frontend_origin    = "https://app.example.com"
+hosted_zone_name   = "example.com"
+api_hostname       = "api.example.com"
+google_client_id   = "REPLACE_WITH_GOOGLE_WEB_CLIENT_ID.apps.googleusercontent.com"
 reserved_concurrency = 0 # Activation to 3 is owned by `make worker-activate`, not Terraform.

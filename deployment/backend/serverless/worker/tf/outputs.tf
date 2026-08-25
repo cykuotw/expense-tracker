@@ -2,6 +2,10 @@ output "worker_function_name" {
   value = aws_lambda_function.worker.function_name
 }
 
+output "worker_aws_region" {
+  value = var.aws_region
+}
+
 output "worker_api_endpoint" {
   value = aws_apigatewayv2_api.worker.api_endpoint
 }
@@ -24,8 +28,4 @@ output "worker_db_host" {
 
 output "worker_security_group_id" {
   value = data.aws_security_group.worker_client.id
-}
-
-output "worker_reserved_concurrency" {
-  value = var.reserved_concurrency
 }

@@ -76,7 +76,7 @@ mapfile -t password_lines < "$PASSWORD_PATH"
 }
 password="${password_lines[0]}"
 
-dnf install -y postgresql16 postgresql16-server
+dnf install -y postgresql16 postgresql16-server postgresql16-contrib
 
 postgres_binary="$(rpm -ql postgresql16-server | awk '/\/postgres$/ { postgres_binary = $0 } END { print postgres_binary }')"
 [[ -x "$postgres_binary" ]] || { printf 'PostgreSQL server binary not found\n' >&2; exit 1; }
@@ -84,7 +84,11 @@ postgres_binary="$(rpm -ql postgresql16-server | awk '/\/postgres$/ { postgres_b
   printf 'installed PostgreSQL major version is not 16\n' >&2
   exit 1
 }
-rpm -q postgresql16 postgresql16-server
+rpm -q postgresql16 postgresql16-server postgresql16-contrib
+rpm -ql postgresql16-contrib | grep -Eq '/extension/pgcrypto\.control$' || {
+  printf 'postgresql16-contrib does not provide pgcrypto\n' >&2
+  exit 1
+}
 
 setup_binary="$(command -v postgresql-setup || true)"
 [[ -x "$setup_binary" ]] || { printf 'package-provided postgresql-setup not found\n' >&2; exit 1; }
@@ -121,6 +125,12 @@ chown postgres:postgres "$PGDATA/postgresql.conf" "$PGDATA/pg_hba.conf"
 chmod 0600 "$PGDATA/postgresql.conf" "$PGDATA/pg_hba.conf"
 
 systemctl enable --now postgresql.service
+sudo -u postgres psql --dbname postgres --set ON_ERROR_STOP=1 --tuples-only --no-align \
+  --command "SELECT 1 FROM pg_available_extensions WHERE name = 'pgcrypto'" \
+  | grep -qx 1 || {
+    printf 'pgcrypto is not available to PostgreSQL 16\n' >&2
+    exit 1
+  }
 
 escaped_password="${password//\'/\'\'}"
 printf "ALTER ROLE postgres WITH PASSWORD '%s';\n" "$escaped_password" > "$PASSWORD_SQL_PATH"

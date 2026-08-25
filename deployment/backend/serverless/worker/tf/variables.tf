@@ -36,13 +36,13 @@ variable "google_client_id" {
 }
 
 variable "reserved_concurrency" {
-  description = "Keep at 0 until Phase 9 succeeds; change explicitly to 3 after bootstrap."
+  description = "Terraform creates the worker disabled; scripts/activate.sh owns the live transition to 3 after bootstrap."
   type        = number
   default     = 0
 
   validation {
-    condition     = contains([0, 3], var.reserved_concurrency)
-    error_message = "reserved_concurrency must be 0 before bootstrap or 3 after bootstrap."
+    condition     = var.reserved_concurrency == 0
+    error_message = "reserved_concurrency must remain 0 in Terraform; use make worker-activate after bootstrap."
   }
 }
 

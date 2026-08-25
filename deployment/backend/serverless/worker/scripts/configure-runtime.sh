@@ -3,6 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WORKER_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+SERVERLESS_ROOT="$(cd "$WORKER_ROOT/.." && pwd)"
 REPO_ROOT="$(cd "$WORKER_ROOT/../../../.." && pwd)"
 TF_DIR="${TF_DIR:-$WORKER_ROOT/tf}"
 RUNTIME_ENV_FILE="${RUNTIME_ENV_FILE:-}"
@@ -79,4 +80,6 @@ aws lambda update-function-configuration \
   --environment "file://$runtime_env_file" \
   >/dev/null
 aws lambda wait function-updated --function-name "$function_name"
+TF_DIR="$TF_DIR" RUNTIME_ENV_FILE="$runtime_env_file" \
+  "$SERVERLESS_ROOT/scripts/check-runtime-secret-boundary.sh"
 printf 'Updated worker runtime environment for %s\n' "$function_name"

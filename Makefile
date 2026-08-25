@@ -1,6 +1,12 @@
 BUILD_DIR ?= bin
 GOOS ?= linux
 GOARCH ?= amd64
+WORKER_TF_DIR := deployment/backend/serverless/worker/tf
+WORKER_TF_PLAN ?= $(WORKER_TF_DIR)/worker.tfplan
+BOOTSTRAP_TF_DIR := deployment/backend/serverless/bootstrap/tf
+BOOTSTRAP_TF_PLAN ?= $(BOOTSTRAP_TF_DIR)/bootstrap.tfplan
+SERVERLESS_SCRIPTS_DIR := deployment/backend/serverless/scripts
+SERVERLESS_AWS_REGION = $(strip $(or $(AWS_REGION),$(AWS_DEFAULT_REGION),$(TF_VAR_aws_region),$(shell aws configure get region 2>/dev/null)))
 
 .PHONY: \
 	all \
@@ -8,8 +14,10 @@ GOARCH ?= amd64
 	backend \
 	bootstrap-build \
 	bootstrap-configure \
+	bootstrap-check-secret-boundary \
 	bootstrap-invoke \
 	bootstrap-tf-apply \
+	bootstrap-tf-destroy \
 	bootstrap-tf-init \
 	bootstrap-tf-plan \
 	bootstrap-update-code \
@@ -23,12 +31,15 @@ GOARCH ?= amd64
 	frontend \
 	help \
 	infra \
+	lambda-concurrency-check \
 	migrate-down \
 	migrate-force \
 	migrate-step \
 	migrate-to \
 	migrate-up \
 	migration \
+	phase-9-5-check \
+	serverless-region-check \
 	run \
 	test \
 	tf-apply \
@@ -40,13 +51,16 @@ GOARCH ?= amd64
 	postgres-tf-plan \
 	postgres-tf-destroy \
 	worker-build \
+	worker-activate \
 	worker-check-boundaries \
 	worker-check-authorizer \
+	worker-check-secret-boundary \
 	worker-check-static-authorizer \
 	worker-configure \
 	worker-google-exchange \
 	worker-health \
 	worker-tf-apply \
+	worker-tf-destroy \
 	worker-tf-init \
 	worker-tf-plan \
 	worker-update-code
@@ -131,19 +145,34 @@ worker-build:
 	@./deployment/backend/serverless/worker/scripts/build-worker.sh
 
 worker-tf-init:
-	@terraform -chdir=deployment/backend/serverless/worker/tf init -backend=false -input=false
+	@terraform -chdir=$(WORKER_TF_DIR) init -backend=false -input=false
 
 worker-tf-plan: worker-build
-	@terraform -chdir=deployment/backend/serverless/worker/tf plan -input=false
+	@TF_DIR="$(WORKER_TF_DIR)" $(SERVERLESS_SCRIPTS_DIR)/check-runtime-secret-boundary.sh
+	@terraform -chdir=$(WORKER_TF_DIR) plan -refresh=false -input=false -out="$(abspath $(WORKER_TF_PLAN))"
+	@TF_DIR="$(WORKER_TF_DIR)" $(SERVERLESS_SCRIPTS_DIR)/check-runtime-secret-boundary.sh
 
-worker-tf-apply: worker-build
-	@terraform -chdir=deployment/backend/serverless/worker/tf apply
+worker-tf-apply:
+	@test -f "$(WORKER_TF_PLAN)" || { printf 'error: saved worker plan not found; run make worker-tf-plan first\n' >&2; exit 1; }
+	@TF_DIR="$(WORKER_TF_DIR)" $(SERVERLESS_SCRIPTS_DIR)/check-runtime-secret-boundary.sh
+	@terraform -chdir=$(WORKER_TF_DIR) show -json "$(abspath $(WORKER_TF_PLAN))" | jq -e '.variables.reserved_concurrency.value == 0' >/dev/null || { printf 'error: worker Terraform plans must keep reserved concurrency 0; use make worker-activate after bootstrap\n' >&2; exit 1; }
+	@terraform -chdir=$(WORKER_TF_DIR) apply -input=false "$(abspath $(WORKER_TF_PLAN))"
+	@rm -f "$(WORKER_TF_PLAN)"
+
+worker-tf-destroy:
+	@TF_DIR="$(WORKER_TF_DIR)" FUNCTION_OUTPUT=worker_function_name SECURITY_GROUP_OUTPUT=worker_security_group_id $(SERVERLESS_SCRIPTS_DIR)/destroy-lambda-stack.sh
 
 worker-update-code:
 	@./deployment/backend/serverless/worker/scripts/update-code.sh
 
 worker-configure:
 	@./deployment/backend/serverless/worker/scripts/configure-runtime.sh
+
+worker-activate:
+	@./deployment/backend/serverless/worker/scripts/activate.sh
+
+worker-check-secret-boundary:
+	@TF_DIR="$(WORKER_TF_DIR)" $(SERVERLESS_SCRIPTS_DIR)/check-runtime-secret-boundary.sh
 
 worker-check-authorizer:
 	@./deployment/backend/serverless/worker/scripts/check-google-authorizer.sh
@@ -163,20 +192,42 @@ worker-google-exchange:
 bootstrap-build:
 	@./deployment/backend/serverless/bootstrap/scripts/build-bootstrap.sh
 
-bootstrap-tf-init:
-	@terraform -chdir=deployment/backend/serverless/bootstrap/tf init -backend=false -input=false
+serverless-region-check:
+	@test -n "$(SERVERLESS_AWS_REGION)" || { printf 'error: set AWS_REGION, AWS_DEFAULT_REGION, TF_VAR_aws_region, or configure the AWS CLI region\n' >&2; exit 1; }
 
-bootstrap-tf-plan: bootstrap-build
-	@terraform -chdir=deployment/backend/serverless/bootstrap/tf plan -input=false
+bootstrap-tf-init: serverless-region-check
+	@AWS_REGION="$(SERVERLESS_AWS_REGION)" TF_VAR_aws_region="$(SERVERLESS_AWS_REGION)" terraform -chdir=$(BOOTSTRAP_TF_DIR) init -backend=false -input=false
 
-bootstrap-tf-apply: bootstrap-build
-	@terraform -chdir=deployment/backend/serverless/bootstrap/tf apply
+bootstrap-tf-plan: bootstrap-build serverless-region-check
+	@AWS_REGION="$(SERVERLESS_AWS_REGION)" TF_VAR_aws_region="$(SERVERLESS_AWS_REGION)" REQUIRED_RESERVED_CONCURRENCY=4 $(SERVERLESS_SCRIPTS_DIR)/check-lambda-concurrency.sh
+	@TF_DIR="$(BOOTSTRAP_TF_DIR)" $(SERVERLESS_SCRIPTS_DIR)/check-runtime-secret-boundary.sh
+	@AWS_REGION="$(SERVERLESS_AWS_REGION)" TF_VAR_aws_region="$(SERVERLESS_AWS_REGION)" terraform -chdir=$(BOOTSTRAP_TF_DIR) plan -refresh=false -input=false -out="$(abspath $(BOOTSTRAP_TF_PLAN))"
+	@TF_DIR="$(BOOTSTRAP_TF_DIR)" $(SERVERLESS_SCRIPTS_DIR)/check-runtime-secret-boundary.sh
 
-bootstrap-update-code:
-	@./deployment/backend/serverless/bootstrap/scripts/update-code.sh
+bootstrap-tf-apply: serverless-region-check
+	@test -f "$(BOOTSTRAP_TF_PLAN)" || { printf 'error: saved bootstrap plan not found; run make bootstrap-tf-plan first\n' >&2; exit 1; }
+	@AWS_REGION="$(SERVERLESS_AWS_REGION)" TF_VAR_aws_region="$(SERVERLESS_AWS_REGION)" REQUIRED_RESERVED_CONCURRENCY=4 $(SERVERLESS_SCRIPTS_DIR)/check-lambda-concurrency.sh
+	@TF_DIR="$(BOOTSTRAP_TF_DIR)" $(SERVERLESS_SCRIPTS_DIR)/check-runtime-secret-boundary.sh
+	@AWS_REGION="$(SERVERLESS_AWS_REGION)" TF_VAR_aws_region="$(SERVERLESS_AWS_REGION)" terraform -chdir=$(BOOTSTRAP_TF_DIR) apply -input=false "$(abspath $(BOOTSTRAP_TF_PLAN))"
+	@rm -f "$(BOOTSTRAP_TF_PLAN)"
 
-bootstrap-configure:
-	@./deployment/backend/serverless/bootstrap/scripts/configure-runtime.sh
+bootstrap-tf-destroy: serverless-region-check
+	@AWS_REGION="$(SERVERLESS_AWS_REGION)" TF_VAR_aws_region="$(SERVERLESS_AWS_REGION)" TF_DIR="$(BOOTSTRAP_TF_DIR)" FUNCTION_OUTPUT=bootstrap_function_name SECURITY_GROUP_OUTPUT=bootstrap_security_group_id $(SERVERLESS_SCRIPTS_DIR)/destroy-lambda-stack.sh
 
-bootstrap-invoke:
-	@./deployment/backend/serverless/bootstrap/scripts/invoke.sh
+bootstrap-update-code: serverless-region-check
+	@AWS_REGION="$(SERVERLESS_AWS_REGION)" TF_VAR_aws_region="$(SERVERLESS_AWS_REGION)" ./deployment/backend/serverless/bootstrap/scripts/update-code.sh
+
+bootstrap-configure: serverless-region-check
+	@AWS_REGION="$(SERVERLESS_AWS_REGION)" TF_VAR_aws_region="$(SERVERLESS_AWS_REGION)" ./deployment/backend/serverless/bootstrap/scripts/configure-runtime.sh
+
+bootstrap-check-secret-boundary:
+	@TF_DIR="$(BOOTSTRAP_TF_DIR)" $(SERVERLESS_SCRIPTS_DIR)/check-runtime-secret-boundary.sh
+
+bootstrap-invoke: serverless-region-check
+	@AWS_REGION="$(SERVERLESS_AWS_REGION)" TF_VAR_aws_region="$(SERVERLESS_AWS_REGION)" ./deployment/backend/serverless/bootstrap/scripts/invoke.sh
+
+lambda-concurrency-check: serverless-region-check
+	@AWS_REGION="$(SERVERLESS_AWS_REGION)" TF_VAR_aws_region="$(SERVERLESS_AWS_REGION)" REQUIRED_RESERVED_CONCURRENCY=4 $(SERVERLESS_SCRIPTS_DIR)/check-lambda-concurrency.sh
+
+phase-9-5-check:
+	@$(SERVERLESS_SCRIPTS_DIR)/check-phase-9-5.sh

@@ -28,7 +28,7 @@ class ComponentTest(unittest.TestCase):
             second = build(REPO, output)
             self.assertEqual(hashes, {name: hashlib.sha256(path.read_bytes()).hexdigest() for name, path in second.items()})
 
-    def test_phase_10_runtime_contract(self) -> None:
+    def test_frontend_runtime_contract(self) -> None:
         case = ConfigTest()
         case.setUp()
         try:

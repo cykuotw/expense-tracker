@@ -21,7 +21,7 @@ class ConfigTest(unittest.TestCase):
         self.key = self.root / "key.pem"
         self.key.write_text("test key")
         os.chmod(self.key, 0o600)
-        self.path = self.root / "serverless.json"
+        self.path = self.root / "deploy.json"
         self.value = template()
         self.value["deployment"]["account_id"] = "123456789012"
         self.value["database"].update({

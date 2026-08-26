@@ -15,7 +15,7 @@ from config import ConfigError, initialize, load  # noqa: E402
 from workflow import execute, make_context  # noqa: E402
 
 
-DEFAULT_CONFIG = Path("~/.config/expense-tracker/serverless.json").expanduser()
+DEFAULT_CONFIG = Path("~/.config/expense-tracker/deploy.json").expanduser()
 
 
 def parser() -> argparse.ArgumentParser:

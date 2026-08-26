@@ -12,6 +12,6 @@ locals {
     Project     = var.name_prefix
     Environment = var.environment
     ManagedBy   = "terraform"
-    Deployment  = "serverless-phase-11"
+    Deployment  = "serverless"
   })
 }

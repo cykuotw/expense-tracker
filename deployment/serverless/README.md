@@ -1,6 +1,6 @@
 # Unified Serverless Deployment
 
-This directory is the only Phase 11 serverless deployment implementation. It owns the database host, Worker and Bootstrap Lambdas, API custom domain, and Phase 10 frontend infrastructure/publication through one Python entrypoint and one Terraform state.
+This directory is the complete serverless deployment implementation. It owns the database host, Worker and Bootstrap Lambdas, API custom domain, and frontend infrastructure/publication through one Python entrypoint and one Terraform state.
 
 ## Operator configuration
 
@@ -10,13 +10,84 @@ Create the protected external configuration once:
 make deploy ACTION=init
 ```
 
-The default path is `~/.config/expense-tracker/serverless.json`. Set `DEPLOY_CONFIG_FILE` to an absolute external path to override it. The file, SSH key, and optional Google token must be regular non-symlink files outside the repository with mode `0600`.
+The default path is `~/.config/expense-tracker/deploy.json`. To keep it elsewhere, pass an absolute path when creating and using it:
+
+```bash
+DEPLOY_CONFIG_FILE=/home/your-user/exp-env/deploy.json make deploy ACTION=init
+chmod 600 /home/your-user/exp-env/deploy.json
+```
+
+The config file, SSH key, and optional Google token must be regular non-symlink files outside the repository with mode `0600`. `ACTION=init` refuses to overwrite an existing file.
 
 The JSON sections are `deployment`, `aws`, `database`, `backend`, `frontend`, optional `first_admin`, and `local_credentials`. This is the sole human-edited serverless deployment source. Do not create serverless `.tfvars`, PostgreSQL password files, or Lambda runtime JSON files; the deployer creates protected temporary projections and removes them.
+
+Complete example—replace every `REPLACE` value before deployment:
+
+```json
+{
+    "deployment": {
+        "account_id": "123456789012",
+        "name_prefix": "expense-tracker",
+        "environment": "production",
+        "tags": {
+            "Project": "expense-tracker",
+            "Environment": "production"
+        }
+    },
+    "aws": {
+        "region": "ca-central-1",
+        "vpc_id": "vpc-REPLACE",
+        "subnet_id": "subnet-REPLACE",
+        "key_pair_name": "REPLACE",
+        "operator_ssh_cidr": "203.0.113.10/32",
+        "hosted_zone_name": "example.com"
+    },
+    "database": {
+        "name": "expense_tracker",
+        "admin_user": "expense_admin",
+        "admin_password": "REPLACE_WITH_RANDOM_ADMIN_SECRET",
+        "migration_user": "expense_migration",
+        "migration_password": "REPLACE_WITH_RANDOM_MIGRATION_SECRET",
+        "runtime_user": "expense_runtime",
+        "runtime_password": "REPLACE_WITH_RANDOM_RUNTIME_SECRET",
+        "instance_type": "t4g.micro",
+        "ami_id": null
+    },
+    "backend": {
+        "api_hostname": "api.example.com",
+        "google_client_id": "REPLACE.apps.googleusercontent.com",
+        "jwt_secret": "REPLACE_WITH_AT_LEAST_32_RANDOM_CHARACTERS",
+        "jwt_exp": 900,
+        "refresh_jwt_secret": "REPLACE_WITH_AT_LEAST_32_RANDOM_CHARACTERS",
+        "refresh_jwt_exp": 604800,
+        "expenses_per_page": 20,
+        "db_conn_max_lifetime_seconds": 300,
+        "db_conn_max_idle_time_seconds": 60
+    },
+    "frontend": {
+        "hostname": "expense.example.com"
+    },
+    "first_admin": {
+        "email": "admin@example.com",
+        "password": "REPLACE_WITH_STRONG_ADMIN_PASSWORD",
+        "firstname": "Admin",
+        "lastname": "User",
+        "nickname": "admin"
+    },
+    "local_credentials": {
+        "ssh_private_key_file": "/home/your-user/.expense-tracker.pem",
+        "google_id_token_file": null
+    }
+}
+```
+
+Set `"first_admin": null` when no initial administrator should be created. `nickname` may be an empty string. The application generates the administrator's user ID; no ID belongs in this file.
 
 ## Commands
 
 ```bash
+export DEPLOY_CONFIG_FILE=/home/your-user/exp-env/deploy.json
+
 make deploy
 make deploy ACTION=plan
 make deploy ACTION=deploy

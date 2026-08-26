@@ -1,6 +1,6 @@
 # Deployment
 
-The repository supports the existing EC2 application deployment and the unified Phase 11 serverless deployment.
+The repository supports the existing EC2 application deployment and the unified serverless deployment.
 
 ## Layout
 
@@ -27,7 +27,15 @@ The repository supports the existing EC2 application deployment and the unified 
 
 ## Unified Serverless Deployment
 
-Run make deploy ACTION=init once to create the mode-0600 external JSON template at ~/.config/expense-tracker/serverless.json. DEPLOY_CONFIG_FILE may override that location with another absolute external path.
+Run `make deploy ACTION=init` once to create the mode-0600 external JSON template at `~/.config/expense-tracker/deploy.json`. To use another absolute location:
+
+```bash
+DEPLOY_CONFIG_FILE=/home/your-user/exp-env/deploy.json make deploy ACTION=init
+export DEPLOY_CONFIG_FILE=/home/your-user/exp-env/deploy.json
+make deploy
+```
+
+The complete JSON example, including optional `first_admin`, is in `deployment/serverless/README.md`.
 
 Normal commands:
 

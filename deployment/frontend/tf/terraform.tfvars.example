@@ -1,3 +1,0 @@
-aws_region        = "ca-central-1"
-hosted_zone_name  = "example.com"
-frontend_hostname = "app.example.com"

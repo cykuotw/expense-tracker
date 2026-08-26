@@ -1,0 +1,85 @@
+from __future__ import annotations
+
+import json
+from pathlib import Path
+from typing import Any
+
+from common.command import CommandError, run
+
+
+class Terraform:
+    def __init__(self, root: Path, variables: Path):
+        self.root = root
+        self.variables = variables
+
+    def _base(self) -> list[str]:
+        return ["terraform", f"-chdir={self.root}"]
+
+    def init(self) -> None:
+        run([*self._base(), "init", "-input=false"])
+
+    def validate(self) -> None:
+        run([*self._base(), "validate"])
+
+    def has_state(self) -> bool:
+        if not (self.root / "terraform.tfstate").is_file():
+            return False
+        result = run([*self._base(), "state", "list"], check=False)
+        if result.returncode:
+            raise CommandError("Terraform state exists but cannot be read")
+        return bool(result.stdout.strip())
+
+    def output(self) -> dict[str, Any]:
+        result = run([*self._base(), "output", "-json"])
+        raw = json.loads(result.stdout)
+        return {name: entry["value"] for name, entry in raw.items()}
+
+    def plan(self, plan_path: Path, *, destroy: bool = False) -> None:
+        command = [*self._base(), "plan", "-refresh=false", "-input=false", f"-var-file={self.variables}", f"-out={plan_path}"]
+        if destroy:
+            command.insert(3, "-destroy")
+        run(command)
+
+    def show_plan(self, plan_path: Path) -> dict[str, Any]:
+        return json.loads(run([*self._base(), "show", "-json", str(plan_path)]).stdout)
+
+    def apply(self, plan_path: Path) -> None:
+        run([*self._base(), "apply", "-input=false", str(plan_path)], capture=False)
+
+    def destroy(self) -> None:
+        run([*self._base(), "destroy", "-refresh=false", "-input=false", "-auto-approve", f"-var-file={self.variables}"], capture=False)
+
+
+def plan_actions(plan: dict[str, Any]) -> dict[str, list[str]]:
+    result: dict[str, list[str]] = {}
+    for change in plan.get("resource_changes", []):
+        if change.get("mode", "managed") == "data":
+            continue
+        actions = change.get("change", {}).get("actions", [])
+        if actions not in (["no-op"], ["read"]):
+            result[change["address"]] = actions
+    return result
+
+
+def require_create_only(plan: dict[str, Any]) -> dict[str, list[str]]:
+    actions = plan_actions(plan)
+    unsafe = {address: action for address, action in actions.items() if action != ["create"]}
+    if unsafe:
+        raise CommandError(f"initial plan contains non-create actions: {unsafe}")
+    return actions
+
+
+def require_cutover_only(plan: dict[str, Any]) -> dict[str, list[str]]:
+    actions = plan_actions(plan)
+    allowed = {
+        "aws_eip.temporary_postgres",
+        "aws_eip_association.temporary_postgres",
+        "aws_vpc_security_group_ingress_rule.ssh",
+    }
+    unsafe = {
+        address: action for address, action in actions.items()
+        if address.removesuffix("[0]") not in allowed or action != ["delete"]
+    }
+    if unsafe or not actions:
+        raise CommandError(f"cutover plan is not the expected temporary-access deletion: {actions}")
+    return actions

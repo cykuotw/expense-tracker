@@ -1,12 +1,18 @@
 package expense
 
 import (
+	"expense-tracker/backend/types"
+
 	"github.com/google/uuid"
 )
 
 func (h *Handler) updateBalance(groupId string) error {
+	return h.updateBalanceWithStore(h.store, groupId)
+}
+
+func (h *Handler) updateBalanceWithStore(store types.ExpenseStore, groupId string) error {
 	// get unsettled ledgers
-	ledgers, err := h.store.GetLedgerUnsettledFromGroup(groupId)
+	ledgers, err := store.GetLedgerUnsettledFromGroup(groupId)
 	if err != nil {
 		return err
 	}
@@ -16,7 +22,7 @@ func (h *Handler) updateBalance(groupId string) error {
 	}
 
 	// outdate previous non-settled balances
-	err = h.store.OutdateBalanceByGroupId(groupId)
+	err = store.OutdateBalanceByGroupId(groupId)
 	if err != nil {
 		return err
 	}
@@ -28,13 +34,13 @@ func (h *Handler) updateBalance(groupId string) error {
 		balances[i].ID = uuid.New()
 		balanceIds = append(balanceIds, balances[i].ID)
 	}
-	err = h.store.CreateBalances(groupId, balances)
+	err = store.CreateBalances(groupId, balances)
 	if err != nil {
 		return err
 	}
 
 	// create balance_ledger
-	err = h.store.CreateBalanceLedger(balanceIds, ledgerIds)
+	err = store.CreateBalanceLedger(balanceIds, ledgerIds)
 	if err != nil {
 		return err
 	}

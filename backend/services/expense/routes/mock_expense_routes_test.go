@@ -29,6 +29,7 @@ var mockItems = []*types.Item{
 // expense store base mock
 
 type mockExpenseStore struct {
+	RunInTransactionFn             func(callback func(types.ExpenseStore) error) error
 	CreateExpenseFn                func(expense types.Expense) error
 	CreateItemFn                   func(item types.Item) error
 	CreateLedgerFn                 func(ledger types.Ledger) error
@@ -53,6 +54,13 @@ type mockExpenseStore struct {
 	CheckBalanceExistByIDFn        func(id string) (bool, error)
 	SettleBalanceByBalanceIdFn     func(balanceId string) error
 	CheckGroupBallanceAllSettledFn func(groupId string) (bool, error)
+}
+
+func (s *mockExpenseStore) RunInTransaction(callback func(types.ExpenseStore) error) error {
+	if s.RunInTransactionFn != nil {
+		return s.RunInTransactionFn(callback)
+	}
+	return callback(s)
 }
 
 func (s *mockExpenseStore) CreateExpense(expense types.Expense) error {

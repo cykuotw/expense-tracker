@@ -57,31 +57,19 @@ func (h *Handler) handleCreateExpense(c *gin.Context) {
 		SplitRule:      payload.SplitRule,
 	}
 
-	err = h.store.CreateExpense(expense)
-	if err != nil {
-		utils.WriteError(c, http.StatusInternalServerError, err)
-		return
-	}
-
-	// create items
+	items := make([]types.Item, 0, len(payload.Items))
 	for _, itemPayload := range payload.Items {
-		// create provider if not exist
-		item := types.Item{
+		items = append(items, types.Item{
 			ID:        uuid.New(),
 			ExpenseID: expenseID,
 			Name:      itemPayload.ItemName,
 			Amount:    itemPayload.Amount,
 			Unit:      itemPayload.Unit,
 			UnitPrice: itemPayload.UnitPrice,
-		}
-		err = h.store.CreateItem(item)
-		if err != nil {
-			utils.WriteError(c, http.StatusInternalServerError, err)
-			return
-		}
+		})
 	}
 
-	// create ledgers
+	ledgers := make([]types.Ledger, 0, len(payload.Ledgers))
 	for _, ledgerPayload := range payload.Ledgers {
 		lenderUserId, err := uuid.Parse(ledgerPayload.LenderUserID)
 		if err != nil {
@@ -93,24 +81,32 @@ func (h *Handler) handleCreateExpense(c *gin.Context) {
 			utils.WriteError(c, http.StatusInternalServerError, err)
 			return
 		}
-		id := uuid.New()
-		ledger := types.Ledger{
-			ID:             id,
+		ledgers = append(ledgers, types.Ledger{
+			ID:             uuid.New(),
 			ExpenseID:      expenseID,
 			LenderUserID:   lenderUserId,
 			BorrowerUesrID: borrowerUserId,
 			Share:          ledgerPayload.Share,
-		}
-
-		err = h.store.CreateLedger(ledger)
-		if err != nil {
-			utils.WriteError(c, http.StatusInternalServerError, err)
-			return
-		}
+		})
 	}
 
-	// update balance
-	err = h.updateBalance(payload.GroupID)
+	err = h.store.RunInTransaction(func(store types.ExpenseStore) error {
+		if err := store.CreateExpense(expense); err != nil {
+			return err
+		}
+		for _, item := range items {
+			if err := store.CreateItem(item); err != nil {
+				return err
+			}
+		}
+		for _, ledger := range ledgers {
+			if err := store.CreateLedger(ledger); err != nil {
+				return err
+			}
+		}
+
+		return h.updateBalanceWithStore(store, payload.GroupID)
+	})
 	if err != nil {
 		utils.WriteError(c, http.StatusInternalServerError, err)
 		return

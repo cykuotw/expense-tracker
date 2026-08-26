@@ -8,6 +8,8 @@ import (
 )
 
 type ExpenseStore interface {
+	RunInTransaction(func(ExpenseStore) error) error
+
 	CreateExpense(expense Expense) error
 	CreateItem(item Item) error
 	CreateLedger(ledger Ledger) error

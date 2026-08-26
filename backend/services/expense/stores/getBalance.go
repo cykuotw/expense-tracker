@@ -45,6 +45,9 @@ func (s *Store) GetBalanceByGroupId(groupId string) ([]types.Balance, error) {
 
 		balances = append(balances, bal)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
 
 	return balances, nil
 }

@@ -49,6 +49,9 @@ func (s *Store) GetInvitationByToken(token string) (*types.Invitation, error) {
 			return nil, err
 		}
 	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
 
 	if invitation.ID == uuid.Nil {
 		return nil, fmt.Errorf("invitation not found")
@@ -93,6 +96,9 @@ func (s *Store) GetInvitations() ([]types.Invitation, error) {
 			return nil, err
 		}
 		invitations = append(invitations, invitation)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 
 	return invitations, nil

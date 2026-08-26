@@ -14,6 +14,10 @@ func (h *Handler) handleGetUnsettledBalance(c *gin.Context) {
 
 	// get balance
 	balanceSimplified, err := h.store.GetBalanceByGroupId(groupID)
+	if err != nil {
+		utils.WriteError(c, http.StatusInternalServerError, err)
+		return
+	}
 
 	// make response
 	groupCurrency, err := h.groupStore.GetGroupCurrency(groupID)

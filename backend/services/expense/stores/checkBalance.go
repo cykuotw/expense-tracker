@@ -15,6 +15,9 @@ func (s *Store) CheckBalanceExistByID(id string) (bool, error) {
 			return false, err
 		}
 	}
+	if err := rows.Err(); err != nil {
+		return false, err
+	}
 
 	return exist, nil
 }

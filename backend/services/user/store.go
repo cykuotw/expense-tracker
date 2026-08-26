@@ -31,6 +31,9 @@ func (s *Store) GetUserByEmail(email string) (*types.User, error) {
 			return nil, err
 		}
 	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
 
 	if user.ID == uuid.Nil {
 		return nil, types.ErrUserNotExist
@@ -53,6 +56,9 @@ func (s *Store) GetUserByExternalIdentity(externalType string, externalID string
 		if err != nil {
 			return nil, err
 		}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 
 	if user.ID == uuid.Nil {
@@ -77,6 +83,9 @@ func (s *Store) GetUserByID(id string) (*types.User, error) {
 			return nil, err
 		}
 	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
 
 	if user.ID == uuid.Nil {
 		return nil, types.ErrUserNotExist
@@ -100,6 +109,9 @@ func (s *Store) GetUsernameByID(userid string) (string, error) {
 			return "", err
 		}
 	}
+	if err := rows.Err(); err != nil {
+		return "", err
+	}
 
 	if username == "" {
 		return "", types.ErrUserNotExist
@@ -111,7 +123,7 @@ func (s *Store) GetUsernameByID(userid string) (string, error) {
 func (s *Store) checkUserExist(query string, args ...interface{}) (bool, error) {
 	rows, err := s.db.Query(query, args...)
 	if err != nil {
-		return false, nil
+		return false, err
 	}
 	defer rows.Close()
 
@@ -123,7 +135,11 @@ func (s *Store) checkUserExist(query string, args ...interface{}) (bool, error) 
 		}
 	}
 
-	return exist, err
+	if err := rows.Err(); err != nil {
+		return false, err
+	}
+
+	return exist, nil
 }
 func (s *Store) CheckUserExistByEmail(email string) (bool, error) {
 	query := "SELECT EXISTS (SELECT 1 FROM users WHERE email = $1);"
@@ -157,6 +173,9 @@ func (s *Store) CheckEmailExist(email string) (bool, error) {
 		if err != nil {
 			return false, err
 		}
+	}
+	if err := rows.Err(); err != nil {
+		return false, err
 	}
 
 	return exist, nil

@@ -41,7 +41,7 @@ func (h *Handler) handleGetExpenseList(c *gin.Context) {
 		return
 	}
 
-	currency, nil := h.groupStore.GetGroupCurrency(groupIdStr)
+	currency, err := h.groupStore.GetGroupCurrency(groupIdStr)
 	if err != nil {
 		utils.WriteError(c, http.StatusInternalServerError, err)
 		return

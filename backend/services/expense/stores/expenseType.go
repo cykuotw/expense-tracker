@@ -18,8 +18,13 @@ func (s *Store) GetExpenseType() ([]*types.ExpenseType, error) {
 	var expenseTypes []*types.ExpenseType
 	for rows.Next() {
 		expenseType := new(types.ExpenseType)
-		rows.Scan(&expenseType.ID, &expenseType.Name, &expenseType.Category)
+		if err := rows.Scan(&expenseType.ID, &expenseType.Name, &expenseType.Category); err != nil {
+			return nil, err
+		}
 		expenseTypes = append(expenseTypes, expenseType)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 
 	return expenseTypes, nil
@@ -36,7 +41,12 @@ func (s *Store) GetExpenseTypeById(id uuid.UUID) (string, error) {
 
 	name := ""
 	for rows.Next() {
-		rows.Scan(&name)
+		if err := rows.Scan(&name); err != nil {
+			return "", err
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return "", err
 	}
 
 	return name, nil

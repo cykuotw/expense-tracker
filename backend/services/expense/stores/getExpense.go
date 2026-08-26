@@ -22,6 +22,9 @@ func (s *Store) GetExpenseByID(expenseID string) (*types.Expense, error) {
 			return nil, err
 		}
 	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
 
 	if expense.ID == uuid.Nil {
 		return nil, types.ErrExpenseNotExist
@@ -53,6 +56,9 @@ func (s *Store) GetExpenseList(groupID string, page int64) ([]*types.Expense, er
 			return nil, err
 		}
 		expenseList = append(expenseList, expense)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 
 	if len(expenseList) == 0 {

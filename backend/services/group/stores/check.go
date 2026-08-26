@@ -15,6 +15,9 @@ func (s *Store) CheckGroupExistById(id string) (bool, error) {
 			return false, err
 		}
 	}
+	if err := rows.Err(); err != nil {
+		return false, err
+	}
 
 	return exist, nil
 }
@@ -32,6 +35,9 @@ func (s *Store) CheckGroupUserPairExist(groupId string, userId string) (bool, er
 		if err := rows.Scan(&exist); err != nil {
 			return false, err
 		}
+	}
+	if err := rows.Err(); err != nil {
+		return false, err
 	}
 
 	return exist, nil

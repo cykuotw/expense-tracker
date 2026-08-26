@@ -28,6 +28,10 @@ func (h *Handler) handleGetExpenseDetail(c *gin.Context) {
 	}
 	username := user.Username
 	items, err := h.store.GetItemsByExpenseID(expenseID)
+	if err != nil {
+		utils.WriteError(c, http.StatusInternalServerError, err)
+		return
+	}
 	var itemRsp []types.ItemResponse
 	for _, it := range items {
 		item := types.ItemResponse{
@@ -38,10 +42,22 @@ func (h *Handler) handleGetExpenseDetail(c *gin.Context) {
 		itemRsp = append(itemRsp, item)
 	}
 	ledgers, err := h.store.GetLedgersByExpenseID(expenseID)
+	if err != nil {
+		utils.WriteError(c, http.StatusInternalServerError, err)
+		return
+	}
 	var ledgerRsp []types.LedgerResponse
 	for _, led := range ledgers {
-		lenderUsername, _ := h.userStore.GetUsernameByID(led.LenderUserID.String())
-		borrowerUsername, _ := h.userStore.GetUsernameByID(led.BorrowerUesrID.String())
+		lenderUsername, err := h.userStore.GetUsernameByID(led.LenderUserID.String())
+		if err != nil {
+			utils.WriteError(c, http.StatusInternalServerError, err)
+			return
+		}
+		borrowerUsername, err := h.userStore.GetUsernameByID(led.BorrowerUesrID.String())
+		if err != nil {
+			utils.WriteError(c, http.StatusInternalServerError, err)
+			return
+		}
 		ledger := types.LedgerResponse{
 			ID:               led.ID.String(),
 			LenderUserId:     led.LenderUserID.String(),
@@ -52,7 +68,11 @@ func (h *Handler) handleGetExpenseDetail(c *gin.Context) {
 		}
 		ledgerRsp = append(ledgerRsp, ledger)
 	}
-	expenseType, _ := h.store.GetExpenseTypeById(expense.ExpenseTypeID)
+	expenseType, err := h.store.GetExpenseTypeById(expense.ExpenseTypeID)
+	if err != nil {
+		utils.WriteError(c, http.StatusInternalServerError, err)
+		return
+	}
 	response := types.ExpenseResponse{
 		ID:                expense.ID,
 		Description:       expense.Description,

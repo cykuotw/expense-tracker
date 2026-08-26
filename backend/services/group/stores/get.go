@@ -22,6 +22,9 @@ func (s *Store) GetGroupByID(id string) (*types.Group, error) {
 			return nil, err
 		}
 	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
 
 	if group.ID == uuid.Nil {
 		return nil, types.ErrGroupNotExist
@@ -62,7 +65,7 @@ func (s *Store) GetGroupByIDAndUser(groupID string, userID string) (*types.Group
 	// get group
 	group, err := s.GetGroupByID(groupID)
 	if err != nil {
-		return nil, types.ErrGroupNotExist
+		return nil, err
 	}
 
 	return group, nil

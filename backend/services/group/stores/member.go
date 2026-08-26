@@ -16,45 +16,66 @@ func (s *Store) GetGroupMemberByGroupID(groupID string) ([]*types.User, error) {
 	var userIDs []string
 	for rowsGroup.Next() {
 		var id string
-		rowsGroup.Scan(&id)
+		if err := rowsGroup.Scan(&id); err != nil {
+			return nil, err
+		}
 		userIDs = append(userIDs, id)
+	}
+	if err := rowsGroup.Err(); err != nil {
+		return nil, err
 	}
 
 	var users []*types.User
 	for _, id := range userIDs {
-		query := "SELECT * FROM users WHERE id = $1;"
-		rows, err := s.db.Query(query, id)
+		user, err := s.getGroupMemberUser(id)
 		if err != nil {
 			return nil, err
 		}
-		for rows.Next() {
-			user := new(types.User)
-			var externalType sql.NullString
-			var externalID sql.NullString
-			err := rows.Scan(
-				&user.ID,
-				&user.Username,
-				&user.Firstname,
-				&user.Lastname,
-				&user.Email,
-				&user.PasswordHashed,
-				&externalType,
-				&externalID,
-				&user.CreateTime,
-				&user.IsActive,
-				&user.Nickname,
-				&user.Role,
-			)
-			if err != nil {
-				return nil, err
-			}
-			user.ExternalType = nullStringToString(externalType)
-			user.ExternalID = nullStringToString(externalID)
+		if user != nil {
 			users = append(users, user)
 		}
 	}
 
 	return users, nil
+}
+
+func (s *Store) getGroupMemberUser(id string) (*types.User, error) {
+	query := "SELECT * FROM users WHERE id = $1;"
+	rows, err := s.db.Query(query, id)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var user *types.User
+	for rows.Next() {
+		user = new(types.User)
+		var externalType sql.NullString
+		var externalID sql.NullString
+		if err := rows.Scan(
+			&user.ID,
+			&user.Username,
+			&user.Firstname,
+			&user.Lastname,
+			&user.Email,
+			&user.PasswordHashed,
+			&externalType,
+			&externalID,
+			&user.CreateTime,
+			&user.IsActive,
+			&user.Nickname,
+			&user.Role,
+		); err != nil {
+			return nil, err
+		}
+		user.ExternalType = nullStringToString(externalType)
+		user.ExternalID = nullStringToString(externalID)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return user, nil
 }
 
 func nullStringToString(value sql.NullString) string {

@@ -20,6 +20,9 @@ func (s *Store) GetLedgersByExpenseID(expenseID string) ([]*types.Ledger, error)
 		}
 		ledgerList = append(ledgerList, ledger)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
 
 	if len(ledgerList) == 0 {
 		return nil, types.ErrExpenseNotExist

@@ -45,6 +45,9 @@ func (s *Store) GetRelatedUser(currentUser string, groupId string) ([]*types.Rel
 		}
 		members = append(members, member)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
 
 	return members, nil
 }

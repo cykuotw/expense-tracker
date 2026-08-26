@@ -15,6 +15,9 @@ func (s *Store) CheckGroupBallanceAllSettled(groupId string) (bool, error) {
 			return false, err
 		}
 	}
+	if err := rows.Err(); err != nil {
+		return false, err
+	}
 
 	return notExist, nil
 }

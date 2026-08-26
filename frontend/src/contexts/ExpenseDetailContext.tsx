@@ -1,8 +1,11 @@
 import { useState, useEffect, useMemo, ReactNode, FormEvent } from "react";
 import { useParams } from "react-router-dom";
-import { apiFetch } from "../lib/api";
+import { toast } from "react-hot-toast";
+import { apiFetch, getResponseErrorMessage } from "../lib/api";
 import { ExpenseDetailData } from "../types/expense";
 import { ExpenseDetailContext } from "../hooks/ExpenseDetailContextHooks";
+
+const DELETE_EXPENSE_FALLBACK = "Failed to delete expense.";
 
 export const ExpenseDetailProvider = ({
     children,
@@ -53,11 +56,19 @@ export const ExpenseDetailProvider = ({
                 headers: { "Content-Type": "application/json" },
             });
 
-            if (response.status === 200) {
-                window.location.href = `/group/${expenseDetail.groupId}`;
+            if (!response.ok) {
+                toast.error(
+                    await getResponseErrorMessage(
+                        response,
+                        DELETE_EXPENSE_FALLBACK
+                    )
+                );
+                return;
             }
-        } catch (error) {
-            console.log(error);
+
+            window.location.href = `/group/${expenseDetail.groupId}`;
+        } catch {
+            toast.error(DELETE_EXPENSE_FALLBACK);
         }
     };
 

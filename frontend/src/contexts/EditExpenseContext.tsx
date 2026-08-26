@@ -8,7 +8,7 @@ import {
 } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "react-hot-toast";
-import { apiFetch } from "../lib/api";
+import { apiFetch, getResponseErrorMessage } from "../lib/api";
 import {
     ExpenseDetailData,
     ExpenseTypeItem,
@@ -32,6 +32,8 @@ const emptyData: expenseFormData = {
     payerUserId: "",
     ledgers: [],
 };
+
+const UPDATE_EXPENSE_FALLBACK = "Error updating expense";
 
 export const EditExpenseProvider = ({ children }: { children: ReactNode }) => {
     const navigate = useNavigate();
@@ -119,8 +121,13 @@ export const EditExpenseProvider = ({ children }: { children: ReactNode }) => {
                 body: JSON.stringify(payload),
             });
             if (!response.ok) {
-                const errorMessage = await response.text();
-                throw new Error(`Failed to update expense: ${errorMessage}`);
+                toast.error(
+                    await getResponseErrorMessage(
+                        response,
+                        UPDATE_EXPENSE_FALLBACK
+                    )
+                );
+                return;
             }
 
             toast.success("Expense updated", { duration: 1000 });
@@ -129,7 +136,7 @@ export const EditExpenseProvider = ({ children }: { children: ReactNode }) => {
             }, 1000);
         } catch (error) {
             console.error("Error updating expense:", error);
-            toast.error("Error updating expense");
+            toast.error(UPDATE_EXPENSE_FALLBACK);
         } finally {
             setIndicatorShow(false);
         }

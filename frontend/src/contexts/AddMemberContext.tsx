@@ -2,7 +2,7 @@ import { useState, useEffect, ReactNode, FormEvent } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "react-hot-toast";
 import { isEmail } from "validator";
-import { apiFetch } from "../lib/api";
+import { apiFetch, getResponseErrorMessage } from "../lib/api";
 import { RelatedUser } from "../types/group";
 import { UserData } from "../types/user";
 import useDebounce from "../hooks/useDebounce";
@@ -13,6 +13,10 @@ interface UpdateGroupMemberPayload {
     userId: string;
     groupId: string;
 }
+
+const UPDATE_MEMBERS_FALLBACK = "Update failed";
+const CHECK_EMAIL_FALLBACK = "Unable to check email";
+const LOOKUP_USER_FALLBACK = "Unable to look up user";
 
 export const AddMemberProvider = ({ children }: { children: ReactNode }) => {
     const navigate = useNavigate();
@@ -62,7 +66,7 @@ export const AddMemberProvider = ({ children }: { children: ReactNode }) => {
         );
 
         try {
-            await Promise.all(
+            const errorMessages = await Promise.all(
                 payloads.map(async (payload) => {
                     const response = await apiFetch("/group_member", {
                         method: "PUT",
@@ -72,11 +76,24 @@ export const AddMemberProvider = ({ children }: { children: ReactNode }) => {
                         body: JSON.stringify(payload),
                     });
 
-                    const data = await response.json();
-                    if (!response.ok)
-                        throw new Error(data.message || "Update failed");
+                    if (!response.ok) {
+                        return getResponseErrorMessage(
+                            response,
+                            UPDATE_MEMBERS_FALLBACK
+                        );
+                    }
+
+                    return null;
                 })
             );
+
+            const errorMessage = errorMessages.find(
+                (message): message is string => message !== null
+            );
+            if (errorMessage) {
+                toast.error(errorMessage);
+                return;
+            }
 
             toast.success("Update successful!", { duration: 1000 });
             if (groupId) {
@@ -84,8 +101,8 @@ export const AddMemberProvider = ({ children }: { children: ReactNode }) => {
                     navigate(`/group/${groupId}`);
                 }, 1000);
             }
-        } catch (error) {
-            toast.error((error as Error).message);
+        } catch {
+            toast.error(UPDATE_MEMBERS_FALLBACK);
         } finally {
             setLoading(false);
         }
@@ -106,9 +123,9 @@ export const AddMemberProvider = ({ children }: { children: ReactNode }) => {
         }
 
         const checkEmailValid = async () => {
-            let emailExist: boolean | null = null;
-
             setLoading(true);
+            let requestFallback = CHECK_EMAIL_FALLBACK;
+
             try {
                 const response = await apiFetch(
                     "/checkEmail",
@@ -118,30 +135,29 @@ export const AddMemberProvider = ({ children }: { children: ReactNode }) => {
                     },
                     { authMode: "none" }
                 );
-                const data = await response.json();
-                emailExist = Boolean(data.exist);
-            } catch (error) {
-                toast.error(`Error checking email: ${error}`, {
-                    id: "email-validation",
-                });
-                setNewMember(null);
-            } finally {
-                setLoading(false);
-            }
+                if (!response.ok) {
+                    toast.error(
+                        await getResponseErrorMessage(
+                            response,
+                            CHECK_EMAIL_FALLBACK
+                        ),
+                        { id: "email-validation" }
+                    );
+                    setNewMember(null);
+                    return;
+                }
 
-            if (emailExist === null) {
-                setNewMember(null);
-                return;
-            } else if (!emailExist) {
-                toast.error("Email not found. Please contact admin.", {
-                    id: "email-validation",
-                });
-                setNewMember(null);
-                return;
-            }
+                const data = (await response.json()) as { exist?: boolean };
+                if (!data.exist) {
+                    toast.error("Email not found. Please contact admin.", {
+                        id: "email-validation",
+                    });
+                    setNewMember(null);
+                    return;
+                }
 
-            try {
-                const response = await apiFetch(
+                requestFallback = LOOKUP_USER_FALLBACK;
+                const userResponse = await apiFetch(
                     `/userInfo?email=${debouncedEmail}`,
                     {
                         method: "POST",
@@ -151,12 +167,25 @@ export const AddMemberProvider = ({ children }: { children: ReactNode }) => {
                     },
                     { authMode: "none" }
                 );
-                const data = (await response.json()) as UserData;
-                if (!response.ok) {
-                    throw new Error("Something went wrong");
+                if (!userResponse.ok) {
+                    toast.error(
+                        await getResponseErrorMessage(
+                            userResponse,
+                            LOOKUP_USER_FALLBACK
+                        ),
+                        { id: "email-validation" }
+                    );
+                    setNewMember(null);
+                    return;
                 }
 
-                if (relatedUserList.some((user) => user.userId === data.id)) {
+                const userData = (await userResponse.json()) as UserData;
+
+                if (
+                    relatedUserList.some(
+                        (user) => user.userId === userData.id
+                    )
+                ) {
                     toast.error("User already in the group", {
                         id: "email-validation",
                     });
@@ -164,9 +193,9 @@ export const AddMemberProvider = ({ children }: { children: ReactNode }) => {
                     return;
                 }
 
-                setNewMember(data);
-            } catch (error) {
-                console.log(error);
+                setNewMember(userData);
+            } catch {
+                toast.error(requestFallback, { id: "email-validation" });
                 setNewMember(null);
             } finally {
                 setLoading(false);
@@ -179,15 +208,14 @@ export const AddMemberProvider = ({ children }: { children: ReactNode }) => {
     const handleAddNewMember = () => {
         if (!newMember) return;
 
-        const updatedUserList = [
-            ...relatedUserList,
+        setRelatedUserList((currentUsers) => [
+            ...currentUsers,
             {
                 userId: newMember.id,
                 username: newMember.username,
                 existInGroup: true,
             },
-        ];
-        setRelatedUserList(updatedUserList);
+        ]);
         setEmail("");
         setNewMember(null);
     };

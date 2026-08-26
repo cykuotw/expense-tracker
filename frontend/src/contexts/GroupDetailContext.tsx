@@ -1,10 +1,13 @@
 import { useState, useEffect, ReactNode, MouseEvent, useRef } from "react";
 import { useParams } from "react-router-dom";
-import { apiFetch } from "../lib/api";
+import { toast } from "react-hot-toast";
+import { apiFetch, getResponseErrorMessage } from "../lib/api";
 import { GroupInfo } from "../types/group";
 import { BalanceData } from "../types/balance";
 import { ExpenseData } from "../types/expense";
 import { GroupDetailContext } from "../hooks/GroupDetailContextHooks";
+
+const SETTLE_EXPENSES_FALLBACK = "Failed to settle expenses.";
 
 export const GroupDetailProvider = ({ children }: { children: ReactNode }) => {
     const { id: groupId } = useParams();
@@ -165,20 +168,25 @@ export const GroupDetailProvider = ({ children }: { children: ReactNode }) => {
                     "Content-Type": "application/json",
                 },
             });
-            if (response.ok) {
-                console.log("Settlement successful");
-            } else {
-                console.error("Settlement failed");
+            if (!response.ok) {
+                toast.error(
+                    await getResponseErrorMessage(
+                        response,
+                        SETTLE_EXPENSES_FALLBACK
+                    )
+                );
+                return;
             }
-        } catch (error) {
-            console.error("Error during settlement:", error);
+
+            console.log("Settlement successful");
+            window.location.reload();
+        } catch {
+            toast.error(SETTLE_EXPENSES_FALLBACK);
         } finally {
             const dialog = document.getElementById(
                 "settle_confirm"
             ) as HTMLDialogElement | null;
             dialog?.close();
-
-            window.location.reload();
         }
     };
 

@@ -1,12 +1,14 @@
 import { useState, useEffect, ReactNode, FormEvent, ReactElement } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "react-hot-toast";
-import { apiFetch } from "../lib/api";
+import { apiFetch, getResponseErrorMessage } from "../lib/api";
 import { ExpenseCreateData, ExpenseTypeItem } from "../types/expense";
 import { GroupListItem, GroupMember } from "../types/group";
 import { LedgerCreateData } from "../types/ledger";
 import { Rule } from "../types/splitRule";
 import { CreateExpenseContext } from "../hooks/CreateExpenseContextHooks";
+
+const CREATE_EXPENSE_FALLBACK = "Failed to create expense.";
 
 export const CreateExpenseProvider = ({
     children,
@@ -43,82 +45,93 @@ export const CreateExpenseProvider = ({
 
         setIndicatorShow(true);
 
-        // set up ledgers in defult split rules
-        const currencyPrecision: Record<"CAD" | "USD" | "NTD", number> = {
-            CAD: 2,
-            USD: 2,
-            NTD: 0,
-        };
-        const precision: number =
-            currencyPrecision[currency as keyof typeof currencyPrecision];
-        switch (selectedRule) {
-            case Rule.Equally:
-            case Rule.YouHalf:
-            case Rule.OtherHalf: {
-                const peopleCount: number = ledgers.length;
+        try {
+            // set up ledgers in defult split rules
+            const currencyPrecision: Record<"CAD" | "USD" | "NTD", number> = {
+                CAD: 2,
+                USD: 2,
+                NTD: 0,
+            };
+            const precision: number =
+                currencyPrecision[currency as keyof typeof currencyPrecision];
+            switch (selectedRule) {
+                case Rule.Equally:
+                case Rule.YouHalf:
+                case Rule.OtherHalf: {
+                    const peopleCount: number = ledgers.length;
 
-                const split: number =
-                    Math.floor((total / peopleCount) * 10 ** precision) /
-                    10 ** precision;
-                const remaining: number = total - split * (peopleCount - 1);
+                    const split: number =
+                        Math.floor((total / peopleCount) * 10 ** precision) /
+                        10 ** precision;
+                    const remaining: number = total - split * (peopleCount - 1);
 
-                const randIndex = Math.floor(Math.random() * peopleCount);
-                for (let i = 0; i < peopleCount; i++) {
-                    ledgers[i].share = i === randIndex ? remaining : split;
+                    const randIndex = Math.floor(Math.random() * peopleCount);
+                    for (let i = 0; i < peopleCount; i++) {
+                        ledgers[i].share = i === randIndex ? remaining : split;
+                    }
+                    break;
                 }
-                break;
+
+                case Rule.YouFull:
+                    ledgers[0].share = 0;
+                    ledgers[1].share = total;
+                    break;
+
+                case Rule.OtherFull:
+                    ledgers[0].share = total;
+                    ledgers[1].share = 0;
+                    break;
+
+                default:
+                    break;
             }
 
-            case Rule.YouFull:
-                ledgers[0].share = 0;
-                ledgers[1].share = total;
-                break;
+            const payload: ExpenseCreateData = {
+                description: description,
+                groupId: selectedGroupId || "",
+                payByUserId: payer,
+                expTypeId: selectedExpenseTypeId,
+                total: total.toFixed(precision),
+                currency: currency,
+                splitRule: selectedRule,
+                ledgers: ledgers.map(
+                    (ledger) =>
+                        ({
+                            borrowerUserId: ledger.userId,
+                            lenderUserId: payer,
+                            share: ledger.share.toFixed(precision),
+                        } as LedgerCreateData)
+                ),
+            };
 
-            case Rule.OtherFull:
-                ledgers[0].share = total;
-                ledgers[1].share = 0;
-                break;
+            const response = await apiFetch("/create_expense", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify(payload),
+            });
 
-            default:
-                break;
-        }
-
-        const payload: ExpenseCreateData = {
-            description: description,
-            groupId: selectedGroupId || "",
-            payByUserId: payer,
-            expTypeId: selectedExpenseTypeId,
-            total: total.toFixed(precision),
-            currency: currency,
-            splitRule: selectedRule,
-            ledgers: ledgers.map(
-                (ledger) =>
-                    ({
-                        borrowerUserId: ledger.userId,
-                        lenderUserId: payer,
-                        share: ledger.share.toFixed(precision),
-                    } as LedgerCreateData)
-            ),
-        };
-
-        const response = await apiFetch("/create_expense", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify(payload),
-        });
-
-        setIndicatorShow(false);
-
-        if (!response.ok) {
-            toast.error("Failed to create expense.");
-            return;
-        }
-        toast.success("Your expense has been created!", { duration: 1000 });
-        const targetGroupId = selectedGroupId || groupId;
-        if (targetGroupId) {
-            navigate(`/group/${targetGroupId}`);
+            if (!response.ok) {
+                toast.error(
+                    await getResponseErrorMessage(
+                        response,
+                        CREATE_EXPENSE_FALLBACK
+                    )
+                );
+                return;
+            }
+            toast.success("Your expense has been created!", {
+                duration: 1000,
+            });
+            const targetGroupId = selectedGroupId || groupId;
+            if (targetGroupId) {
+                navigate(`/group/${targetGroupId}`);
+            }
+        } catch {
+            toast.error(CREATE_EXPENSE_FALLBACK);
+        } finally {
+            setIndicatorShow(false);
         }
     };
 

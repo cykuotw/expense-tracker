@@ -127,20 +127,27 @@ export async function getResponseErrorMessage(
 
     try {
         if (contentType.includes("application/json")) {
-            const data = (await response.json()) as {
-                error?: string;
-                message?: string;
-            };
-            if (typeof data.error === "string" && data.error.length > 0) {
-                return data.error;
+            const data = (await response.json()) as unknown;
+            if (typeof data !== "object" || data === null) {
+                return fallback;
             }
-            if (typeof data.message === "string" && data.message.length > 0) {
-                return data.message;
+
+            const errorData = data as {
+                error?: unknown;
+                message?: unknown;
+            };
+            if (typeof errorData.error === "string") {
+                const error = errorData.error.trim();
+                if (error) return error;
+            }
+            if (typeof errorData.message === "string") {
+                const message = errorData.message.trim();
+                if (message) return message;
             }
             return fallback;
         }
 
-        const text = await response.text();
+        const text = (await response.text()).trim();
         return text || fallback;
     } catch {
         return fallback;

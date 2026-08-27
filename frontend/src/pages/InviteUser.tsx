@@ -2,8 +2,15 @@ import { InviteUserProvider } from "../contexts/InviteUserContext";
 import { useInviteUser } from "../hooks/InviteUserContextHooks";
 
 const InviteUserContent = () => {
-    const { loading, invitations, handleSubmit, copyLink, expireInvitation } =
-        useInviteUser();
+    const {
+        email,
+        setEmail,
+        loading,
+        invitations,
+        handleSubmit,
+        copyLink,
+        expireInvitation,
+    } = useInviteUser();
 
     const isExpired = (expiresAt: string) => {
         return new Date(expiresAt) < new Date();
@@ -24,7 +31,7 @@ const InviteUserContent = () => {
 
                 <div className="flex flex-col gap-8">
                     <div className="panel-card rounded-[2rem] p-6 shadow-sm">
-                        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                             <div>
                                 <div className="text-sm font-semibold uppercase tracking-[0.2em] text-base-content/60">
                                     New invite
@@ -33,20 +40,47 @@ const InviteUserContent = () => {
                                     Generate a new invite link for a user.
                                 </p>
                             </div>
-                            <form
-                                onSubmit={handleSubmit}
-                                className="w-full sm:w-auto"
-                            >
-                                <button
-                                    type="submit"
-                                    className="btn btn-neutral w-full sm:w-auto"
-                                    disabled={loading}
-                                >
-                                    {loading && (
-                                        <span className="loading loading-spinner"></span>
-                                    )}
-                                    Generate Invite
-                                </button>
+                            <form onSubmit={handleSubmit} className="w-full lg:max-w-xl">
+                                <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+                                    <div className="w-full">
+                                        <label
+                                            htmlFor="invitation-email"
+                                            className="text-xs font-semibold uppercase tracking-[0.2em] text-base-content/60"
+                                        >
+                                            Email (optional)
+                                        </label>
+                                        <input
+                                            id="invitation-email"
+                                            type="email"
+                                            name="email"
+                                            className="input input-bordered mt-2 w-full bg-base-100"
+                                            value={email}
+                                            onChange={(event) =>
+                                                setEmail(event.target.value)
+                                            }
+                                            placeholder="person@example.com"
+                                            autoComplete="email"
+                                            aria-describedby="invitation-email-help"
+                                        />
+                                        <p
+                                            id="invitation-email-help"
+                                            className="mt-2 text-xs text-base-content/60"
+                                        >
+                                            Leave blank to let the recipient
+                                            choose their email.
+                                        </p>
+                                    </div>
+                                    <button
+                                        type="submit"
+                                        className="btn btn-neutral min-h-11 w-full sm:w-auto"
+                                        disabled={loading}
+                                    >
+                                        {loading && (
+                                            <span className="loading loading-spinner"></span>
+                                        )}
+                                        Generate Invite
+                                    </button>
+                                </div>
                             </form>
                         </div>
                     </div>
@@ -75,9 +109,7 @@ const InviteUserContent = () => {
                                     {invitations.map((inv) => (
                                         <tr key={inv.id}>
                                             <td className="text-sm">
-                                                {inv.usedAt && inv.email
-                                                    ? inv.email
-                                                    : "-"}
+                                                {inv.email || "Any email"}
                                             </td>
                                             <td className="text-sm">
                                                 {inv.usedAt ? (

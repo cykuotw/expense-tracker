@@ -14,6 +14,8 @@ export interface Invitation {
 }
 
 export interface InviteUserContextType {
+    email: string;
+    setEmail: (email: string) => void;
     loading: boolean;
     invitations: Invitation[];
     handleSubmit: (e: FormEvent) => Promise<void>;

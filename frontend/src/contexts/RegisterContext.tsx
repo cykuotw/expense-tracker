@@ -19,6 +19,7 @@ export const RegisterProvider = ({ children }: { children: ReactNode }) => {
     const [validating, setValidating] = useState(true);
     const [error, setError] = useState("");
     const [tokenValid, setTokenValid] = useState(false);
+    const [emailBound, setEmailBound] = useState(false);
 
     useEffect(() => {
         if (!token) {
@@ -36,8 +37,16 @@ export const RegisterProvider = ({ children }: { children: ReactNode }) => {
                 if (response.ok) {
                     const data = await response.json();
                     if (data.valid) {
+                        const invitationEmail =
+                            typeof data.email === "string"
+                                ? data.email.trim()
+                                : "";
                         setTokenValid(true);
-                        setFormData((prev) => ({ ...prev, email: data.email }));
+                        setEmailBound(invitationEmail !== "");
+                        setFormData((prev) => ({
+                            ...prev,
+                            email: invitationEmail,
+                        }));
                     }
                 } else {
                     setError("Invalid or expired invitation link.");
@@ -103,6 +112,7 @@ export const RegisterProvider = ({ children }: { children: ReactNode }) => {
                 validating,
                 error,
                 tokenValid,
+                emailBound,
                 token,
                 handleChange,
                 handleSubmit,

@@ -4,6 +4,7 @@ import { InviteUserContext, Invitation } from "../hooks/InviteUserContextHooks";
 import { apiFetch, getResponseErrorMessage } from "../lib/api";
 
 export const InviteUserProvider = ({ children }: { children: ReactNode }) => {
+    const [email, setEmail] = useState("");
     const [loading, setLoading] = useState(false);
     const [invitations, setInvitations] = useState<Invitation[]>([]);
 
@@ -29,7 +30,7 @@ export const InviteUserProvider = ({ children }: { children: ReactNode }) => {
         try {
             const response = await apiFetch("/invitations", {
                 method: "POST",
-                body: JSON.stringify({}),
+                body: JSON.stringify({ email: email.trim() }),
             });
 
             if (!response.ok) {
@@ -42,6 +43,7 @@ export const InviteUserProvider = ({ children }: { children: ReactNode }) => {
             }
 
             toast.success("Invitation created", { duration: 1000 });
+            setEmail("");
             fetchInvitations();
         } catch (err) {
             if (err instanceof Error) {
@@ -91,6 +93,8 @@ export const InviteUserProvider = ({ children }: { children: ReactNode }) => {
     return (
         <InviteUserContext.Provider
             value={{
+                email,
+                setEmail,
                 loading,
                 invitations,
                 handleSubmit,

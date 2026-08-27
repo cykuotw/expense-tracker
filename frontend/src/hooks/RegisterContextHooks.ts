@@ -12,6 +12,7 @@ export interface RegisterContextType {
     validating: boolean;
     error: string;
     tokenValid: boolean;
+    emailBound: boolean;
     token: string | null;
     handleChange: (e: ChangeEvent<HTMLInputElement>) => void;
     handleSubmit: (e: FormEvent) => void;

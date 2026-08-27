@@ -9,6 +9,7 @@ const RegisterContent = () => {
         validating,
         error,
         tokenValid,
+        emailBound,
         token,
         handleChange,
         handleSubmit,
@@ -86,20 +87,34 @@ const RegisterContent = () => {
                                     </label>
                                 </div>
                                 <div>
-                                    <label className="text-xs font-semibold uppercase tracking-[0.2em] text-base-content/60">
+                                    <label
+                                        htmlFor="registration-email"
+                                        className="text-xs font-semibold uppercase tracking-[0.2em] text-base-content/60"
+                                    >
                                         Email
                                     </label>
                                     <label className="input input-bordered mt-2 flex items-center w-full bg-base-100">
                                         <input
+                                            id="registration-email"
                                             type="email"
                                             name="email"
                                             className="grow"
                                             value={formData.email}
                                             onChange={handleChange}
                                             required
-                                            readOnly
+                                            readOnly={emailBound}
+                                            autoComplete="email"
+                                            aria-describedby="registration-email-help"
                                         />
                                     </label>
+                                    <p
+                                        id="registration-email-help"
+                                        className="mt-2 text-xs text-base-content/60"
+                                    >
+                                        {emailBound
+                                            ? "This invitation is linked to this email address."
+                                            : "Enter the email address for your new account."}
+                                    </p>
                                 </div>
                                 <div className="md:col-span-2">
                                     <label className="text-xs font-semibold uppercase tracking-[0.2em] text-base-content/60">

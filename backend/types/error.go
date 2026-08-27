@@ -27,6 +27,11 @@ var (
 	ErrLastActiveAdmin            = errors.New("the last active administrator cannot be deactivated")
 	ErrCannotChangeOwnRole        = errors.New("administrators cannot change their own role")
 	ErrInvalidUserRole            = errors.New("invalid user role")
+	ErrInvalidProfile             = errors.New("first name and last name are required")
+	ErrCurrentPasswordIncorrect   = errors.New("current password is incorrect")
+	ErrPasswordChangeUnavailable  = errors.New("password changes are unavailable for this account")
+	ErrPasswordUnchanged          = errors.New("new password must be different from the current password")
+	ErrInvalidPasswordLength      = errors.New("password must be between 8 and 72 bytes")
 
 	// jwt
 	ErrInvalidToken = errors.New("invalid token")

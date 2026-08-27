@@ -96,6 +96,9 @@ export default function Navbar() {
                             contendTextConfig="text-sm w-48"
                         >
                             <li className="w-full">
+                                <Link to="/account">Settings</Link>
+                            </li>
+                            <li className="w-full">
                                 <button onClick={() => void logout()}>
                                     Logout
                                 </button>

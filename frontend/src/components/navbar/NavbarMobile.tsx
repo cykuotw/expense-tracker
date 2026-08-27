@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { NavLink } from "react-router-dom";
+import { Link, NavLink } from "react-router-dom";
 
 import { useAuth } from "../../hooks/AuthContextHooks";
 import { USER_ROLES } from "../../types/role";
@@ -133,6 +133,13 @@ export default function NavbarMobile() {
                         Account actions
                     </div>
                     <div className="mt-6 space-y-3">
+                        <Link
+                            to="/account"
+                            className="btn btn-neutral w-full"
+                            onClick={() => setAccountOpen(false)}
+                        >
+                            Settings
+                        </Link>
                         <button
                             type="button"
                             className="btn btn-error w-full"

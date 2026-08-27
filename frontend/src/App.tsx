@@ -21,6 +21,7 @@ import CreateExpense from "./pages/CreateExpense";
 import CreateGroup from "./pages/CreateGroup";
 import EditExpense from "./pages/EditExpense";
 import AdminUsers from "./pages/AdminUsers";
+import AccountSettings from "./pages/AccountSettings";
 
 function AppRoutes() {
     const { loading } = useAuth();
@@ -51,6 +52,7 @@ function AppRoutes() {
                     <Route path="/expense/:id/edit" element={<EditExpense />} />
                     <Route path="/create_expense" element={<CreateExpense />} />
                     <Route path="/add_member" element={<AddMember />} />
+                    <Route path="/account" element={<AccountSettings />} />
                 </Route>
             </Route>
 

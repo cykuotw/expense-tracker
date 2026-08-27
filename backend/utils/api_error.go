@@ -115,6 +115,21 @@ func normalizeError(status int, err error) APIErrorResponse {
 	if errors.Is(err, types.ErrUserNotExist) || errors.Is(err, types.ErrPasswordNotMatch) {
 		return APIErrorResponse{Error: err.Error(), Code: "invalid_credentials"}
 	}
+	if errors.Is(err, types.ErrInvalidProfile) {
+		return APIErrorResponse{Error: err.Error(), Code: "invalid_profile"}
+	}
+	if errors.Is(err, types.ErrCurrentPasswordIncorrect) {
+		return APIErrorResponse{Error: err.Error(), Code: "current_password_incorrect"}
+	}
+	if errors.Is(err, types.ErrPasswordChangeUnavailable) {
+		return APIErrorResponse{Error: err.Error(), Code: "password_change_unavailable"}
+	}
+	if errors.Is(err, types.ErrPasswordUnchanged) {
+		return APIErrorResponse{Error: err.Error(), Code: "password_unchanged"}
+	}
+	if errors.Is(err, types.ErrInvalidPasswordLength) {
+		return APIErrorResponse{Error: err.Error(), Code: "invalid_password_length"}
+	}
 	if errors.Is(err, types.ErrGoogleClaimsUnavailable) {
 		return APIErrorResponse{Error: err.Error(), Code: "google_claims_unavailable"}
 	}

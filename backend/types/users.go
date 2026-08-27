@@ -78,6 +78,26 @@ type UserInfoResponse struct {
 	Email     string `json:"email" validate:"required,email"`
 }
 
+type AccountResponse struct {
+	Nickname              string `json:"nickname"`
+	Firstname             string `json:"firstname"`
+	Lastname              string `json:"lastname"`
+	Email                 string `json:"email"`
+	GoogleConnected       bool   `json:"googleConnected"`
+	PasswordChangeAllowed bool   `json:"passwordChangeAllowed"`
+}
+
+type UpdateOwnProfilePayload struct {
+	Nickname  string `json:"nickname" validate:"max=100"`
+	Firstname string `json:"firstname" validate:"required,max=100"`
+	Lastname  string `json:"lastname" validate:"required,max=100"`
+}
+
+type ChangeOwnPasswordPayload struct {
+	CurrentPassword string `json:"currentPassword" validate:"required"`
+	NewPassword     string `json:"newPassword" validate:"required"`
+}
+
 type AdminUserResponse struct {
 	ID         uuid.UUID `json:"id"`
 	Firstname  string    `json:"firstname"`

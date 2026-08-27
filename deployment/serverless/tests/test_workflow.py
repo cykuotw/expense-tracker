@@ -78,18 +78,18 @@ class WorkflowTest(unittest.TestCase):
         context.aws = mock.MagicMock()
         outputs = {"worker_function_name": "worker"}
         events: list[str] = []
-        with (
-            mock.patch.object(workflow, "preflight"),
-            mock.patch.object(workflow, "_require_complete", return_value=outputs),
-            mock.patch.object(workflow.artifacts, "build", return_value={"bootstrap": Path("bootstrap.zip"), "worker": Path("worker.zip")}),
-            mock.patch.object(workflow.runtime, "update_bootstrap", side_effect=lambda *args: events.append("migrations")),
-            mock.patch.object(workflow.runtime, "update_worker", side_effect=lambda *args: events.append("backend")),
-            mock.patch.object(workflow, "verify_api"),
-            mock.patch.object(workflow, "publish_frontend", side_effect=lambda *args: events.append("frontend")),
-            mock.patch.object(workflow, "verify_frontend"),
-        ):
+        with mock.patch.object(workflow, "preflight"), \
+             mock.patch.object(workflow.runtime, "repair_secret_boundary", side_effect=lambda *args: events.append("state-repair")), \
+             mock.patch.object(workflow, "_require_complete", return_value=outputs), \
+             mock.patch.object(workflow.artifacts, "build", return_value={"bootstrap": Path("bootstrap.zip"), "worker": Path("worker.zip")}), \
+             mock.patch.object(workflow.runtime, "update_bootstrap", side_effect=lambda *args: events.append("migrations")), \
+             mock.patch.object(workflow, "_apply_infrastructure_updates", side_effect=lambda *args: events.append("infrastructure")), \
+             mock.patch.object(workflow.runtime, "update_worker", side_effect=lambda *args: events.append("backend")), \
+             mock.patch.object(workflow, "verify_api"), \
+             mock.patch.object(workflow, "publish_frontend", side_effect=lambda *args: events.append("frontend")), \
+             mock.patch.object(workflow, "verify_frontend"):
             workflow.update(context, "all")
-        self.assertEqual(events, ["migrations", "backend", "frontend"])
+        self.assertEqual(events, ["state-repair", "migrations", "infrastructure", "backend", "frontend"])
 
     def test_backend_scope_does_not_publish_frontend(self) -> None:
         context = mock.MagicMock()
@@ -97,8 +97,10 @@ class WorkflowTest(unittest.TestCase):
         context.serverless_root = Path("/repo/deployment/serverless")
         context.terraform_root = context.serverless_root / "infrastructure/tf"
         with mock.patch.object(workflow, "preflight"), \
+             mock.patch.object(workflow.runtime, "repair_secret_boundary", return_value=0), \
              mock.patch.object(workflow, "_require_complete", return_value={}), \
              mock.patch.object(workflow.artifacts, "build", return_value={"bootstrap": Path("b"), "worker": Path("w")}), \
+             mock.patch.object(workflow, "_apply_infrastructure_updates"), \
              mock.patch.object(workflow.runtime, "update_worker"), \
              mock.patch.object(workflow, "verify_api"), \
              mock.patch.object(workflow, "publish_frontend") as publish:

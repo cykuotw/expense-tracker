@@ -2,6 +2,7 @@ package invitation
 
 import (
 	"database/sql"
+	"expense-tracker/backend/services/auth"
 	"expense-tracker/backend/types"
 	"fmt"
 
@@ -19,7 +20,7 @@ func NewStore(db *sql.DB) *Store {
 func (s *Store) CreateInvitation(invitation types.Invitation) error {
 	query := "INSERT INTO invitations (id, token, email, inviter_id, expires_at, created_at) VALUES ($1, $2, $3, $4, $5, $6);"
 	_, err := s.db.Exec(query,
-		invitation.ID, invitation.Token, invitation.Email, invitation.InviterID,
+		invitation.ID, invitation.Token, auth.NormalizeEmail(invitation.Email), invitation.InviterID,
 		invitation.ExpiresAt.Format("2006-01-02 15:04:05"),
 		invitation.CreatedAt.Format("2006-01-02 15:04:05"),
 	)
@@ -62,7 +63,7 @@ func (s *Store) GetInvitationByToken(token string) (*types.Invitation, error) {
 
 func (s *Store) MarkInvitationUsed(token string, email string) error {
 	query := "UPDATE invitations SET used_at = NOW(), email = $2 WHERE token = $1;"
-	_, err := s.db.Exec(query, token, email)
+	_, err := s.db.Exec(query, token, auth.NormalizeEmail(email))
 	return err
 }
 

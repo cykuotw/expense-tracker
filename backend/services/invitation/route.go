@@ -64,7 +64,7 @@ func (h *Handler) handleCreateInvitation(c *gin.Context) {
 	invitation := types.Invitation{
 		ID:        uuid.New(),
 		Token:     token,
-		Email:     payload.Email,
+		Email:     auth.NormalizeEmail(payload.Email),
 		InviterID: inviterID,
 		ExpiresAt: expiresAt,
 		CreatedAt: now,

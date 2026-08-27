@@ -1,7 +1,10 @@
 package route
 
 import (
+	"context"
+	"expense-tracker/backend/services/auth"
 	"expense-tracker/backend/types"
+	"sync"
 	"testing"
 
 	"github.com/google/uuid"
@@ -45,7 +48,7 @@ func newBoundaryUserStore(t *testing.T) *boundaryUserStore {
 func (s *boundaryUserStore) storeUser(user types.User) {
 	s.usersByID[user.ID.String()] = user
 	if user.Email != "" {
-		s.usersByEmail[user.Email] = user
+		s.usersByEmail[auth.NormalizeEmail(user.Email)] = user
 	}
 	if user.ExternalType != "" && user.ExternalID != "" {
 		s.usersByExternal[user.ExternalType+":"+user.ExternalID] = user
@@ -53,11 +56,54 @@ func (s *boundaryUserStore) storeUser(user types.User) {
 }
 
 func (s *boundaryUserStore) GetUserByEmail(email string) (*types.User, error) {
-	user, ok := s.usersByEmail[email]
+	user, ok := s.usersByEmail[auth.NormalizeEmail(email)]
 	if !ok {
 		return nil, types.ErrUserNotExist
 	}
 	return &user, nil
+}
+
+type boundaryRegistrationStore struct {
+	mu          sync.Mutex
+	users       *boundaryUserStore
+	invitations map[string]string
+	used        map[string]bool
+}
+
+func newBoundaryRegistrationStore(users *boundaryUserStore) *boundaryRegistrationStore {
+	return &boundaryRegistrationStore{
+		users: users,
+		invitations: map[string]string{
+			"boundary-generic-invite": "",
+			"boundary-email-invite":   "google-user@example.test",
+		},
+		used: make(map[string]bool),
+	}
+}
+
+func (s *boundaryRegistrationStore) CreateInvitedUser(ctx context.Context, token string, user types.User) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	invitationEmail, exists := s.invitations[token]
+	if !exists {
+		return types.ErrInvitationInvalid
+	}
+	if s.used[token] {
+		return types.ErrInvitationUsed
+	}
+	user.Email = auth.NormalizeEmail(user.Email)
+	if invitationEmail != "" && auth.NormalizeEmail(invitationEmail) != user.Email {
+		return types.ErrInvitationEmailMismatch
+	}
+	if _, exists := s.users.usersByEmail[user.Email]; exists {
+		return types.ErrAccountConflict
+	}
+	if _, exists := s.users.usersByExternal[user.ExternalType+":"+user.ExternalID]; exists {
+		return types.ErrAccountConflict
+	}
+	s.users.storeUser(user)
+	s.used[token] = true
+	return nil
 }
 
 func (s *boundaryUserStore) GetUserByExternalIdentity(externalType string, externalID string) (*types.User, error) {

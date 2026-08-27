@@ -9,6 +9,7 @@ export interface RegisterContextType {
         password: string;
     };
     loading: boolean;
+    googleLoading: boolean;
     validating: boolean;
     error: string;
     tokenValid: boolean;
@@ -16,6 +17,9 @@ export interface RegisterContextType {
     token: string | null;
     handleChange: (e: ChangeEvent<HTMLInputElement>) => void;
     handleSubmit: (e: FormEvent) => void;
+    handleGoogleCredentialResponse: (
+        response: GoogleCredentialResponse,
+    ) => void | Promise<void>;
 }
 
 export const RegisterContext = createContext<RegisterContextType | undefined>(

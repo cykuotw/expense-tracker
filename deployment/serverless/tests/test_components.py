@@ -52,3 +52,21 @@ class ComponentTest(unittest.TestCase):
         source = (ROOT / "database/setup.py").read_text()
         self.assertNotIn("rpm -ql postgresql16-contrib | grep -E", source)
         self.assertIn("pgcrypto_control=", source)
+
+    def test_frontend_referrer_policy_uses_cloudfront_security_header(self) -> None:
+        source = (ROOT / "infrastructure/tf/frontend.tf").read_text()
+        policy = source.split(
+            'resource "aws_cloudfront_response_headers_policy" "frontend_security" {',
+            maxsplit=1,
+        )[1].split("\n}", maxsplit=1)[0]
+
+        self.assertIn("security_headers_config", policy)
+        self.assertIn("referrer_policy = \"strict-origin-when-cross-origin\"", policy)
+        self.assertNotIn("custom_headers_config", policy)
+        self.assertNotIn('header = "Referrer-Policy"', policy)
+
+    def test_terraform_does_not_manage_lambda_runtime_updates(self) -> None:
+        source = (ROOT / "infrastructure/tf/backend.tf").read_text()
+
+        self.assertEqual(source.count("source_code_hash,"), 2)
+        self.assertEqual(source.count("filename,"), 2)

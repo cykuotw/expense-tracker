@@ -39,10 +39,7 @@ func TestResolveUserFromClaims(t *testing.T) {
 		assert.Equal(t, userID, user.ID)
 	})
 
-	t.Run("creates a new user for verified unused email", func(t *testing.T) {
-		now := time.Unix(1700000000, 0).UTC()
-		newID := uuid.New()
-		var created types.User
+	t.Run("requires an invitation for a verified unknown identity", func(t *testing.T) {
 		service := &Service{
 			store: &mockUserStore{
 				getUserByExternalIdentityFn: func(externalType string, externalID string) (*types.User, error) {
@@ -52,14 +49,9 @@ func TestResolveUserFromClaims(t *testing.T) {
 					return nil, types.ErrUserNotExist
 				},
 				createUserFn: func(user types.User) error {
-					created = user
+					t.Fatalf("login resolution must not create users")
 					return nil
 				},
-			},
-			now:     func() time.Time { return now },
-			newUUID: func() uuid.UUID { return newID },
-			hashSecret: func(value string) (string, error) {
-				return "hashed-" + value, nil
 			},
 		}
 
@@ -72,12 +64,8 @@ func TestResolveUserFromClaims(t *testing.T) {
 			Name:          "Taylor Swift",
 		})
 
-		assert.NoError(t, err)
-		assert.Equal(t, newID, user.ID)
-		assert.Equal(t, "google", created.ExternalType)
-		assert.Equal(t, "google-sub-123", created.ExternalID)
-		assert.Equal(t, "Taylor", created.Username)
-		assert.Equal(t, now, created.CreateTime)
+		assert.Nil(t, user)
+		assert.ErrorIs(t, err, types.ErrInvitationRequired)
 	})
 
 	t.Run("returns conflict for existing email without external identity match", func(t *testing.T) {
@@ -103,7 +91,7 @@ func TestResolveUserFromClaims(t *testing.T) {
 		})
 
 		assert.Nil(t, user)
-		assert.ErrorIs(t, err, types.ErrGoogleAccountConflict)
+		assert.ErrorIs(t, err, types.ErrAccountConflict)
 	})
 
 	t.Run("blocks unverified email", func(t *testing.T) {
@@ -131,6 +119,35 @@ func TestResolveUserFromClaims(t *testing.T) {
 		assert.Nil(t, user)
 		assert.ErrorIs(t, err, types.ErrGoogleEmailNotVerified)
 	})
+}
+
+func TestPrepareUserFromClaims(t *testing.T) {
+	now := time.Unix(1700000000, 0).UTC()
+	newID := uuid.New()
+	service := &Service{
+		store:   &mockUserStore{},
+		now:     func() time.Time { return now },
+		newUUID: func() uuid.UUID { return newID },
+		hashSecret: func(value string) (string, error) {
+			return "hashed-secret", nil
+		},
+	}
+
+	user, err := service.PrepareUserFromClaims(&types.VerifiedGoogleClaims{
+		Subject:       "google-sub-123",
+		Email:         " User@Example.com ",
+		EmailVerified: boolPtr(true),
+		GivenName:     "Taylor",
+		FamilyName:    "Swift",
+	})
+
+	assert.NoError(t, err)
+	assert.Equal(t, newID, user.ID)
+	assert.Equal(t, "user@example.com", user.Email)
+	assert.Equal(t, "google", user.ExternalType)
+	assert.Equal(t, "google-sub-123", user.ExternalID)
+	assert.Equal(t, "hashed-secret", user.PasswordHashed)
+	assert.Equal(t, now, user.CreateTime)
 }
 
 func TestNicknameFromClaimsFallbacks(t *testing.T) {

@@ -1,6 +1,7 @@
 package types
 
 import (
+	"context"
 	"time"
 
 	"github.com/google/uuid"
@@ -18,6 +19,10 @@ type UserStore interface {
 	CheckUserExistByEmail(email string) (bool, error)
 	CheckUserExistByID(id string) (bool, error)
 	CheckUserExistByUsername(username string) (bool, error)
+}
+
+type RegistrationStore interface {
+	CreateInvitedUser(ctx context.Context, token string, user User) error
 }
 
 type User struct {
@@ -42,6 +47,10 @@ type RegisterUserPayload struct {
 	Email     string `json:"email" validate:"required,email"`
 	Password  string `json:"password" validate:"required,min=8"`
 	Token     string `json:"token" validate:"required"`
+}
+
+type RegisterGooglePayload struct {
+	Token string `json:"token" validate:"required"`
 }
 
 type LoginUserPayload struct {

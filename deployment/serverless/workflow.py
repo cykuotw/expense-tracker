@@ -12,7 +12,7 @@ from backend import artifacts, runtime
 from backend.verify import verify_api, verify_google_exchange, verify_session
 from common.aws import AWSClient
 from common.command import CommandError, deployment_lock, protected_json, require_tools
-from common.terraform import Terraform, require_create_only, require_cutover_only
+from common.terraform import Terraform, require_create_only, require_cutover_only, require_non_destructive_update
 from config import Config
 from database.setup import setup as setup_database
 from frontend.publish import publish as publish_frontend
@@ -240,23 +240,61 @@ def _require_complete(context: Context) -> dict[str, Any]:
     try:
         # The installed release may predate checks introduced by the update.
         # Enforce the new contract after the backend has been replaced below.
-        verify_api(context.config, require_patch_cors=False)
+        verify_api(
+            context.config,
+            require_patch_cors=False,
+            require_google_register_authorizer=False,
+        )
         verify_frontend(context.config)
     except CommandError as error:
         raise CommandError(f"updates require a healthy complete deployment: {error}") from error
     return outputs
 
 
+def _infrastructure_targets(scope: str) -> tuple[str, ...]:
+    targets: list[str] = []
+    if scope in {"backend", "all"}:
+        targets.append("aws_apigatewayv2_route.google_register")
+    if scope in {"frontend", "all"}:
+        targets.extend((
+            "aws_cloudfront_response_headers_policy.frontend_security",
+            "aws_cloudfront_distribution.frontend",
+        ))
+    return tuple(targets)
+
+
+def _apply_infrastructure_updates(context: Context, scope: str) -> None:
+    targets = _infrastructure_targets(scope)
+    if not targets:
+        return
+
+    step("infrastructure")
+    with tempfile.TemporaryDirectory(prefix="expense-serverless-update-") as temporary, _terraform(context, False) as variables:
+        terraform = Terraform(context.terraform_root, variables)
+        terraform.init()
+        terraform.validate()
+        plan_path = Path(temporary) / "update.tfplan"
+        terraform.plan(plan_path, targets=targets)
+        actions = require_non_destructive_update(terraform.show_plan(plan_path))
+        _print_plan(actions)
+        if actions:
+            terraform.apply(plan_path)
+    step("infrastructure", "pass")
+
+
 def update(context: Context, scope: str) -> None:
     preflight(context, mutation=True)
+    repaired_state_files = runtime.repair_secret_boundary(context.terraform_root, context.config)
+    if repaired_state_files:
+        print(f"repaired Terraform secret boundary: files={repaired_state_files}")
     outputs = _require_complete(context)
-    built: dict[str, Path] | None = None
-    if scope in {"migrations", "backend", "all"}:
-        built = artifacts.build(context.repo_root, context.serverless_root / "build")
+    # Terraform evaluates Lambda artifact hashes even for targeted infrastructure plans.
+    built = artifacts.build(context.repo_root, context.serverless_root / "build")
     if scope in {"migrations", "all"}:
         step("migrations")
         runtime.update_bootstrap(context.aws, built["bootstrap"], context.config, outputs, context.terraform_root)
         step("migrations", "pass")
+    _apply_infrastructure_updates(context, scope)
     if scope in {"backend", "all"}:
         step("backend")
         runtime.update_worker(context.aws, built["worker"], context.config, outputs, context.terraform_root)

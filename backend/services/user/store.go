@@ -2,6 +2,7 @@ package user
 
 import (
 	"database/sql"
+	"expense-tracker/backend/services/auth"
 	"expense-tracker/backend/types"
 	"strings"
 
@@ -17,8 +18,8 @@ func NewStore(db *sql.DB) *Store {
 }
 
 func (s *Store) GetUserByEmail(email string) (*types.User, error) {
-	query := "SELECT * FROM users WHERE email = $1;"
-	rows, err := s.db.Query(query, email)
+	query := "SELECT * FROM users WHERE LOWER(BTRIM(email)) = $1;"
+	rows, err := s.db.Query(query, auth.NormalizeEmail(email))
 	if err != nil {
 		return nil, err
 	}
@@ -142,9 +143,9 @@ func (s *Store) checkUserExist(query string, args ...interface{}) (bool, error) 
 	return exist, nil
 }
 func (s *Store) CheckUserExistByEmail(email string) (bool, error) {
-	query := "SELECT EXISTS (SELECT 1 FROM users WHERE email = $1);"
+	query := "SELECT EXISTS (SELECT 1 FROM users WHERE LOWER(BTRIM(email)) = $1);"
 
-	return s.checkUserExist(query, email)
+	return s.checkUserExist(query, auth.NormalizeEmail(email))
 }
 
 func (s *Store) CheckUserExistByID(id string) (bool, error) {
@@ -160,8 +161,8 @@ func (s *Store) CheckUserExistByUsername(username string) (bool, error) {
 }
 
 func (s *Store) CheckEmailExist(email string) (bool, error) {
-	query := "SELECT EXISTS (SELECT 1 FROM users WHERE email = $1);"
-	rows, err := s.db.Query(query, email)
+	query := "SELECT EXISTS (SELECT 1 FROM users WHERE LOWER(BTRIM(email)) = $1);"
+	rows, err := s.db.Query(query, auth.NormalizeEmail(email))
 	if err != nil {
 		return false, err
 	}
@@ -198,7 +199,7 @@ func (s *Store) CreateUser(user types.User) error {
 		") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12);"
 	_, err := s.db.Exec(query,
 		user.ID, user.Username, user.Firstname, user.Lastname, user.Nickname,
-		user.Email, user.PasswordHashed,
+		auth.NormalizeEmail(user.Email), user.PasswordHashed,
 		nullableString(user.ExternalType), nullableString(user.ExternalID),
 		createTime, user.IsActive,
 		user.Role)

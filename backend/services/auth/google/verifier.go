@@ -4,7 +4,6 @@ import (
 	"context"
 	"expense-tracker/backend/config"
 	"expense-tracker/backend/types"
-	"log"
 	"strings"
 
 	"google.golang.org/api/idtoken"
@@ -42,13 +41,6 @@ func (v *ClaimsVerifier) VerifyGoogleIDToken(ctx context.Context, rawToken strin
 	if err != nil {
 		return nil, err
 	}
-
-	log.Printf(
-		"verified google claims: sub=%s email=%s email_verified=%t",
-		claims.Subject,
-		claims.Email,
-		claims.EmailVerified != nil && *claims.EmailVerified,
-	)
 
 	return claims, nil
 }

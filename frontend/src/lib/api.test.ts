@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getResponseErrorMessage } from "./api";
+import { getResponseError, getResponseErrorMessage } from "./api";
 
 const fallback = "Fallback message";
 
@@ -78,5 +78,19 @@ describe("getResponseErrorMessage", () => {
         await expect(
             getResponseErrorMessage(response, fallback)
         ).resolves.toBe(fallback);
+    });
+});
+
+describe("getResponseError", () => {
+    it("preserves stable backend error codes", async () => {
+        const response = jsonResponse({
+            error: "invitation required",
+            code: "INVITATION_REQUIRED",
+        });
+
+        await expect(getResponseError(response, fallback)).resolves.toEqual({
+            message: "invitation required",
+            code: "INVITATION_REQUIRED",
+        });
     });
 });

@@ -1,11 +1,14 @@
 import { Link } from "react-router-dom";
 import { useRegister } from "../hooks/RegisterContextHooks";
 import { RegisterProvider } from "../contexts/RegisterContext";
+import GoogleSignInButton from "../components/auth/GoogleSignInButton";
+import { GOOGLE_OAUTH_ENABLED } from "../configs/config";
 
 const RegisterContent = () => {
     const {
         formData,
         loading,
+        googleLoading,
         validating,
         error,
         tokenValid,
@@ -13,6 +16,7 @@ const RegisterContent = () => {
         token,
         handleChange,
         handleSubmit,
+        handleGoogleCredentialResponse,
     } = useRegister();
 
     return (
@@ -40,6 +44,39 @@ const RegisterContent = () => {
                     </div>
                 ) : (
                     <div className="panel-card rounded-[2rem] p-6 md:p-8">
+                        {GOOGLE_OAUTH_ENABLED ? (
+                            <div className="mb-7 space-y-4">
+                                <div>
+                                    <h2 className="text-lg font-semibold text-base-content">
+                                        Register with Google
+                                    </h2>
+                                    <p className="mt-1 text-sm leading-6 text-base-content/65">
+                                        Choose the invited Google account. You’ll
+                                        return to login after registration.
+                                    </p>
+                                </div>
+                                <div
+                                    aria-busy={googleLoading}
+                                    aria-disabled={loading || googleLoading}
+                                    className={
+                                        loading || googleLoading
+                                            ? "pointer-events-none opacity-60"
+                                            : undefined
+                                    }
+                                >
+                                    <GoogleSignInButton
+                                        onCredentialResponse={
+                                            handleGoogleCredentialResponse
+                                        }
+                                    />
+                                </div>
+                                <div className="flex items-center gap-3 text-xs uppercase tracking-[0.2em] text-base-content/50">
+                                    <span className="h-px flex-1 bg-base-300" />
+                                    or register with password
+                                    <span className="h-px flex-1 bg-base-300" />
+                                </div>
+                            </div>
+                        ) : null}
                         <form onSubmit={handleSubmit}>
                             <div className="grid gap-5 md:grid-cols-2">
                                 <div>
@@ -54,6 +91,7 @@ const RegisterContent = () => {
                                             value={formData.firstname}
                                             onChange={handleChange}
                                             required
+                                            disabled={loading || googleLoading}
                                         />
                                     </label>
                                 </div>
@@ -69,6 +107,7 @@ const RegisterContent = () => {
                                             value={formData.lastname}
                                             onChange={handleChange}
                                             required
+                                            disabled={loading || googleLoading}
                                         />
                                     </label>
                                 </div>
@@ -83,6 +122,7 @@ const RegisterContent = () => {
                                             className="grow"
                                             value={formData.nickname}
                                             onChange={handleChange}
+                                            disabled={loading || googleLoading}
                                         />
                                     </label>
                                 </div>
@@ -103,6 +143,7 @@ const RegisterContent = () => {
                                             onChange={handleChange}
                                             required
                                             readOnly={emailBound}
+                                            disabled={loading || googleLoading}
                                             autoComplete="email"
                                             aria-describedby="registration-email-help"
                                         />
@@ -129,13 +170,17 @@ const RegisterContent = () => {
                                             onChange={handleChange}
                                             required
                                             minLength={8}
+                                            disabled={loading || googleLoading}
                                         />
                                     </label>
                                 </div>
                             </div>
 
                             {error && (
-                                <div className="mt-4 rounded-2xl border border-error/30 bg-base-100 p-3 text-sm text-error">
+                                <div
+                                    role="alert"
+                                    className="mt-4 rounded-2xl border border-error/30 bg-base-100 p-3 text-sm text-error"
+                                >
                                     {error}
                                 </div>
                             )}
@@ -144,7 +189,7 @@ const RegisterContent = () => {
                                 <button
                                     type="submit"
                                     className="btn btn-neutral w-full sm:w-auto"
-                                    disabled={loading}
+                                    disabled={loading || googleLoading}
                                 >
                                     {loading && (
                                         <span className="loading loading-spinner"></span>

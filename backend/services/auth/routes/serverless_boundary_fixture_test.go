@@ -23,10 +23,11 @@ const (
 )
 
 type boundaryFixture struct {
-	t            *testing.T
-	users        *boundaryUserStore
-	refreshStore *refreshStoreState
-	adapter      *httpadapter.HandlerAdapterV2
+	t                 *testing.T
+	users             *boundaryUserStore
+	refreshStore      *refreshStoreState
+	registrationStore *boundaryRegistrationStore
+	adapter           *httpadapter.HandlerAdapterV2
 }
 
 type boundaryConfigOptions struct {
@@ -66,7 +67,8 @@ func newBoundaryFixture(t *testing.T, opts boundaryConfigOptions, wrapGoogleAuth
 
 	users := newBoundaryUserStore(t)
 	refreshStore := newRefreshStoreState()
-	handler := NewHandler(users, invitationStoreMock(), refreshStore)
+	registrationStore := newBoundaryRegistrationStore(users)
+	handler := NewHandler(users, invitationStoreMock(), refreshStore, registrationStore)
 
 	router := gin.New()
 	router.Use(middleware.CORSMiddleware())
@@ -80,10 +82,11 @@ func newBoundaryFixture(t *testing.T, opts boundaryConfigOptions, wrapGoogleAuth
 	}
 
 	return &boundaryFixture{
-		t:            t,
-		users:        users,
-		refreshStore: refreshStore,
-		adapter:      httpadapter.NewV2(httpHandler),
+		t:                 t,
+		users:             users,
+		refreshStore:      refreshStore,
+		registrationStore: registrationStore,
+		adapter:           httpadapter.NewV2(httpHandler),
 	}
 }
 

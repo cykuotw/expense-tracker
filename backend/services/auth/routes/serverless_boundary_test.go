@@ -109,6 +109,10 @@ func TestBoundaryCSRF(t *testing.T) {
 // The Lambda authorizer wrapper supplies Google claims to the exchange route.
 func TestBoundaryGoogleExchangeUpstreamClaims(t *testing.T) {
 	fixture := newBoundaryFixture(t, boundaryConfigOptions{apiPath: "", googleExchangeMode: config.GoogleExchangeUpstreamVerified}, true)
+	fixture.users.storeUser(types.User{
+		ID: uuid.New(), ExternalType: "google", ExternalID: "google-sub-123",
+		Email: "google-user@example.test", IsActive: true, Role: "user",
+	})
 	claims := map[string]string{
 		"sub":            "google-sub-123",
 		"email":          "google-user@example.test",
@@ -145,6 +149,57 @@ func TestBoundaryGoogleExchangeUpstreamClaims(t *testing.T) {
 		withCookies(sessionCookies),
 	))
 	assert.Equal(t, http.StatusOK, meResp.StatusCode)
+}
+
+func TestBoundaryGoogleRegistrationRequiresInvitation(t *testing.T) {
+	fixture := newBoundaryFixture(t, boundaryConfigOptions{apiPath: "", googleExchangeMode: config.GoogleExchangeUpstreamVerified}, true)
+	claims := map[string]string{
+		"sub": "new-google-sub", "email": "google-user@example.test",
+		"email_verified": "true", "given_name": "Google", "family_name": "User",
+	}
+	csrf, csrfCookies, _ := issueCSRF(t, fixture, "/auth/csrf")
+
+	missingInvitation := fixture.proxy(gatewayRequest(http.MethodPost, "/auth/google/register",
+		withOrigin(boundaryFrontendOrigin),
+		withCookies(csrfCookies),
+		withHeader(middleware.CSRFHeaderName, csrf),
+		withAuthorizerClaims(claims),
+		withJSONBody(t, types.RegisterGooglePayload{}),
+	))
+	assert.Equal(t, http.StatusBadRequest, missingInvitation.StatusCode)
+	assert.Contains(t, missingInvitation.Body, `"code":"INVITATION_REQUIRED"`)
+
+	registered := fixture.proxy(gatewayRequest(http.MethodPost, "/auth/google/register",
+		withOrigin(boundaryFrontendOrigin),
+		withCookies(csrfCookies),
+		withHeader(middleware.CSRFHeaderName, csrf),
+		withAuthorizerClaims(claims),
+		withJSONBody(t, types.RegisterGooglePayload{Token: "boundary-email-invite"}),
+	))
+	require.Equal(t, http.StatusCreated, registered.StatusCode)
+	assert.Empty(t, responseSetCookies(registered), "registration must not create a session")
+
+	// Once provisioned, the same identity can use the normal login-only exchange.
+	exchanged := fixture.proxy(gatewayRequest(http.MethodPost, "/auth/google/exchange",
+		withOrigin(boundaryFrontendOrigin),
+		withCookies(csrfCookies),
+		withHeader(middleware.CSRFHeaderName, csrf),
+		withAuthorizerClaims(claims),
+	))
+	require.Equal(t, http.StatusOK, exchanged.StatusCode)
+	requireCookie(t, responseSetCookies(exchanged), "access_token")
+
+	reused := fixture.proxy(gatewayRequest(http.MethodPost, "/auth/google/register",
+		withOrigin(boundaryFrontendOrigin),
+		withCookies(csrfCookies),
+		withHeader(middleware.CSRFHeaderName, csrf),
+		withAuthorizerClaims(map[string]string{
+			"sub": "another-google-sub", "email": "another@example.test", "email_verified": "true",
+		}),
+		withJSONBody(t, types.RegisterGooglePayload{Token: "boundary-email-invite"}),
+	))
+	assert.Equal(t, http.StatusForbidden, reused.StatusCode)
+	assert.Contains(t, reused.Body, `"code":"INVITATION_USED"`)
 }
 
 // Credentialed CORS headers survive the API Gateway v2 adapter.

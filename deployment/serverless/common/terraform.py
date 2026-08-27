@@ -34,10 +34,17 @@ class Terraform:
         raw = json.loads(result.stdout)
         return {name: entry["value"] for name, entry in raw.items()}
 
-    def plan(self, plan_path: Path, *, destroy: bool = False) -> None:
+    def plan(
+        self,
+        plan_path: Path,
+        *,
+        destroy: bool = False,
+        targets: tuple[str, ...] = (),
+    ) -> None:
         command = [*self._base(), "plan", "-refresh=false", "-input=false", f"-var-file={self.variables}", f"-out={plan_path}"]
         if destroy:
             command.insert(3, "-destroy")
+        command.extend(f"-target={target}" for target in targets)
         run(command)
 
     def show_plan(self, plan_path: Path) -> dict[str, Any]:
@@ -76,10 +83,24 @@ def require_cutover_only(plan: dict[str, Any]) -> dict[str, list[str]]:
         "aws_eip_association.temporary_postgres",
         "aws_vpc_security_group_ingress_rule.ssh",
     }
-    unsafe = {
-        address: action for address, action in actions.items()
-        if address.removesuffix("[0]") not in allowed or action != ["delete"]
-    }
+    unsafe = {}
+    for address, action in actions.items():
+        normalized_address = address[:-3] if address.endswith("[0]") else address
+        if normalized_address not in allowed or action != ["delete"]:
+            unsafe[address] = action
     if unsafe or not actions:
         raise CommandError(f"cutover plan is not the expected temporary-access deletion: {actions}")
+    return actions
+
+
+def require_non_destructive_update(plan: dict[str, Any]) -> dict[str, list[str]]:
+    actions = plan_actions(plan)
+    allowed_actions = (["create"], ["update"])
+    unsafe = {
+        address: action
+        for address, action in actions.items()
+        if action not in allowed_actions
+    }
+    if unsafe:
+        raise CommandError(f"update plan contains destructive or replacement actions: {unsafe}")
     return actions

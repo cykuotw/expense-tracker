@@ -160,6 +160,24 @@ func normalizeError(status int, err error) APIErrorResponse {
 	if errors.Is(err, types.ErrGoogleAccountConflict) {
 		return APIErrorResponse{Error: err.Error(), Code: "google_account_conflict"}
 	}
+	if errors.Is(err, types.ErrInvitationRequired) {
+		return APIErrorResponse{Error: err.Error(), Code: "INVITATION_REQUIRED"}
+	}
+	if errors.Is(err, types.ErrInvitationInvalid) {
+		return APIErrorResponse{Error: err.Error(), Code: "INVITATION_INVALID"}
+	}
+	if errors.Is(err, types.ErrInvitationExpired) {
+		return APIErrorResponse{Error: err.Error(), Code: "INVITATION_EXPIRED"}
+	}
+	if errors.Is(err, types.ErrInvitationUsed) {
+		return APIErrorResponse{Error: err.Error(), Code: "INVITATION_USED"}
+	}
+	if errors.Is(err, types.ErrInvitationEmailMismatch) {
+		return APIErrorResponse{Error: err.Error(), Code: "INVITATION_EMAIL_MISMATCH"}
+	}
+	if errors.Is(err, types.ErrAccountConflict) {
+		return APIErrorResponse{Error: err.Error(), Code: "ACCOUNT_CONFLICT"}
+	}
 	if errors.Is(err, types.ErrAccountInactive) {
 		return APIErrorResponse{Error: err.Error(), Code: "account_inactive"}
 	}

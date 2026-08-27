@@ -10,21 +10,26 @@ import (
 )
 
 type Handler struct {
-	store           types.UserStore
-	invitationStore types.InvitationStore
-	refreshStore    types.RefreshTokenStore
-	googleService   googleAuth.ServiceContract
-	googleVerifier  googleAuth.Verifier
+	store             types.UserStore
+	invitationStore   types.InvitationStore
+	refreshStore      types.RefreshTokenStore
+	registrationStore types.RegistrationStore
+	googleService     googleAuth.ServiceContract
+	googleVerifier    googleAuth.Verifier
 }
 
-func NewHandler(store types.UserStore, invitationStore types.InvitationStore, refreshStore types.RefreshTokenStore) *Handler {
-	return &Handler{
+func NewHandler(store types.UserStore, invitationStore types.InvitationStore, refreshStore types.RefreshTokenStore, registrationStores ...types.RegistrationStore) *Handler {
+	handler := &Handler{
 		store:           store,
 		invitationStore: invitationStore,
 		refreshStore:    refreshStore,
 		googleService:   googleAuth.NewService(store),
 		googleVerifier:  googleAuth.NewClaimsVerifier(),
 	}
+	if len(registrationStores) > 0 {
+		handler.registrationStore = registrationStores[0]
+	}
+	return handler
 }
 
 func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
@@ -38,6 +43,12 @@ func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 			handler = h.handleGoogleExchangeUpstreamVerified
 		}
 		router.POST("/auth/google/exchange", common.Make(handler))
+
+		registerHandler := h.handleGoogleRegisterInProcess
+		if config.Envs.GoogleExchangeModeIs(config.GoogleExchangeUpstreamVerified) {
+			registerHandler = h.handleGoogleRegisterUpstreamVerified
+		}
+		router.POST("/auth/google/register", common.Make(registerHandler))
 	}
 
 	router.POST("/register", h.handleRegister)

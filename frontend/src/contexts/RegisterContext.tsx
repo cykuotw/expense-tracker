@@ -1,11 +1,14 @@
-import { useState, useEffect, FormEvent, ChangeEvent, ReactNode } from "react";
-import { useSearchParams, useNavigate } from "react-router-dom";
-import { apiFetch, getResponseErrorMessage } from "../lib/api";
+import { useCallback, useRef, useState, useEffect, FormEvent, ChangeEvent, ReactNode } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import { toast } from "react-hot-toast";
+import { apiFetch, getResponseError, ResponseError } from "../lib/api";
 import { RegisterContext } from "../hooks/RegisterContextHooks";
 
 export const RegisterProvider = ({ children }: { children: ReactNode }) => {
-    const [searchParams] = useSearchParams();
-    const token = searchParams.get("token");
+    const location = useLocation();
+    const [token] = useState(() =>
+        new URLSearchParams(location.search).get("token"),
+    );
     const navigate = useNavigate();
 
     const [formData, setFormData] = useState({
@@ -16,10 +19,22 @@ export const RegisterProvider = ({ children }: { children: ReactNode }) => {
         password: "",
     });
     const [loading, setLoading] = useState(false);
+    const [googleLoading, setGoogleLoading] = useState(false);
     const [validating, setValidating] = useState(true);
     const [error, setError] = useState("");
     const [tokenValid, setTokenValid] = useState(false);
     const [emailBound, setEmailBound] = useState(false);
+    const googleSubmissionInFlight = useRef(false);
+
+    useEffect(() => {
+        if (!token) return;
+
+        const params = new URLSearchParams(location.search);
+        params.delete("token");
+        const remainingQuery = params.toString();
+        const safeURL = `${location.pathname}${remainingQuery ? `?${remainingQuery}` : ""}${location.hash}`;
+        window.history.replaceState(window.history.state, "", safeURL);
+    }, [location.hash, location.pathname, location.search, token]);
 
     useEffect(() => {
         if (!token) {
@@ -30,7 +45,7 @@ export const RegisterProvider = ({ children }: { children: ReactNode }) => {
         const validateToken = async () => {
             try {
                 const response = await apiFetch(
-                    `/invitations/${token}`,
+                    `/invitations/${encodeURIComponent(token)}`,
                     {},
                     { authMode: "none" }
                 );
@@ -84,15 +99,15 @@ export const RegisterProvider = ({ children }: { children: ReactNode }) => {
             );
 
             if (!response.ok) {
-                throw new Error(
-                    await getResponseErrorMessage(
-                        response,
-                        "Registration failed"
-                    )
+                const responseError = await getResponseError(
+                    response,
+                    "Registration failed",
                 );
+                throw new Error(registrationErrorMessage(responseError));
             }
 
-            navigate("/login");
+            toast.success("Account created. You can now log in.");
+            navigate("/login", { replace: true });
         } catch (err) {
             if (err instanceof Error) {
                 setError(err.message);
@@ -104,11 +119,66 @@ export const RegisterProvider = ({ children }: { children: ReactNode }) => {
         }
     };
 
+    const handleGoogleCredentialResponse = useCallback(
+        async (response: GoogleCredentialResponse) => {
+            if (googleSubmissionInFlight.current) return;
+            if (!token || !response.credential?.trim()) {
+                setError(
+                    token
+                        ? "Google registration did not return a credential. Please try again."
+                        : "Registration requires a valid invitation link.",
+                );
+                return;
+            }
+
+            googleSubmissionInFlight.current = true;
+            setGoogleLoading(true);
+            setError("");
+            try {
+                const registrationResponse = await apiFetch(
+                    "/auth/google/register",
+                    {
+                        method: "POST",
+                        headers: {
+                            Authorization: `Bearer ${response.credential}`,
+                        },
+                        body: JSON.stringify({ token }),
+                    },
+                    { authMode: "none" },
+                );
+
+                if (!registrationResponse.ok) {
+                    const responseError = await getResponseError(
+                        registrationResponse,
+                        "Google registration failed",
+                    );
+                    throw new Error(registrationErrorMessage(responseError));
+                }
+
+                toast.success(
+                    "Google account registered. Continue with Google to log in.",
+                );
+                navigate("/login", { replace: true });
+            } catch (err) {
+                setError(
+                    err instanceof Error
+                        ? err.message
+                        : "An unexpected error occurred",
+                );
+            } finally {
+                googleSubmissionInFlight.current = false;
+                setGoogleLoading(false);
+            }
+        },
+        [navigate, token],
+    );
+
     return (
         <RegisterContext.Provider
             value={{
                 formData,
                 loading,
+                googleLoading,
                 validating,
                 error,
                 tokenValid,
@@ -116,9 +186,26 @@ export const RegisterProvider = ({ children }: { children: ReactNode }) => {
                 token,
                 handleChange,
                 handleSubmit,
+                handleGoogleCredentialResponse,
             }}
         >
             {children}
         </RegisterContext.Provider>
     );
 };
+
+function registrationErrorMessage(error: ResponseError) {
+    switch (error.code) {
+        case "INVITATION_REQUIRED":
+        case "INVITATION_INVALID":
+        case "INVITATION_EXPIRED":
+        case "INVITATION_USED":
+            return "This invitation is no longer valid. Ask an administrator for a new invitation link.";
+        case "INVITATION_EMAIL_MISMATCH":
+            return "Choose the Google account that matches the email address on this invitation.";
+        case "ACCOUNT_CONFLICT":
+            return "An account already exists for this email or Google identity. Log in instead, or connect accounts from Account Settings.";
+        default:
+            return error.message;
+    }
+}

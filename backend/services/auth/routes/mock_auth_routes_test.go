@@ -1,6 +1,7 @@
 package route
 
 import (
+	"context"
 	"expense-tracker/backend/types"
 	"time"
 
@@ -142,4 +143,19 @@ func (m *baseInvitationStore) GetInvitations() ([]types.Invitation, error) {
 
 func invitationStoreMock() *baseInvitationStore {
 	return &baseInvitationStore{}
+}
+
+type baseRegistrationStore struct {
+	CreateInvitedUserFn func(ctx context.Context, token string, user types.User) error
+}
+
+func (m *baseRegistrationStore) CreateInvitedUser(ctx context.Context, token string, user types.User) error {
+	if m.CreateInvitedUserFn != nil {
+		return m.CreateInvitedUserFn(ctx, token, user)
+	}
+	return nil
+}
+
+func registrationStoreMock() *baseRegistrationStore {
+	return &baseRegistrationStore{}
 }

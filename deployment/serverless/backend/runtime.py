@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import hashlib
+import json
+import os
 import tempfile
 from pathlib import Path
 from typing import Any
@@ -15,14 +17,19 @@ def _state_digest(terraform_root: Path) -> str | None:
     return hashlib.sha256(path.read_bytes()).hexdigest() if path.is_file() else None
 
 
-def assert_secret_boundary(terraform_root: Path, config: Config) -> None:
-    secrets = [
+def _protected_values(config: Config) -> tuple[bytes, ...]:
+    values = [
         config.database.admin_password, config.database.migration_password,
         config.database.runtime_password, config.backend.jwt_secret,
         config.backend.refresh_jwt_secret,
     ]
     if config.first_admin:
-        secrets.append(config.first_admin.password)
+        values.append(config.first_admin.password)
+    return tuple(value.encode() for value in values if value)
+
+
+def assert_secret_boundary(terraform_root: Path, config: Config) -> None:
+    protected_values = _protected_values(config)
     for path in terraform_root.iterdir():
         if not path.is_file() or not (
             "tfstate" in path.name
@@ -31,9 +38,77 @@ def assert_secret_boundary(terraform_root: Path, config: Config) -> None:
         ):
             continue
         data = path.read_bytes()
-        for secret in secrets:
-            if secret.encode() in data:
+        for value in protected_values:
+            if value in data:
                 raise CommandError(f"protected value found in Terraform artifact: {path.name}")
+
+
+def _write_repaired_state(path: Path, data: bytes) -> None:
+    temporary_path: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="wb",
+            prefix=f".{path.name}.repair-",
+            dir=path.parent,
+            delete=False,
+        ) as stream:
+            temporary_path = Path(stream.name)
+            os.fchmod(stream.fileno(), 0o600)
+            stream.write(data)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temporary_path, path)
+        temporary_path = None
+    finally:
+        if temporary_path is not None:
+            temporary_path.unlink(missing_ok=True)
+
+
+def repair_secret_boundary(terraform_root: Path, config: Config) -> int:
+    """Remove runtime environments that Terraform does not own from local state."""
+    repaired = 0
+    protected_values = _protected_values(config)
+    state_paths = sorted(
+        path
+        for path in terraform_root.iterdir()
+        if path.is_file()
+        and (path.name == "terraform.tfstate" or path.name.startswith("terraform.tfstate."))
+    )
+    for path in state_paths:
+        original = path.read_bytes()
+        try:
+            state = json.loads(original)
+        except json.JSONDecodeError as error:
+            raise CommandError(f"cannot safely inspect Terraform state structure: {path.name}") from error
+
+        changed = False
+        for resource in state.get("resources", []):
+            if (
+                resource.get("mode", "managed") != "managed"
+                or resource.get("type") != "aws_lambda_function"
+                or resource.get("name") not in {"worker", "bootstrap"}
+            ):
+                continue
+            for instance in resource.get("instances", []):
+                attributes = instance.get("attributes")
+                if isinstance(attributes, dict) and attributes.get("environment"):
+                    attributes["environment"] = []
+                    changed = True
+
+        if not changed:
+            continue
+        if isinstance(state.get("serial"), int):
+            state["serial"] += 1
+        repaired_state = (json.dumps(state, separators=(",", ":")) + "\n").encode()
+        if any(value in repaired_state for value in protected_values):
+            raise CommandError(
+                f"protected value remains outside the repairable Lambda environment state: {path.name}"
+            )
+        _write_repaired_state(path, repaired_state)
+        repaired += 1
+
+    assert_secret_boundary(terraform_root, config)
+    return repaired
 
 
 def configure_bootstrap(client: AWSClient, config: Config, outputs: dict[str, Any], terraform_root: Path) -> dict[str, Any]:

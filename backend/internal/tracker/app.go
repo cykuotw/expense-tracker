@@ -57,7 +57,8 @@ func registerRoutes(router *gin.Engine, db *sql.DB) {
 	invitationHandler := invitation.NewHandler(invitationStore)
 	refreshStore := auth.NewRefreshStore(db)
 
-	authHandler := authRoute.NewHandler(userStore, invitationStore, refreshStore)
+	registrationStore := auth.NewRegistrationStore(db)
+	authHandler := authRoute.NewHandler(userStore, invitationStore, refreshStore, registrationStore)
 	authHandler.RegisterRoutes(public)
 
 	protected := public.Group("")

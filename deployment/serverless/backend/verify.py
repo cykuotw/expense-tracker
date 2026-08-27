@@ -35,6 +35,7 @@ def verify_api(
     *,
     raw_disabled: bool = False,
     require_patch_cors: bool = True,
+    require_google_register_authorizer: bool = True,
 ) -> None:
     api = f"{config.api_origin}/api/v0"
     health = _request(f"{api}/health")
@@ -61,11 +62,17 @@ def verify_api(
     disallowed = _request(f"{api}/auth/csrf", headers={"Origin": "https://invalid.example"})
     if disallowed.headers.get("Access-Control-Allow-Origin"):
         raise CommandError("disallowed CORS origin was reflected")
-    for authorization in (None, "Bearer not-a-jwt"):
-        headers = {} if authorization is None else {"Authorization": authorization}
-        response = _request(f"{api}/auth/google/exchange", method="POST", headers=headers)
-        if response.status != 401:
-            raise CommandError(f"Google authorizer negative check returned HTTP {response.status}")
+    google_paths = ["exchange"]
+    if require_google_register_authorizer:
+        google_paths.append("register")
+    for google_path in google_paths:
+        for authorization in (None, "Bearer not-a-jwt"):
+            headers = {} if authorization is None else {"Authorization": authorization}
+            response = _request(f"{api}/auth/google/{google_path}", method="POST", headers=headers)
+            if response.status != 401:
+                raise CommandError(
+                    f"Google {google_path} authorizer negative check returned HTTP {response.status}"
+                )
     if raw_endpoint:
         raw_url = f"{raw_endpoint.rstrip('/')}/api/v0/health"
         if raw_disabled:

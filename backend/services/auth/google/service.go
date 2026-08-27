@@ -11,6 +11,7 @@ import (
 
 type ServiceContract interface {
 	ResolveUserFromClaims(claims *types.VerifiedGoogleClaims) (*types.User, error)
+	PrepareUserFromClaims(claims *types.VerifiedGoogleClaims) (*types.User, error)
 }
 
 type Service struct {
@@ -48,7 +49,7 @@ func (s *Service) ResolveUserFromClaims(claims *types.VerifiedGoogleClaims) (*ty
 
 	user, err = s.store.GetUserByEmail(claims.Email)
 	if err == nil {
-		return nil, types.ErrGoogleAccountConflict
+		return nil, types.ErrAccountConflict
 	}
 	if err != types.ErrUserNotExist {
 		return nil, err
@@ -58,28 +59,38 @@ func (s *Service) ResolveUserFromClaims(claims *types.VerifiedGoogleClaims) (*ty
 		return nil, types.ErrGoogleEmailNotVerified
 	}
 
+	return nil, types.ErrInvitationRequired
+}
+
+func (s *Service) PrepareUserFromClaims(claims *types.VerifiedGoogleClaims) (*types.User, error) {
+	if claims == nil || strings.TrimSpace(claims.Subject) == "" {
+		return nil, types.ErrMissingGoogleSubject
+	}
+	if auth.NormalizeEmail(claims.Email) == "" {
+		return nil, types.ErrMissingGoogleEmail
+	}
+	if claims.EmailVerified == nil || !*claims.EmailVerified {
+		return nil, types.ErrGoogleEmailNotVerified
+	}
+
 	hashedPassword, err := s.hashSecret("external-google-login-disabled:" + s.newUUID().String())
 	if err != nil {
 		return nil, err
 	}
 
-	user = &types.User{
+	user := &types.User{
 		ID:             s.newUUID(),
 		Username:       nicknameFromClaims(claims),
 		Nickname:       nicknameFromClaims(claims),
 		Firstname:      claims.GivenName,
 		Lastname:       claims.FamilyName,
-		Email:          claims.Email,
+		Email:          auth.NormalizeEmail(claims.Email),
 		PasswordHashed: hashedPassword,
 		ExternalType:   "google",
 		ExternalID:     claims.Subject,
 		CreateTime:     s.now(),
 		IsActive:       true,
 		Role:           "user",
-	}
-
-	if err := s.store.CreateUser(*user); err != nil {
-		return nil, err
 	}
 
 	return user, nil

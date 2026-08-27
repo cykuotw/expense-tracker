@@ -86,7 +86,12 @@ resource "aws_lambda_function" "worker" {
   }
   depends_on = [aws_cloudwatch_log_group.worker, aws_iam_role_policy.worker]
   lifecycle {
-    ignore_changes = [environment, reserved_concurrent_executions]
+    ignore_changes = [
+      environment,
+      filename,
+      reserved_concurrent_executions,
+      source_code_hash,
+    ]
   }
   tags = merge(local.common_tags, {
     Component = "backend"
@@ -109,7 +114,11 @@ resource "aws_lambda_function" "bootstrap" {
   }
   depends_on = [aws_cloudwatch_log_group.bootstrap, aws_iam_role_policy.bootstrap]
   lifecycle {
-    ignore_changes = [environment]
+    ignore_changes = [
+      environment,
+      filename,
+      source_code_hash,
+    ]
   }
   tags = merge(local.common_tags, {
     Component = "database"

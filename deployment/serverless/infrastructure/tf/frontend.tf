@@ -61,6 +61,16 @@ resource "aws_cloudfront_origin_access_control" "frontend" {
   signing_behavior                  = "always"
   signing_protocol                  = "sigv4"
 }
+resource "aws_cloudfront_response_headers_policy" "frontend_security" {
+  name = "${local.resource_prefix}-frontend-security"
+
+  security_headers_config {
+    referrer_policy {
+      override        = true
+      referrer_policy = "strict-origin-when-cross-origin"
+    }
+  }
+}
 resource "aws_cloudfront_distribution" "frontend" {
   enabled             = true
   is_ipv6_enabled     = true
@@ -73,11 +83,12 @@ resource "aws_cloudfront_distribution" "frontend" {
     origin_access_control_id = aws_cloudfront_origin_access_control.frontend.id
   }
   default_cache_behavior {
-    allowed_methods        = ["GET", "HEAD", "OPTIONS"]
-    cached_methods         = ["GET", "HEAD"]
-    target_origin_id       = local.frontend_origin_id
-    viewer_protocol_policy = "redirect-to-https"
-    compress               = true
+    allowed_methods            = ["GET", "HEAD", "OPTIONS"]
+    cached_methods             = ["GET", "HEAD"]
+    target_origin_id           = local.frontend_origin_id
+    viewer_protocol_policy     = "redirect-to-https"
+    compress                   = true
+    response_headers_policy_id = aws_cloudfront_response_headers_policy.frontend_security.id
     forwarded_values {
       query_string = false
       cookies {

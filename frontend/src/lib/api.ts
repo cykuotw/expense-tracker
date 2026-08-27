@@ -123,33 +123,50 @@ export async function getResponseErrorMessage(
     response: Response,
     fallback: string
 ) {
+    return (await getResponseError(response, fallback)).message;
+}
+
+export interface ResponseError {
+    message: string;
+    code: string | null;
+}
+
+export async function getResponseError(
+    response: Response,
+    fallback: string,
+): Promise<ResponseError> {
     const contentType = response.headers.get("content-type") ?? "";
 
     try {
         if (contentType.includes("application/json")) {
             const data = (await response.json()) as unknown;
             if (typeof data !== "object" || data === null) {
-                return fallback;
+                return { message: fallback, code: null };
             }
 
             const errorData = data as {
                 error?: unknown;
                 message?: unknown;
+                code?: unknown;
             };
+            const code =
+                typeof errorData.code === "string" && errorData.code.trim()
+                    ? errorData.code.trim()
+                    : null;
             if (typeof errorData.error === "string") {
                 const error = errorData.error.trim();
-                if (error) return error;
+                if (error) return { message: error, code };
             }
             if (typeof errorData.message === "string") {
                 const message = errorData.message.trim();
-                if (message) return message;
+                if (message) return { message, code };
             }
-            return fallback;
+            return { message: fallback, code };
         }
 
         const text = (await response.text()).trim();
-        return text || fallback;
+        return { message: text || fallback, code: null };
     } catch {
-        return fallback;
+        return { message: fallback, code: null };
     }
 }

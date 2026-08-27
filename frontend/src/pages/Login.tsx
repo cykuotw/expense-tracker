@@ -6,7 +6,7 @@ import { GOOGLE_OAUTH_ENABLED } from "../configs/config";
 import LoginForm from "../components/auth/LoginForm";
 import { LoginProvider } from "../contexts/LoginContext";
 import { useAuth } from "../hooks/AuthContextHooks";
-import { apiFetch, getResponseErrorMessage } from "../lib/api";
+import { apiFetch, getResponseError } from "../lib/api";
 
 export default function Login() {
     const navigate = useNavigate();
@@ -32,12 +32,16 @@ export default function Login() {
                 );
 
                 if (!exchangeResponse.ok) {
-                    throw new Error(
-                        await getResponseErrorMessage(
-                            exchangeResponse,
-                            "Google sign-in failed",
-                        ),
+                    const responseError = await getResponseError(
+                        exchangeResponse,
+                        "Google sign-in failed",
                     );
+                    if (responseError.code === "INVITATION_REQUIRED") {
+                        throw new Error(
+                            "This Google account has not been registered. Use a valid invitation link to create it first.",
+                        );
+                    }
+                    throw new Error(responseError.message);
                 }
 
                 const loggedIn = await markLoggedIn();

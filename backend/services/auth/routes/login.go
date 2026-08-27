@@ -23,6 +23,7 @@ func (h *Handler) handleLogin(c *gin.Context) {
 		utils.WriteError(c, http.StatusBadRequest, utils.NewValidationError(errors))
 		return
 	}
+	payload.Email = auth.NormalizeEmail(payload.Email)
 
 	var user *types.User
 	var err error

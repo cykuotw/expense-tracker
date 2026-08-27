@@ -1,6 +1,7 @@
 package route
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"expense-tracker/backend/config"
@@ -18,6 +19,14 @@ import (
 
 type mockGoogleService struct {
 	resolveUserFromClaimsFn func(claims *types.VerifiedGoogleClaims) (*types.User, error)
+	prepareUserFromClaimsFn func(claims *types.VerifiedGoogleClaims) (*types.User, error)
+}
+
+func (s *mockGoogleService) PrepareUserFromClaims(claims *types.VerifiedGoogleClaims) (*types.User, error) {
+	if s.prepareUserFromClaimsFn != nil {
+		return s.prepareUserFromClaimsFn(claims)
+	}
+	return nil, nil
 }
 
 func (s *mockGoogleService) ResolveUserFromClaims(claims *types.VerifiedGoogleClaims) (*types.User, error) {
@@ -58,13 +67,18 @@ func TestRegisterRoutesGoogleExchangeGating(t *testing.T) {
 		handler.RegisterRoutes(router.Group(""))
 
 		foundExchange := false
+		foundRegister := false
 		for _, route := range router.Routes() {
 			if route.Method == http.MethodPost && route.Path == "/auth/google/exchange" {
 				foundExchange = true
 			}
+			if route.Method == http.MethodPost && route.Path == "/auth/google/register" {
+				foundRegister = true
+			}
 		}
 
 		assert.True(t, foundExchange)
+		assert.True(t, foundRegister)
 	})
 
 	t.Run("missing google oauth config does not register exchange route", func(t *testing.T) {
@@ -119,6 +133,92 @@ func TestRegisterRoutesGoogleExchangeGating(t *testing.T) {
 	})
 }
 
+func TestHandleGoogleRegisterInProcess(t *testing.T) {
+	gin.SetMode(gin.ReleaseMode)
+	claims := &types.VerifiedGoogleClaims{
+		Subject:       "google-sub-123",
+		Email:         "invited@example.com",
+		EmailVerified: boolPtr(true),
+	}
+
+	t.Run("creates invited account without issuing a session", func(t *testing.T) {
+		var registeredUser types.User
+		handler := NewHandler(loginUserStoreMock(), invitationStoreMock(), refreshStoreMock(), &baseRegistrationStore{
+			CreateInvitedUserFn: func(ctx context.Context, token string, user types.User) error {
+				assert.Equal(t, "invite-token", token)
+				registeredUser = user
+				return nil
+			},
+		})
+		handler.googleVerifier = &mockGoogleVerifier{verifyFn: func(ctx context.Context, rawToken string) (*types.VerifiedGoogleClaims, error) {
+			assert.Equal(t, "google-token", rawToken)
+			return claims, nil
+		}}
+		handler.googleService = &mockGoogleService{prepareUserFromClaimsFn: func(received *types.VerifiedGoogleClaims) (*types.User, error) {
+			assert.Equal(t, claims, received)
+			return &types.User{ID: uuid.New(), Email: received.Email, ExternalType: "google", ExternalID: received.Subject}, nil
+		}}
+
+		req := httptest.NewRequest(http.MethodPost, "/auth/google/register", bytes.NewBufferString(`{"token":"invite-token"}`))
+		req.Header.Set("Authorization", "Bearer google-token")
+		req.Header.Set("Content-Type", "application/json")
+		rr := httptest.NewRecorder()
+		router := gin.New()
+		router.POST("/auth/google/register", common.Make(handler.handleGoogleRegisterInProcess))
+		router.ServeHTTP(rr, req)
+
+		assert.Equal(t, http.StatusCreated, rr.Code)
+		assert.Equal(t, "google", registeredUser.ExternalType)
+		assert.Empty(t, rr.Result().Cookies())
+	})
+
+	t.Run("requires invitation token", func(t *testing.T) {
+		handler := NewHandler(loginUserStoreMock(), invitationStoreMock(), refreshStoreMock(), registrationStoreMock())
+		handler.googleVerifier = &mockGoogleVerifier{verifyFn: func(ctx context.Context, rawToken string) (*types.VerifiedGoogleClaims, error) {
+			return claims, nil
+		}}
+		handler.googleService = &mockGoogleService{prepareUserFromClaimsFn: func(received *types.VerifiedGoogleClaims) (*types.User, error) {
+			return &types.User{}, nil
+		}}
+
+		req := httptest.NewRequest(http.MethodPost, "/auth/google/register", bytes.NewBufferString(`{}`))
+		req.Header.Set("Authorization", "Bearer google-token")
+		req.Header.Set("Content-Type", "application/json")
+		rr := httptest.NewRecorder()
+		router := gin.New()
+		router.POST("/auth/google/register", common.Make(handler.handleGoogleRegisterInProcess))
+		router.ServeHTTP(rr, req)
+
+		assert.Equal(t, http.StatusBadRequest, rr.Code)
+		assert.Contains(t, rr.Body.String(), `"code":"INVITATION_REQUIRED"`)
+	})
+
+	t.Run("maps invitation email mismatch", func(t *testing.T) {
+		handler := NewHandler(loginUserStoreMock(), invitationStoreMock(), refreshStoreMock(), &baseRegistrationStore{
+			CreateInvitedUserFn: func(ctx context.Context, token string, user types.User) error {
+				return types.ErrInvitationEmailMismatch
+			},
+		})
+		handler.googleVerifier = &mockGoogleVerifier{verifyFn: func(ctx context.Context, rawToken string) (*types.VerifiedGoogleClaims, error) {
+			return claims, nil
+		}}
+		handler.googleService = &mockGoogleService{prepareUserFromClaimsFn: func(received *types.VerifiedGoogleClaims) (*types.User, error) {
+			return &types.User{}, nil
+		}}
+
+		req := httptest.NewRequest(http.MethodPost, "/auth/google/register", bytes.NewBufferString(`{"token":"invite-token"}`))
+		req.Header.Set("Authorization", "Bearer google-token")
+		req.Header.Set("Content-Type", "application/json")
+		rr := httptest.NewRecorder()
+		router := gin.New()
+		router.POST("/auth/google/register", common.Make(handler.handleGoogleRegisterInProcess))
+		router.ServeHTTP(rr, req)
+
+		assert.Equal(t, http.StatusForbidden, rr.Code)
+		assert.Contains(t, rr.Body.String(), `"code":"INVITATION_EMAIL_MISMATCH"`)
+	})
+}
+
 func TestHandleGoogleExchangeInProcess(t *testing.T) {
 	originalEnabled := config.Envs.GoogleOAuthEnabled
 	originalClientID := config.Envs.GoogleClientId
@@ -165,6 +265,27 @@ func TestHandleGoogleExchangeInProcess(t *testing.T) {
 		assert.NoError(t, json.Unmarshal(rr.Body.Bytes(), &response))
 		assert.Equal(t, "missing authorization header", response.Error)
 		assert.Equal(t, "missing_authorization_header", response.Code)
+	})
+
+	t.Run("unknown identity requires an invitation and creates no session", func(t *testing.T) {
+		handler := NewHandler(loginUserStoreMock(), invitationStoreMock(), refreshStoreMock())
+		handler.googleVerifier = &mockGoogleVerifier{verifyFn: func(ctx context.Context, rawToken string) (*types.VerifiedGoogleClaims, error) {
+			return &types.VerifiedGoogleClaims{Subject: "unknown", Email: "unknown@example.com", EmailVerified: boolPtr(true)}, nil
+		}}
+		handler.googleService = &mockGoogleService{resolveUserFromClaimsFn: func(claims *types.VerifiedGoogleClaims) (*types.User, error) {
+			return nil, types.ErrInvitationRequired
+		}}
+
+		req := httptest.NewRequest(http.MethodPost, "/auth/google/exchange", nil)
+		req.Header.Set("Authorization", "Bearer google-token")
+		rr := httptest.NewRecorder()
+		router := gin.New()
+		router.POST("/auth/google/exchange", common.Make(handler.handleGoogleExchangeInProcess))
+		router.ServeHTTP(rr, req)
+
+		assert.Equal(t, http.StatusForbidden, rr.Code)
+		assert.Contains(t, rr.Body.String(), `"code":"INVITATION_REQUIRED"`)
+		assert.Empty(t, rr.Result().Cookies())
 	})
 
 	t.Run("successful exchange issues auth cookies", func(t *testing.T) {

@@ -47,6 +47,10 @@ func googleExchangeStatus(err error) int {
 		return http.StatusBadRequest
 	case errors.Is(err, types.ErrGoogleAccountConflict):
 		return http.StatusConflict
+	case errors.Is(err, types.ErrAccountConflict):
+		return http.StatusConflict
+	case errors.Is(err, types.ErrInvitationRequired):
+		return http.StatusForbidden
 	case errors.Is(err, types.ErrAccountInactive):
 		return http.StatusForbidden
 	default:
@@ -92,7 +96,62 @@ func (h *Handler) finishGoogleExchange(c *gin.Context, claims *types.VerifiedGoo
 	return nil
 }
 
+func (h *Handler) handleGoogleRegisterUpstreamVerified(c *gin.Context) error {
+	claims, err := googleAuth.VerifiedClaimsFromContext(c.Request.Context())
+	if err != nil {
+		return writeGoogleExchangeError(c, err)
+	}
+	return h.finishGoogleRegister(c, claims)
+}
+
+func (h *Handler) handleGoogleRegisterInProcess(c *gin.Context) error {
+	rawToken, err := extractBearerToken(c.GetHeader("Authorization"))
+	if err != nil {
+		return writeGoogleExchangeError(c, err)
+	}
+	claims, err := h.googleVerifier.VerifyGoogleIDToken(c.Request.Context(), rawToken)
+	if err != nil {
+		return writeGoogleExchangeError(c, err)
+	}
+	return h.finishGoogleRegister(c, claims)
+}
+
+func (h *Handler) finishGoogleRegister(c *gin.Context, claims *types.VerifiedGoogleClaims) error {
+	var payload types.RegisterGooglePayload
+	if err := utils.ParseJSON(c, &payload); err != nil {
+		if errors.Is(err, types.ErrEmptyRequestBody) {
+			return writeRegistrationError(c, types.ErrInvitationRequired)
+		}
+		utils.WriteError(c, http.StatusBadRequest, err)
+		return err
+	}
+	payload.Token = strings.TrimSpace(payload.Token)
+	if payload.Token == "" {
+		return writeRegistrationError(c, types.ErrInvitationRequired)
+	}
+
+	user, err := h.googleService.PrepareUserFromClaims(claims)
+	if err != nil {
+		return writeGoogleExchangeError(c, err)
+	}
+	if h.registrationStore == nil {
+		err := errors.New("registration store is unavailable")
+		utils.WriteError(c, http.StatusInternalServerError, err)
+		return err
+	}
+	if err := h.registrationStore.CreateInvitedUser(c.Request.Context(), payload.Token, *user); err != nil {
+		return writeRegistrationError(c, err)
+	}
+
+	utils.WriteJSON(c, http.StatusCreated, nil)
+	return nil
+}
+
 func writeGoogleExchangeError(c *gin.Context, err error) error {
-	utils.WriteError(c, googleExchangeStatus(err), err)
+	status := googleExchangeStatus(err)
+	utils.WriteError(c, status, err)
+	if status >= http.StatusInternalServerError {
+		return errors.New("google authentication failed")
+	}
 	return err
 }

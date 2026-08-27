@@ -13,14 +13,14 @@ const {
     navigateMock,
     markLoggedInMock,
     apiFetchMock,
-    getResponseErrorMessageMock,
+    getResponseErrorMock,
     toastErrorMock,
     configState,
 } = vi.hoisted(() => ({
     navigateMock: vi.fn(),
     markLoggedInMock: vi.fn(),
     apiFetchMock: vi.fn(),
-    getResponseErrorMessageMock: vi.fn(),
+    getResponseErrorMock: vi.fn(),
     toastErrorMock: vi.fn(),
     configState: {
         googleOAuthEnabled: true,
@@ -73,8 +73,7 @@ vi.mock("../hooks/AuthContextHooks", () => ({
 
 vi.mock("../lib/api", () => ({
     apiFetch: (...args: unknown[]) => apiFetchMock(...args),
-    getResponseErrorMessage: (...args: unknown[]) =>
-        getResponseErrorMessageMock(...args),
+    getResponseError: (...args: unknown[]) => getResponseErrorMock(...args),
 }));
 
 vi.mock("react-hot-toast", () => ({
@@ -122,7 +121,10 @@ describe("Login", () => {
 
     it("shows the backend error when exchange fails", async () => {
         apiFetchMock.mockResolvedValue({ ok: false } satisfies Partial<Response>);
-        getResponseErrorMessageMock.mockResolvedValue("Google sign-in failed");
+        getResponseErrorMock.mockResolvedValue({
+            message: "Google sign-in failed",
+            code: null,
+        });
 
         render(<Login />);
 
@@ -131,6 +133,23 @@ describe("Login", () => {
         await waitFor(() => {
             expect(toastErrorMock).toHaveBeenCalledWith(
                 "Google sign-in failed",
+            );
+        });
+    });
+
+    it("explains that an unknown Google account needs an invitation", async () => {
+        apiFetchMock.mockResolvedValue({ ok: false } satisfies Partial<Response>);
+        getResponseErrorMock.mockResolvedValue({
+            message: "invitation required",
+            code: "INVITATION_REQUIRED",
+        });
+
+        render(<Login />);
+        fireEvent.click(screen.getByRole("button", { name: "Google Sign In" }));
+
+        await waitFor(() => {
+            expect(toastErrorMock).toHaveBeenCalledWith(
+                "This Google account has not been registered. Use a valid invitation link to create it first.",
             );
         });
     });

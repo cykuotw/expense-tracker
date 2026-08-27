@@ -3,7 +3,7 @@ import { toast } from "react-hot-toast";
 
 import ConfirmationDialog from "../components/ConfirmationDialog";
 import { useAuth } from "../hooks/AuthContextHooks";
-import { apiFetch, getResponseErrorMessage } from "../lib/api";
+import { apiFetch, getResponseError, getResponseErrorMessage } from "../lib/api";
 import {
     AdminInvitation,
     AdminManagementData,
@@ -44,6 +44,16 @@ function statusBadge(status: string) {
     return `badge ${styles[status] ?? "badge-ghost"}`;
 }
 
+const PROTECTED_ADMIN_MESSAGE =
+    "The system owner is protected for account recovery and cannot be managed here.";
+
+async function getAdminMutationError(response: Response, fallback: string) {
+    const error = await getResponseError(response, fallback);
+    return error.code === "PROTECTED_ADMIN"
+        ? PROTECTED_ADMIN_MESSAGE
+        : error.message;
+}
+
 interface UserActionsProps {
     user: AdminUser;
     currentUserID: string | null;
@@ -60,6 +70,33 @@ function UserActions({
     onRoleChange,
 }: UserActionsProps) {
     const isSelf = user.id === currentUserID;
+
+    if (user.isProtectedAdmin) {
+        return (
+            <div
+                className="rounded-2xl border border-info/30 bg-info/10 p-4"
+                aria-label={`System owner details for ${user.email}`}
+            >
+                <dl className="grid grid-cols-2 gap-3 text-sm">
+                    <div>
+                        <dt className="text-xs font-semibold uppercase tracking-wide text-base-content/55">
+                            Role
+                        </dt>
+                        <dd className="mt-1 font-medium">Administrator</dd>
+                    </div>
+                    <div>
+                        <dt className="text-xs font-semibold uppercase tracking-wide text-base-content/55">
+                            Status
+                        </dt>
+                        <dd className="mt-1 font-medium">Active</dd>
+                    </div>
+                </dl>
+                <p className="mt-3 text-sm text-base-content/70">
+                    {PROTECTED_ADMIN_MESSAGE}
+                </p>
+            </div>
+        );
+    }
 
     return (
         <div className="flex min-w-[11rem] flex-col gap-2">
@@ -99,6 +136,120 @@ function UserActions({
                 )}
             </button>
         </div>
+    );
+}
+
+interface UserCardProps extends Omit<UserActionsProps, "busy"> {
+    busy: boolean;
+}
+
+function UserCard(props: UserCardProps) {
+    const { user } = props;
+    return (
+        <article
+            className={`rounded-3xl border bg-base-100 p-5 ${
+                user.isProtectedAdmin
+                    ? "border-info/40 ring-1 ring-info/15"
+                    : "border-base-300"
+            }`}
+        >
+            <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="min-w-0">
+                    <h3 className="truncate font-semibold text-base-content">
+                        {userName(user)}
+                    </h3>
+                    <p className="break-all text-sm text-base-content/65">
+                        {user.email}
+                    </p>
+                </div>
+                <div className="flex flex-wrap gap-2" aria-label="Account labels">
+                    <span
+                        className={statusBadge(
+                            user.isActive ? "active" : "inactive",
+                        )}
+                    >
+                        {user.isActive ? "Active" : "Disabled"}
+                    </span>
+                    {user.role === USER_ROLES.admin ? (
+                        <span className="badge badge-outline">Administrator</span>
+                    ) : (
+                        <span className="badge badge-outline">Regular user</span>
+                    )}
+                    {user.isProtectedAdmin ? (
+                        <span className="badge badge-info badge-outline">
+                            System owner
+                        </span>
+                    ) : null}
+                </div>
+            </div>
+            <p className="mt-3 text-xs text-base-content/55">
+                Joined {formatDate(user.createTime)}
+            </p>
+            <div className="mt-5">
+                <UserActions {...props} />
+            </div>
+        </article>
+    );
+}
+
+interface UserSectionProps {
+    id: string;
+    title: string;
+    description: string;
+    users: AdminUser[];
+    currentUserID: string | null;
+    busyID: string | null;
+    onStatusChange: (user: AdminUser) => Promise<void>;
+    onRoleChange: (user: AdminUser, role: UserRole) => Promise<void>;
+}
+
+function UserSection({
+    id,
+    title,
+    description,
+    users,
+    currentUserID,
+    busyID,
+    onStatusChange,
+    onRoleChange,
+}: UserSectionProps) {
+    return (
+        <section
+            className="panel-card rounded-[2rem] p-5 md:p-6"
+            aria-labelledby={id}
+        >
+            <div className="flex flex-wrap items-start justify-between gap-4">
+                <div>
+                    <h2 id={id} className="text-lg font-semibold">
+                        {title}
+                    </h2>
+                    <p className="mt-1 text-sm text-base-content/65">
+                        {description}
+                    </p>
+                </div>
+                <span className="badge badge-ghost" aria-label={`${users.length} ${title}`}>
+                    {users.length}
+                </span>
+            </div>
+            {users.length === 0 ? (
+                <p className="mt-5 text-sm text-base-content/65">
+                    No {title.toLowerCase()} found.
+                </p>
+            ) : (
+                <div className="mt-5 grid gap-4 lg:grid-cols-2">
+                    {users.map((user) => (
+                        <UserCard
+                            key={user.id}
+                            user={user}
+                            currentUserID={currentUserID}
+                            busy={busyID === user.id}
+                            onStatusChange={onStatusChange}
+                            onRoleChange={onRoleChange}
+                        />
+                    ))}
+                </div>
+            )}
+        </section>
     );
 }
 
@@ -157,6 +308,16 @@ export default function AdminUsers() {
     const [confirmation, setConfirmation] =
         useState<ConfirmationRequest | null>(null);
 
+    const administrators: AdminUser[] = [];
+    const regularUsers: AdminUser[] = [];
+    for (const user of data.users) {
+        if (user.role === USER_ROLES.admin) {
+            administrators.push(user);
+        } else {
+            regularUsers.push(user);
+        }
+    }
+
     const load = useCallback(async (showLoading = true) => {
         if (showLoading) setLoading(true);
         setError("");
@@ -187,6 +348,10 @@ export default function AdminUsers() {
     }, [load]);
 
     const performStatusUpdate = async (user: AdminUser) => {
+        if (user.isProtectedAdmin) {
+            toast.error(PROTECTED_ADMIN_MESSAGE);
+            return;
+        }
         const nextActive = !user.isActive;
         setBusyID(user.id);
         try {
@@ -196,7 +361,7 @@ export default function AdminUsers() {
             });
             if (!response.ok) {
                 throw new Error(
-                    await getResponseErrorMessage(
+                    await getAdminMutationError(
                         response,
                         "Unable to update account status",
                     ),
@@ -223,6 +388,10 @@ export default function AdminUsers() {
     };
 
     const requestStatusUpdate = async (user: AdminUser) => {
+        if (user.isProtectedAdmin) {
+            toast.error(PROTECTED_ADMIN_MESSAGE);
+            return;
+        }
         const nextActive = !user.isActive;
         setConfirmation({
             title: nextActive ? "Activate this account?" : "Disable this account?",
@@ -237,6 +406,10 @@ export default function AdminUsers() {
     };
 
     const performRoleUpdate = async (user: AdminUser, role: UserRole) => {
+        if (user.isProtectedAdmin) {
+            toast.error(PROTECTED_ADMIN_MESSAGE);
+            return;
+        }
         if (role === user.role) return;
         setBusyID(user.id);
         try {
@@ -246,7 +419,7 @@ export default function AdminUsers() {
             });
             if (!response.ok) {
                 throw new Error(
-                    await getResponseErrorMessage(
+                    await getAdminMutationError(
                         response,
                         "Unable to update user role",
                     ),
@@ -271,6 +444,10 @@ export default function AdminUsers() {
     };
 
     const requestRoleUpdate = async (user: AdminUser, role: UserRole) => {
+        if (user.isProtectedAdmin) {
+            toast.error(PROTECTED_ADMIN_MESSAGE);
+            return;
+        }
         if (role === user.role) return;
         const currentLabel =
             user.role === USER_ROLES.admin ? "Administrator" : "Regular user";
@@ -428,44 +605,27 @@ export default function AdminUsers() {
                     </div>
                 ) : (
                     <div className="space-y-8">
-                        <section className="panel-card rounded-[2rem] p-5 md:p-6" aria-labelledby="registered-users-heading">
-                            <div className="flex items-center justify-between gap-4">
-                                <h2 id="registered-users-heading" className="text-lg font-semibold">Registered users</h2>
-                                <span className="badge badge-ghost">{data.users.length}</span>
-                            </div>
-                            {data.users.length === 0 ? (
-                                <p className="mt-5 text-sm text-base-content/65">No registered users found.</p>
-                            ) : (
-                                <div className="mt-5 grid gap-4 lg:grid-cols-2">
-                                    {data.users.map((user) => (
-                                        <article key={user.id} className="rounded-3xl border border-base-300 bg-base-100 p-5">
-                                            <div className="flex flex-wrap items-start justify-between gap-3">
-                                                <div className="min-w-0">
-                                                    <h3 className="truncate font-semibold text-base-content">{userName(user)}</h3>
-                                                    <p className="break-all text-sm text-base-content/65">{user.email}</p>
-                                                </div>
-                                                <div className="flex flex-wrap gap-2">
-                                                    <span className={statusBadge(user.isActive ? "active" : "inactive")}>
-                                                        {user.isActive ? "Active" : "Disabled"}
-                                                    </span>
-                                                    <span className="badge badge-outline">{user.role === USER_ROLES.admin ? "Admin" : "User"}</span>
-                                                </div>
-                                            </div>
-                                            <p className="mt-3 text-xs text-base-content/55">Joined {formatDate(user.createTime)}</p>
-                                            <div className="mt-5">
-                                                <UserActions
-                                                    user={user}
-                                                    currentUserID={userID}
-                                                    busy={busyID === user.id}
-                                                    onStatusChange={requestStatusUpdate}
-                                                    onRoleChange={requestRoleUpdate}
-                                                />
-                                            </div>
-                                        </article>
-                                    ))}
-                                </div>
-                            )}
-                        </section>
+                        <UserSection
+                            id="administrators-heading"
+                            title="Administrators"
+                            description="Accounts that can manage users, roles, access, and invitations."
+                            users={administrators}
+                            currentUserID={userID}
+                            busyID={busyID}
+                            onStatusChange={requestStatusUpdate}
+                            onRoleChange={requestRoleUpdate}
+                        />
+
+                        <UserSection
+                            id="regular-users-heading"
+                            title="Regular users"
+                            description="Accounts with standard expense-tracking access."
+                            users={regularUsers}
+                            currentUserID={userID}
+                            busyID={busyID}
+                            onStatusChange={requestStatusUpdate}
+                            onRoleChange={requestRoleUpdate}
+                        />
 
                         <section className="panel-card rounded-[2rem] p-5 md:p-6" aria-labelledby="invitations-heading">
                             <div className="flex flex-col gap-5 border-b border-base-300 pb-6 lg:flex-row lg:items-end lg:justify-between">

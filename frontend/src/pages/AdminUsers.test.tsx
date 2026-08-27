@@ -6,12 +6,14 @@ import AdminUsers from "./AdminUsers";
 
 const {
     apiFetchMock,
+    getResponseErrorMock,
     getResponseErrorMessageMock,
     toastErrorMock,
     toastSuccessMock,
     clipboardWriteMock,
 } = vi.hoisted(() => ({
     apiFetchMock: vi.fn(),
+    getResponseErrorMock: vi.fn(),
     getResponseErrorMessageMock: vi.fn(),
     toastErrorMock: vi.fn(),
     toastSuccessMock: vi.fn(),
@@ -24,6 +26,7 @@ vi.mock("../hooks/AuthContextHooks", () => ({
 
 vi.mock("../lib/api", () => ({
     apiFetch: (...args: unknown[]) => apiFetchMock(...args),
+    getResponseError: (...args: unknown[]) => getResponseErrorMock(...args),
     getResponseErrorMessage: (...args: unknown[]) =>
         getResponseErrorMessageMock(...args),
 }));
@@ -38,6 +41,17 @@ vi.mock("react-hot-toast", () => ({
 const managementData = {
     users: [
         {
+            id: "system-owner",
+            firstname: "System",
+            lastname: "Owner",
+            nickname: "",
+            email: "owner@example.com",
+            role: "admin",
+            isActive: true,
+            isProtectedAdmin: true,
+            createTime: "2025-12-31T00:00:00Z",
+        },
+        {
             id: "admin-self",
             firstname: "Current",
             lastname: "Admin",
@@ -45,6 +59,7 @@ const managementData = {
             email: "admin@example.com",
             role: "admin",
             isActive: true,
+            isProtectedAdmin: false,
             createTime: "2026-01-01T00:00:00Z",
         },
         {
@@ -55,6 +70,7 @@ const managementData = {
             email: "user@example.com",
             role: "user",
             isActive: true,
+            isProtectedAdmin: false,
             createTime: "2026-01-02T00:00:00Z",
         },
     ],
@@ -93,6 +109,7 @@ describe("AdminUsers", () => {
             value: { writeText: clipboardWriteMock },
         });
         clipboardWriteMock.mockResolvedValue(undefined);
+        getResponseErrorMock.mockResolvedValue({ message: "request failed", code: null });
         apiFetchMock.mockImplementation((path: string) => {
             if (path === "/admin/users") return Promise.resolve(response(managementData));
             if (path === "/admin/invitations/invite-1/link") {
@@ -120,6 +137,32 @@ describe("AdminUsers", () => {
         expect(
             within(selfCard!).getByRole("button", { name: "Disable account" }),
         ).toBeDisabled();
+
+        expect(
+            screen.getByRole("heading", { name: "Administrators" }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole("heading", { name: "Regular users" }),
+        ).toBeInTheDocument();
+    });
+
+    it("renders the protected system owner as read-only", async () => {
+        renderPage();
+
+        const ownerCard = (await screen.findByText("owner@example.com")).closest(
+            "article",
+        );
+        expect(ownerCard).not.toBeNull();
+        expect(within(ownerCard!).getByText("System owner")).toBeInTheDocument();
+        expect(
+            within(ownerCard!).getByText(
+                "The system owner is protected for account recovery and cannot be managed here.",
+            ),
+        ).toBeInTheDocument();
+        expect(within(ownerCard!).queryByRole("combobox")).not.toBeInTheDocument();
+        expect(
+            within(ownerCard!).queryByRole("button", { name: /account/i }),
+        ).not.toBeInTheDocument();
     });
 
     it("updates role and account status with separate API calls", async () => {
@@ -153,8 +196,23 @@ describe("AdminUsers", () => {
             ),
         );
 
+        const administrators = screen
+            .getByRole("heading", { name: "Administrators" })
+            .closest("section");
+        expect(administrators).not.toBeNull();
+        await waitFor(() =>
+            expect(
+                within(administrators!).getByText("user@example.com"),
+            ).toBeInTheDocument(),
+        );
+
+        const updatedUserCard = within(administrators!)
+            .getByText("user@example.com")
+            .closest("article");
+        expect(updatedUserCard).not.toBeNull();
+
         fireEvent.click(
-            within(userCard!).getByRole("button", { name: "Disable account" }),
+            within(updatedUserCard!).getByRole("button", { name: "Disable account" }),
         );
         const statusDialog = screen.getByRole("alertdialog", {
             name: "Disable this account?",
@@ -197,6 +255,44 @@ describe("AdminUsers", () => {
             expect.anything(),
         );
         expect(within(userCard!).getByRole("combobox")).toHaveValue("user");
+    });
+
+    it("handles a stale protected-owner response with a safe message", async () => {
+        apiFetchMock.mockImplementation((path: string) => {
+            if (path === "/admin/users") {
+                return Promise.resolve(response(managementData));
+            }
+            if (path === "/admin/users/user-1/status") {
+                return Promise.resolve(response({}, 409));
+            }
+            return Promise.resolve(response({}));
+        });
+        getResponseErrorMock.mockResolvedValue({
+            message: "server detail that should not be displayed",
+            code: "PROTECTED_ADMIN",
+        });
+        renderPage();
+
+        const userCard = (await screen.findByText("user@example.com")).closest(
+            "article",
+        );
+        fireEvent.click(
+            within(userCard!).getByRole("button", { name: "Disable account" }),
+        );
+        fireEvent.click(
+            within(screen.getByRole("alertdialog")).getByRole("button", {
+                name: "Disable account",
+            }),
+        );
+
+        await waitFor(() =>
+            expect(toastErrorMock).toHaveBeenCalledWith(
+                "The system owner is protected for account recovery and cannot be managed here.",
+            ),
+        );
+        expect(toastErrorMock).not.toHaveBeenCalledWith(
+            "server detail that should not be displayed",
+        );
     });
 
     it.each([

@@ -144,20 +144,11 @@ func Run(ctx context.Context, cfg Config) (Result, error) {
 	}
 	defer runtimeDB.Close()
 
-	result := Result{FirstAdminStatus: "not_requested"}
-	if cfg.FirstAdmin == nil {
-		return result, nil
-	}
-	created, err := user.BootstrapFirstAdmin(user.NewStore(runtimeDB), *cfg.FirstAdmin, user.BootstrapDeps{})
+	status, err := user.BootstrapFirstAdmin(user.NewStore(runtimeDB), cfg.FirstAdmin, user.BootstrapDeps{})
 	if err != nil {
 		return Result{}, fmt.Errorf("bootstrap first admin: %w", err)
 	}
-	if created {
-		result.FirstAdminStatus = "created"
-	} else {
-		result.FirstAdminStatus = "already_exists"
-	}
-	return result, nil
+	return Result{FirstAdminStatus: string(status)}, nil
 }
 
 func open(ctx context.Context, connectionString string) (*sql.DB, error) {

@@ -13,12 +13,17 @@ type Store struct {
 	db *sql.DB
 }
 
+const userProjection = `
+	id, username, firstname, lastname, email, password_hash,
+	external_type, external_id, create_time_utc, is_active, nickname, role
+`
+
 func NewStore(db *sql.DB) *Store {
 	return &Store{db: db}
 }
 
 func (s *Store) GetUserByEmail(email string) (*types.User, error) {
-	query := "SELECT * FROM users WHERE LOWER(BTRIM(email)) = $1;"
+	query := "SELECT " + userProjection + " FROM users WHERE LOWER(BTRIM(email)) = $1;"
 	rows, err := s.db.Query(query, auth.NormalizeEmail(email))
 	if err != nil {
 		return nil, err
@@ -44,7 +49,7 @@ func (s *Store) GetUserByEmail(email string) (*types.User, error) {
 }
 
 func (s *Store) GetUserByExternalIdentity(externalType string, externalID string) (*types.User, error) {
-	query := "SELECT * FROM users WHERE external_type = $1 AND external_id = $2;"
+	query := "SELECT " + userProjection + " FROM users WHERE external_type = $1 AND external_id = $2;"
 	rows, err := s.db.Query(query, externalType, externalID)
 	if err != nil {
 		return nil, err
@@ -70,7 +75,7 @@ func (s *Store) GetUserByExternalIdentity(externalType string, externalID string
 }
 
 func (s *Store) GetUserByID(id string) (*types.User, error) {
-	query := "SELECT * FROM users WHERE id = $1;"
+	query := "SELECT " + userProjection + " FROM users WHERE id = $1;"
 	rows, err := s.db.Query(query, id)
 	if err != nil {
 		return nil, err
@@ -180,12 +185,6 @@ func (s *Store) CheckEmailExist(email string) (bool, error) {
 	}
 
 	return exist, nil
-}
-
-func (s *Store) CheckAdminUserExists() (bool, error) {
-	query := "SELECT EXISTS (SELECT 1 FROM users WHERE role = 'admin');"
-
-	return s.checkUserExist(query)
 }
 
 func (s *Store) CreateUser(user types.User) error {

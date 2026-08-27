@@ -27,7 +27,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	created, err := user.BootstrapFirstAdmin(user.NewStore(storage), user.FirstAdminInput{
+	status, err := user.BootstrapFirstAdmin(user.NewStore(storage), &user.FirstAdminInput{
 		Email:     requireEnv("FIRST_ADMIN_EMAIL"),
 		Password:  requireEnv("FIRST_ADMIN_PASSWORD"),
 		Firstname: requireEnv("FIRST_ADMIN_FIRSTNAME"),
@@ -38,10 +38,5 @@ func main() {
 		log.Fatal(err)
 	}
 
-	if created {
-		log.Println("first admin user created")
-		return
-	}
-
-	log.Println("first admin user bootstrap skipped because an admin already exists")
+	log.Printf("first admin bootstrap status: %s", status)
 }

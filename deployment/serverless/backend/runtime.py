@@ -123,6 +123,10 @@ def configure_bootstrap(client: AWSClient, config: Config, outputs: dict[str, An
     try:
         first = client.invoke_bootstrap(str(outputs["bootstrap_function_name"]), response_path)
         second = client.invoke_bootstrap(str(outputs["bootstrap_function_name"]), response_path)
+        if first.get("first_admin_status") not in {
+            "created", "reconciled", "already_exists", "not_requested",
+        }:
+            raise CommandError("first bootstrap invocation returned an invalid first-admin status")
         if second.get("first_admin_status") not in {"not_requested", "already_exists"}:
             raise CommandError("second bootstrap invocation was not idempotent")
         return first

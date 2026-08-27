@@ -190,6 +190,9 @@ func normalizeError(status int, err error) APIErrorResponse {
 	if errors.Is(err, types.ErrCannotChangeOwnRole) {
 		return APIErrorResponse{Error: err.Error(), Code: "cannot_change_own_role"}
 	}
+	if errors.Is(err, types.ErrProtectedAdmin) {
+		return APIErrorResponse{Error: err.Error(), Code: "PROTECTED_ADMIN"}
+	}
 	if errors.Is(err, types.ErrInvalidUserRole) {
 		return APIErrorResponse{Error: err.Error(), Code: "invalid_user_role"}
 	}

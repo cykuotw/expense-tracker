@@ -9,7 +9,17 @@ import (
 
 const adminStateLockID int64 = 726814993
 
-func validateStatusChange(actorID, targetID, role string, currentlyActive, nextActive bool, activeAdmins int) error {
+func validateProtectedAdminMutation(protected bool) error {
+	if protected {
+		return types.ErrProtectedAdmin
+	}
+	return nil
+}
+
+func validateStatusChange(actorID, targetID, role string, currentlyActive, nextActive bool, activeAdmins int, protected bool) error {
+	if err := validateProtectedAdminMutation(protected); err != nil {
+		return err
+	}
 	if nextActive {
 		return nil
 	}
@@ -22,9 +32,12 @@ func validateStatusChange(actorID, targetID, role string, currentlyActive, nextA
 	return nil
 }
 
-func validateRoleChange(actorID, targetID, currentRole, nextRole string, active bool, activeAdmins int) error {
+func validateRoleChange(actorID, targetID, currentRole, nextRole string, active bool, activeAdmins int, protected bool) error {
 	if nextRole != "admin" && nextRole != "user" {
 		return types.ErrInvalidUserRole
+	}
+	if err := validateProtectedAdminMutation(protected); err != nil {
+		return err
 	}
 	if actorID == targetID {
 		return types.ErrCannotChangeOwnRole
@@ -37,7 +50,7 @@ func validateRoleChange(actorID, targetID, currentRole, nextRole string, active 
 
 func (s *Store) GetAdminUsers() ([]types.AdminUserResponse, error) {
 	rows, err := s.db.Query(`
-		SELECT id, firstname, lastname, email, nickname, role, is_active, create_time_utc
+		SELECT id, firstname, lastname, email, nickname, role, is_active, is_protected_admin, create_time_utc
 		FROM users
 		ORDER BY create_time_utc DESC, email ASC;
 	`)
@@ -51,7 +64,7 @@ func (s *Store) GetAdminUsers() ([]types.AdminUserResponse, error) {
 		var user types.AdminUserResponse
 		if err := rows.Scan(
 			&user.ID, &user.Firstname, &user.Lastname, &user.Email,
-			&user.Nickname, &user.Role, &user.IsActive, &user.CreateTime,
+			&user.Nickname, &user.Role, &user.IsActive, &user.IsProtectedAdmin, &user.CreateTime,
 		); err != nil {
 			return nil, err
 		}
@@ -76,13 +89,17 @@ func (s *Store) SetUserActive(actorID string, targetID string, active bool) erro
 
 	var role string
 	var currentlyActive bool
+	var protected bool
 	if err := tx.QueryRow(
-		"SELECT role, is_active FROM users WHERE id = $1 FOR UPDATE;",
+		"SELECT role, is_active, is_protected_admin FROM users WHERE id = $1 FOR UPDATE;",
 		targetID,
-	).Scan(&role, &currentlyActive); err != nil {
+	).Scan(&role, &currentlyActive, &protected); err != nil {
 		if err == sql.ErrNoRows {
 			return types.ErrUserNotExist
 		}
+		return err
+	}
+	if err := validateProtectedAdminMutation(protected); err != nil {
 		return err
 	}
 
@@ -94,7 +111,7 @@ func (s *Store) SetUserActive(actorID string, targetID string, active bool) erro
 			return err
 		}
 	}
-	if err := validateStatusChange(actorID, targetID, role, currentlyActive, active, activeAdmins); err != nil {
+	if err := validateStatusChange(actorID, targetID, role, currentlyActive, active, activeAdmins, false); err != nil {
 		return err
 	}
 
@@ -134,13 +151,17 @@ func (s *Store) SetUserRole(actorID string, targetID string, role string) error 
 
 	var currentRole string
 	var active bool
+	var protected bool
 	if err := tx.QueryRow(
-		"SELECT role, is_active FROM users WHERE id = $1 FOR UPDATE;",
+		"SELECT role, is_active, is_protected_admin FROM users WHERE id = $1 FOR UPDATE;",
 		targetID,
-	).Scan(&currentRole, &active); err != nil {
+	).Scan(&currentRole, &active, &protected); err != nil {
 		if err == sql.ErrNoRows {
 			return types.ErrUserNotExist
 		}
+		return err
+	}
+	if err := validateProtectedAdminMutation(protected); err != nil {
 		return err
 	}
 
@@ -152,7 +173,7 @@ func (s *Store) SetUserRole(actorID string, targetID string, role string) error 
 			return err
 		}
 	}
-	if err := validateRoleChange(actorID, targetID, currentRole, role, active, activeAdmins); err != nil {
+	if err := validateRoleChange(actorID, targetID, currentRole, role, active, activeAdmins, false); err != nil {
 		return err
 	}
 

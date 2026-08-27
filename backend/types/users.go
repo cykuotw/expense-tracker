@@ -108,14 +108,15 @@ type ChangeOwnPasswordPayload struct {
 }
 
 type AdminUserResponse struct {
-	ID         uuid.UUID `json:"id"`
-	Firstname  string    `json:"firstname"`
-	Lastname   string    `json:"lastname"`
-	Email      string    `json:"email"`
-	Nickname   string    `json:"nickname"`
-	Role       string    `json:"role"`
-	IsActive   bool      `json:"isActive"`
-	CreateTime time.Time `json:"createTime"`
+	ID               uuid.UUID `json:"id"`
+	Firstname        string    `json:"firstname"`
+	Lastname         string    `json:"lastname"`
+	Email            string    `json:"email"`
+	Nickname         string    `json:"nickname"`
+	Role             string    `json:"role"`
+	IsActive         bool      `json:"isActive"`
+	IsProtectedAdmin bool      `json:"isProtectedAdmin"`
+	CreateTime       time.Time `json:"createTime"`
 }
 
 type UpdateUserStatusPayload struct {

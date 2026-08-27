@@ -72,7 +72,8 @@ func actorID(c *gin.Context) (string, error) {
 
 func writeMutationError(c *gin.Context, err error) {
 	switch {
-	case errors.Is(err, types.ErrCannotDeactivateSelf),
+	case errors.Is(err, types.ErrProtectedAdmin),
+		errors.Is(err, types.ErrCannotDeactivateSelf),
 		errors.Is(err, types.ErrCannotChangeOwnRole),
 		errors.Is(err, types.ErrLastActiveAdmin):
 		utils.WriteError(c, http.StatusConflict, err)

@@ -96,13 +96,16 @@ class WorkflowTest(unittest.TestCase):
         context.repo_root = Path("/repo")
         context.serverless_root = Path("/repo/deployment/serverless")
         context.terraform_root = context.serverless_root / "infrastructure/tf"
+        events: list[str] = []
         with mock.patch.object(workflow, "preflight"), \
              mock.patch.object(workflow.runtime, "repair_secret_boundary", return_value=0), \
              mock.patch.object(workflow, "_require_complete", return_value={}), \
              mock.patch.object(workflow.artifacts, "build", return_value={"bootstrap": Path("b"), "worker": Path("w")}), \
              mock.patch.object(workflow, "_apply_infrastructure_updates"), \
-             mock.patch.object(workflow.runtime, "update_worker"), \
+             mock.patch.object(workflow.runtime, "update_bootstrap", side_effect=lambda *args: events.append("migrations")), \
+             mock.patch.object(workflow.runtime, "update_worker", side_effect=lambda *args: events.append("backend")), \
              mock.patch.object(workflow, "verify_api"), \
              mock.patch.object(workflow, "publish_frontend") as publish:
             workflow.update(context, "backend")
         publish.assert_not_called()
+        self.assertEqual(events, ["migrations", "backend"])

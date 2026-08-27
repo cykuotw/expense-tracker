@@ -12,9 +12,17 @@ import (
 )
 
 type FirstAdminStore interface {
-	CheckAdminUserExists() (bool, error)
-	CreateUser(user types.User) error
+	ReconcileFirstAdmin(candidate *types.User, normalizedEmail string) (BootstrapStatus, error)
 }
+
+type BootstrapStatus string
+
+const (
+	BootstrapStatusCreated       BootstrapStatus = "created"
+	BootstrapStatusReconciled    BootstrapStatus = "reconciled"
+	BootstrapStatusAlreadyExists BootstrapStatus = "already_exists"
+	BootstrapStatusNotRequested  BootstrapStatus = "not_requested"
+)
 
 type FirstAdminInput struct {
 	Email     string
@@ -29,15 +37,10 @@ type BootstrapDeps struct {
 	NewUUID func() uuid.UUID
 }
 
-func BootstrapFirstAdmin(store FirstAdminStore, input FirstAdminInput, deps BootstrapDeps) (bool, error) {
-	exists, err := store.CheckAdminUserExists()
-	if err != nil {
-		return false, err
+func BootstrapFirstAdmin(store FirstAdminStore, input *FirstAdminInput, deps BootstrapDeps) (BootstrapStatus, error) {
+	if input == nil {
+		return store.ReconcileFirstAdmin(nil, "")
 	}
-	if exists {
-		return false, nil
-	}
-
 	if deps.Now == nil {
 		deps.Now = time.Now
 	}
@@ -45,14 +48,14 @@ func BootstrapFirstAdmin(store FirstAdminStore, input FirstAdminInput, deps Boot
 		deps.NewUUID = uuid.New
 	}
 
-	normalized, err := normalizeFirstAdminInput(input)
+	normalized, err := normalizeFirstAdminInput(*input)
 	if err != nil {
-		return false, err
+		return "", err
 	}
 
 	hashedPassword, err := auth.HashPassword(normalized.Password)
 	if err != nil {
-		return false, err
+		return "", err
 	}
 
 	username := normalized.Nickname
@@ -60,7 +63,7 @@ func BootstrapFirstAdmin(store FirstAdminStore, input FirstAdminInput, deps Boot
 		username = normalized.Firstname + " " + normalized.Lastname
 	}
 
-	err = store.CreateUser(types.User{
+	candidate := &types.User{
 		ID:             deps.NewUUID(),
 		Username:       username,
 		Nickname:       normalized.Nickname,
@@ -73,12 +76,8 @@ func BootstrapFirstAdmin(store FirstAdminStore, input FirstAdminInput, deps Boot
 		CreateTime:     deps.Now(),
 		IsActive:       true,
 		Role:           "admin",
-	})
-	if err != nil {
-		return false, err
 	}
-
-	return true, nil
+	return store.ReconcileFirstAdmin(candidate, normalized.Email)
 }
 
 func normalizeFirstAdminInput(input FirstAdminInput) (FirstAdminInput, error) {
@@ -101,9 +100,11 @@ func normalizeFirstAdminInput(input FirstAdminInput) (FirstAdminInput, error) {
 		return FirstAdminInput{}, fmt.Errorf("FIRST_ADMIN_LASTNAME is required")
 	}
 
-	if _, err := mail.ParseAddress(input.Email); err != nil {
+	address, err := mail.ParseAddress(input.Email)
+	if err != nil || address.Address != input.Email {
 		return FirstAdminInput{}, fmt.Errorf("FIRST_ADMIN_EMAIL must be a valid email address")
 	}
+	input.Email = auth.NormalizeEmail(address.Address)
 
 	return input, nil
 }

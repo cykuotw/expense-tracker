@@ -78,7 +78,7 @@ func TestListReturnsSafeManagementData(t *testing.T) {
 	invitationID := uuid.New()
 	users := &userStoreMock{
 		getUsersFn: func() ([]types.AdminUserResponse, error) {
-			return []types.AdminUserResponse{{ID: userID, Email: "user@example.com", IsActive: true, Role: "user"}}, nil
+			return []types.AdminUserResponse{{ID: userID, Email: "user@example.com", IsActive: true, Role: "admin", IsProtectedAdmin: true}}, nil
 		},
 		setActiveFn: func(string, string, bool) error { return nil },
 		setRoleFn:   func(string, string, string) error { return nil },
@@ -94,6 +94,30 @@ func TestListReturnsSafeManagementData(t *testing.T) {
 	assert.Equal(t, http.StatusOK, response.Code)
 	assert.NotContains(t, response.Body.String(), "token")
 	assert.Contains(t, response.Body.String(), "invite@example.com")
+	assert.Contains(t, response.Body.String(), `"isProtectedAdmin":true`)
+}
+
+func TestUpdateStatusRejectsProtectedChange(t *testing.T) {
+	actor := uuid.New()
+	target := uuid.New()
+	users := &userStoreMock{
+		getUsersFn: func() ([]types.AdminUserResponse, error) { return nil, nil },
+		setActiveFn: func(string, string, bool) error {
+			return types.ErrProtectedAdmin
+		},
+		setRoleFn: func(string, string, string) error { return nil },
+	}
+
+	response := httptest.NewRecorder()
+	request := authenticatedRequest(t, http.MethodPatch, "/admin/users/"+target.String()+"/status", []byte(`{"isActive":true}`), actor)
+	adminTestRouter(users, baseInvitationMock()).ServeHTTP(response, request)
+
+	assert.Equal(t, http.StatusConflict, response.Code)
+	var payload struct {
+		Code string `json:"code"`
+	}
+	assert.NoError(t, json.Unmarshal(response.Body.Bytes(), &payload))
+	assert.Equal(t, "PROTECTED_ADMIN", payload.Code)
 }
 
 func TestUpdateStatusPassesActorAndTarget(t *testing.T) {
@@ -127,7 +151,7 @@ func TestUpdateRoleRejectsProtectedChange(t *testing.T) {
 		getUsersFn:  func() ([]types.AdminUserResponse, error) { return nil, nil },
 		setActiveFn: func(string, string, bool) error { return nil },
 		setRoleFn: func(string, string, string) error {
-			return types.ErrLastActiveAdmin
+			return types.ErrProtectedAdmin
 		},
 	}
 
@@ -140,7 +164,8 @@ func TestUpdateRoleRejectsProtectedChange(t *testing.T) {
 		Code string `json:"code"`
 	}
 	assert.NoError(t, json.Unmarshal(response.Body.Bytes(), &payload))
-	assert.Equal(t, "last_active_admin", payload.Code)
+	assert.Equal(t, "PROTECTED_ADMIN", payload.Code)
+	assert.NotContains(t, response.Body.String(), "admin@example.com")
 }
 
 func TestUpdateRoleRejectsUnknownRole(t *testing.T) {

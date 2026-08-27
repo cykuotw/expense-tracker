@@ -290,7 +290,7 @@ def update(context: Context, scope: str) -> None:
     outputs = _require_complete(context)
     # Terraform evaluates Lambda artifact hashes even for targeted infrastructure plans.
     built = artifacts.build(context.repo_root, context.serverless_root / "build")
-    if scope in {"migrations", "all"}:
+    if scope in {"migrations", "backend", "all"}:
         step("migrations")
         runtime.update_bootstrap(context.aws, built["bootstrap"], context.config, outputs, context.terraform_root)
         step("migrations", "pass")

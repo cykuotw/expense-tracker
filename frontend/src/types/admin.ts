@@ -8,6 +8,7 @@ export interface AdminUser {
     nickname: string;
     role: UserRole;
     isActive: boolean;
+    isProtectedAdmin: boolean;
     createTime: string;
 }
 

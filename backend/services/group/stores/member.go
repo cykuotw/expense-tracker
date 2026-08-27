@@ -40,7 +40,12 @@ func (s *Store) GetGroupMemberByGroupID(groupID string) ([]*types.User, error) {
 }
 
 func (s *Store) getGroupMemberUser(id string) (*types.User, error) {
-	query := "SELECT * FROM users WHERE id = $1;"
+	query := `
+		SELECT id, username, firstname, lastname, email, password_hash,
+			external_type, external_id, create_time_utc, is_active, nickname, role
+		FROM users
+		WHERE id = $1;
+	`
 	rows, err := s.db.Query(query, id)
 	if err != nil {
 		return nil, err

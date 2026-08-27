@@ -32,6 +32,7 @@ var (
 	ErrCannotDeactivateSelf       = errors.New("administrators cannot deactivate their own account")
 	ErrLastActiveAdmin            = errors.New("the last active administrator cannot be deactivated")
 	ErrCannotChangeOwnRole        = errors.New("administrators cannot change their own role")
+	ErrProtectedAdmin             = errors.New("the system owner cannot be managed")
 	ErrInvalidUserRole            = errors.New("invalid user role")
 	ErrInvalidProfile             = errors.New("first name and last name are required")
 	ErrCurrentPasswordIncorrect   = errors.New("current password is incorrect")

@@ -22,6 +22,7 @@ class VerifyTest(unittest.TestCase):
         responses = [
             Response(200, {}, b""),
             Response(204, {"Access-Control-Allow-Origin": config.frontend_origin}, b""),
+            Response(204, {"Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS"}, b""),
             Response(200, {}, b""),
             Response(401, {}, b""),
             Response(401, {}, b""),
@@ -35,6 +36,22 @@ class VerifyTest(unittest.TestCase):
         ):
             verify_api(config, "https://raw.example.com", raw_disabled=True)
         sleep.assert_called_once_with(3)
+
+    def test_baseline_verification_does_not_require_patch_cors(self) -> None:
+        config = SimpleNamespace(
+            api_origin="https://api.example.com",
+            frontend_origin="https://expense.example.com",
+        )
+        responses = [
+            Response(200, {}, b""),
+            Response(204, {"Access-Control-Allow-Origin": config.frontend_origin}, b""),
+            Response(200, {}, b""),
+            Response(401, {}, b""),
+            Response(401, {}, b""),
+        ]
+        with mock.patch("backend.verify._request", side_effect=responses) as request:
+            verify_api(config, require_patch_cors=False)
+        self.assertEqual(request.call_count, 5)
 
 
 if __name__ == "__main__":

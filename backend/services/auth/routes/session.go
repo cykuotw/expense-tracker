@@ -11,6 +11,9 @@ import (
 )
 
 func (h *Handler) issueAuthSession(c *gin.Context, user *types.User) error {
+	if !user.IsActive {
+		return types.ErrAccountInactive
+	}
 	secret := []byte(config.Envs.JWTSecret)
 	accessToken, err := auth.CreateJWT(secret, user.ID)
 	if err != nil {

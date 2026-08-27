@@ -51,7 +51,7 @@ export default function Navbar() {
                         {role === USER_ROLES.admin && (
                             <li>
                                 <NavLink
-                                    to="/admin/invite"
+                                    to="/admin/users"
                                     className={({ isActive }) =>
                                         `flex items-center rounded-2xl px-4 py-3 text-sm font-medium ${
                                             isActive
@@ -60,7 +60,7 @@ export default function Navbar() {
                                         }`
                                     }
                                 >
-                                    Invite Users
+                                    User Management
                                 </NavLink>
                             </li>
                         )}

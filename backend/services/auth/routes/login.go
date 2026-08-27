@@ -41,6 +41,10 @@ func (h *Handler) handleLogin(c *gin.Context) {
 		utils.WriteError(c, http.StatusBadRequest, types.ErrPasswordNotMatch)
 		return
 	}
+	if !user.IsActive {
+		utils.WriteError(c, http.StatusForbidden, types.ErrAccountInactive)
+		return
+	}
 
 	if err := h.issueAuthSession(c, user); err != nil {
 		utils.WriteError(c, http.StatusInternalServerError, err)

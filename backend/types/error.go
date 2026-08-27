@@ -22,6 +22,11 @@ var (
 	ErrInvalidGoogleIssuer        = errors.New("invalid google token issuer")
 	ErrGoogleEmailNotVerified     = errors.New("google email must be verified")
 	ErrGoogleAccountConflict      = errors.New("google account conflicts with an existing user")
+	ErrAccountInactive            = errors.New("account is inactive")
+	ErrCannotDeactivateSelf       = errors.New("administrators cannot deactivate their own account")
+	ErrLastActiveAdmin            = errors.New("the last active administrator cannot be deactivated")
+	ErrCannotChangeOwnRole        = errors.New("administrators cannot change their own role")
+	ErrInvalidUserRole            = errors.New("invalid user role")
 
 	// jwt
 	ErrInvalidToken = errors.New("invalid token")

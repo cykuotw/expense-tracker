@@ -2,6 +2,7 @@ import { createContext, useContext } from "react";
 import { UserRole } from "../types/role";
 
 export interface AuthContextType {
+    userID: string | null;
     isAuthenticated: boolean;
     role: UserRole | null;
     loading: boolean;

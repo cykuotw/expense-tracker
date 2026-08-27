@@ -32,3 +32,12 @@ type InvitationResponse struct {
 	Email string `json:"email"`
 	Valid bool   `json:"valid"`
 }
+
+type AdminInvitationResponse struct {
+	ID        uuid.UUID  `json:"id"`
+	Email     string     `json:"email"`
+	ExpiresAt time.Time  `json:"expiresAt"`
+	UsedAt    *time.Time `json:"usedAt"`
+	CreatedAt time.Time  `json:"createdAt"`
+	Status    string     `json:"status"`
+}

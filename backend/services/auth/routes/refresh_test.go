@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"expense-tracker/backend/config"
-	"expense-tracker/backend/services/common"
 	"expense-tracker/backend/services/auth"
+	"expense-tracker/backend/services/common"
 	"expense-tracker/backend/types"
 
 	"github.com/gin-gonic/gin"
@@ -168,6 +168,35 @@ func TestRefreshExpired(t *testing.T) {
 	router.ServeHTTP(rr, req)
 
 	assert.Equal(t, http.StatusUnauthorized, rr.Code)
+}
+
+func TestRefreshInactiveUser(t *testing.T) {
+	userStore := &baseAuthUserStore{
+		GetUserByIDFn: func(string) (*types.User, error) {
+			return &types.User{IsActive: false}, nil
+		},
+	}
+	refreshStore := newRefreshStoreState()
+	handler := NewHandler(userStore, invitationStoreMock(), refreshStore)
+	userID := uuid.New()
+	refreshToken, refreshID, refreshExp, err := auth.CreateRefreshJWT([]byte(config.Envs.RefreshJWTSecret), userID)
+	assert.NoError(t, err)
+	assert.NoError(t, refreshStore.CreateRefreshToken(types.RefreshToken{
+		ID: uuid.MustParse(refreshID), UserID: userID, TokenHash: auth.HashToken(refreshToken),
+		ExpiresAt: refreshExp, CreatedAt: time.Now(),
+	}))
+	request := httptest.NewRequest(http.MethodPost, "/auth/refresh", nil)
+	request.AddCookie(&http.Cookie{Name: "refresh_token", Value: refreshToken})
+	response := httptest.NewRecorder()
+	router := gin.New()
+	router.POST("/auth/refresh", common.Make(handler.handleRefresh))
+
+	router.ServeHTTP(response, request)
+
+	assert.Equal(t, http.StatusForbidden, response.Code)
+	stored, err := refreshStore.GetRefreshTokenByID(refreshID)
+	assert.NoError(t, err)
+	assert.NotNil(t, stored.RevokedAt)
 }
 
 func TestLogoutRevokesRefreshToken(t *testing.T) {

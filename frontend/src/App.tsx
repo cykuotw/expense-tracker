@@ -20,7 +20,7 @@ import ExpenseDetail from "./pages/ExpenseDetail";
 import CreateExpense from "./pages/CreateExpense";
 import CreateGroup from "./pages/CreateGroup";
 import EditExpense from "./pages/EditExpense";
-import InviteUser from "./pages/InviteUser";
+import AdminUsers from "./pages/AdminUsers";
 
 function AppRoutes() {
     const { loading } = useAuth();
@@ -56,7 +56,7 @@ function AppRoutes() {
 
             <Route element={<AdminGuard />}>
                 <Route element={<NavbarLayout />}>
-                    <Route path="/admin/invite" element={<InviteUser />} />
+                    <Route path="/admin/users" element={<AdminUsers />} />
                 </Route>
             </Route>
         </Routes>

@@ -145,6 +145,21 @@ func normalizeError(status int, err error) APIErrorResponse {
 	if errors.Is(err, types.ErrGoogleAccountConflict) {
 		return APIErrorResponse{Error: err.Error(), Code: "google_account_conflict"}
 	}
+	if errors.Is(err, types.ErrAccountInactive) {
+		return APIErrorResponse{Error: err.Error(), Code: "account_inactive"}
+	}
+	if errors.Is(err, types.ErrCannotDeactivateSelf) {
+		return APIErrorResponse{Error: err.Error(), Code: "cannot_deactivate_self"}
+	}
+	if errors.Is(err, types.ErrLastActiveAdmin) {
+		return APIErrorResponse{Error: err.Error(), Code: "last_active_admin"}
+	}
+	if errors.Is(err, types.ErrCannotChangeOwnRole) {
+		return APIErrorResponse{Error: err.Error(), Code: "cannot_change_own_role"}
+	}
+	if errors.Is(err, types.ErrInvalidUserRole) {
+		return APIErrorResponse{Error: err.Error(), Code: "invalid_user_role"}
+	}
 	if errors.Is(err, types.ErrInvalidCSRFToken) {
 		return APIErrorResponse{Error: err.Error(), Code: "invalid_csrf_token"}
 	}

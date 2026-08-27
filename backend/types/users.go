@@ -77,3 +77,22 @@ type UserInfoResponse struct {
 	Lastname  string `json:"lastname" validate:"required"`
 	Email     string `json:"email" validate:"required,email"`
 }
+
+type AdminUserResponse struct {
+	ID         uuid.UUID `json:"id"`
+	Firstname  string    `json:"firstname"`
+	Lastname   string    `json:"lastname"`
+	Email      string    `json:"email"`
+	Nickname   string    `json:"nickname"`
+	Role       string    `json:"role"`
+	IsActive   bool      `json:"isActive"`
+	CreateTime time.Time `json:"createTime"`
+}
+
+type UpdateUserStatusPayload struct {
+	IsActive *bool `json:"isActive" validate:"required"`
+}
+
+type UpdateUserRolePayload struct {
+	Role string `json:"role" validate:"required,oneof=admin user"`
+}

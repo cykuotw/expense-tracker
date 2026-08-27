@@ -114,7 +114,23 @@ func (h *Handler) handleListInvitations(c *gin.Context) {
 		return
 	}
 
-	utils.WriteJSON(c, http.StatusOK, invitations)
+	responses := make([]types.AdminInvitationResponse, 0, len(invitations))
+	now := time.Now()
+	for _, invitation := range invitations {
+		status := "invited"
+		if invitation.UsedAt != nil {
+			status = "used"
+		} else if now.After(invitation.ExpiresAt) {
+			status = "expired"
+		}
+		responses = append(responses, types.AdminInvitationResponse{
+			ID: invitation.ID, Email: invitation.Email,
+			ExpiresAt: invitation.ExpiresAt, UsedAt: invitation.UsedAt,
+			CreatedAt: invitation.CreatedAt, Status: status,
+		})
+	}
+
+	utils.WriteJSON(c, http.StatusOK, responses)
 }
 
 func (h *Handler) handleExpireInvitation(c *gin.Context) {

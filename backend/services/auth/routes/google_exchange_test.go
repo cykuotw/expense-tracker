@@ -192,8 +192,9 @@ func TestHandleGoogleExchangeInProcess(t *testing.T) {
 			resolveUserFromClaimsFn: func(claims *types.VerifiedGoogleClaims) (*types.User, error) {
 				assert.Equal(t, "google-sub-123", claims.Subject)
 				return &types.User{
-					ID:   userID,
-					Role: "user",
+					ID:       userID,
+					Role:     "user",
+					IsActive: true,
 				}, nil
 			},
 		}
@@ -338,8 +339,9 @@ func TestHandleGoogleExchangeUpstreamVerified(t *testing.T) {
 			resolveUserFromClaimsFn: func(claims *types.VerifiedGoogleClaims) (*types.User, error) {
 				assert.Equal(t, "google-sub-123", claims.Subject)
 				return &types.User{
-					ID:   userID,
-					Role: "user",
+					ID:       userID,
+					Role:     "user",
+					IsActive: true,
 				}, nil
 			},
 		}

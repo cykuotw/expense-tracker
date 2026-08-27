@@ -22,6 +22,10 @@ func (h *Handler) handleAuthMe(c *gin.Context) error {
 		utils.WriteError(c, http.StatusInternalServerError, err)
 		return err
 	}
+	if !user.IsActive {
+		utils.WriteError(c, http.StatusForbidden, types.ErrAccountInactive)
+		return types.ErrAccountInactive
+	}
 
 	utils.WriteJSON(c, http.StatusOK, gin.H{"userID": userId, "role": user.Role})
 

@@ -29,7 +29,13 @@ def _request(url: str, *, method: str = "GET", headers: dict[str, str] | None = 
         return Response(error.code, error.headers, error.read())
 
 
-def verify_api(config: Config, raw_endpoint: str | None = None, *, raw_disabled: bool = False) -> None:
+def verify_api(
+    config: Config,
+    raw_endpoint: str | None = None,
+    *,
+    raw_disabled: bool = False,
+    require_patch_cors: bool = True,
+) -> None:
     api = f"{config.api_origin}/api/v0"
     health = _request(f"{api}/health")
     if health.status != 200:
@@ -43,6 +49,15 @@ def verify_api(config: Config, raw_endpoint: str | None = None, *, raw_disabled:
     })
     if preflight.status != 204 or preflight.headers.get("Access-Control-Allow-Origin") != origin:
         raise CommandError("allowed credentialed CORS preflight failed")
+    if require_patch_cors:
+        patch_preflight = _request(f"{api}/admin/users/00000000-0000-0000-0000-000000000000/role", method="OPTIONS", headers={
+            "Origin": origin,
+            "Access-Control-Request-Method": "PATCH",
+            "Access-Control-Request-Headers": "Content-Type, Authorization, X-CSRF-Token",
+        })
+        allowed_methods = patch_preflight.headers.get("Access-Control-Allow-Methods", "")
+        if patch_preflight.status != 204 or "PATCH" not in {method.strip() for method in allowed_methods.split(",")}:
+            raise CommandError("PATCH CORS preflight failed")
     disallowed = _request(f"{api}/auth/csrf", headers={"Origin": "https://invalid.example"})
     if disallowed.headers.get("Access-Control-Allow-Origin"):
         raise CommandError("disallowed CORS origin was reflected")

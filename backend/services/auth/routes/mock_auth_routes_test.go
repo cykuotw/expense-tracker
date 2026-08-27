@@ -42,7 +42,7 @@ func (m *baseAuthUserStore) GetUserByID(id string) (*types.User, error) {
 	if m.GetUserByIDFn != nil {
 		return m.GetUserByIDFn(id)
 	}
-	return nil, nil
+	return &types.User{IsActive: true}, nil
 }
 func (m *baseAuthUserStore) CreateUser(user types.User) error {
 	if m.CreateUserFn != nil {
@@ -85,11 +85,11 @@ func loginUserStoreMock() *baseAuthUserStore {
 	return &baseAuthUserStore{
 		GetUserByEmailFn: func(email string) (*types.User, error) {
 			hash, _ := bcrypt.GenerateFromPassword([]byte("testpassword"), bcrypt.DefaultCost)
-			return &types.User{PasswordHashed: string(hash)}, nil
+			return &types.User{PasswordHashed: string(hash), IsActive: true}, nil
 		},
 		GetUserByUsernameFn: func(username string) (*types.User, error) {
 			hash, _ := bcrypt.GenerateFromPassword([]byte("testpassword"), bcrypt.DefaultCost)
-			return &types.User{PasswordHashed: string(hash)}, nil
+			return &types.User{PasswordHashed: string(hash), IsActive: true}, nil
 		},
 	}
 }

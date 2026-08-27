@@ -5,6 +5,7 @@ import { apiFetch, setApiAuthFailureHandler } from "../lib/api";
 import { UserRole } from "../types/role";
 
 interface AuthMeResponse {
+    userID?: string;
     role?: UserRole;
 }
 
@@ -13,10 +14,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const location = useLocation();
     const [loading, setLoading] = useState(true);
     const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const [userID, setUserID] = useState<string | null>(null);
     const [role, setRole] = useState<UserRole | null>(null);
 
     const clearAuthState = useCallback(() => {
         setIsAuthenticated(false);
+        setUserID(null);
         setRole(null);
         setLoading(false);
     }, []);
@@ -31,6 +34,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
             const data = (await response.json()) as AuthMeResponse;
             setIsAuthenticated(true);
+            setUserID(data.userID ?? null);
             setRole(data.role ?? null);
             setLoading(false);
             return true;
@@ -83,6 +87,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return (
         <AuthContext.Provider
             value={{
+                userID,
                 isAuthenticated,
                 role,
                 loading,

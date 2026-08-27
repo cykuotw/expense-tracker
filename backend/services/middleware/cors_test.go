@@ -63,7 +63,7 @@ func TestCORSMiddlewareRejectsDisallowedPreflightOrigin(t *testing.T) {
 	assert.Empty(t, rr.Header().Get("Access-Control-Allow-Origin"))
 }
 
-func TestCORSMiddlewareAllowsConfiguredPreflightOrigin(t *testing.T) {
+func TestCORSMiddlewareAllowsConfiguredPatchPreflight(t *testing.T) {
 	originalOrigins := config.Envs.CORSAllowedOrigins
 	originalCredentials := config.Envs.CORSAllowCredentials
 	config.Envs.CORSAllowedOrigins = []string{"https://app.example.com"}
@@ -82,6 +82,7 @@ func TestCORSMiddlewareAllowsConfiguredPreflightOrigin(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodOptions, "/ping", nil)
 	req.Header.Set("Origin", "https://app.example.com")
+	req.Header.Set("Access-Control-Request-Method", http.MethodPatch)
 	rr := httptest.NewRecorder()
 
 	router.ServeHTTP(rr, req)
@@ -89,5 +90,5 @@ func TestCORSMiddlewareAllowsConfiguredPreflightOrigin(t *testing.T) {
 	assert.Equal(t, http.StatusNoContent, rr.Code)
 	assert.Equal(t, "https://app.example.com", rr.Header().Get("Access-Control-Allow-Origin"))
 	assert.Equal(t, "true", rr.Header().Get("Access-Control-Allow-Credentials"))
-	assert.Contains(t, rr.Header().Get("Access-Control-Allow-Methods"), "OPTIONS")
+	assert.Contains(t, rr.Header().Get("Access-Control-Allow-Methods"), http.MethodPatch)
 }

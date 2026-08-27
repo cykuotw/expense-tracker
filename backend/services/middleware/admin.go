@@ -10,7 +10,11 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func AdminMiddleware(store types.UserStore) gin.HandlerFunc {
+type adminUserStore interface {
+	GetUserByID(id string) (*types.User, error)
+}
+
+func AdminMiddleware(store adminUserStore) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID, err := auth.ExtractJWTClaim(c, "userID")
 		if err != nil {
@@ -28,6 +32,11 @@ func AdminMiddleware(store types.UserStore) gin.HandlerFunc {
 
 		if user.Role != "admin" {
 			utils.WriteError(c, http.StatusForbidden, fmt.Errorf("requires admin permission"))
+			c.Abort()
+			return
+		}
+		if !user.IsActive {
+			utils.WriteError(c, http.StatusForbidden, types.ErrAccountInactive)
 			c.Abort()
 			return
 		}

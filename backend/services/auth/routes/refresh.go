@@ -43,6 +43,19 @@ func (h *Handler) handleRefresh(c *gin.Context) error {
 		utils.WriteError(c, http.StatusUnauthorized, types.ErrInvalidJWTToken)
 		return types.ErrInvalidToken
 	}
+	user, err := h.store.GetUserByID(claims.UserID)
+	if err != nil {
+		utils.WriteError(c, http.StatusUnauthorized, types.ErrInvalidJWTToken)
+		return err
+	}
+	if !user.IsActive {
+		if revokeErr := h.refreshStore.RevokeRefreshToken(claims.ID); revokeErr != nil {
+			utils.WriteError(c, http.StatusInternalServerError, revokeErr)
+			return revokeErr
+		}
+		utils.WriteError(c, http.StatusForbidden, types.ErrAccountInactive)
+		return types.ErrAccountInactive
+	}
 
 	if err := h.refreshStore.RevokeRefreshToken(claims.ID); err != nil {
 		utils.WriteError(c, http.StatusInternalServerError, err)

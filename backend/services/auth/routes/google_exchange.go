@@ -47,6 +47,8 @@ func googleExchangeStatus(err error) int {
 		return http.StatusBadRequest
 	case errors.Is(err, types.ErrGoogleAccountConflict):
 		return http.StatusConflict
+	case errors.Is(err, types.ErrAccountInactive):
+		return http.StatusForbidden
 	default:
 		return http.StatusInternalServerError
 	}

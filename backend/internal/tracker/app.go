@@ -3,6 +3,7 @@ package tracker
 import (
 	"database/sql"
 	"expense-tracker/backend/config"
+	adminService "expense-tracker/backend/services/admin"
 	"expense-tracker/backend/services/auth"
 	authRoute "expense-tracker/backend/services/auth/routes"
 	"expense-tracker/backend/services/expense"
@@ -64,6 +65,8 @@ func registerRoutes(router *gin.Engine, db *sql.DB) {
 
 	adminProtected := protected.Group("")
 	adminProtected.Use(middleware.AdminMiddleware(userStore))
+	adminHandler := adminService.NewHandler(userStore, invitationStore)
+	adminHandler.RegisterRoutes(adminProtected)
 	invitationHandler.RegisterRoutes(public, adminProtected)
 
 	userProtectedHandler := user.NewProtectedHandler(userStore)

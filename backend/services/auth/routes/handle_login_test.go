@@ -3,6 +3,7 @@ package route
 import (
 	"bytes"
 	"encoding/json"
+	"expense-tracker/backend/services/auth"
 	"expense-tracker/backend/types"
 	"net/http"
 	"net/http/httptest"
@@ -117,5 +118,33 @@ func TestServiceLogin(t *testing.T) {
 		err = json.Unmarshal(rr.Body.Bytes(), &response)
 		assert.NoError(t, err)
 		assert.Equal(t, "invalid_credentials", response.Code)
+	})
+
+	t.Run("inactive user cannot establish a session", func(t *testing.T) {
+		hash, err := auth.HashPassword("testpassword")
+		assert.NoError(t, err)
+		userStore := &baseAuthUserStore{
+			GetUserByEmailFn: func(email string) (*types.User, error) {
+				return &types.User{
+					Email:          email,
+					PasswordHashed: hash,
+					IsActive:       false,
+				}, nil
+			},
+		}
+		handler := NewHandler(userStore, invitationStoreMock(), refreshStoreMock())
+		payload, err := json.Marshal(types.LoginUserPayload{
+			Email: "disabled@example.com", Password: "testpassword",
+		})
+		assert.NoError(t, err)
+		request := httptest.NewRequest(http.MethodPost, "/login", bytes.NewReader(payload))
+		response := httptest.NewRecorder()
+		router := gin.New()
+		router.POST("/login", handler.handleLogin)
+
+		router.ServeHTTP(response, request)
+
+		assert.Equal(t, http.StatusForbidden, response.Code)
+		assert.Contains(t, response.Body.String(), "account_inactive")
 	})
 }

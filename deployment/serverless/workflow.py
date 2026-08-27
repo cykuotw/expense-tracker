@@ -238,7 +238,9 @@ def _require_complete(context: Context) -> dict[str, Any]:
     if state != "complete":
         raise CommandError(f"updates require deployment_state=complete; found {state}")
     try:
-        verify_api(context.config)
+        # The installed release may predate checks introduced by the update.
+        # Enforce the new contract after the backend has been replaced below.
+        verify_api(context.config, require_patch_cors=False)
         verify_frontend(context.config)
     except CommandError as error:
         raise CommandError(f"updates require a healthy complete deployment: {error}") from error

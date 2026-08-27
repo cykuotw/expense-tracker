@@ -81,7 +81,7 @@ export default function NavbarMobile() {
 
                 {role === USER_ROLES.admin && (
                     <NavLink
-                        to="/admin/invite"
+                        to="/admin/users"
                         className={({ isActive }) =>
                             `app-shell__mobile-item ${
                                 isActive
@@ -96,19 +96,16 @@ export default function NavbarMobile() {
                             height="16"
                             fill="currentColor"
                             className="size-[1.5rem]"
-                            viewBox="0 0 16 16"
+                            viewBox="0 0 24 24"
                         >
-                            <path d="M1 14s-1 0-1-1 1-4 6-4 6 3 6 4-1 1-1 1zm5-6a3 3 0 1 0 0-6 3 3 0 0 0 0 6" />
-                            <path
-                                fillRule="evenodd"
-                                d="M13.5 5a.5.5 0 0 1 .5.5V7h1.5a.5.5 0 0 1 0 1H14v1.5a.5.5 0 0 1-1 0V8h-1.5a.5.5 0 0 1 0-1H13V5.5a.5.5 0 0 1 .5-.5"
-                            />
+                            <path d="M16 13c-.29 0-.62.02-.97.05C16.19 13.89 17 15.24 17 17v2H7v-2c0-1.76.81-3.11 1.97-3.95C8.62 13.02 8.29 13 8 13c-2.67 0-8 1.34-8 4v3h24v-3c0-2.66-5.33-4-8-4M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4Z" />
                         </svg>
                         <span className="app-shell__mobile-item-label">
-                            Invite
+                            Users
                         </span>
                     </NavLink>
                 )}
+
             </div>
             </nav>
 

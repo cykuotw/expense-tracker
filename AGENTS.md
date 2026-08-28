@@ -8,6 +8,7 @@
 ## Development process
 
 - First read `.agents/tasks/todo.md`.
+- Before architecture, deployment, authentication, authorization, expense-domain, or other cross-cutting changes, read `ARCHITECTURE.md`.
 - You make the plan before the code change, and ask for permission before any code changes.
 - Update `.agents/tasks/active-plan.md` with the active implementation plan so other agents can follow the current attempt.
 - Keep `.agents/tasks/active-plan.md` for transient execution state only; durable task requirements belong in task note files.

@@ -35,17 +35,19 @@ make migrate-step n=1
 
 ### Frontend
 
+Requires pnpm 10.23.0 (declared in `frontend/package.json`).
+
 ```bash
 cd frontend
-npm install
-npm run dev
+pnpm install --frozen-lockfile
+pnpm run dev
 ```
 
 Production build:
 
 ```bash
 cd frontend
-npm run build
+pnpm run build
 ```
 
 ## Config

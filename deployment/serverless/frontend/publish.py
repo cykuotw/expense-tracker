@@ -21,6 +21,7 @@ def runtime_config(config: Config) -> str:
 
 def build(repo_root: Path, config: Config) -> Path:
     frontend_root = repo_root / "frontend"
+    run(["pnpm", "install", "--frozen-lockfile"], cwd=frontend_root, capture=False)
     run(["pnpm", "run", "test:run"], cwd=frontend_root, capture=False)
     run(["pnpm", "run", "build"], cwd=frontend_root, capture=False)
     dist = frontend_root / "dist"

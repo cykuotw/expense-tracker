@@ -44,7 +44,8 @@ run: build
 	@./$(BUILD_DIR)/tracker
 
 build-frontend:
-	@cd frontend && pnpm run build
+	@pnpm --dir frontend install --frozen-lockfile
+	@pnpm --dir frontend run build
 
 build-deploy-backend:
 	@mkdir -p $(BUILD_DIR)

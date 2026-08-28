@@ -199,11 +199,6 @@ const InvoiceImage = ({
                     <button className="btn btn-ghost mt-3">
                         View invoice image
                     </button>
-                    <div id="indicator" className="htmx-indicator">
-                        <div className="flex justify-center items-center w-full">
-                            <span className="loading loading-spinner loading-md"></span>
-                        </div>
-                    </div>
                 </div>
             ) : null}
         </>

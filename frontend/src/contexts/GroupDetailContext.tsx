@@ -1,4 +1,4 @@
-import { useState, useEffect, ReactNode, MouseEvent, useRef } from "react";
+import { useState, useEffect, ReactNode, MouseEvent, useRef, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import { toast } from "react-hot-toast";
 import { apiFetch, getResponseErrorMessage } from "../lib/api";
@@ -26,70 +26,63 @@ export const GroupDetailProvider = ({ children }: { children: ReactNode }) => {
     const [settledLoading, setSettledLoading] = useState(false);
     const initialUnsettledLoadedRef = useRef(false);
 
-    useEffect(() => {
+    const refreshGroupSummary = useCallback(async () => {
         if (!groupId) return;
+        setLoading(true);
+        try {
+            const [groupRes, balanceRes] = await Promise.all([
+                apiFetch(`/group/${groupId}`),
+                apiFetch(`/balance/${groupId}`),
+            ]);
 
-        const fetchData = async () => {
-            setLoading(true);
-            try {
-                const [groupRes, balanceRes] = await Promise.all([
-                    apiFetch(`/group/${groupId}`),
-                    apiFetch(`/balance/${groupId}`),
-                ]);
-
-                if (groupRes.ok) setGroupInfo(await groupRes.json());
-                if (balanceRes.ok) setBalance(await balanceRes.json());
-            } catch (error) {
-                console.error(error);
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchData();
+            if (groupRes.ok) setGroupInfo(await groupRes.json());
+            if (balanceRes.ok) setBalance(await balanceRes.json());
+        } catch (error) {
+            console.error(error);
+        } finally {
+            setLoading(false);
+        }
     }, [groupId]);
 
-    const fetchExpensePage = async (page: number) => {
+    useEffect(() => {
+        void refreshGroupSummary();
+    }, [refreshGroupSummary]);
+
+    const fetchExpensePage = useCallback(async (page: number) => {
         if (!groupId) return [];
         const response = await apiFetch(`/expense_list/${groupId}/${page}`);
         if (!response.ok) return [];
         return (await response.json()) as ExpenseData[];
-    };
+    }, [groupId]);
+
+    const refreshExpenseLists = useCallback(async () => {
+        setUnsettledLoading(true);
+        setSettledLoading(true);
+        try {
+            const data = await fetchExpensePage(0);
+            setUnsettledExpenses(data.filter((exp) => !exp.isSettled));
+            setSettledExpenses(data.filter((exp) => exp.isSettled));
+            setUnsettledPage(1);
+            setSettledPage(1);
+            setUnsettledHasMore(data.length > 0);
+            setSettledHasMore(data.length > 0);
+        } catch (error) {
+            console.error(error);
+            setUnsettledHasMore(false);
+            setSettledHasMore(false);
+        } finally {
+            setUnsettledLoading(false);
+            setSettledLoading(false);
+        }
+    }, [fetchExpensePage]);
 
     useEffect(() => {
         if (!groupId) return;
 
-        const loadInitialUnsettled = async () => {
-            if (initialUnsettledLoadedRef.current) return;
-            if (unsettledLoading) return;
-            initialUnsettledLoadedRef.current = true;
-            setUnsettledLoading(true);
-            setUnsettledHasMore(true);
-            setUnsettledPage(0);
-            setUnsettledExpenses([]);
-            try {
-                const response = await apiFetch(`/expense_list/${groupId}/0`);
-                if (!response.ok) {
-                    setUnsettledHasMore(false);
-                    return;
-                }
-                const data = (await response.json()) as ExpenseData[];
-                if (data.length === 0) {
-                    setUnsettledHasMore(false);
-                    return;
-                }
-                setUnsettledExpenses(data.filter((exp) => !exp.isSettled));
-                setUnsettledPage(1);
-            } catch (error) {
-                console.error(error);
-                setUnsettledHasMore(false);
-            } finally {
-                setUnsettledLoading(false);
-            }
-        };
-
-        loadInitialUnsettled();
-    }, [groupId, unsettledLoading]);
+        if (initialUnsettledLoadedRef.current) return;
+        initialUnsettledLoadedRef.current = true;
+        void refreshExpenseLists();
+    }, [groupId, refreshExpenseLists]);
 
     const loadMoreUnsettledExpenses = async () => {
         if (unsettledLoading || !unsettledHasMore) return;
@@ -178,8 +171,7 @@ export const GroupDetailProvider = ({ children }: { children: ReactNode }) => {
                 return;
             }
 
-            console.log("Settlement successful");
-            window.location.reload();
+            await Promise.all([refreshGroupSummary(), refreshExpenseLists()]);
         } catch {
             toast.error(SETTLE_EXPENSES_FALLBACK);
         } finally {

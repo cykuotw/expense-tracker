@@ -108,4 +108,37 @@ describe("GroupDetailProvider error handling", () => {
         expect(successLog).not.toHaveBeenCalledWith("Settlement successful");
         successLog.mockRestore();
     });
+
+    it("refreshes group data after a successful settlement without reloading the page", async () => {
+        apiFetchMock.mockImplementation((path: string) => {
+            if (path === "/group/group-1") {
+                return Promise.resolve(jsonResponse({ groupName: "Group", description: "", currency: "CAD", members: [] }));
+            }
+            if (path === "/balance/group-1") {
+                return Promise.resolve(jsonResponse({ currency: "CAD", currentUser: "user-1", balances: [] }));
+            }
+            if (path === "/expense_list/group-1/0") return Promise.resolve(jsonResponse([]));
+            if (path === "/settle_expense/group-1") return Promise.resolve(jsonResponse({}));
+            throw new Error(`Unexpected path: ${path}`);
+        });
+        render(
+            <GroupDetailProvider>
+                <GroupDetailHarness />
+            </GroupDetailProvider>
+        );
+        await waitFor(() => expect(screen.getByTestId("loading")).toHaveTextContent("idle"));
+        apiFetchMock.mockClear();
+
+        fireEvent.click(screen.getByRole("button", { name: "Settle" }));
+
+        await waitFor(() => {
+            expect(apiFetchMock).toHaveBeenCalledWith("/settle_expense/group-1", {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+            });
+            expect(apiFetchMock).toHaveBeenCalledWith("/group/group-1");
+            expect(apiFetchMock).toHaveBeenCalledWith("/balance/group-1");
+            expect(apiFetchMock).toHaveBeenCalledWith("/expense_list/group-1/0");
+        });
+    });
 });

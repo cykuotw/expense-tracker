@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
 import { ExpenseData } from "../types/expense";
-import ExpenseCard from "../components/expense/ExpanceCard";
+import ExpenseCard from "../components/expense/ExpenseCard";
 import { GroupDetailProvider } from "../contexts/GroupDetailContext";
 import { useGroupDetail } from "../hooks/GroupDetailContextHooks";
 

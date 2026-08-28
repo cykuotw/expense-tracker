@@ -75,6 +75,11 @@
       "source": "anthropics/skills",
       "sourceType": "github",
       "computedHash": "81475949f1e6dc1f3337de117d03ff1496503389ad7b117ae34ad16754ce4953"
+    },
+    "use-modern-go": {
+      "source": "JetBrains/go-modern-guidelines",
+      "sourceType": "github",
+      "computedHash": "82333c8eb8e38d7b4de0721dfe068d9bc7f6b5248fcc32ba73687997400d0a67"
     }
   }
 }

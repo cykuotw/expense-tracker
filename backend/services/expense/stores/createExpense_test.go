@@ -51,6 +51,7 @@ func TestCreateExpense(t *testing.T) {
 
 	for _, test := range subtests {
 		t.Run(test.name, func(t *testing.T) {
+			assert.NoError(t, ensureExpenseParents(db, test.mockExpense))
 			err := store.CreateExpense(test.mockExpense)
 			defer deleteExpense(db, test.mockExpense.ID)
 

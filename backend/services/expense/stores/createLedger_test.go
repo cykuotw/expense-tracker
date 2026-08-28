@@ -40,6 +40,11 @@ func TestCreateLedger(t *testing.T) {
 
 	for _, test := range subtests {
 		t.Run(test.name, func(t *testing.T) {
+			parent := newTestExpense(test.mockLedger.ExpenseID)
+			parent.CreateByUserID = test.mockLedger.LenderUserID
+			parent.PayByUserId = test.mockLedger.BorrowerUesrID
+			assert.NoError(t, insertExpense(db, parent))
+			defer deleteExpense(db, parent.ID)
 			err := store.CreateLedger(test.mockLedger)
 			defer deleteLedger(db, test.mockLedger.ID)
 

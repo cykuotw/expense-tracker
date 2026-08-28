@@ -64,7 +64,7 @@ func TestRouteGetExpenseList(t *testing.T) {
 			groupID:          uuid.NewString(),
 			page:             0,
 			expectFail:       true,
-			expectStatusCode: http.StatusForbidden,
+			expectStatusCode: http.StatusNotFound,
 			expectResponse:   nil,
 		},
 		{
@@ -72,7 +72,7 @@ func TestRouteGetExpenseList(t *testing.T) {
 			groupID:          uuid.Nil.String(),
 			page:             0,
 			expectFail:       true,
-			expectStatusCode: http.StatusForbidden,
+			expectStatusCode: http.StatusNotFound,
 			expectResponse:   nil,
 		},
 	}

@@ -26,7 +26,7 @@ func ValidateGroupUserPairExist(store types.GroupStore) gin.HandlerFunc {
 			return
 		}
 		if !exist {
-			utils.AbortWithError(c, http.StatusForbidden, types.ErrPermissionDenied)
+			utils.AbortWithError(c, http.StatusNotFound, types.ErrGroupNotExist)
 			return
 		}
 

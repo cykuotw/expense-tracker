@@ -14,6 +14,30 @@ type adminUserStore interface {
 	GetUserByID(id string) (*types.User, error)
 }
 
+type activeUserStore interface {
+	GetUserByID(id string) (*types.User, error)
+}
+
+func ActiveUserMiddleware(store activeUserStore) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userID, err := auth.ExtractJWTClaim(c, "userID")
+		if err != nil {
+			utils.WriteError(c, http.StatusUnauthorized, err)
+			c.Abort()
+			return
+		}
+
+		user, err := store.GetUserByID(userID)
+		if err != nil || user == nil || !user.IsActive {
+			utils.WriteError(c, http.StatusForbidden, types.ErrAccountInactive)
+			c.Abort()
+			return
+		}
+
+		c.Next()
+	}
+}
+
 func AdminMiddleware(store adminUserStore) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID, err := auth.ExtractJWTClaim(c, "userID")

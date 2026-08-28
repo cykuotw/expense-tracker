@@ -37,6 +37,7 @@ func TestRunInTransactionRollsBackMidTransactionChildFailure(t *testing.T) {
 		Unit:      "each",
 		UnitPrice: decimal.NewFromInt(10),
 	}
+	require.NoError(t, ensureExpenseParents(db, expense))
 
 	defer deleteExpense(db, expenseID)
 	defer deleteItem(db, itemID)
@@ -72,6 +73,7 @@ func TestRunInTransactionRestoresOutdatedBalanceAfterLaterFailure(t *testing.T) 
 		Share:          decimal.NewFromInt(10),
 		GroupID:        groupID,
 	}
+	require.NoError(t, ensureBalanceParents(db, existingBalance))
 	require.NoError(t, store.CreateBalances(groupID.String(), []*types.Balance{existingBalance}))
 	defer deleteBalances(db, []*types.Balance{existingBalance})
 

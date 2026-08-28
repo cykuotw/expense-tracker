@@ -15,7 +15,7 @@ type mockGroupStore struct {
 	GetGroupListByUserFn      func(userid string) ([]types.GetGroupListResponse, error)
 	GetGroupMemberByGroupIDFn func(groupId string) ([]*types.User, error)
 	UpdateGroupMemberFn       func(action string, userid string, groupid string) error
-	UpdateGroupStatusFn       func(groupid string, isActive bool) error
+	UpdateGroupStatusFn       func(groupID string, creatorID string, isActive bool) error
 	GetGroupCurrencyFn        func(groupID string) (string, error)
 	GetRelatedUserFn          func(currentUser string, groupId string) ([]*types.RelatedMember, error)
 	CheckGroupExistByIdFn     func(id string) (bool, error)
@@ -58,9 +58,9 @@ func (m *mockGroupStore) UpdateGroupMember(action string, userid string, groupid
 	}
 	return nil
 }
-func (m *mockGroupStore) UpdateGroupStatus(groupid string, isActive bool) error {
+func (m *mockGroupStore) UpdateGroupStatus(groupID string, creatorID string, isActive bool) error {
 	if m.UpdateGroupStatusFn != nil {
-		return m.UpdateGroupStatusFn(groupid, isActive)
+		return m.UpdateGroupStatusFn(groupID, creatorID, isActive)
 	}
 	return nil
 }
@@ -238,11 +238,20 @@ func getGroupListUserStoreMock() *mockUserStore {
 
 func updateGroupMemberStoreMock() *mockGroupStore {
 	store := groupStoreMock()
+	store.GetGroupByIDFn = func(id string) (*types.Group, error) {
+		if id != mockGroupId.String() {
+			return nil, types.ErrGroupNotExist
+		}
+		return &types.Group{CreateByUser: mockRequesterId}, nil
+	}
 	store.CheckGroupExistByIdFn = func(id string) (bool, error) {
 		return id == mockGroupId.String(), nil
 	}
 	store.CheckGroupUserPairExistFn = func(groupId string, userId string) (bool, error) {
 		return groupId == mockGroupId.String() && userId == mockRequesterId.String(), nil
+	}
+	store.GetGroupMemberByGroupIDFn = func(string) ([]*types.User, error) {
+		return []*types.User{{ID: mockRequesterId}, {ID: mockUserId}}, nil
 	}
 	return store
 }
@@ -261,9 +270,9 @@ func archiveGroupStoreMock() *mockGroupStore {
 		if id != mockGroupId.String() {
 			return nil, types.ErrGroupNotExist
 		}
-		return &types.Group{}, nil
+		return &types.Group{CreateByUser: mockUserId}, nil
 	}
-	store.UpdateGroupStatusFn = func(groupid string, isActive bool) error { return nil }
+	store.UpdateGroupStatusFn = func(groupID string, creatorID string, isActive bool) error { return nil }
 	return store
 }
 

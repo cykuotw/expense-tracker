@@ -68,7 +68,7 @@ func TestUpdateGroupMemberRoute(t *testing.T) {
 			mockGroupID:      mockGroupId.String(),
 			mockUserID:       mockUserId.String(),
 			expectFail:       true,
-			expectReturnCode: http.StatusForbidden,
+			expectReturnCode: http.StatusNotFound,
 		},
 		{
 			name:             "invalid group",
@@ -77,7 +77,7 @@ func TestUpdateGroupMemberRoute(t *testing.T) {
 			mockGroupID:      uuid.NewString(),
 			mockUserID:       mockUserId.String(),
 			expectFail:       true,
-			expectReturnCode: http.StatusBadRequest,
+			expectReturnCode: http.StatusNotFound,
 		},
 		{
 			name:             "invalid user",

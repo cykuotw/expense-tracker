@@ -145,6 +145,7 @@ func TestCheckGroupBallanceAllSettled(t *testing.T) {
 	for _, test := range subtests {
 		t.Run(test.name, func(t *testing.T) {
 			for _, bal := range test.mockBalance {
+				assert.NoError(t, ensureBalanceParents(db, bal))
 				insertBalance(db, bal)
 			}
 			defer deleteBalances(db, test.mockBalance)

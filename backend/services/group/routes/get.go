@@ -27,7 +27,7 @@ func (h *Handler) handleGetGroup(c *gin.Context) {
 	// get group detail by id
 	group, err := h.store.GetGroupByIDAndUser(groupId, userID)
 	if err != nil {
-		utils.WriteError(c, http.StatusBadRequest, err)
+		utils.WriteError(c, http.StatusNotFound, types.ErrGroupNotExist)
 		return
 	}
 

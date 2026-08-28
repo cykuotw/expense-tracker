@@ -123,6 +123,9 @@ func selectExpenseByID(db *sql.DB, expenseID uuid.UUID) *types.Expense {
 }
 
 func insertExpense(db *sql.DB, expense types.Expense) error {
+	if err := ensureExpenseParents(db, expense); err != nil {
+		return err
+	}
 	createTime := expense.CreateTime.UTC().Format("2006-01-02 15:04:05-0700")
 	query := fmt.Sprintf(
 		"INSERT INTO expense ("+
@@ -156,14 +159,18 @@ func deleteExpenses(db *sql.DB, expenseIds []uuid.UUID) {
 	}
 }
 
-func insertItem(db *sql.DB, item types.Item) {
+func insertItem(db *sql.DB, item types.Item) error {
+	if err := ensureExpense(db, item.ExpenseID); err != nil {
+		return err
+	}
 	query := fmt.Sprintf(
 		"INSERT INTO item ("+
 			"id, expense_id, name, amount, unit, unit_price"+
 			") VALUES ('%s', '%s', '%s', '%s', '%s', '%s')",
 		item.ID, item.ExpenseID, item.Name, item.Amount, item.Unit, item.UnitPrice,
 	)
-	db.Exec(query)
+	_, err := db.Exec(query)
+	return err
 }
 
 func deleteItem(db *sql.DB, itemID uuid.UUID) {
@@ -177,14 +184,24 @@ func deleteItems(db *sql.DB, itemIDs []uuid.UUID) {
 	}
 }
 
-func insertLedger(db *sql.DB, ledger types.Ledger) {
+func insertLedger(db *sql.DB, ledger types.Ledger) error {
+	if err := ensureExpense(db, ledger.ExpenseID); err != nil {
+		return err
+	}
+	if err := ensureUser(db, ledger.LenderUserID); err != nil {
+		return err
+	}
+	if err := ensureUser(db, ledger.BorrowerUesrID); err != nil {
+		return err
+	}
 	query := fmt.Sprintf(
 		"INSERT INTO ledger ("+
 			"id, expense_id, lender_user_id, borrower_user_id, share"+
 			") VALUES ('%s', '%s', '%s', '%s', '%s');",
 		ledger.ID, ledger.ExpenseID, ledger.LenderUserID, ledger.BorrowerUesrID, ledger.Share,
 	)
-	db.Exec(query)
+	_, err := db.Exec(query)
+	return err
 }
 
 func deleteLedger(db *sql.DB, ledgerID uuid.UUID) {

@@ -47,6 +47,7 @@ func TestCreateGroup(t *testing.T) {
 
 	for _, test := range subtests {
 		t.Run(test.name, func(t *testing.T) {
+			assert.NoError(t, ensureTestUser(db, test.mockGroup.CreateByUser))
 			err := store.CreateGroup(test.mockGroup)
 			defer deleteGroup(db, test.mockGroup.ID)
 			defer deleteGroupMember(db, test.mockGroup.ID, []uuid.UUID{test.mockGroup.CreateByUser})
@@ -477,7 +478,13 @@ func TestGetGroupCardBalanceSummary(t *testing.T) {
 	assert.True(t, amount.Equal(decimal.RequireFromString("20.00")))
 }
 
-func insertBalance(db *sql.DB, balance *types.Balance) {
+func insertBalance(db *sql.DB, balance *types.Balance) error {
+	if err := ensureTestUser(db, balance.SenderUserID); err != nil {
+		return err
+	}
+	if err := ensureTestUser(db, balance.ReceiverUserID); err != nil {
+		return err
+	}
 	createTime := balance.CreateTime.UTC().Format("2006-01-02 15:04:05-0700")
 	updateTime := balance.UpdateTime.UTC().Format("2006-01-02 15:04:05-0700")
 	settleTime := balance.SettledTime.UTC().Format("2006-01-02 15:04:05-0700")
@@ -496,7 +503,8 @@ func insertBalance(db *sql.DB, balance *types.Balance) {
 		balance.IsSettled,
 		settleTime,
 	)
-	_, _ = db.Exec(query)
+	_, err := db.Exec(query)
+	return err
 }
 
 func deleteBalances(db *sql.DB, balances []*types.Balance) {
@@ -615,6 +623,10 @@ func TestUpdateGroupMember(t *testing.T) {
 	db := openTestDB(t)
 	mockGroupID := uuid.New()
 	mockUserID := uuid.New()
+	assert.NoError(t, ensureTestUser(db, mockUserID))
+	assert.NoError(t, insertGroup(db, types.Group{ID: mockGroupID, CreateByUser: uuid.New()}))
+	defer cleanUser(db, mockUserID)
+	defer deleteGroup(db, mockGroupID)
 
 	// define test cases
 	type testcase struct {
@@ -648,7 +660,7 @@ func TestUpdateGroupMember(t *testing.T) {
 			action:      "add",
 			mockGroupID: uuid.NewString(),
 			mockUserID:  mockGroupID.String(),
-			expectFail:  false,
+			expectFail:  true,
 			expectError: nil,
 		},
 		{
@@ -656,7 +668,7 @@ func TestUpdateGroupMember(t *testing.T) {
 			action:      "add",
 			mockGroupID: mockUserID.String(),
 			mockUserID:  uuid.NewString(),
-			expectFail:  false,
+			expectFail:  true,
 			expectError: nil,
 		},
 		{
@@ -664,7 +676,7 @@ func TestUpdateGroupMember(t *testing.T) {
 			action:      "add",
 			mockGroupID: uuid.NewString(),
 			mockUserID:  uuid.NewString(),
-			expectFail:  false,
+			expectFail:  true,
 			expectError: nil,
 		},
 		{
@@ -704,7 +716,8 @@ func TestUpdateGroupMember(t *testing.T) {
 
 					userid := getGroupMember(db, uuid.MustParse(test.mockGroupID), uuid.MustParse(test.mockUserID))
 					if test.expectFail {
-						assert.Equal(t, test.mockUserID, userid)
+						assert.Equal(t, uuid.Nil, userid)
+						assert.Error(t, err)
 					} else {
 						assert.Equal(t, test.mockUserID, userid.String())
 						assert.Nil(t, err)
@@ -720,7 +733,8 @@ func TestUpdateGroupMember(t *testing.T) {
 
 					userid := getGroupMember(db, uuid.MustParse(test.mockGroupID), uuid.MustParse(test.mockUserID))
 					if test.expectFail {
-						assert.Equal(t, test.mockUserID, userid)
+						assert.Equal(t, uuid.Nil, userid)
+						assert.Error(t, err)
 					} else {
 						assert.Equal(t, test.mockUserID, userid.String())
 						assert.Nil(t, err)
@@ -769,13 +783,15 @@ func TestUpdateGroupStatus(t *testing.T) {
 	db := openTestDB(t)
 	mockGroupIDT := uuid.New()
 	mockGroupT := types.Group{
-		ID:       mockGroupIDT,
-		IsActive: true,
+		ID:           mockGroupIDT,
+		IsActive:     true,
+		CreateByUser: uuid.New(),
 	}
 	mockGroupIDF := uuid.New()
 	mockGroupF := types.Group{
-		ID:       mockGroupIDF,
-		IsActive: true,
+		ID:           mockGroupIDF,
+		IsActive:     true,
+		CreateByUser: mockGroupT.CreateByUser,
 	}
 
 	insertGroup(db, mockGroupT)
@@ -819,7 +835,7 @@ func TestUpdateGroupStatus(t *testing.T) {
 	store := group.NewStore(db)
 	for _, test := range subtests {
 		t.Run(test.name, func(t *testing.T) {
-			err := store.UpdateGroupStatus(test.groupID, test.isActive)
+			err := store.UpdateGroupStatus(test.groupID, mockGroupT.CreateByUser.String(), test.isActive)
 
 			group := getGroup(db, uuid.MustParse(test.groupID))
 			if test.expectFail {
@@ -833,6 +849,18 @@ func TestUpdateGroupStatus(t *testing.T) {
 }
 
 func insertGroup(db *sql.DB, group types.Group) error {
+	if err := ensureTestUser(db, group.CreateByUser); err != nil {
+		return err
+	}
+	if group.CreateTime.IsZero() {
+		group.CreateTime = time.Now().UTC()
+	}
+	if group.GroupName == "" {
+		group.GroupName = "test-group-" + group.ID.String()[:8]
+	}
+	if group.Currency == "" {
+		group.Currency = "CAD"
+	}
 	createTime := group.CreateTime.UTC().Format("2006-01-02 15:04:05-0700")
 	query := fmt.Sprintf(
 		"INSERT INTO groups ("+
@@ -872,10 +900,13 @@ func deleteGroup(db *sql.DB, groupId uuid.UUID) {
 
 func insertGroupMember(db *sql.DB, groupId uuid.UUID, userids []uuid.UUID) error {
 	for _, id := range userids {
+		if err := ensureTestUser(db, id); err != nil {
+			return err
+		}
 		query := fmt.Sprintf(
 			"INSERT INTO group_member ("+
 				"id, group_id, user_id"+
-				") VALUES ('%s', '%s', '%s');",
+				") VALUES ('%s', '%s', '%s') ON CONFLICT (group_id, user_id) DO NOTHING;",
 			uuid.NewString(), groupId, id,
 		)
 		_, err := db.Exec(query)
@@ -884,6 +915,14 @@ func insertGroupMember(db *sql.DB, groupId uuid.UUID, userids []uuid.UUID) error
 		}
 	}
 	return nil
+}
+
+func ensureTestUser(db *sql.DB, userID uuid.UUID) error {
+	shortID := userID.String()[:8]
+	_, err := db.Exec(`INSERT INTO users (id, username, firstname, lastname, email, password_hash, create_time_utc, is_active, has_local_password, role)
+		VALUES ($1, $2, 'Test', 'User', $3, 'not-used', $4, TRUE, TRUE, 'user') ON CONFLICT (id) DO NOTHING`,
+		userID, "test-"+shortID, shortID+"@example.test", time.Now().UTC())
+	return err
 }
 
 func getGroupMember(db *sql.DB, groupId uuid.UUID, userid uuid.UUID) uuid.UUID {

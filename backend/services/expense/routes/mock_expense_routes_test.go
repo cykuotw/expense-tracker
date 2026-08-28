@@ -52,7 +52,7 @@ type mockExpenseStore struct {
 	GetBalanceByGroupIdFn          func(groupId string) ([]types.Balance, error)
 	SettleExpenseByGroupIdFn       func(groupId string) error
 	CheckBalanceExistByIDFn        func(id string) (bool, error)
-	SettleBalanceByBalanceIdFn     func(balanceId string) error
+	SettleBalanceByBalanceIdFn     func(groupID string, balanceID string) error
 	CheckGroupBallanceAllSettledFn func(groupId string) (bool, error)
 }
 
@@ -195,9 +195,9 @@ func (s *mockExpenseStore) CheckBalanceExistByID(id string) (bool, error) {
 	}
 	return false, nil
 }
-func (s *mockExpenseStore) SettleBalanceByBalanceId(balanceId string) error {
+func (s *mockExpenseStore) SettleBalanceByBalanceId(groupID string, balanceID string) error {
 	if s.SettleBalanceByBalanceIdFn != nil {
-		return s.SettleBalanceByBalanceIdFn(balanceId)
+		return s.SettleBalanceByBalanceIdFn(groupID, balanceID)
 	}
 	return nil
 }
@@ -217,7 +217,7 @@ type mockGroupStore struct {
 	GetGroupListByUserFn      func(userid string) ([]types.GetGroupListResponse, error)
 	GetGroupMemberByGroupIDFn func(groupId string) ([]*types.User, error)
 	UpdateGroupMemberFn       func(action string, userid string, groupid string) error
-	UpdateGroupStatusFn       func(groupid string, isActive bool) error
+	UpdateGroupStatusFn       func(groupID string, creatorID string, isActive bool) error
 	GetGroupCurrencyFn        func(groupID string) (string, error)
 	GetRelatedUserFn          func(currentUser string, groupId string) ([]*types.RelatedMember, error)
 	CheckGroupExistByIdFn     func(id string) (bool, error)
@@ -260,9 +260,9 @@ func (m *mockGroupStore) UpdateGroupMember(action string, userid string, groupid
 	}
 	return nil
 }
-func (m *mockGroupStore) UpdateGroupStatus(groupid string, isActive bool) error {
+func (m *mockGroupStore) UpdateGroupStatus(groupID string, creatorID string, isActive bool) error {
 	if m.UpdateGroupStatusFn != nil {
-		return m.UpdateGroupStatusFn(groupid, isActive)
+		return m.UpdateGroupStatusFn(groupID, creatorID, isActive)
 	}
 	return nil
 }
@@ -395,7 +395,8 @@ func createExpenseGroupStoreMock() *mockGroupStore {
 		return id == mockGroupID.String(), nil
 	}
 	store.CheckGroupUserPairExistFn = func(groupId string, userId string) (bool, error) {
-		return groupId == mockGroupID.String() && userId == mockCreatorID.String(), nil
+		return groupId == mockGroupID.String() &&
+			(userId == mockCreatorID.String() || userId == mockPayerID.String()), nil
 	}
 	return store
 }
@@ -434,7 +435,8 @@ func updateExpenseDetailGroupStoreMock() *mockGroupStore {
 		return &types.Group{}, nil
 	}
 	store.CheckGroupUserPairExistFn = func(groupId string, userId string) (bool, error) {
-		return groupId == mockGroupID.String() && userId == mockUserID.String(), nil
+		return groupId == mockGroupID.String() &&
+			(userId == mockUserID.String() || userId == mockCreatorID.String()), nil
 	}
 	return store
 }

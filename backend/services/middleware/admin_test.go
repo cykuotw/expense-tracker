@@ -51,3 +51,33 @@ func TestAdminMiddlewareAuthorization(t *testing.T) {
 		})
 	}
 }
+
+func TestActiveUserMiddlewareRejectsInactiveAccounts(t *testing.T) {
+	for _, test := range []struct {
+		name   string
+		active bool
+		status int
+	}{
+		{name: "active user", active: true, status: http.StatusNoContent},
+		{name: "inactive user", active: false, status: http.StatusForbidden},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			actor := uuid.New()
+			token, err := auth.CreateJWT([]byte(config.Envs.JWTSecret), actor)
+			assert.NoError(t, err)
+
+			gin.SetMode(gin.ReleaseMode)
+			router := gin.New()
+			router.GET("/protected", ActiveUserMiddleware(adminUserStoreMock{user: &types.User{IsActive: test.active}}), func(c *gin.Context) {
+				c.Status(http.StatusNoContent)
+			})
+			request := httptest.NewRequest(http.MethodGet, "/protected", nil)
+			request.AddCookie(&http.Cookie{Name: "access_token", Value: token})
+			response := httptest.NewRecorder()
+
+			router.ServeHTTP(response, request)
+
+			assert.Equal(t, test.status, response.Code)
+		})
+	}
+}

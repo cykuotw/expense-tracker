@@ -1,6 +1,8 @@
 package expense
 
 import (
+	"errors"
+	"expense-tracker/backend/types"
 	"expense-tracker/backend/utils"
 	"net/http"
 
@@ -12,8 +14,12 @@ func (h *Handler) handleSettleBalance(c *gin.Context) {
 	balanceId := c.Param("balanceId")
 
 	// settle balance
-	err := h.store.SettleBalanceByBalanceId(balanceId)
+	err := h.store.SettleBalanceByBalanceId(groupId, balanceId)
 	if err != nil {
+		if errors.Is(err, types.ErrBalanceNotExist) {
+			utils.WriteError(c, http.StatusNotFound, err)
+			return
+		}
 		utils.WriteError(c, http.StatusInternalServerError, err)
 		return
 	}

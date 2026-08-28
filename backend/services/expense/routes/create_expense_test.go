@@ -71,7 +71,7 @@ func TestRouteCreateExpense(t *testing.T) {
 				Ledgers:        nil,
 			},
 			expectFail:       true,
-			expectStatusCode: http.StatusForbidden,
+			expectStatusCode: http.StatusNotFound,
 		},
 		{
 			name: "invalid group id",
@@ -90,7 +90,7 @@ func TestRouteCreateExpense(t *testing.T) {
 				Ledgers:        nil,
 			},
 			expectFail:       true,
-			expectStatusCode: http.StatusForbidden,
+			expectStatusCode: http.StatusNotFound,
 		},
 		{
 			name: "invalid group id",
@@ -109,7 +109,7 @@ func TestRouteCreateExpense(t *testing.T) {
 				Ledgers:        nil,
 			},
 			expectFail:       true,
-			expectStatusCode: http.StatusForbidden,
+			expectStatusCode: http.StatusNotFound,
 		},
 	}
 
@@ -213,7 +213,7 @@ func TestHandleCreateExpenseRejectsInvalidLedgerBeforeTransaction(t *testing.T) 
 
 	response := runCreateExpenseHandler(t, store, payload)
 
-	assert.Equal(t, http.StatusInternalServerError, response.Code)
+	assert.Equal(t, http.StatusBadRequest, response.Code)
 	assert.Zero(t, transactionCalls)
 }
 

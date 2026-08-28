@@ -61,6 +61,6 @@ func TestArchiveGroup(t *testing.T) {
 
 		router.ServeHTTP(rr, req)
 
-		assert.Equal(t, http.StatusBadRequest, rr.Code)
+		assert.Equal(t, http.StatusNotFound, rr.Code)
 	})
 }

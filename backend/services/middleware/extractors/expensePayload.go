@@ -45,7 +45,6 @@ func ExtractExpenseUpdatePayload() gin.HandlerFunc {
 		}
 
 		c.Set("expensePayload", payload)
-		c.Set("groupID", payload.GroupID.String())
 		c.Next()
 	}
 }

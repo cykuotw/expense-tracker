@@ -47,14 +47,18 @@ var (
 	ErrInvalidToken = errors.New("invalid token")
 
 	// group
-	ErrGroupNotExist    = errors.New("invalid group")
-	ErrInvalidAction    = errors.New("invalid actions")
-	ErrUserNotPermitted = errors.New("user has no permission")
+	ErrGroupNotExist        = errors.New("invalid group")
+	ErrInvalidAction        = errors.New("invalid actions")
+	ErrUserNotPermitted     = errors.New("user has no permission")
+	ErrProtectedGroupMember = errors.New("group creator and final member cannot be removed")
 
 	// expense
-	ErrExpenseNotExist     = errors.New("expense not exist")
-	ErrNoRemainingExpenses = errors.New("no remaining expenses in the list")
-	ErrProviderNotExist    = errors.New("provider not exist")
+	ErrExpenseNotExist            = errors.New("expense not exist")
+	ErrItemNotExist               = errors.New("item not found for expense")
+	ErrLedgerNotExist             = errors.New("ledger not found for expense")
+	ErrNoRemainingExpenses        = errors.New("no remaining expenses in the list")
+	ErrProviderNotExist           = errors.New("provider not exist")
+	ErrGroupParticipantNotAllowed = errors.New("expense participants must belong to the group")
 
 	// balance
 	ErrBalanceNotExist = errors.New("balacne not exist")

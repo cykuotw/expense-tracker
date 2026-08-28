@@ -62,7 +62,7 @@ func registerRoutes(router *gin.Engine, db *sql.DB) {
 	authHandler.RegisterRoutes(public)
 
 	protected := public.Group("")
-	protected.Use(auth.JWTAuthMiddleware())
+	protected.Use(auth.JWTAuthMiddleware(), middleware.ActiveUserMiddleware(userStore))
 
 	adminProtected := protected.Group("")
 	adminProtected.Use(middleware.AdminMiddleware(userStore))

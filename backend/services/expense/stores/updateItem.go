@@ -6,17 +6,22 @@ import (
 
 func (s *Store) UpdateItem(item types.Item) error {
 	query := "UPDATE item SET " +
-		"expense_id = $1, " +
-		"name = $2, " +
-		"amount = $3, " +
-		"unit = $4, " +
-		"unit_price = $5 " +
-		"WHERE id = $6;"
-	_, err := s.db.Exec(query,
-		item.ExpenseID, item.Name, item.Amount, item.Unit,
-		item.UnitPrice, item.ID)
+		"name = $1, " +
+		"amount = $2, " +
+		"unit = $3, " +
+		"unit_price = $4 " +
+		"WHERE id = $5 AND expense_id = $6;"
+	result, err := s.db.Exec(query,
+		item.Name, item.Amount, item.Unit, item.UnitPrice, item.ID, item.ExpenseID)
 	if err != nil {
 		return err
+	}
+	updated, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if updated == 0 {
+		return types.ErrItemNotExist
 	}
 	return nil
 }

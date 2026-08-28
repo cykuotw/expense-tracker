@@ -1,6 +1,7 @@
 package group
 
 import (
+	"expense-tracker/backend/types"
 	"github.com/google/uuid"
 )
 
@@ -34,11 +35,18 @@ func (s *Store) UpdateGroupMember(action string, userID string, groupID string) 
 	return nil
 }
 
-func (s *Store) UpdateGroupStatus(groupid string, isActive bool) error {
-	query := "UPDATE groups SET is_active = $1 WHERE id = $2;"
-	_, err := s.db.Exec(query, isActive, groupid)
+func (s *Store) UpdateGroupStatus(groupID string, creatorID string, isActive bool) error {
+	query := "UPDATE groups SET is_active = $1 WHERE id = $2 AND create_by_user_id = $3;"
+	result, err := s.db.Exec(query, isActive, groupID, creatorID)
 	if err != nil {
 		return err
+	}
+	updated, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if updated == 0 {
+		return types.ErrGroupNotExist
 	}
 	return nil
 }

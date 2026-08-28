@@ -40,7 +40,7 @@ func TestSettleBalanceByBalanceId(t *testing.T) {
 			mockBalanceId:   mockBalanceID.String(),
 			expectFail:      false,
 			expectResultLen: 1,
-			expectError:     nil,
+			expectError:     types.ErrBalanceNotExist,
 		},
 		{
 			name: "valid-2 records",
@@ -79,7 +79,7 @@ func TestSettleBalanceByBalanceId(t *testing.T) {
 			mockBalanceId:   uuid.NewString(),
 			expectFail:      true,
 			expectResultLen: 0,
-			expectError:     nil,
+			expectError:     types.ErrBalanceNotExist,
 		},
 	}
 
@@ -90,7 +90,7 @@ func TestSettleBalanceByBalanceId(t *testing.T) {
 				defer deleteBalances(db, []*types.Balance{&balance})
 			}
 
-			err := store.SettleBalanceByBalanceId(test.mockBalanceId)
+			err := store.SettleBalanceByBalanceId(mockGroupID.String(), test.mockBalanceId)
 
 			updateBalanced := selectBalance(db, uuid.MustParse(test.mockBalanceId))
 

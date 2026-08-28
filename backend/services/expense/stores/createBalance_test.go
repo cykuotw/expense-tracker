@@ -51,6 +51,11 @@ func TestCreateBalance(t *testing.T) {
 
 	for _, test := range subtests {
 		t.Run(test.name, func(t *testing.T) {
+			groupID := uuid.MustParse(test.mockGroupId)
+			for _, balance := range test.mockBalances {
+				balance.GroupID = groupID
+				assert.NoError(t, ensureBalanceParents(db, balance))
+			}
 			err := store.CreateBalances(test.mockGroupId, test.mockBalances)
 			defer deleteBalances(db, test.mockBalances)
 

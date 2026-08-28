@@ -35,6 +35,10 @@ func (h *Handler) handleCreateExpense(c *gin.Context) {
 		utils.WriteError(c, http.StatusInternalServerError, err)
 		return
 	}
+	if err := h.validateGroupParticipants(groupID, payerID); err != nil {
+		utils.WriteError(c, http.StatusBadRequest, err)
+		return
+	}
 	expTypeID, err := uuid.Parse(payload.ExpenseTypeID)
 	if err != nil {
 		utils.WriteError(c, http.StatusInternalServerError, err)
@@ -73,12 +77,16 @@ func (h *Handler) handleCreateExpense(c *gin.Context) {
 	for _, ledgerPayload := range payload.Ledgers {
 		lenderUserId, err := uuid.Parse(ledgerPayload.LenderUserID)
 		if err != nil {
-			utils.WriteError(c, http.StatusInternalServerError, err)
+			utils.WriteError(c, http.StatusBadRequest, err)
 			return
 		}
 		borrowerUserId, err := uuid.Parse(ledgerPayload.BorrowerUesrID)
 		if err != nil {
-			utils.WriteError(c, http.StatusInternalServerError, err)
+			utils.WriteError(c, http.StatusBadRequest, err)
+			return
+		}
+		if err := h.validateGroupParticipants(groupID, lenderUserId, borrowerUserId); err != nil {
+			utils.WriteError(c, http.StatusBadRequest, err)
 			return
 		}
 		ledgers = append(ledgers, types.Ledger{

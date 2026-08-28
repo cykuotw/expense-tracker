@@ -80,7 +80,7 @@ func TestGetGroup(t *testing.T) {
 
 		router.ServeHTTP(rr, req)
 
-		assert.Equal(t, http.StatusBadRequest, rr.Code)
+		assert.Equal(t, http.StatusNotFound, rr.Code)
 	})
 	t.Run("invalid groupid", func(t *testing.T) {
 		payload := types.GetGroupResponse{
@@ -109,7 +109,7 @@ func TestGetGroup(t *testing.T) {
 
 		router.ServeHTTP(rr, req)
 
-		assert.Equal(t, http.StatusBadRequest, rr.Code)
+		assert.Equal(t, http.StatusNotFound, rr.Code)
 	})
 }
 

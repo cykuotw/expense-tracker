@@ -60,7 +60,7 @@ func TestRouteGetUnsettledBalance(t *testing.T) {
 			name:             "invalid group id",
 			groupID:          uuid.NewString(),
 			expectFail:       true,
-			expectStatusCode: http.StatusForbidden,
+			expectStatusCode: http.StatusNotFound,
 			expectResponse:   types.BalanceResponse{},
 		},
 	}

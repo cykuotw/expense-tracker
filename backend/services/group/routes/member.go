@@ -1,6 +1,7 @@
 package group
 
 import (
+	"errors"
 	"expense-tracker/backend/services/auth"
 	"expense-tracker/backend/types"
 	"expense-tracker/backend/utils"
@@ -31,7 +32,7 @@ func (h *Handler) handleGetGroupMember(c *gin.Context) {
 		return
 	}
 	if !exist {
-		utils.WriteError(c, http.StatusForbidden, types.ErrUserNotPermitted)
+		utils.WriteError(c, http.StatusNotFound, types.ErrGroupNotExist)
 		return
 	}
 
@@ -78,6 +79,27 @@ func (h *Handler) handleUpdateGroupMember(c *gin.Context) {
 		utils.WriteError(c, http.StatusBadRequest, types.ErrInvalidAction)
 		return
 	}
+	// get requester user id from jwt
+	userID, err := auth.ExtractJWTClaim(c, "userID")
+	if err != nil {
+		utils.WriteError(c, http.StatusInternalServerError, err)
+		return
+	}
+
+	group, err := h.store.GetGroupByID(payload.GroupID)
+	if err != nil {
+		if errors.Is(err, types.ErrGroupNotExist) {
+			utils.WriteError(c, http.StatusNotFound, types.ErrGroupNotExist)
+			return
+		}
+		utils.WriteError(c, http.StatusInternalServerError, err)
+		return
+	}
+	if group == nil || group.CreateByUser.String() != userID {
+		utils.WriteError(c, http.StatusNotFound, types.ErrGroupNotExist)
+		return
+	}
+
 	exist, err := h.userStore.CheckUserExistByID(payload.UserID)
 	if err != nil {
 		utils.WriteError(c, http.StatusInternalServerError, err)
@@ -88,32 +110,20 @@ func (h *Handler) handleUpdateGroupMember(c *gin.Context) {
 		return
 	}
 
-	exist, err = h.store.CheckGroupExistById(payload.GroupID)
-	if err != nil {
-		utils.WriteError(c, http.StatusInternalServerError, err)
+	if payload.Action == "delete" && payload.UserID == group.CreateByUser.String() {
+		utils.WriteError(c, http.StatusBadRequest, types.ErrProtectedGroupMember)
 		return
 	}
-	if !exist {
-		utils.WriteError(c, http.StatusBadRequest, types.ErrGroupNotExist)
-		return
-	}
-
-	// get requester user id from jwt
-	userID, err := auth.ExtractJWTClaim(c, "userID")
-	if err != nil {
-		utils.WriteError(c, http.StatusInternalServerError, err)
-		return
-	}
-
-	// check requester belongs to the group
-	exist, err = h.store.CheckGroupUserPairExist(payload.GroupID, userID)
-	if err != nil {
-		utils.WriteError(c, http.StatusInternalServerError, err)
-		return
-	}
-	if !exist {
-		utils.WriteError(c, http.StatusForbidden, types.ErrUserNotPermitted)
-		return
+	if payload.Action == "delete" {
+		members, err := h.store.GetGroupMemberByGroupID(payload.GroupID)
+		if err != nil {
+			utils.WriteError(c, http.StatusInternalServerError, err)
+			return
+		}
+		if len(members) <= 1 {
+			utils.WriteError(c, http.StatusBadRequest, types.ErrProtectedGroupMember)
+			return
+		}
 	}
 
 	// update group member
@@ -131,6 +141,16 @@ func (h *Handler) handleGetRelatedMember(c *gin.Context) {
 	userID, err := auth.ExtractJWTClaim(c, "userID")
 	if err != nil {
 		utils.WriteError(c, http.StatusInternalServerError, err)
+		return
+	}
+
+	exist, err := h.store.CheckGroupUserPairExist(groupId, userID)
+	if err != nil {
+		utils.WriteError(c, http.StatusInternalServerError, err)
+		return
+	}
+	if !exist {
+		utils.WriteError(c, http.StatusNotFound, types.ErrGroupNotExist)
 		return
 	}
 

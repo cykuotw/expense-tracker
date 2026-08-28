@@ -36,7 +36,7 @@ type ExpenseStore interface {
 	OutdateBalanceByGroupId(groupId string) error
 	GetBalanceByGroupId(groupId string) ([]Balance, error)
 	CheckBalanceExistByID(id string) (bool, error)
-	SettleBalanceByBalanceId(balanceId string) error
+	SettleBalanceByBalanceId(groupID string, balanceID string) error
 	CheckGroupBallanceAllSettled(groupId string) (bool, error)
 }
 

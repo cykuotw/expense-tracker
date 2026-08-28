@@ -41,17 +41,15 @@ func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 		h.handleGetExpenseList)
 	router.GET("/expense_types", h.handleGetExpenseType)
 	router.GET("/expense/:expenseId",
-		validation.ValidateExpenseExist(h.store),
 		extractors.ExtractExpenseFromStore(h.store),
 		validation.ValidateGroupUserPairExist(h.groupStore),
 		h.handleGetExpenseDetail)
 	router.PUT("/expense/:expenseId",
-		validation.ValidateExpenseExist(h.store),
-		extractors.ExtractExpenseUpdatePayload(),
+		extractors.ExtractExpenseFromStore(h.store),
 		validation.ValidateGroupUserPairExist(h.groupStore),
+		extractors.ExtractExpenseUpdatePayload(),
 		h.handleUpdateExpense)
 	router.PUT("/delete_expense/:expenseId",
-		validation.ValidateExpenseExist(h.store),
 		extractors.ExtractExpenseFromStore(h.store),
 		validation.ValidateGroupUserPairExist(h.groupStore),
 		h.handleDeleteExpense)
@@ -63,6 +61,5 @@ func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 		h.handleGetUnsettledBalance)
 	router.POST("/settle_balance/:groupId/:balanceId",
 		validation.ValidateGroupUserPairExist(h.groupStore),
-		validation.ValidateBalanceExist(h.store),
 		h.handleSettleBalance)
 }

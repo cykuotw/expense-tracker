@@ -54,7 +54,7 @@ func TestRouteUpdateExpenseDetail(t *testing.T) {
 			},
 			expenseID:        uuid.NewString(),
 			expectFail:       true,
-			expectStatusCode: http.StatusBadRequest,
+			expectStatusCode: http.StatusNotFound,
 		},
 		{
 			name: "invalid group id",
@@ -65,7 +65,7 @@ func TestRouteUpdateExpenseDetail(t *testing.T) {
 			},
 			expenseID:        mockExpenseID.String(),
 			expectFail:       true,
-			expectStatusCode: http.StatusForbidden,
+			expectStatusCode: http.StatusNotFound,
 		},
 	}
 
@@ -91,9 +91,9 @@ func TestRouteUpdateExpenseDetail(t *testing.T) {
 			router.PUT(
 				"/expense/:expenseId",
 				extractors.ExtractUserIdFromJWT(),
-				validation.ValidateExpenseExist(store),
-				extractors.ExtractExpenseUpdatePayload(),
+				extractors.ExtractExpenseFromStore(store),
 				validation.ValidateGroupUserPairExist(groupStore),
+				extractors.ExtractExpenseUpdatePayload(),
 				handler.handleUpdateExpense,
 			)
 

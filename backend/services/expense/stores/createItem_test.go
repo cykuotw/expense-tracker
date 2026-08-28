@@ -41,6 +41,9 @@ func TestCreateItem(t *testing.T) {
 
 	for _, test := range subtests {
 		t.Run(test.name, func(t *testing.T) {
+			parent := newTestExpense(test.mockItem.ExpenseID)
+			assert.NoError(t, insertExpense(db, parent))
+			defer deleteExpense(db, parent.ID)
 			err := store.CreateItem(test.mockItem)
 			defer deleteItem(db, test.mockItem.ID)
 

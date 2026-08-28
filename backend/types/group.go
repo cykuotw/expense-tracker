@@ -18,7 +18,7 @@ type GroupStore interface {
 	GetRelatedUser(currentUser string, groupId string) ([]*RelatedMember, error)
 
 	UpdateGroupMember(action string, userid string, groupID string) error
-	UpdateGroupStatus(groupid string, isActive bool) error
+	UpdateGroupStatus(groupID string, creatorID string, isActive bool) error
 
 	CheckGroupExistById(id string) (bool, error)
 	CheckGroupUserPairExist(groupId string, userId string) (bool, error)

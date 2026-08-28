@@ -65,7 +65,10 @@ func TestOutdateBalanceByGroupId(t *testing.T) {
 	}
 }
 
-func insertBalance(db *sql.DB, balance *types.Balance) {
+func insertBalance(db *sql.DB, balance *types.Balance) error {
+	if err := ensureBalanceParents(db, balance); err != nil {
+		return err
+	}
 	createTime := balance.CreateTime.UTC().Format("2006-01-02 15:04:05-0700")
 	updateTime := balance.UpdateTime.UTC().Format("2006-01-02 15:04:05-0700")
 	settleTime := balance.SettledTime.UTC().Format("2006-01-02 15:04:05-0700")
@@ -85,5 +88,6 @@ func insertBalance(db *sql.DB, balance *types.Balance) {
 		balance.IsSettled, settleTime,
 	)
 
-	db.Exec(query)
+	_, err := db.Exec(query)
+	return err
 }

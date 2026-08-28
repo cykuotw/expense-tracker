@@ -2,6 +2,7 @@ package user
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"expense-tracker/backend/config"
 	"expense-tracker/backend/services/auth"
@@ -19,6 +20,7 @@ type accountStoreMock struct {
 	user             *types.User
 	updateProfileFn  func(string, types.UpdateOwnProfilePayload) error
 	changePasswordFn func(string, string, string, string) error
+	linkGoogleFn     func(context.Context, string, string, string, string, string) error
 }
 
 func (m *accountStoreMock) GetUserByID(string) (*types.User, error) {
@@ -39,6 +41,15 @@ func (m *accountStoreMock) ChangeOwnPassword(userID string, currentPassword stri
 	if m.changePasswordFn != nil {
 		return m.changePasswordFn(userID, currentPassword, newPassword, preserveRefreshID)
 	}
+	return nil
+}
+
+func (m *accountStoreMock) LinkGoogleIdentity(ctx context.Context, userID string, currentPassword string, externalID string, verifiedEmail string, preserveRefreshID string) error {
+	if m.linkGoogleFn != nil {
+		return m.linkGoogleFn(ctx, userID, currentPassword, externalID, verifiedEmail, preserveRefreshID)
+	}
+	m.user.ExternalType = "google"
+	m.user.ExternalID = externalID
 	return nil
 }
 
@@ -63,7 +74,7 @@ func TestAccountReturnsSafeCapabilityData(t *testing.T) {
 	userID := uuid.New()
 	store := &accountStoreMock{user: &types.User{
 		ID: userID, Firstname: "Local", Lastname: "User", Email: "local@example.com",
-		PasswordHashed: "must-not-leak", IsActive: true,
+		PasswordHashed: "must-not-leak", HasLocalPassword: true, IsActive: true,
 	}}
 	response := httptest.NewRecorder()
 	accountTestRouter(store).ServeHTTP(response, accountTestRequest(t, http.MethodGet, "/account", "", userID))
@@ -113,7 +124,7 @@ func TestChangePasswordPassesCurrentRefreshSession(t *testing.T) {
 	assert.NoError(t, err)
 	called := false
 	store := &accountStoreMock{
-		user: &types.User{ID: userID, IsActive: true},
+		user: &types.User{ID: userID, HasLocalPassword: true, IsActive: true},
 		changePasswordFn: func(actualID string, current string, next string, preserve string) error {
 			called = true
 			assert.Equal(t, userID.String(), actualID)

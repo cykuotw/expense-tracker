@@ -29,6 +29,8 @@ class VerifyTest(unittest.TestCase):
             Response(401, {}, b""),
             Response(401, {}, b""),
             Response(401, {}, b""),
+            Response(401, {}, b""),
+            Response(401, {}, b""),
             Response(200, {}, b""),
             Response(404, {}, b""),
         ]
@@ -55,6 +57,7 @@ class VerifyTest(unittest.TestCase):
                 config,
                 require_patch_cors=False,
                 require_google_register_authorizer=False,
+                require_google_link_authorizer=False,
             )
         self.assertEqual(request.call_count, 5)
 
@@ -76,6 +79,29 @@ class VerifyTest(unittest.TestCase):
             with self.assertRaisesRegex(
                 CommandError,
                 "Google register authorizer negative check returned HTTP 404",
+            ):
+                verify_api(config)
+
+    def test_google_link_authorizer_is_required_after_update(self) -> None:
+        config = SimpleNamespace(
+            api_origin="https://api.example.com",
+            frontend_origin="https://expense.example.com",
+        )
+        responses = [
+            Response(200, {}, b""),
+            Response(204, {"Access-Control-Allow-Origin": config.frontend_origin}, b""),
+            Response(204, {"Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS"}, b""),
+            Response(200, {}, b""),
+            Response(401, {}, b""),
+            Response(401, {}, b""),
+            Response(401, {}, b""),
+            Response(401, {}, b""),
+            Response(404, {}, b""),
+        ]
+        with mock.patch("backend.verify._request", side_effect=responses):
+            with self.assertRaisesRegex(
+                CommandError,
+                "Google link authorizer negative check returned HTTP 404",
             ):
                 verify_api(config)
 

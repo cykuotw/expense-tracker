@@ -79,18 +79,19 @@ func (s *Service) PrepareUserFromClaims(claims *types.VerifiedGoogleClaims) (*ty
 	}
 
 	user := &types.User{
-		ID:             s.newUUID(),
-		Username:       nicknameFromClaims(claims),
-		Nickname:       nicknameFromClaims(claims),
-		Firstname:      claims.GivenName,
-		Lastname:       claims.FamilyName,
-		Email:          auth.NormalizeEmail(claims.Email),
-		PasswordHashed: hashedPassword,
-		ExternalType:   "google",
-		ExternalID:     claims.Subject,
-		CreateTime:     s.now(),
-		IsActive:       true,
-		Role:           "user",
+		ID:               s.newUUID(),
+		Username:         nicknameFromClaims(claims),
+		Nickname:         nicknameFromClaims(claims),
+		Firstname:        claims.GivenName,
+		Lastname:         claims.FamilyName,
+		Email:            auth.NormalizeEmail(claims.Email),
+		PasswordHashed:   hashedPassword,
+		HasLocalPassword: false,
+		ExternalType:     "google",
+		ExternalID:       claims.Subject,
+		CreateTime:       s.now(),
+		IsActive:         true,
+		Role:             "user",
 	}
 
 	return user, nil

@@ -244,6 +244,7 @@ def _require_complete(context: Context) -> dict[str, Any]:
             context.config,
             require_patch_cors=False,
             require_google_register_authorizer=False,
+            require_google_link_authorizer=False,
         )
         verify_frontend(context.config)
     except CommandError as error:
@@ -255,6 +256,7 @@ def _infrastructure_targets(scope: str) -> tuple[str, ...]:
     targets: list[str] = []
     if scope in {"backend", "all"}:
         targets.append("aws_apigatewayv2_route.google_register")
+        targets.append("aws_apigatewayv2_route.google_link")
     if scope in {"frontend", "all"}:
         targets.extend((
             "aws_cloudfront_response_headers_policy.frontend_security",

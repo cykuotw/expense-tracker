@@ -1,8 +1,11 @@
 package user
 
 import (
+	"context"
 	"errors"
+	"expense-tracker/backend/config"
 	"expense-tracker/backend/services/auth"
+	googleAuth "expense-tracker/backend/services/auth/google"
 	"expense-tracker/backend/types"
 	"expense-tracker/backend/utils"
 	"net/http"
@@ -16,15 +19,18 @@ type AccountStore interface {
 	GetUserByID(id string) (*types.User, error)
 	UpdateOwnProfile(userID string, payload types.UpdateOwnProfilePayload) error
 	ChangeOwnPassword(userID string, currentPassword string, newPassword string, preserveRefreshID string) error
+	LinkGoogleIdentity(ctx context.Context, userID string, currentPassword string, externalID string, verifiedEmail string, preserveRefreshID string) error
 }
 
 type HandlerProtected struct {
-	store AccountStore
+	store          AccountStore
+	googleVerifier googleAuth.Verifier
 }
 
 func NewProtectedHandler(store AccountStore) *HandlerProtected {
 	return &HandlerProtected{
-		store: store,
+		store:          store,
+		googleVerifier: googleAuth.NewClaimsVerifier(),
 	}
 }
 
@@ -33,6 +39,13 @@ func (h *HandlerProtected) RegisterRoutes(router *gin.RouterGroup) {
 	router.GET("/account", h.handleAccount)
 	router.PATCH("/account", h.handleUpdateProfile)
 	router.PATCH("/account/password", h.handleChangePassword)
+	if config.Envs.GoogleOAuthConfigured() {
+		googleLinkHandler := h.handleGoogleLinkInProcess
+		if config.Envs.GoogleExchangeModeIs(config.GoogleExchangeUpstreamVerified) {
+			googleLinkHandler = h.handleGoogleLinkUpstreamVerified
+		}
+		router.POST("/account/google/link", googleLinkHandler)
+	}
 }
 
 func (h *HandlerProtected) handleUserInfo(c *gin.Context) {
@@ -66,7 +79,7 @@ func accountResponse(user *types.User) types.AccountResponse {
 		Lastname:              user.Lastname,
 		Email:                 user.Email,
 		GoogleConnected:       user.ExternalType == "google",
-		PasswordChangeAllowed: user.ExternalType == "",
+		PasswordChangeAllowed: user.HasLocalPassword,
 	}
 }
 
@@ -84,7 +97,11 @@ func writeAccountError(c *gin.Context, err error) {
 	case errors.Is(err, types.ErrCurrentPasswordIncorrect):
 		utils.WriteError(c, http.StatusUnauthorized, err)
 	case errors.Is(err, types.ErrPasswordChangeUnavailable),
-		errors.Is(err, types.ErrPasswordUnchanged):
+		errors.Is(err, types.ErrPasswordUnchanged),
+		errors.Is(err, types.ErrGoogleLinkEmailMismatch),
+		errors.Is(err, types.ErrGoogleAccountConflict),
+		errors.Is(err, types.ErrGoogleAlreadyConnected),
+		errors.Is(err, types.ErrGoogleLinkUnavailable):
 		utils.WriteError(c, http.StatusConflict, err)
 	case errors.Is(err, types.ErrInvalidProfile):
 		utils.WriteError(c, http.StatusBadRequest, err)

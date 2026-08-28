@@ -64,18 +64,19 @@ func BootstrapFirstAdmin(store FirstAdminStore, input *FirstAdminInput, deps Boo
 	}
 
 	candidate := &types.User{
-		ID:             deps.NewUUID(),
-		Username:       username,
-		Nickname:       normalized.Nickname,
-		Firstname:      normalized.Firstname,
-		Lastname:       normalized.Lastname,
-		Email:          normalized.Email,
-		PasswordHashed: hashedPassword,
-		ExternalType:   "",
-		ExternalID:     "",
-		CreateTime:     deps.Now(),
-		IsActive:       true,
-		Role:           "admin",
+		ID:               deps.NewUUID(),
+		Username:         username,
+		Nickname:         normalized.Nickname,
+		Firstname:        normalized.Firstname,
+		Lastname:         normalized.Lastname,
+		Email:            normalized.Email,
+		PasswordHashed:   hashedPassword,
+		HasLocalPassword: true,
+		ExternalType:     "",
+		ExternalID:       "",
+		CreateTime:       deps.Now(),
+		IsActive:         true,
+		Role:             "admin",
 	}
 	return store.ReconcileFirstAdmin(candidate, normalized.Email)
 }

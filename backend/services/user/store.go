@@ -15,7 +15,7 @@ type Store struct {
 
 const userProjection = `
 	id, username, firstname, lastname, email, password_hash,
-	external_type, external_id, create_time_utc, is_active, nickname, role
+	has_local_password, external_type, external_id, create_time_utc, is_active, nickname, role
 `
 
 func NewStore(db *sql.DB) *Store {
@@ -191,14 +191,14 @@ func (s *Store) CreateUser(user types.User) error {
 	createTime := user.CreateTime.UTC().Format("2006-01-02 15:04:05-0700")
 	query := "INSERT INTO users (" +
 		"id, username, firstname, lastname, nickname, " +
-		"email, password_hash, " +
+		"email, password_hash, has_local_password, " +
 		"external_type, external_id, " +
 		"create_time_utc, is_active, " +
 		"role" +
-		") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12);"
+		") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13);"
 	_, err := s.db.Exec(query,
 		user.ID, user.Username, user.Firstname, user.Lastname, user.Nickname,
-		auth.NormalizeEmail(user.Email), user.PasswordHashed,
+		auth.NormalizeEmail(user.Email), user.PasswordHashed, user.HasLocalPassword,
 		nullableString(user.ExternalType), nullableString(user.ExternalID),
 		createTime, user.IsActive,
 		user.Role)
@@ -220,6 +220,7 @@ func scanRowIntoUser(rows *sql.Rows) (*types.User, error) {
 		&user.Lastname,
 		&user.Email,
 		&user.PasswordHashed,
+		&user.HasLocalPassword,
 		&externalType,
 		&externalID,
 		&user.CreateTime,

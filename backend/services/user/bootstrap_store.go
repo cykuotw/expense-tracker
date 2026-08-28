@@ -106,12 +106,12 @@ func (s *Store) ReconcileFirstAdmin(candidate *types.User, normalizedEmail strin
 	result, err := tx.Exec(`
 		INSERT INTO users (
 			id, username, firstname, lastname, nickname, email, password_hash,
-			external_type, external_id, create_time_utc, is_active, role, is_protected_admin
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, TRUE, 'admin', TRUE);
+			has_local_password, external_type, external_id, create_time_utc, is_active, role, is_protected_admin
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, TRUE, 'admin', TRUE);
 	`,
 		candidate.ID, candidate.Username, candidate.Firstname, candidate.Lastname,
 		candidate.Nickname, normalizedEmail, candidate.PasswordHashed,
-		nullableString(candidate.ExternalType), nullableString(candidate.ExternalID), createTime,
+		candidate.HasLocalPassword, nullableString(candidate.ExternalType), nullableString(candidate.ExternalID), createTime,
 	)
 	if err != nil {
 		return "", err

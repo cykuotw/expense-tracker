@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -120,15 +121,47 @@ func TestServiceLogin(t *testing.T) {
 		assert.Equal(t, "invalid_credentials", response.Code)
 	})
 
+	t.Run("linked local user can still use password login", func(t *testing.T) {
+		hash, err := auth.HashPassword("testpassword")
+		assert.NoError(t, err)
+		userStore := &baseAuthUserStore{
+			GetUserByEmailFn: func(email string) (*types.User, error) {
+				return &types.User{
+					ID:               uuid.New(),
+					Email:            email,
+					PasswordHashed:   hash,
+					HasLocalPassword: true,
+					ExternalType:     "google",
+					ExternalID:       "google-linked-subject",
+					IsActive:         true,
+				}, nil
+			},
+		}
+		handler := NewHandler(userStore, invitationStoreMock(), refreshStoreMock())
+		payload, err := json.Marshal(types.LoginUserPayload{
+			Email: "linked@example.com", Password: "testpassword",
+		})
+		assert.NoError(t, err)
+		request := httptest.NewRequest(http.MethodPost, "/login", bytes.NewReader(payload))
+		response := httptest.NewRecorder()
+		router := gin.New()
+		router.POST("/login", handler.handleLogin)
+
+		router.ServeHTTP(response, request)
+
+		assert.Equal(t, http.StatusOK, response.Code)
+	})
+
 	t.Run("inactive user cannot establish a session", func(t *testing.T) {
 		hash, err := auth.HashPassword("testpassword")
 		assert.NoError(t, err)
 		userStore := &baseAuthUserStore{
 			GetUserByEmailFn: func(email string) (*types.User, error) {
 				return &types.User{
-					Email:          email,
-					PasswordHashed: hash,
-					IsActive:       false,
+					Email:            email,
+					PasswordHashed:   hash,
+					HasLocalPassword: true,
+					IsActive:         false,
 				}, nil
 			},
 		}

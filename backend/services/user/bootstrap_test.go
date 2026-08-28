@@ -33,6 +33,7 @@ func TestBootstrapFirstAdminCreatesSeededAdminCandidate(t *testing.T) {
 		assert.Equal(t, "", candidate.Nickname)
 		assert.Equal(t, "admin", candidate.Role)
 		assert.True(t, candidate.IsActive)
+		assert.True(t, candidate.HasLocalPassword)
 		assert.Equal(t, expectedTime, candidate.CreateTime)
 		assert.True(t, auth.ValidatePassword(candidate.PasswordHashed, "supersecret"))
 		return BootstrapStatusCreated, nil

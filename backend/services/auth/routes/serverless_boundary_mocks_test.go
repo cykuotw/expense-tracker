@@ -25,15 +25,16 @@ func newBoundaryUserStore(t *testing.T) *boundaryUserStore {
 	require.NoError(t, err)
 
 	user := types.User{
-		ID:             uuid.New(),
-		Username:       "test-user",
-		Firstname:      "Test",
-		Lastname:       "User",
-		Email:          "user@example.test",
-		Nickname:       "Test User",
-		PasswordHashed: string(passwordHash),
-		IsActive:       true,
-		Role:           "user",
+		ID:               uuid.New(),
+		Username:         "test-user",
+		Firstname:        "Test",
+		Lastname:         "User",
+		Email:            "user@example.test",
+		Nickname:         "Test User",
+		PasswordHashed:   string(passwordHash),
+		HasLocalPassword: true,
+		IsActive:         true,
+		Role:             "user",
 	}
 
 	store := &boundaryUserStore{

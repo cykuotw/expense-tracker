@@ -26,18 +26,19 @@ type RegistrationStore interface {
 }
 
 type User struct {
-	ID             uuid.UUID `json:"id"`
-	Username       string    `json:"username"`
-	Firstname      string    `json:"firstname"`
-	Lastname       string    `json:"lastname"`
-	Email          string    `json:"email"`
-	Nickname       string    `json:"nickname"`
-	PasswordHashed string    `json:"passwordHashed"`
-	ExternalType   string    `json:"externalType"`
-	ExternalID     string    `json:"externalId"`
-	CreateTime     time.Time `json:"createTime"`
-	IsActive       bool      `json:"isActive"`
-	Role           string    `json:"role"`
+	ID               uuid.UUID `json:"id"`
+	Username         string    `json:"username"`
+	Firstname        string    `json:"firstname"`
+	Lastname         string    `json:"lastname"`
+	Email            string    `json:"email"`
+	Nickname         string    `json:"nickname"`
+	PasswordHashed   string    `json:"passwordHashed"`
+	HasLocalPassword bool      `json:"hasLocalPassword"`
+	ExternalType     string    `json:"externalType"`
+	ExternalID       string    `json:"externalId"`
+	CreateTime       time.Time `json:"createTime"`
+	IsActive         bool      `json:"isActive"`
+	Role             string    `json:"role"`
 }
 
 type RegisterUserPayload struct {
@@ -105,6 +106,10 @@ type UpdateOwnProfilePayload struct {
 type ChangeOwnPasswordPayload struct {
 	CurrentPassword string `json:"currentPassword" validate:"required"`
 	NewPassword     string `json:"newPassword" validate:"required"`
+}
+
+type LinkGoogleAccountPayload struct {
+	CurrentPassword string `json:"currentPassword" validate:"required"`
 }
 
 type AdminUserResponse struct {

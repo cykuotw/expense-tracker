@@ -86,11 +86,11 @@ func loginUserStoreMock() *baseAuthUserStore {
 	return &baseAuthUserStore{
 		GetUserByEmailFn: func(email string) (*types.User, error) {
 			hash, _ := bcrypt.GenerateFromPassword([]byte("testpassword"), bcrypt.DefaultCost)
-			return &types.User{PasswordHashed: string(hash), IsActive: true}, nil
+			return &types.User{PasswordHashed: string(hash), HasLocalPassword: true, IsActive: true}, nil
 		},
 		GetUserByUsernameFn: func(username string) (*types.User, error) {
 			hash, _ := bcrypt.GenerateFromPassword([]byte("testpassword"), bcrypt.DefaultCost)
-			return &types.User{PasswordHashed: string(hash), IsActive: true}, nil
+			return &types.User{PasswordHashed: string(hash), HasLocalPassword: true, IsActive: true}, nil
 		},
 	}
 }

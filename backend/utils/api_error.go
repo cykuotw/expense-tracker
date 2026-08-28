@@ -160,6 +160,15 @@ func normalizeError(status int, err error) APIErrorResponse {
 	if errors.Is(err, types.ErrGoogleAccountConflict) {
 		return APIErrorResponse{Error: err.Error(), Code: "google_account_conflict"}
 	}
+	if errors.Is(err, types.ErrGoogleLinkEmailMismatch) {
+		return APIErrorResponse{Error: err.Error(), Code: "google_link_email_mismatch"}
+	}
+	if errors.Is(err, types.ErrGoogleAlreadyConnected) {
+		return APIErrorResponse{Error: err.Error(), Code: "google_already_connected"}
+	}
+	if errors.Is(err, types.ErrGoogleLinkUnavailable) {
+		return APIErrorResponse{Error: err.Error(), Code: "google_link_unavailable"}
+	}
 	if errors.Is(err, types.ErrInvitationRequired) {
 		return APIErrorResponse{Error: err.Error(), Code: "INVITATION_REQUIRED"}
 	}

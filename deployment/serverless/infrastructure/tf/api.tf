@@ -84,6 +84,13 @@ resource "aws_apigatewayv2_route" "google_register" {
   authorization_type = "JWT"
   authorizer_id      = aws_apigatewayv2_authorizer.google.id
 }
+resource "aws_apigatewayv2_route" "google_link" {
+  api_id             = aws_apigatewayv2_api.worker.id
+  route_key          = "POST ${local.api_path}/account/google/link"
+  target             = "integrations/${aws_apigatewayv2_integration.worker.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.google.id
+}
 resource "aws_apigatewayv2_route" "default" {
   api_id             = aws_apigatewayv2_api.worker.id
   route_key          = "$default"

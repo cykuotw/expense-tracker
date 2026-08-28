@@ -1,6 +1,8 @@
-import { FormEvent, useCallback, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "react-hot-toast";
 
+import GoogleSignInButton from "../components/auth/GoogleSignInButton";
+import { GOOGLE_OAUTH_ENABLED } from "../configs/config";
 import { apiFetch, getResponseErrorMessage } from "../lib/api";
 import { AccountSettingsData } from "../types/account";
 
@@ -174,6 +176,13 @@ export default function AccountSettings() {
     const [passwordError, setPasswordError] = useState("");
     const [savingProfile, setSavingProfile] = useState(false);
     const [savingPassword, setSavingPassword] = useState(false);
+    const [googleLinkExpanded, setGoogleLinkExpanded] = useState(false);
+    const [googleLinkPassword, setGoogleLinkPassword] = useState("");
+    const [googleLinkPasswordVisible, setGoogleLinkPasswordVisible] =
+        useState(false);
+    const [googleLinkError, setGoogleLinkError] = useState("");
+    const [linkingGoogle, setLinkingGoogle] = useState(false);
+    const googleLinkPasswordRef = useRef("");
     const [passwordVisibility, setPasswordVisibility] = useState(
         EMPTY_PASSWORD_VISIBILITY,
     );
@@ -356,6 +365,78 @@ export default function AccountSettings() {
             setSavingPassword(false);
         }
     };
+
+    const resetGoogleLink = () => {
+        googleLinkPasswordRef.current = "";
+        setGoogleLinkPassword("");
+        setGoogleLinkPasswordVisible(false);
+        setGoogleLinkError("");
+        setGoogleLinkExpanded(false);
+    };
+
+    const handleGoogleLinkCredential = useCallback(
+        async (response: GoogleCredentialResponse) => {
+            const credential = response.credential?.trim();
+            if (!credential) {
+                setGoogleLinkError(
+                    "Google did not return a credential. Please try again.",
+                );
+                return;
+            }
+
+            const currentPassword = googleLinkPasswordRef.current;
+            if (!currentPassword) {
+                setGoogleLinkError("Enter your current password first.");
+                return;
+            }
+
+            setLinkingGoogle(true);
+            setGoogleLinkError("");
+            try {
+                const linkResponse = await apiFetch(
+                    "/account/google/link",
+                    {
+                        method: "POST",
+                        headers: {
+                            Authorization: `Bearer ${credential}`,
+                        },
+                        body: JSON.stringify({ currentPassword }),
+                    },
+                    // A 401 here may describe the Google credential rather than
+                    // the application session, so do not start a session refresh.
+                    { authMode: "none" },
+                );
+                if (!linkResponse.ok) {
+                    throw new Error(
+                        await getResponseErrorMessage(
+                            linkResponse,
+                            "Unable to connect Google",
+                        ),
+                    );
+                }
+
+                const updated =
+                    (await linkResponse.json()) as AccountSettingsData;
+                setAccount(updated);
+                googleLinkPasswordRef.current = "";
+                setGoogleLinkPassword("");
+                setGoogleLinkPasswordVisible(false);
+                setGoogleLinkExpanded(false);
+                toast.success(
+                    "Google account connected. Other sessions were signed out.",
+                );
+            } catch (error) {
+                setGoogleLinkError(
+                    error instanceof Error
+                        ? error.message
+                        : "Unable to connect Google",
+                );
+            } finally {
+                setLinkingGoogle(false);
+            }
+        },
+        [],
+    );
 
     if (loading) {
         return (
@@ -576,7 +657,7 @@ export default function AccountSettings() {
                             <div className="mt-5 rounded-2xl border border-base-300 bg-base-200/60 p-4">
                                 <div className="font-medium text-base-content">Managed by Google</div>
                                 <p className="mt-2 text-sm leading-6 text-base-content/65">
-                                    This account does not have a local password. Explicit Google account linking and credential management will be added separately.
+                                    This account was created with Google and does not have a local password.
                                 </p>
                             </div>
                         )}
@@ -587,11 +668,141 @@ export default function AccountSettings() {
                                     {account.googleConnected ? "Connected" : "Not connected"}
                                 </span>
                             </div>
-                            {!account.googleConnected ? (
+                            {account.googleConnected ? (
                                 <p className="mt-2 text-xs leading-5 text-base-content/60">
-                                    Connecting Google will be available through the explicit account-linking flow.
+                                    {account.passwordChangeAllowed
+                                        ? "You can sign in with either Google or your password."
+                                        : "Google is the sign-in method for this account."}
                                 </p>
-                            ) : null}
+                            ) : GOOGLE_OAUTH_ENABLED &&
+                              account.passwordChangeAllowed ? (
+                                <div className="mt-3">
+                                    <p className="text-xs leading-5 text-base-content/60">
+                                        Connect the Google account for {account.email}. You’ll confirm your password before choosing the matching Google account.
+                                    </p>
+                                    {!googleLinkExpanded ? (
+                                        <button
+                                            type="button"
+                                            className="btn btn-outline mt-4 min-h-11 w-full"
+                                            aria-expanded="false"
+                                            aria-controls="google-link-panel"
+                                            onClick={() => {
+                                                setGoogleLinkError("");
+                                                setGoogleLinkExpanded(true);
+                                            }}
+                                        >
+                                            Connect Google
+                                        </button>
+                                    ) : (
+                                        <div
+                                            id="google-link-panel"
+                                            className="mt-4 rounded-2xl border border-base-300 bg-base-200/50 p-4"
+                                            role="region"
+                                            aria-label="Connect Google account"
+                                        >
+                                            <label
+                                                htmlFor="google-link-password"
+                                                className="block text-sm font-medium text-base-content"
+                                            >
+                                                Confirm current password
+                                            </label>
+                                            <div className="relative mt-2">
+                                                <input
+                                                    id="google-link-password"
+                                                    type={
+                                                        googleLinkPasswordVisible
+                                                            ? "text"
+                                                            : "password"
+                                                    }
+                                                    className="input input-bordered min-h-11 w-full bg-base-100 pr-20"
+                                                    value={googleLinkPassword}
+                                                    autoComplete="current-password"
+                                                    disabled={linkingGoogle}
+                                                    aria-describedby="google-link-help google-link-error"
+                                                    onChange={(event) => {
+                                                        const value =
+                                                            event.target.value;
+                                                        googleLinkPasswordRef.current =
+                                                            value;
+                                                        setGoogleLinkPassword(value);
+                                                        setGoogleLinkError("");
+                                                    }}
+                                                />
+                                                <button
+                                                    type="button"
+                                                    className="btn btn-ghost absolute inset-y-0 right-0 min-h-11 min-w-16 rounded-l-none px-3 text-xs"
+                                                    aria-label={`${googleLinkPasswordVisible ? "Hide" : "Show"} linking password`}
+                                                    aria-pressed={
+                                                        googleLinkPasswordVisible
+                                                    }
+                                                    disabled={linkingGoogle}
+                                                    onClick={() =>
+                                                        setGoogleLinkPasswordVisible(
+                                                            (visible) => !visible,
+                                                        )
+                                                    }
+                                                >
+                                                    {googleLinkPasswordVisible
+                                                        ? "Hide"
+                                                        : "Show"}
+                                                </button>
+                                            </div>
+                                            <p
+                                                id="google-link-help"
+                                                className="mt-2 text-xs leading-5 text-base-content/60"
+                                            >
+                                                Your Google email must match {account.email}. Other sessions will be signed out after linking.
+                                            </p>
+                                            <div
+                                                id="google-link-error"
+                                                className="mt-2 min-h-5"
+                                                aria-live="polite"
+                                            >
+                                                {googleLinkError ? (
+                                                    <p
+                                                        className="text-xs leading-5 text-error"
+                                                        role="alert"
+                                                    >
+                                                        {googleLinkError}
+                                                    </p>
+                                                ) : null}
+                                            </div>
+                                            <div
+                                                className={`mt-3 ${linkingGoogle ? "pointer-events-none opacity-60" : ""}`}
+                                                aria-busy={linkingGoogle}
+                                            >
+                                                {googleLinkPassword ? (
+                                                    <GoogleSignInButton
+                                                        onCredentialResponse={
+                                                            handleGoogleLinkCredential
+                                                        }
+                                                    />
+                                                ) : (
+                                                    <button
+                                                        type="button"
+                                                        className="btn min-h-11 w-full"
+                                                        disabled
+                                                    >
+                                                        Continue with Google
+                                                    </button>
+                                                )}
+                                            </div>
+                                            <button
+                                                type="button"
+                                                className="btn btn-ghost mt-2 min-h-11 w-full"
+                                                disabled={linkingGoogle}
+                                                onClick={resetGoogleLink}
+                                            >
+                                                Cancel
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            ) : (
+                                <p className="mt-2 text-xs leading-5 text-base-content/60">
+                                    Google linking is unavailable for this account.
+                                </p>
+                            )}
                         </div>
                     </section>
                 </div>

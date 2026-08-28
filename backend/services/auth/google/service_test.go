@@ -146,6 +146,7 @@ func TestPrepareUserFromClaims(t *testing.T) {
 	assert.Equal(t, "user@example.com", user.Email)
 	assert.Equal(t, "google", user.ExternalType)
 	assert.Equal(t, "google-sub-123", user.ExternalID)
+	assert.False(t, user.HasLocalPassword)
 	assert.Equal(t, "hashed-secret", user.PasswordHashed)
 	assert.Equal(t, now, user.CreateTime)
 }

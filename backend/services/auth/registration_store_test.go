@@ -173,6 +173,6 @@ func newRegistrationUser(email string) types.User {
 	return types.User{
 		ID: id, Username: "registration-" + id.String(), Nickname: "Registration",
 		Firstname: "Test", Lastname: "User", Email: email, PasswordHashed: "hash",
-		CreateTime: time.Now().UTC(), IsActive: true, Role: "user",
+		HasLocalPassword: true, CreateTime: time.Now().UTC(), IsActive: true, Role: "user",
 	}
 }

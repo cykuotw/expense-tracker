@@ -3,10 +3,44 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import AccountSettings from "./AccountSettings";
 
-const { apiFetchMock, errorMessageMock, toastSuccessMock } = vi.hoisted(() => ({
+const {
+    apiFetchMock,
+    errorMessageMock,
+    toastSuccessMock,
+    googleConfigState,
+} = vi.hoisted(() => ({
     apiFetchMock: vi.fn(),
     errorMessageMock: vi.fn(),
     toastSuccessMock: vi.fn(),
+    googleConfigState: { enabled: true },
+}));
+
+vi.mock("../configs/config", () => ({
+    get GOOGLE_OAUTH_ENABLED() {
+        return googleConfigState.enabled;
+    },
+}));
+
+vi.mock("../components/auth/GoogleSignInButton", () => ({
+    default: ({
+        onCredentialResponse,
+    }: {
+        onCredentialResponse?: (
+            response: GoogleCredentialResponse,
+        ) => void | Promise<void>;
+    }) => (
+        <button
+            type="button"
+            onClick={() =>
+                void onCredentialResponse?.({
+                    credential: "google-id-token",
+                    select_by: "btn",
+                })
+            }
+        >
+            Choose Google account
+        </button>
+    ),
 }));
 
 vi.mock("../lib/api", () => ({
@@ -37,8 +71,14 @@ function response(body: unknown, status = 200) {
 describe("AccountSettings", () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        googleConfigState.enabled = true;
         errorMessageMock.mockResolvedValue("Request failed");
         apiFetchMock.mockImplementation((path: string, init?: RequestInit) => {
+            if (path === "/account/google/link") {
+                return Promise.resolve(
+                    response({ ...localAccount, googleConnected: true }),
+                );
+            }
             if (path === "/account" && init?.method === "PATCH") {
                 const body = JSON.parse(String(init.body));
                 return Promise.resolve(response({ ...localAccount, ...body }));
@@ -255,6 +295,98 @@ describe("AccountSettings", () => {
             screen.queryByRole("button", { name: "Change password" }),
         ).not.toBeInTheDocument();
         expect(screen.getByText("Connected")).toBeInTheDocument();
+        expect(
+            screen.queryByRole("button", { name: "Connect Google" }),
+        ).not.toBeInTheDocument();
+    });
+
+    it("explicitly links Google after confirming the current password", async () => {
+        render(<AccountSettings />);
+
+        const connect = await screen.findByRole("button", {
+            name: "Connect Google",
+        });
+        fireEvent.click(connect);
+
+        const continueButton = screen.getByRole("button", {
+            name: "Continue with Google",
+        });
+        expect(continueButton).toBeDisabled();
+
+        const confirmation = screen.getByLabelText("Confirm current password");
+        fireEvent.change(confirmation, {
+            target: { value: "current-password" },
+        });
+        fireEvent.click(
+            screen.getByRole("button", { name: "Choose Google account" }),
+        );
+
+        await waitFor(() =>
+            expect(apiFetchMock).toHaveBeenCalledWith(
+                "/account/google/link",
+                {
+                    method: "POST",
+                    headers: { Authorization: "Bearer google-id-token" },
+                    body: JSON.stringify({
+                        currentPassword: "current-password",
+                    }),
+                },
+                { authMode: "none" },
+            ),
+        );
+        expect(toastSuccessMock).toHaveBeenCalledWith(
+            "Google account connected. Other sessions were signed out.",
+        );
+        expect(screen.getByText("Connected")).toBeInTheDocument();
+        expect(
+            screen.getByRole("button", { name: "Change password" }),
+        ).toBeInTheDocument();
+    });
+
+    it("shows a recoverable Google linking error without losing the form", async () => {
+        errorMessageMock.mockResolvedValueOnce(
+            "Use the Google account that matches this account email.",
+        );
+        apiFetchMock.mockImplementation((path: string) => {
+            if (path === "/account/google/link") {
+                return Promise.resolve(response({}, 409));
+            }
+            return Promise.resolve(response(localAccount));
+        });
+        render(<AccountSettings />);
+
+        fireEvent.click(
+            await screen.findByRole("button", { name: "Connect Google" }),
+        );
+        fireEvent.change(screen.getByLabelText("Confirm current password"), {
+            target: { value: "current-password" },
+        });
+        fireEvent.click(
+            screen.getByRole("button", { name: "Choose Google account" }),
+        );
+
+        expect(
+            await screen.findByText(
+                "Use the Google account that matches this account email.",
+            ),
+        ).toHaveClass("text-error");
+        expect(
+            screen.getByLabelText("Confirm current password"),
+        ).toHaveValue("current-password");
+    });
+
+    it("does not offer linking when Google OAuth is disabled", async () => {
+        googleConfigState.enabled = false;
+        render(<AccountSettings />);
+
+        expect(
+            await screen.findByText(
+                "Google linking is unavailable for this account.",
+            ),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByRole("button", { name: "Connect Google" }),
+        ).not.toBeInTheDocument();
     });
 
     it("shows a recoverable loading error", async () => {

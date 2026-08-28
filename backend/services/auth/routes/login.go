@@ -33,7 +33,7 @@ func (h *Handler) handleLogin(c *gin.Context) {
 		return
 	}
 
-	if user.ExternalType != "" {
+	if !user.HasLocalPassword {
 		utils.WriteError(c, http.StatusBadRequest, types.ErrPasswordNotMatch)
 		return
 	}

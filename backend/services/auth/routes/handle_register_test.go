@@ -128,4 +128,5 @@ func TestRegisterNormalizesEmailBeforeAtomicCreation(t *testing.T) {
 
 	assert.Equal(t, http.StatusCreated, rr.Code)
 	assert.Equal(t, "user@example.com", captured.Email)
+	assert.True(t, captured.HasLocalPassword)
 }

@@ -63,10 +63,10 @@ func (s *RegistrationStore) CreateInvitedUser(ctx context.Context, token string,
 	_, err = tx.Exec(`
 		INSERT INTO users (
 			id, username, firstname, lastname, nickname, email, password_hash,
-			external_type, external_id, create_time_utc, is_active, role
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, NULLIF(BTRIM($8), ''), NULLIF(BTRIM($9), ''), $10, $11, $12)`,
+			has_local_password, external_type, external_id, create_time_utc, is_active, role
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NULLIF(BTRIM($9), ''), NULLIF(BTRIM($10), ''), $11, $12, $13)`,
 		user.ID, user.Username, user.Firstname, user.Lastname, user.Nickname,
-		user.Email, user.PasswordHashed, user.ExternalType, user.ExternalID,
+		user.Email, user.PasswordHashed, user.HasLocalPassword, user.ExternalType, user.ExternalID,
 		user.CreateTime.UTC(), user.IsActive, user.Role)
 	if err != nil {
 		if isUniqueViolation(err) {

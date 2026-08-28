@@ -21,17 +21,18 @@ func TestGetUserByEmail(t *testing.T) {
 	mockPassword, _ := auth.HashPassword("pword")
 	mockEmail := "a@test.com"
 	mockUser := types.User{
-		ID:             uuid.New(),
-		Username:       "testnickname",
-		Nickname:       "testnickname",
-		Firstname:      "testfirstname",
-		Lastname:       "testlastname",
-		Email:          mockEmail,
-		PasswordHashed: mockPassword,
-		ExternalType:   "",
-		ExternalID:     "",
-		CreateTime:     time.Now(),
-		IsActive:       true,
+		ID:               uuid.New(),
+		Username:         "testnickname",
+		Nickname:         "testnickname",
+		Firstname:        "testfirstname",
+		Lastname:         "testlastname",
+		Email:            mockEmail,
+		PasswordHashed:   mockPassword,
+		HasLocalPassword: true,
+		ExternalType:     "",
+		ExternalID:       "",
+		CreateTime:       time.Now(),
+		IsActive:         true,
 	}
 	insertUser(db, mockUser)
 	defer cleanUser(db, mockUser.ID)
@@ -143,17 +144,18 @@ func TestGetUserByID(t *testing.T) {
 	mockPassword, _ := auth.HashPassword("pword")
 	mockID := uuid.New()
 	mockUser := types.User{
-		ID:             mockID,
-		Username:       "testnickname",
-		Nickname:       "testnickname",
-		Firstname:      "testfirstname",
-		Lastname:       "testlastname",
-		Email:          "a@test.com",
-		PasswordHashed: mockPassword,
-		ExternalType:   "",
-		ExternalID:     "",
-		CreateTime:     time.Now(),
-		IsActive:       true,
+		ID:               mockID,
+		Username:         "testnickname",
+		Nickname:         "testnickname",
+		Firstname:        "testfirstname",
+		Lastname:         "testlastname",
+		Email:            "a@test.com",
+		PasswordHashed:   mockPassword,
+		HasLocalPassword: true,
+		ExternalType:     "",
+		ExternalID:       "",
+		CreateTime:       time.Now(),
+		IsActive:         true,
 	}
 	insertUser(db, mockUser)
 	defer cleanUser(db, mockUser.ID)
@@ -206,17 +208,18 @@ func TestGetUsernameByID(t *testing.T) {
 	mockID := uuid.New()
 	mockUsername := "testusername"
 	mockUser := types.User{
-		ID:             mockID,
-		Username:       mockUsername,
-		Nickname:       mockUsername,
-		Firstname:      "testfirstname",
-		Lastname:       "testlastname",
-		Email:          "a@test.com",
-		PasswordHashed: mockPassword,
-		ExternalType:   "",
-		ExternalID:     "",
-		CreateTime:     time.Now(),
-		IsActive:       true,
+		ID:               mockID,
+		Username:         mockUsername,
+		Nickname:         mockUsername,
+		Firstname:        "testfirstname",
+		Lastname:         "testlastname",
+		Email:            "a@test.com",
+		PasswordHashed:   mockPassword,
+		HasLocalPassword: true,
+		ExternalType:     "",
+		ExternalID:       "",
+		CreateTime:       time.Now(),
+		IsActive:         true,
 	}
 	insertUser(db, mockUser)
 	defer cleanUser(db, mockUser.ID)
@@ -268,11 +271,12 @@ func insertUser(db *sql.DB, user types.User) {
 		"INSERT INTO users ("+
 			"id, username, firstname, lastname, nickname, "+
 			"email, password_hash, "+
+			"has_local_password, "+
 			"external_type, external_id, "+
 			"create_time_utc, is_active"+
-			") VALUES ('%s','%s','%s','%s','%s','%s','%s',%s,%s,'%s',%t);",
+			") VALUES ('%s','%s','%s','%s','%s','%s','%s',%t,%s,%s,'%s',%t);",
 		user.ID, user.Username, user.Firstname, user.Lastname, user.Nickname,
-		user.Email, user.PasswordHashed,
+		user.Email, user.PasswordHashed, user.HasLocalPassword,
 		sqlStringOrNull(user.ExternalType), sqlStringOrNull(user.ExternalID),
 		createTime, user.IsActive,
 	)

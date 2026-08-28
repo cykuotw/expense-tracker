@@ -37,6 +37,7 @@ class UpdateCompatibilityTest(unittest.TestCase):
             context.config,
             require_patch_cors=False,
             require_google_register_authorizer=False,
+            require_google_link_authorizer=False,
         )
 
     def test_all_scope_applies_only_non_destructive_infrastructure_targets(self) -> None:
@@ -70,6 +71,7 @@ class UpdateCompatibilityTest(unittest.TestCase):
             terraform.plan.call_args.kwargs["targets"],
             (
                 "aws_apigatewayv2_route.google_register",
+                "aws_apigatewayv2_route.google_link",
                 "aws_cloudfront_response_headers_policy.frontend_security",
                 "aws_cloudfront_distribution.frontend",
             ),

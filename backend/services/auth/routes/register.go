@@ -46,18 +46,19 @@ func (h *Handler) handleRegister(c *gin.Context) {
 	}
 
 	user := types.User{
-		ID:             uuid.New(),
-		Username:       username,
-		Nickname:       strings.TrimSpace(payload.Nickname),
-		Firstname:      strings.TrimSpace(payload.Firstname),
-		Lastname:       strings.TrimSpace(payload.Lastname),
-		Email:          payload.Email,
-		PasswordHashed: hashedPassword,
-		ExternalType:   "",
-		ExternalID:     "",
-		CreateTime:     time.Now(),
-		IsActive:       true,
-		Role:           "user",
+		ID:               uuid.New(),
+		Username:         username,
+		Nickname:         strings.TrimSpace(payload.Nickname),
+		Firstname:        strings.TrimSpace(payload.Firstname),
+		Lastname:         strings.TrimSpace(payload.Lastname),
+		Email:            payload.Email,
+		PasswordHashed:   hashedPassword,
+		HasLocalPassword: true,
+		ExternalType:     "",
+		ExternalID:       "",
+		CreateTime:       time.Now(),
+		IsActive:         true,
+		Role:             "user",
 	}
 
 	if h.registrationStore == nil {

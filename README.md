@@ -62,12 +62,33 @@ Use the backend example env file as the source of truth for local setup and back
 
 Deployment automation lives under `deployment/`.
 
-- `make deploy`: deploy backend and frontend
-- `make deploy all`: apply infra, deploy backend, deploy frontend, then deploy edge
-- `make deploy infra`: apply Terraform-managed infrastructure only
-- `make deploy backend`: build and release the backend only
-- `make deploy frontend`: build and publish frontend assets only
-- `make deploy edge`: build and release nginx/TLS edge only
+### Primary: serverless
+
+The primary deployment target is the budget-oriented serverless path. Run the
+following once to create the external deployment configuration template:
+
+```bash
+make deploy ACTION=init
+```
+
+Common serverless commands:
+
+- `make deploy`: automatically select the next safe deployment action.
+- `make deploy ACTION=plan`: review the planned serverless changes.
+- `make deploy ACTION=deploy`: apply a serverless deployment.
+- `make deploy ACTION=update SCOPE=migrations|backend|frontend|all`: update a specific serverless scope.
+- `make deploy ACTION=status`: inspect serverless deployment status.
+- `make deploy ACTION=destroy`: destroy the serverless deployment.
+
+### Backup: serverful EC2/nginx
+
+The supported serverful path is a backup deployment option. Use the dedicated
+target so scoped operations do not invoke the serverless deployment:
+
+- `make deploy-serverful`: deploy the EC2-backed application and frontend.
+- `make deploy-serverful all`: apply serverful infrastructure, deploy backend and frontend, then deploy nginx.
+- `make deploy-serverful infra|backend|frontend|edge`: run a scoped serverful operation.
+- `make tf-init`, `make tf-plan`, and `make tf-apply`: manage serverful Terraform infrastructure.
 
 See `deployment/README.md` for the deployment contract and command layout.
 

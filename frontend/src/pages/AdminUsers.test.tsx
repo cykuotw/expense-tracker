@@ -358,4 +358,37 @@ describe("AdminUsers", () => {
             );
         });
     });
+
+    it("explains when copying is not supported by the browser", async () => {
+        Object.defineProperty(navigator, "clipboard", {
+            configurable: true,
+            value: undefined,
+        });
+        renderPage();
+        await screen.findByText("invited@example.com");
+
+        fireEvent.click(screen.getByRole("button", { name: "Copy link" }));
+
+        expect(toastErrorMock).toHaveBeenCalledWith(
+            "Copying isn't available in this browser. Please use a supported browser and try again.",
+        );
+        expect(apiFetchMock).not.toHaveBeenCalledWith(
+            "/admin/invitations/invite-1/link",
+        );
+    });
+
+    it("explains how to recover when clipboard permission is denied", async () => {
+        clipboardWriteMock.mockRejectedValue(new Error("permission denied"));
+        renderPage();
+        await screen.findByText("invited@example.com");
+
+        fireEvent.click(screen.getByRole("button", { name: "Copy link" }));
+
+        await waitFor(() =>
+            expect(toastErrorMock).toHaveBeenCalledWith(
+                "We couldn't copy the invitation link. Check your browser's clipboard permission and try again.",
+            ),
+        );
+        expect(toastSuccessMock).not.toHaveBeenCalled();
+    });
 });

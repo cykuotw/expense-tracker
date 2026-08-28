@@ -497,6 +497,14 @@ export default function AdminUsers() {
     };
 
     const copyInvitation = async (invitation: AdminInvitation) => {
+        const clipboard = navigator.clipboard;
+        if (!clipboard?.writeText) {
+            toast.error(
+                "Copying isn't available in this browser. Please use a supported browser and try again.",
+            );
+            return;
+        }
+
         setBusyID(invitation.id);
         try {
             const response = await apiFetch(
@@ -511,10 +519,16 @@ export default function AdminUsers() {
                 );
             }
             const value = (await response.json()) as { token: string };
-            await navigator.clipboard.writeText(
-                `${window.location.origin}/register?token=${value.token}`,
-            );
-            toast.success("Invitation link copied");
+            try {
+                await clipboard.writeText(
+                    `${window.location.origin}/register?token=${value.token}`,
+                );
+                toast.success("Invitation link copied");
+            } catch {
+                toast.error(
+                    "We couldn't copy the invitation link. Check your browser's clipboard permission and try again.",
+                );
+            }
         } catch (copyError) {
             toast.error(
                 copyError instanceof Error

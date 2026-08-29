@@ -38,31 +38,11 @@ func (h *Handler) handleGetGroup(c *gin.Context) {
 		return
 	}
 
-	// make response
-	members := make([]types.GroupMember, 0, len(users))
-	var currUser types.GroupMember
-	for _, user := range users {
-		if user.ID.String() == userID {
-			currUser = types.GroupMember{
-				UserID:   user.ID.String(),
-				Username: user.Username,
-			}
-			continue
-		}
-
-		member := types.GroupMember{
-			UserID:   user.ID.String(),
-			Username: user.Username,
-		}
-		members = append(members, member)
-	}
-	members = append(members, currUser)
-
 	response := types.GetGroupResponse{
 		GroupName:   group.GroupName,
 		Description: group.Description,
 		Currency:    group.Currency,
-		Members:     members,
+		Members:     groupMembersForUser(users, userID),
 	}
 
 	utils.WriteJSON(c, http.StatusOK, response)

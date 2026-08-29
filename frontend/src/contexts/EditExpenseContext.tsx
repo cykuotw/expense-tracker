@@ -34,6 +34,7 @@ const emptyData: expenseFormData = {
 };
 
 const UPDATE_EXPENSE_FALLBACK = "Error updating expense";
+const LOAD_EXPENSE_FALLBACK = "Failed to load expense.";
 
 export const EditExpenseProvider = ({ children }: { children: ReactNode }) => {
     const navigate = useNavigate();
@@ -197,51 +198,65 @@ export const EditExpenseProvider = ({ children }: { children: ReactNode }) => {
         };
 
         const fetchExpenseDetail = async () => {
-            const response = await apiFetch(`/expense/${expenseId}`, {
-                method: "GET",
-            });
-            if (!response.ok) return;
-
-            const responseData = (await response.json()) as ExpenseDetailData;
-            const data = {
-                ...responseData,
-                items: asArray<ExpenseDetailData["items"][number]>(
-                    responseData.items
-                ),
-                ledgers: asArray<ExpenseDetailData["ledgers"][number]>(
-                    responseData.ledgers
-                ),
-            };
-
-            setFormData((prev) => ({
-                ...prev,
-                groupId: data.groupId,
-                expenseType: data.expenseTypeId,
-                description: data.description,
-                total: parseFloat(data.total),
-                currency: data.currency,
-                splitRule: data.splitRule as Rule,
-                payerUserId: data.ledgers[0]?.lenderUserId ?? "",
-                ledgers: data.ledgers.map((ledger) => ({
-                    id: ledger.id,
-                    userId: ledger.borrowerUserId,
-                    share: parseFloat(ledger.share),
-                })),
-            }));
-
-            const responseGroupMember = await apiFetch(
-                `/group_member/${data.groupId}`,
-                {
+            try {
+                const response = await apiFetch(`/expense/${expenseId}`, {
                     method: "GET",
+                });
+                if (!response.ok) return;
+
+                const responseData: unknown = await response.json();
+                if (
+                    typeof responseData !== "object" ||
+                    responseData === null ||
+                    Array.isArray(responseData)
+                ) {
+                    toast.error(LOAD_EXPENSE_FALLBACK);
+                    return;
                 }
-            );
-            if (!responseGroupMember.ok) return;
 
-            const groupMember = asArray<GroupMember>(
-                await responseGroupMember.json()
-            );
+                const expenseDetail = responseData as ExpenseDetailData;
+                const data = {
+                    ...expenseDetail,
+                    items: asArray<ExpenseDetailData["items"][number]>(
+                        expenseDetail.items
+                    ),
+                    ledgers: asArray<ExpenseDetailData["ledgers"][number]>(
+                        expenseDetail.ledgers
+                    ),
+                };
 
-            setGroupMembers(groupMember);
+                setFormData((prev) => ({
+                    ...prev,
+                    groupId: data.groupId,
+                    expenseType: data.expenseTypeId,
+                    description: data.description,
+                    total: parseFloat(data.total),
+                    currency: data.currency,
+                    splitRule: data.splitRule as Rule,
+                    payerUserId: data.ledgers[0]?.lenderUserId ?? "",
+                    ledgers: data.ledgers.map((ledger) => ({
+                        id: ledger.id,
+                        userId: ledger.borrowerUserId,
+                        share: parseFloat(ledger.share),
+                    })),
+                }));
+
+                const responseGroupMember = await apiFetch(
+                    `/group_member/${data.groupId}`,
+                    {
+                        method: "GET",
+                    }
+                );
+                if (!responseGroupMember.ok) return;
+
+                const groupMember = asArray<GroupMember>(
+                    await responseGroupMember.json()
+                );
+
+                setGroupMembers(groupMember);
+            } catch {
+                toast.error(LOAD_EXPENSE_FALLBACK);
+            }
         };
 
         fetchGroupList();

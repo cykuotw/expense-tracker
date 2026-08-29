@@ -43,27 +43,30 @@ func (h *Handler) handleGetGroupMember(c *gin.Context) {
 		return
 	}
 
-	// make response
-	members := make([]types.GroupMember, 0, len(users))
-	var currUser types.GroupMember
-	for _, user := range users {
-		if user.ID.String() == userID {
-			currUser = types.GroupMember{
-				UserID:   user.ID.String(),
-				Username: user.Username,
-			}
-			continue
-		}
+	utils.WriteJSON(c, http.StatusOK, groupMembersForUser(users, userID))
+}
 
+func groupMembersForUser(users []*types.User, currentUserID string) []types.GroupMember {
+	members := make([]types.GroupMember, 0, len(users))
+	var currentUser *types.GroupMember
+
+	for _, user := range users {
 		member := types.GroupMember{
 			UserID:   user.ID.String(),
 			Username: user.Username,
 		}
+		if member.UserID == currentUserID {
+			currentUser = &member
+			continue
+		}
 		members = append(members, member)
 	}
-	members = append(members, currUser)
 
-	utils.WriteJSON(c, http.StatusOK, members)
+	if currentUser != nil {
+		members = append(members, *currentUser)
+	}
+
+	return members
 }
 
 func (h *Handler) handleUpdateGroupMember(c *gin.Context) {

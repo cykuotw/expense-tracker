@@ -11,7 +11,7 @@ The repository supports the existing EC2 application deployment and the unified 
 
 - authenticated AWS CLI
 - Terraform 1.6 or newer
-- Go and pnpm
+- Go, Node 22.13.1 or a compatible Node 22 release, and pnpm 10.23.0
 - uv with Python 3.14 available
 - ssh, scp, and ssh-keyscan
 - an existing VPC, Internet-Gateway-backed subnet, EC2 key pair, and public Route 53 hosted zone

@@ -146,4 +146,33 @@ describe("EditExpenseProvider error handling", () => {
         expect(toastSuccessMock).not.toHaveBeenCalled();
         expect(navigateMock).not.toHaveBeenCalled();
     });
+
+    it("keeps the editor mounted when the expense payload is null", async () => {
+        apiFetchMock.mockImplementation((path: string) => {
+            if (path === "/groups" || path === "/expense_types") {
+                return Promise.resolve(jsonResponse([]));
+            }
+            if (path === "/expense/expense-1") {
+                return Promise.resolve(jsonResponse(null));
+            }
+            throw new Error(`Unexpected path: ${path}`);
+        });
+
+        render(
+            <EditExpenseProvider>
+                <EditExpenseHarness />
+            </EditExpenseProvider>
+        );
+
+        await waitFor(() => {
+            expect(toastErrorMock).toHaveBeenCalledWith(
+                "Failed to load expense."
+            );
+        });
+        expect(screen.getByRole("form", { name: "edit form" })).toBeInTheDocument();
+        expect(apiFetchMock).not.toHaveBeenCalledWith(
+            "/group_member/undefined",
+            expect.anything()
+        );
+    });
 });

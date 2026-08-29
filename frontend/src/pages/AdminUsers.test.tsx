@@ -26,6 +26,8 @@ vi.mock("../hooks/AuthContextHooks", () => ({
 
 vi.mock("../lib/api", () => ({
     apiFetch: (...args: unknown[]) => apiFetchMock(...args),
+    asArray: <T,>(value: unknown): T[] =>
+        Array.isArray(value) ? (value as T[]) : [],
     getResponseError: (...args: unknown[]) => getResponseErrorMock(...args),
     getResponseErrorMessage: (...args: unknown[]) =>
         getResponseErrorMessageMock(...args),
@@ -144,6 +146,21 @@ describe("AdminUsers", () => {
         expect(
             screen.getByRole("heading", { name: "Regular users" }),
         ).toBeInTheDocument();
+    });
+
+    it("renders empty states for null management collections", async () => {
+        apiFetchMock.mockImplementation((path: string) => {
+            if (path === "/admin/users") {
+                return Promise.resolve(response({ users: null, invitations: null }));
+            }
+            return Promise.resolve(response({}));
+        });
+
+        renderPage();
+
+        expect(await screen.findByText("No administrators found.")).toBeInTheDocument();
+        expect(screen.getByText("No regular users found.")).toBeInTheDocument();
+        expect(screen.getByText("No invitations found.")).toBeInTheDocument();
     });
 
     it("renders the protected system owner as read-only", async () => {

@@ -14,8 +14,8 @@ const CreateExpenseContent = () => {
         setSelectedGroupId,
         selectedExpenseTypeId,
         setSelectedExpenseTypeId,
-        total,
-        setTotal,
+        totalInput,
+        setTotalInput,
         description,
         setDescription,
         currency,
@@ -140,12 +140,10 @@ const CreateExpenseContent = () => {
                                         className="grow"
                                         step="0.001"
                                         placeholder="0.00"
-                                        value={total}
-                                        onChange={(e) => {
-                                            setTotal(
-                                                parseFloat(e.target.value) || 0
-                                            );
-                                        }}
+                                        value={totalInput}
+                                        onChange={(e) =>
+                                            setTotalInput(e.target.value)
+                                        }
                                         required
                                         min={0}
                                     />

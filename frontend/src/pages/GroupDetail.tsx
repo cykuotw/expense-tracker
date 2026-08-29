@@ -95,8 +95,8 @@ const GroupDetailContent = () => {
                     </div>
                 </div>
 
-                <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
-                    <section className="panel-card rounded-[2rem] p-6 md:p-8">
+                <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(18rem,0.55fr)]">
+                    <section className="panel-card order-2 self-start rounded-[2rem] p-6 md:p-8 xl:sticky xl:top-6">
                         <div className="section-label">Balances</div>
                         <div className="mt-4 grid gap-3">
                         {!balance?.balances || balance.balances.length === 0 ? (
@@ -140,7 +140,7 @@ const GroupDetailContent = () => {
                         </div>
                     </section>
 
-                    <section className="space-y-8">
+                    <section className="order-1 space-y-8">
                         <div className="panel-card rounded-[2rem] p-6 md:p-8">
                             <div className="section-label">Unsettled</div>
                             <div

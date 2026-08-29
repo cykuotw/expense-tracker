@@ -29,7 +29,8 @@ export const CreateExpenseProvider = ({
     );
     const [selectedExpenseTypeId, setSelectedExpenseTypeId] =
         useState<string>("");
-    const [total, setTotal] = useState<number>(0);
+    const [totalInput, setTotalInput] = useState("");
+    const total = Number(totalInput);
     const [description, setDescription] = useState<string>("");
     const [currency, setCurrency] = useState<string>("CAD");
     const [payer, setPayer] = useState<string>("");
@@ -236,7 +237,7 @@ export const CreateExpenseProvider = ({
 
     // check input validity
     useEffect(() => {
-        const totalOk = total > 0;
+        const totalOk = Number.isFinite(total) && total > 0;
         const descriptionOk = description.length > 0;
 
         if (selectedRule !== Rule.Unequally) {
@@ -270,7 +271,8 @@ export const CreateExpenseProvider = ({
                 selectedExpenseTypeId,
                 setSelectedExpenseTypeId,
                 total,
-                setTotal,
+                totalInput,
+                setTotalInput,
                 description,
                 setDescription,
                 currency,

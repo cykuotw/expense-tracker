@@ -22,10 +22,29 @@ import { ExpenseDetailProvider } from "../contexts/ExpenseDetailContext";
 import { useExpenseDetail } from "../hooks/ExpenseDetailContextHooks";
 
 const ExpenseDetailContent = () => {
-    const { expenseDetail, formattedDate, expenseId } = useExpenseDetail();
+    const {
+        expenseDetail,
+        formattedDate,
+        expenseId,
+        loading,
+        errorMessage,
+    } = useExpenseDetail();
 
     if (!expenseId || expenseId.length === 0) {
-        return <div>Expense ID not found</div>;
+        return <ExpensePageMessage title="Expense ID not found" />;
+    }
+
+    if (loading) {
+        return <ExpensePageMessage title="Loading expense" loading />;
+    }
+
+    if (errorMessage || !expenseDetail) {
+        return (
+            <ExpensePageMessage
+                title="Unable to load expense"
+                message={errorMessage ?? "This expense is unavailable."}
+            />
+        );
     }
 
     return (
@@ -93,6 +112,41 @@ const ExpenseDetailContent = () => {
     );
 };
 
+const ExpensePageMessage = ({
+    title,
+    message,
+    loading = false,
+}: {
+    title: string;
+    message?: string;
+    loading?: boolean;
+}) => (
+    <div className="page-shell">
+        <div className="page-container max-w-4xl">
+            <div
+                className="panel-card flex min-h-56 flex-col items-center justify-center rounded-[2rem] p-8 text-center"
+                role={loading ? "status" : "alert"}
+            >
+                {loading && (
+                    <span
+                        className="ui-spinner ui-spinner-lg mb-4"
+                        aria-hidden="true"
+                    />
+                )}
+                <h1 className="text-xl font-semibold">{title}</h1>
+                {message && (
+                    <p className="mt-2 text-sm text-foreground/70">{message}</p>
+                )}
+                {!loading && (
+                    <Link to="/" className="ui-button ui-button-ghost mt-6">
+                        Back to groups
+                    </Link>
+                )}
+            </div>
+        </div>
+    </div>
+);
+
 export default function ExpenseDetail() {
     return (
         <ExpenseDetailProvider>
@@ -108,6 +162,12 @@ const LedgersDropdown = ({
 }) => {
     const [isLedgerOpen, setIsLedgerOpen] = useState(false);
     const ledgerDropdown = useRef<HTMLButtonElement>(null);
+    const firstLedger = expenseDetail?.ledgers[0];
+    const paidByLabel = firstLedger
+        ? firstLedger.lenderUserId === expenseDetail?.currentUser
+            ? `You paid ${expenseDetail?.total} ${expenseDetail?.currency}`
+            : `${firstLedger.lenderUsername} paid ${expenseDetail?.total} ${expenseDetail?.currency}`
+        : "No split details are available.";
 
     return (
         <div className="rounded-2xl border border-border bg-background p-4">
@@ -125,12 +185,7 @@ const LedgersDropdown = ({
                     setIsLedgerOpen(!isLedgerOpen);
                 }}
             >
-                <span>
-                    {expenseDetail?.ledgers[0].lenderUserId ===
-                    expenseDetail?.currentUser
-                        ? `You paid ${expenseDetail?.total} ${expenseDetail?.currency}`
-                        : ` ${expenseDetail?.ledgers[0].lenderUsername} paid ${expenseDetail?.total} ${expenseDetail?.currency}`}
-                </span>
+                <span>{paidByLabel}</span>
                 <svg
                     xmlns="http://www.w3.org/2000/svg"
                     className={`h-5 w-5 transition-transform ${
@@ -148,23 +203,25 @@ const LedgersDropdown = ({
                     ></path>
                 </svg>
             </button>
-            <ul
-                className={`mt-3 ${
-                    isLedgerOpen ? "" : "hidden"
-                } border-l-2 border-primary pl-2 space-y-2`}
-            >
-                {expenseDetail?.ledgers.map((ledger) => {
-                    return (
-                        <li
-                            className="relative text-sm text-foreground/70"
-                            key={ledger.id}
-                        >
-                            {ledger.borrowerUsername} owes ${ledger.share}{" "}
-                            {expenseDetail?.currency}
-                        </li>
-                    );
-                })}
-            </ul>
+            {firstLedger && (
+                <ul
+                    className={`mt-3 ${
+                        isLedgerOpen ? "" : "hidden"
+                    } border-l-2 border-primary pl-2 space-y-2`}
+                >
+                    {expenseDetail?.ledgers.map((ledger) => {
+                        return (
+                            <li
+                                className="relative text-sm text-foreground/70"
+                                key={ledger.id}
+                            >
+                                {ledger.borrowerUsername} owes ${ledger.share}{" "}
+                                {expenseDetail?.currency}
+                            </li>
+                        );
+                    })}
+                </ul>
+            )}
         </div>
     );
 };
@@ -206,7 +263,7 @@ const InvoiceImage = ({
 }) => {
     return (
         <>
-            {expenseDetail?.invoiceUrl !== "" ? (
+            {expenseDetail?.invoiceUrl ? (
                 <div className="rounded-2xl border border-border bg-background p-4">
                     <div className="text-sm font-semibold uppercase tracking-[0.2em] text-foreground/60">
                         Invoice

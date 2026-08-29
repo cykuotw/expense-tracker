@@ -16,7 +16,8 @@ export interface CreateExpenseContextType {
     selectedExpenseTypeId: string;
     setSelectedExpenseTypeId: Dispatch<SetStateAction<string>>;
     total: number;
-    setTotal: Dispatch<SetStateAction<number>>;
+    totalInput: string;
+    setTotalInput: Dispatch<SetStateAction<string>>;
     description: string;
     setDescription: Dispatch<SetStateAction<string>>;
     currency: string;

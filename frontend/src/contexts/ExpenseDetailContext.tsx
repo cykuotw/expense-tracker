@@ -6,6 +6,7 @@ import { ExpenseDetailData } from "../types/expense";
 import { ExpenseDetailContext } from "../hooks/ExpenseDetailContextHooks";
 
 const DELETE_EXPENSE_FALLBACK = "Failed to delete expense.";
+const LOAD_EXPENSE_FALLBACK = "Unable to load this expense.";
 
 export const ExpenseDetailProvider = ({
     children,
@@ -15,6 +16,8 @@ export const ExpenseDetailProvider = ({
     const { id: expenseId = "" } = useParams();
     const [expenseDetail, setExpenseDetail] =
         useState<ExpenseDetailData | null>(null);
+    const [loading, setLoading] = useState(Boolean(expenseId));
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
     const formattedDate = useMemo(() => {
         if (!expenseDetail?.expenseTime) return "";
@@ -26,9 +29,16 @@ export const ExpenseDetailProvider = ({
     }, [expenseDetail?.expenseTime]);
 
     useEffect(() => {
-        if (!expenseId) return;
+        if (!expenseId) {
+            setLoading(false);
+            return;
+        }
+
+        let active = true;
 
         const fetchExpenseDetail = async () => {
+            setLoading(true);
+            setErrorMessage(null);
             try {
                 const response = await apiFetch(`/expense/${expenseId}`, {
                     method: "GET",
@@ -36,22 +46,43 @@ export const ExpenseDetailProvider = ({
                         "Content-Type": "application/json",
                     },
                 });
+                if (!response.ok) {
+                    const message = await getResponseErrorMessage(
+                        response,
+                        LOAD_EXPENSE_FALLBACK
+                    );
+                    if (active) {
+                        setErrorMessage(message);
+                    }
+                    return;
+                }
                 const responseData = (await response.json()) as ExpenseDetailData;
-                setExpenseDetail({
-                    ...responseData,
-                    items: asArray<ExpenseDetailData["items"][number]>(
-                        responseData.items
-                    ),
-                    ledgers: asArray<ExpenseDetailData["ledgers"][number]>(
-                        responseData.ledgers
-                    ),
-                });
-            } catch (error) {
-                console.log(error);
+                if (active) {
+                    setExpenseDetail({
+                        ...responseData,
+                        items: asArray<ExpenseDetailData["items"][number]>(
+                            responseData.items
+                        ),
+                        ledgers: asArray<ExpenseDetailData["ledgers"][number]>(
+                            responseData.ledgers
+                        ),
+                    });
+                }
+            } catch {
+                if (active) {
+                    setErrorMessage(LOAD_EXPENSE_FALLBACK);
+                }
+            } finally {
+                if (active) {
+                    setLoading(false);
+                }
             }
         };
 
         fetchExpenseDetail();
+        return () => {
+            active = false;
+        };
     }, [expenseId]);
 
     const handleDeleteExpense = async (e?: FormEvent) => {
@@ -86,6 +117,8 @@ export const ExpenseDetailProvider = ({
                 expenseDetail,
                 formattedDate,
                 expenseId,
+                loading,
+                errorMessage,
                 handleDeleteExpense,
             }}
         >

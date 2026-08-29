@@ -45,6 +45,13 @@ function CreateExpenseHarness() {
 
     return (
         <form aria-label="expense form" onSubmit={context.handleCreateExpense}>
+            <input
+                aria-label="amount"
+                type="number"
+                value={context.totalInput}
+                onChange={(event) => context.setTotalInput(event.target.value)}
+            />
+            <output data-testid="total">{context.total}</output>
             <output data-testid="members">{context.ledgers.length}</output>
             <output data-testid="indicator">
                 {context.indicatorShow ? "loading" : "idle"}
@@ -141,5 +148,22 @@ describe("CreateExpenseProvider error handling", () => {
             ([path]) => path === "/create_expense"
         )[1][1]?.headers as Record<string, string>;
         expect(retryHeaders["Idempotency-Key"]).toBe(firstHeaders["Idempotency-Key"]);
+    });
+
+    it("keeps the amount input editable when it is cleared or replaced", async () => {
+        render(
+            <CreateExpenseProvider>
+                <CreateExpenseHarness />
+            </CreateExpenseProvider>
+        );
+
+        const amountInput = screen.getByLabelText("amount");
+        fireEvent.change(amountInput, { target: { value: "12.50" } });
+        expect(amountInput).toHaveValue(12.5);
+        expect(screen.getByTestId("total")).toHaveTextContent("12.5");
+
+        fireEvent.change(amountInput, { target: { value: "" } });
+        expect(amountInput).toHaveValue(null);
+        expect(screen.getByTestId("total")).toHaveTextContent("0");
     });
 });

@@ -56,7 +56,9 @@ const expenseDetail = {
 function ExpenseDetailHarness() {
     const context = useExpenseDetail();
 
-    if (!context.expenseDetail) return <span>loading</span>;
+    if (!context.expenseDetail) {
+        return <output data-testid="load-error">{context.errorMessage ?? ""}</output>;
+    }
 
     return (
         <form aria-label="delete form" onSubmit={context.handleDeleteExpense}>
@@ -107,5 +109,26 @@ describe("ExpenseDetailProvider error handling", () => {
             );
         });
         expect(window.location.href).toBe(initialHref);
+    });
+
+    it("exposes an expense-load failure for the page to render", async () => {
+        apiFetchMock.mockImplementation((path: string) => {
+            if (path === "/expense/expense-1") {
+                return Promise.resolve(jsonResponse({ error: "expense unavailable" }, 404));
+            }
+            throw new Error(`Unexpected path: ${path}`);
+        });
+
+        render(
+            <ExpenseDetailProvider>
+                <ExpenseDetailHarness />
+            </ExpenseDetailProvider>
+        );
+
+        await waitFor(() => {
+            expect(screen.getByTestId("load-error")).toHaveTextContent(
+                "expense unavailable"
+            );
+        });
     });
 });

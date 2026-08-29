@@ -5,6 +5,8 @@ export interface ExpenseDetailContextType {
     expenseDetail: ExpenseDetailData | null;
     formattedDate: string;
     expenseId: string;
+    loading: boolean;
+    errorMessage: string | null;
     handleDeleteExpense: (e?: FormEvent) => Promise<void>;
 }
 

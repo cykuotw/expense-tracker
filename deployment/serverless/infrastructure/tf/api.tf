@@ -91,6 +91,26 @@ resource "aws_apigatewayv2_route" "google_link" {
   authorization_type = "JWT"
   authorizer_id      = aws_apigatewayv2_authorizer.google.id
 }
+resource "aws_apigatewayv2_route" "login" {
+  api_id    = aws_apigatewayv2_api.worker.id
+  route_key = "POST ${local.api_path}/login"
+  target    = "integrations/${aws_apigatewayv2_integration.worker.id}"
+}
+resource "aws_apigatewayv2_route" "register" {
+  api_id    = aws_apigatewayv2_api.worker.id
+  route_key = "POST ${local.api_path}/register"
+  target    = "integrations/${aws_apigatewayv2_integration.worker.id}"
+}
+resource "aws_apigatewayv2_route" "check_email" {
+  api_id    = aws_apigatewayv2_api.worker.id
+  route_key = "POST ${local.api_path}/checkEmail"
+  target    = "integrations/${aws_apigatewayv2_integration.worker.id}"
+}
+resource "aws_apigatewayv2_route" "invitation_lookup" {
+  api_id    = aws_apigatewayv2_api.worker.id
+  route_key = "GET ${local.api_path}/invitations/{token}"
+  target    = "integrations/${aws_apigatewayv2_integration.worker.id}"
+}
 resource "aws_apigatewayv2_route" "default" {
   api_id             = aws_apigatewayv2_api.worker.id
   route_key          = "$default"
@@ -101,7 +121,46 @@ resource "aws_apigatewayv2_stage" "default" {
   api_id      = aws_apigatewayv2_api.worker.id
   name        = "$default"
   auto_deploy = true
-  tags        = local.common_tags
+  default_route_settings {
+    throttling_burst_limit = 40
+    throttling_rate_limit  = 20
+  }
+  route_settings {
+    route_key              = aws_apigatewayv2_route.login.route_key
+    throttling_burst_limit = 3
+    throttling_rate_limit  = 1
+  }
+  route_settings {
+    route_key              = aws_apigatewayv2_route.register.route_key
+    throttling_burst_limit = 3
+    throttling_rate_limit  = 1
+  }
+  route_settings {
+    route_key              = aws_apigatewayv2_route.check_email.route_key
+    throttling_burst_limit = 3
+    throttling_rate_limit  = 1
+  }
+  route_settings {
+    route_key              = aws_apigatewayv2_route.invitation_lookup.route_key
+    throttling_burst_limit = 3
+    throttling_rate_limit  = 1
+  }
+  route_settings {
+    route_key              = aws_apigatewayv2_route.google_exchange.route_key
+    throttling_burst_limit = 3
+    throttling_rate_limit  = 1
+  }
+  route_settings {
+    route_key              = aws_apigatewayv2_route.google_register.route_key
+    throttling_burst_limit = 3
+    throttling_rate_limit  = 1
+  }
+  route_settings {
+    route_key              = aws_apigatewayv2_route.google_link.route_key
+    throttling_burst_limit = 10
+    throttling_rate_limit  = 5
+  }
+  tags = local.common_tags
 }
 resource "aws_apigatewayv2_api_mapping" "api" {
   api_id      = aws_apigatewayv2_api.worker.id

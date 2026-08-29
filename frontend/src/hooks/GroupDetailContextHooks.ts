@@ -1,4 +1,4 @@
-import { createContext, useContext, MouseEvent } from "react";
+import { createContext, useContext } from "react";
 import { GroupInfo } from "../types/group";
 import { BalanceData } from "../types/balance";
 import { ExpenseData } from "../types/expense";
@@ -14,7 +14,7 @@ export interface GroupDetailContextType {
     settledHasMore: boolean;
     loading: boolean;
     groupId: string | undefined;
-    handleSettle: (e: MouseEvent<HTMLButtonElement>) => Promise<void>;
+    handleSettle: () => Promise<void>;
     loadMoreUnsettledExpenses: () => Promise<void>;
     loadSettledExpenses: () => Promise<void>;
     loadMoreSettledExpenses: () => Promise<void>;

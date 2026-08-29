@@ -65,10 +65,42 @@ describe("InstallAppAction", () => {
         );
 
         fireEvent.click(
-            await screen.findByRole("button", { name: "Install app" }),
+            await screen.findByRole("button", {
+                name: "Show iOS install steps",
+            }),
         );
         expect(
             screen.getByRole("dialog", { name: "Add Expense Tracker to your Home Screen" }),
-        ).toHaveTextContent("Choose Add to Home Screen.");
+        ).toHaveTextContent("Turn on Open as Web App.");
+        expect(screen.getByRole("dialog")).toHaveTextContent(
+            "choose Edit Actions, then add it.",
+        );
+    });
+
+    it("keeps its parent surface open while showing iOS instructions", async () => {
+        Object.defineProperty(navigator, "userAgent", {
+            configurable: true,
+            value: "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)",
+        });
+        const onOpen = vi.fn();
+
+        render(
+            <PWAInstallProvider>
+                <InstallAppAction onOpen={onOpen} />
+            </PWAInstallProvider>,
+        );
+
+        fireEvent.click(
+            await screen.findByRole("button", {
+                name: "Show iOS install steps",
+            }),
+        );
+
+        expect(onOpen).not.toHaveBeenCalled();
+        expect(
+            screen.getByRole("dialog", {
+                name: "Add Expense Tracker to your Home Screen",
+            }),
+        ).toBeVisible();
     });
 });

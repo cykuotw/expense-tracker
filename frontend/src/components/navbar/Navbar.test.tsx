@@ -31,17 +31,20 @@ describe("Navbar account actions", () => {
             </MemoryRouter>,
         );
 
-        fireEvent.click(screen.getByRole("button", { name: "Account" }));
+        fireEvent.pointerDown(screen.getByRole("button", { name: "Account" }), {
+            button: 0,
+            ctrlKey: false,
+        });
 
-        const settings = screen.getByRole("link", { name: "Settings" });
-        const userManagement = screen.getByRole("link", {
+        const settings = screen.getByRole("menuitem", { name: "Settings" });
+        const userManagement = screen.getByRole("menuitem", {
             name: "User Management",
         });
         expect(settings.compareDocumentPosition(userManagement)).toBe(
             Node.DOCUMENT_POSITION_FOLLOWING,
         );
         expect(userManagement).toHaveAttribute("href", "/admin/users");
-        expect(userManagement.closest("ul")).toHaveClass("dropdown-content");
+        expect(userManagement.closest('[role="menu"]')).toBeTruthy();
     });
 
     it("does not show user management to regular members", () => {

@@ -34,7 +34,7 @@ vi.mock("../components/auth/GoogleSignInButton", () => ({
             onClick={() =>
                 void onCredentialResponse?.({
                     credential: "google-id-token",
-                    select_by: "btn",
+                    select_by: "ui-button",
                 })
             }
         >
@@ -206,7 +206,7 @@ describe("AccountSettings", () => {
         ).not.toBeInTheDocument();
         expect(
             await screen.findByText("Password must be at least 8 characters."),
-        ).toHaveClass("text-error");
+        ).toHaveClass("text-destructive");
 
         fireEvent.change(newPassword, { target: { value: "valid-password" } });
         expect(
@@ -215,7 +215,7 @@ describe("AccountSettings", () => {
 
         fireEvent.change(confirmPassword, { target: { value: "different" } });
         expect(await screen.findByText("Passwords do not match.")).toHaveClass(
-            "text-error",
+            "text-destructive",
         );
 
         fireEvent.change(confirmPassword, {
@@ -250,7 +250,7 @@ describe("AccountSettings", () => {
             await screen.findByText(
                 "New password must be different from your current password.",
             ),
-        ).toHaveClass("text-error");
+        ).toHaveClass("text-destructive");
         expect(changePassword).toBeDisabled();
 
         fireEvent.change(newPassword, { target: { value: "new-password" } });
@@ -275,7 +275,7 @@ describe("AccountSettings", () => {
         fireEvent.change(confirmPassword, { target: { value: "not-matching" } });
         expect(changePassword).toBeDisabled();
         expect(await screen.findByText("Passwords do not match.")).toHaveClass(
-            "text-error",
+            "text-destructive",
         );
         expect(changePassword).toBeDisabled();
     });
@@ -369,7 +369,7 @@ describe("AccountSettings", () => {
             await screen.findByText(
                 "Use the Google account that matches this account email.",
             ),
-        ).toHaveClass("text-error");
+        ).toHaveClass("text-destructive");
         expect(
             screen.getByLabelText("Confirm current password"),
         ).toHaveValue("current-password");

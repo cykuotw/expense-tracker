@@ -35,10 +35,10 @@ const RegisterContent = () => {
 
                 {validating ? (
                     <div className="flex justify-center items-center py-12">
-                        <span className="loading loading-spinner loading-lg"></span>
+                        <span className="ui-spinner ui-spinner-lg"></span>
                     </div>
                 ) : !token || !tokenValid ? (
-                    <div className="panel-card rounded-[2rem] border-error/30 p-6 text-sm text-error">
+                    <div className="panel-card rounded-[2rem] border-destructive/30 p-6 text-sm text-destructive">
                         {error ||
                             "Registration requires a valid invitation link."}
                     </div>
@@ -47,10 +47,10 @@ const RegisterContent = () => {
                         {GOOGLE_OAUTH_ENABLED ? (
                             <div className="mb-7 space-y-4">
                                 <div>
-                                    <h2 className="text-lg font-semibold text-base-content">
+                                    <h2 className="text-lg font-semibold text-foreground">
                                         Register with Google
                                     </h2>
-                                    <p className="mt-1 text-sm leading-6 text-base-content/65">
+                                    <p className="mt-1 text-sm leading-6 text-foreground/65">
                                         Choose the invited Google account. You’ll
                                         return to login after registration.
                                     </p>
@@ -70,20 +70,20 @@ const RegisterContent = () => {
                                         }
                                     />
                                 </div>
-                                <div className="flex items-center gap-3 text-xs uppercase tracking-[0.2em] text-base-content/50">
-                                    <span className="h-px flex-1 bg-base-300" />
+                                <div className="flex items-center gap-3 text-xs uppercase tracking-[0.2em] text-foreground/50">
+                                    <span className="h-px flex-1 bg-border" />
                                     or register with password
-                                    <span className="h-px flex-1 bg-base-300" />
+                                    <span className="h-px flex-1 bg-border" />
                                 </div>
                             </div>
                         ) : null}
                         <form onSubmit={handleSubmit}>
                             <div className="grid gap-5 md:grid-cols-2">
                                 <div>
-                                    <label className="text-xs font-semibold uppercase tracking-[0.2em] text-base-content/60">
+                                    <label className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground/60">
                                         First name
                                     </label>
-                                    <label className="input input-bordered mt-2 flex items-center w-full bg-base-100">
+                                    <label className="ui-input-shell mt-2 flex items-center w-full bg-background">
                                         <input
                                             type="text"
                                             name="firstname"
@@ -96,10 +96,10 @@ const RegisterContent = () => {
                                     </label>
                                 </div>
                                 <div>
-                                    <label className="text-xs font-semibold uppercase tracking-[0.2em] text-base-content/60">
+                                    <label className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground/60">
                                         Last name
                                     </label>
-                                    <label className="input input-bordered mt-2 flex items-center w-full bg-base-100">
+                                    <label className="ui-input-shell mt-2 flex items-center w-full bg-background">
                                         <input
                                             type="text"
                                             name="lastname"
@@ -112,10 +112,10 @@ const RegisterContent = () => {
                                     </label>
                                 </div>
                                 <div>
-                                    <label className="text-xs font-semibold uppercase tracking-[0.2em] text-base-content/60">
+                                    <label className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground/60">
                                         Nickname (optional)
                                     </label>
-                                    <label className="input input-bordered mt-2 flex items-center w-full bg-base-100">
+                                    <label className="ui-input-shell mt-2 flex items-center w-full bg-background">
                                         <input
                                             type="text"
                                             name="nickname"
@@ -129,11 +129,11 @@ const RegisterContent = () => {
                                 <div>
                                     <label
                                         htmlFor="registration-email"
-                                        className="text-xs font-semibold uppercase tracking-[0.2em] text-base-content/60"
+                                        className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground/60"
                                     >
                                         Email
                                     </label>
-                                    <label className="input input-bordered mt-2 flex items-center w-full bg-base-100">
+                                    <label className="ui-input-shell mt-2 flex items-center w-full bg-background">
                                         <input
                                             id="registration-email"
                                             type="email"
@@ -150,7 +150,7 @@ const RegisterContent = () => {
                                     </label>
                                     <p
                                         id="registration-email-help"
-                                        className="mt-2 text-xs text-base-content/60"
+                                        className="mt-2 text-xs text-foreground/60"
                                     >
                                         {emailBound
                                             ? "This invitation is linked to this email address."
@@ -158,10 +158,10 @@ const RegisterContent = () => {
                                     </p>
                                 </div>
                                 <div className="md:col-span-2">
-                                    <label className="text-xs font-semibold uppercase tracking-[0.2em] text-base-content/60">
+                                    <label className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground/60">
                                         Password
                                     </label>
-                                    <label className="input input-bordered mt-2 flex items-center w-full bg-base-100">
+                                    <label className="ui-input-shell mt-2 flex items-center w-full bg-background">
                                         <input
                                             type="password"
                                             name="password"
@@ -179,7 +179,7 @@ const RegisterContent = () => {
                             {error && (
                                 <div
                                     role="alert"
-                                    className="mt-4 rounded-2xl border border-error/30 bg-base-100 p-3 text-sm text-error"
+                                    className="mt-4 rounded-2xl border border-destructive/30 bg-background p-3 text-sm text-destructive"
                                 >
                                     {error}
                                 </div>
@@ -188,17 +188,17 @@ const RegisterContent = () => {
                             <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                                 <button
                                     type="submit"
-                                    className="btn btn-neutral w-full sm:w-auto"
+                                    className="ui-button ui-button-primary w-full sm:w-auto"
                                     disabled={loading || googleLoading}
                                 >
                                     {loading && (
-                                        <span className="loading loading-spinner"></span>
+                                        <span className="ui-spinner"></span>
                                     )}
                                     Register
                                 </button>
                                 <Link
                                     to="/login"
-                                    className="btn btn-ghost w-full sm:w-auto"
+                                    className="ui-button ui-button-ghost w-full sm:w-auto"
                                 >
                                     Already have an account? Login
                                 </Link>

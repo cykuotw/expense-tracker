@@ -5,6 +5,17 @@ import Icon from "@mdi/react";
 import { mdiSubdirectoryArrowLeft } from "@mdi/js";
 
 import Dropdown from "../components/Dropdown";
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import {
+    AlertDialog,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
 
 import { ExpenseDetailData } from "../types/expense";
 import { ExpenseDetailProvider } from "../contexts/ExpenseDetailContext";
@@ -45,7 +56,7 @@ const ExpenseDetailContent = () => {
                                     {expenseDetail?.currency}
                                 </div>
                             </div>
-                            <div className="metric-card rounded-[1.5rem] px-4 py-3 text-sm text-base-content/70">
+                            <div className="metric-card rounded-[1.5rem] px-4 py-3 text-sm text-foreground/70">
                                 Category: {expenseDetail?.expenseType}
                             </div>
                         </div>
@@ -59,7 +70,7 @@ const ExpenseDetailContent = () => {
                         <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                             <Link
                                 to={`/expense/${expenseId}/edit`}
-                                className="btn btn-neutral w-full sm:w-auto"
+                                className="ui-button ui-button-primary w-full sm:w-auto"
                             >
                                 Edit Expense
                             </Link>
@@ -69,7 +80,7 @@ const ExpenseDetailContent = () => {
 
                     <div className="flex justify-start">
                         <Link
-                            className="btn btn-ghost w-full sm:w-auto"
+                            className="ui-button ui-button-ghost w-full sm:w-auto"
                             to={`/group/${expenseDetail?.groupId}`}
                         >
                             <Icon path={mdiSubdirectoryArrowLeft} size={1} />
@@ -99,7 +110,7 @@ const LedgersDropdown = ({
     const ledgerDropdown = useRef<HTMLButtonElement>(null);
 
     return (
-        <div className="rounded-2xl border border-base-200 bg-base-100 p-4">
+        <div className="rounded-2xl border border-border bg-background p-4">
             <button
                 className="flex items-center justify-between w-full font-medium focus:outline-none"
                 ref={ledgerDropdown}
@@ -145,7 +156,7 @@ const LedgersDropdown = ({
                 {expenseDetail?.ledgers.map((ledger) => {
                     return (
                         <li
-                            className="relative text-sm text-base-content/70"
+                            className="relative text-sm text-foreground/70"
                             key={ledger.id}
                         >
                             {ledger.borrowerUsername} owes ${ledger.share}{" "}
@@ -169,13 +180,17 @@ const ItemsDropdown = ({
         <>
             {Array.isArray(expenseDetail?.items) &&
             expenseDetail?.items.length !== 0 ? (
-                <div className="rounded-2xl border border-base-200 bg-base-100 p-4">
+                <div className="rounded-2xl border border-border bg-background p-4">
                     <Dropdown
                         label="Items"
-                        dropdownType="dropdown-bottom dropdown-start"
+                        side="bottom"
                     >
                         {expenseDetail?.items.map((item) => {
-                            return <li>{item.itemName}</li>;
+                            return (
+                                <DropdownMenuItem key={item.itemName}>
+                                    {item.itemName}
+                                </DropdownMenuItem>
+                            );
                         })}
                     </Dropdown>
                 </div>
@@ -192,11 +207,11 @@ const InvoiceImage = ({
     return (
         <>
             {expenseDetail?.invoiceUrl !== "" ? (
-                <div className="rounded-2xl border border-base-200 bg-base-100 p-4">
-                    <div className="text-sm font-semibold uppercase tracking-[0.2em] text-base-content/60">
+                <div className="rounded-2xl border border-border bg-background p-4">
+                    <div className="text-sm font-semibold uppercase tracking-[0.2em] text-foreground/60">
                         Invoice
                     </div>
-                    <button className="btn btn-ghost mt-3">
+                    <button className="ui-button ui-button-ghost mt-3">
                         View invoice image
                     </button>
                 </div>
@@ -207,38 +222,36 @@ const InvoiceImage = ({
 
 const DeleteBtn = () => {
     const { handleDeleteExpense } = useExpenseDetail();
+    const [deleteOpen, setDeleteOpen] = useState(false);
 
     return (
         <>
             <button
-                className="btn btn-ghost w-full sm:w-auto text-error"
-                onClick={() =>
-                    (
-                        document.getElementById(
-                            "delete_confirm"
-                        ) as HTMLDialogElement
-                    ).showModal()
-                }
+                className="ui-button ui-button-ghost w-full sm:w-auto text-destructive"
+                onClick={() => setDeleteOpen(true)}
             >
                 <span>Delete Expense</span>
             </button>
-            <dialog id="delete_confirm" className="modal">
-                <div className="modal-box">
-                    <h3 className="text-lg font-bold">Are You Sure?</h3>
-                    <p className="py-4">Expense will be deleted permanently</p>
-                    <div className="modal-action">
-                        <form method="dialog" className="flex space-x-1">
-                            <button
-                                className="btn bg-red-600 text-white w-1/2"
-                                onClick={(e) => handleDeleteExpense(e)}
-                            >
-                                Delete
-                            </button>
-                            <button className="btn w-1/2">Cancel</button>
-                        </form>
-                    </div>
-                </div>
-            </dialog>
+            <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Delete this expense?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This permanently deletes the expense for everyone in
+                            the group.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <Button
+                            variant="destructive"
+                            onClick={() => void handleDeleteExpense()}
+                        >
+                            Delete expense
+                        </Button>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </>
     );
 };

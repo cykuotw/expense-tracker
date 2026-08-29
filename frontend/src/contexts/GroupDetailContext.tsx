@@ -1,4 +1,4 @@
-import { useState, useEffect, ReactNode, MouseEvent, useRef, useCallback } from "react";
+import { useState, useEffect, ReactNode, useRef, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import { toast } from "react-hot-toast";
 import { apiFetch, getResponseErrorMessage } from "../lib/api";
@@ -150,8 +150,7 @@ export const GroupDetailProvider = ({ children }: { children: ReactNode }) => {
         }
     };
 
-    const handleSettle = async (e: MouseEvent<HTMLButtonElement>) => {
-        e.preventDefault();
+    const handleSettle = async () => {
         if (!groupId) return;
 
         try {
@@ -174,11 +173,6 @@ export const GroupDetailProvider = ({ children }: { children: ReactNode }) => {
             await Promise.all([refreshGroupSummary(), refreshExpenseLists()]);
         } catch {
             toast.error(SETTLE_EXPENSES_FALLBACK);
-        } finally {
-            const dialog = document.getElementById(
-                "settle_confirm"
-            ) as HTMLDialogElement | null;
-            dialog?.close();
         }
     };
 

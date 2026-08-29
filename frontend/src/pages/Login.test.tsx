@@ -56,7 +56,7 @@ vi.mock("../components/auth/GoogleSignInButton", () => ({
             onClick={() =>
                 onCredentialResponse?.({
                     credential: "test-google-id-token",
-                    select_by: "btn",
+                    select_by: "ui-button",
                 })
             }
         >

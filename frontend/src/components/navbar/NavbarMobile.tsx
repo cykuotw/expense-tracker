@@ -84,7 +84,7 @@ export default function NavbarMobile() {
             </nav>
 
             <div
-                className={`fixed inset-0 z-[60] bg-neutral/20 transition-opacity md:hidden ${
+                className={`fixed inset-0 z-[60] bg-foreground/20 transition-opacity md:hidden ${
                     accountOpen
                         ? "pointer-events-auto opacity-100"
                         : "pointer-events-none opacity-0"
@@ -93,7 +93,7 @@ export default function NavbarMobile() {
                 aria-hidden={!accountOpen}
             >
                 <div
-                    className={`absolute inset-x-0 bottom-0 rounded-t-[2rem] border border-base-300 bg-base-100 p-6 shadow-2xl transition-transform ${
+                    className={`absolute inset-x-0 bottom-0 rounded-t-[2rem] border border-border bg-background p-6 shadow-2xl transition-transform ${
                         accountOpen ? "translate-y-0" : "translate-y-full"
                     }`}
                     style={{
@@ -101,27 +101,27 @@ export default function NavbarMobile() {
                     }}
                     onClick={(e) => e.stopPropagation()}
                 >
-                    <div className="mx-auto mb-5 h-1.5 w-14 rounded-full bg-base-300" />
+                    <div className="mx-auto mb-5 h-1.5 w-14 rounded-full bg-border" />
                     <div className="section-label">Account</div>
-                    <div className="mt-2 text-lg font-semibold text-base-content">
+                    <div className="mt-2 text-lg font-semibold text-foreground">
                         Account actions
                     </div>
                     <div className="mt-6 space-y-3">
                         <Link
                             to="/account"
-                            className="btn btn-neutral w-full"
+                            className="ui-button ui-button-primary w-full"
                             onClick={() => setAccountOpen(false)}
                         >
                             Settings
                         </Link>
                         <InstallAppAction
-                            className="btn btn-outline w-full"
+                            className="ui-button ui-button-outline w-full"
                             onOpen={() => setAccountOpen(false)}
                         />
                         {role === USER_ROLES.admin ? (
                             <Link
                                 to="/admin/users"
-                                className="btn btn-outline w-full"
+                                className="ui-button ui-button-outline w-full"
                                 onClick={() => setAccountOpen(false)}
                             >
                                 User Management
@@ -129,14 +129,14 @@ export default function NavbarMobile() {
                         ) : null}
                         <button
                             type="button"
-                            className="btn btn-error w-full"
+                            className="ui-button ui-button-destructive w-full"
                             onClick={() => void logout()}
                         >
                             Logout
                         </button>
                         <button
                             type="button"
-                            className="btn btn-ghost w-full"
+                            className="ui-button ui-button-ghost w-full"
                             onClick={() => setAccountOpen(false)}
                         >
                             Cancel

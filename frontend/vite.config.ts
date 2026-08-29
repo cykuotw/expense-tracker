@@ -2,12 +2,14 @@ import { defineConfig } from "vitest/config";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { VitePWA } from "vite-plugin-pwa";
+import tsconfigPaths from "vite-tsconfig-paths";
 
 // https://vite.dev/config/
 export default defineConfig({
     plugins: [
         tailwindcss(),
         ...(process.env.VITEST ? [] : [react()]),
+        tsconfigPaths(),
         VitePWA({
             registerType: "prompt",
             injectRegister: false,
@@ -70,8 +72,9 @@ export default defineConfig({
         rollupOptions: {
             onwarn(warning, warn) {
                 if (
-                    warning.message.includes('"use client"') &&
-                    warning.id?.includes("react-hot-toast")
+                    warning.code === "MODULE_LEVEL_DIRECTIVE" &&
+                    (warning.id?.includes("@radix-ui/") ||
+                        warning.id?.includes("react-hot-toast"))
                 ) {
                     return;
                 }

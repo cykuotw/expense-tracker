@@ -18,7 +18,7 @@ export default function LoginForm() {
         >
             <div>
                 <div className="section-label">Sign in</div>
-                <h2 className="mt-2 text-2xl font-semibold tracking-[-0.03em] text-base-content">
+                <h2 className="mt-2 text-2xl font-semibold tracking-[-0.03em] text-foreground">
                     Continue to your workspace
                 </h2>
             </div>
@@ -26,11 +26,11 @@ export default function LoginForm() {
             <div>
                 <label
                     htmlFor="email"
-                    className="mb-2 block text-sm font-semibold text-base-content/80"
+                    className="mb-2 block text-sm font-semibold text-foreground/80"
                 >
                     Email
                 </label>
-                <label className="input flex items-center gap-2 w-full">
+                <label className="ui-input-shell flex items-center gap-2 w-full">
                     <svg
                         xmlns="http://www.w3.org/2000/svg"
                         viewBox="0 0 16 16"
@@ -55,11 +55,11 @@ export default function LoginForm() {
             <div>
                 <label
                     htmlFor="password"
-                    className="mb-2 block text-sm font-semibold text-base-content/80"
+                    className="mb-2 block text-sm font-semibold text-foreground/80"
                 >
                     Password
                 </label>
-                <label className="input flex items-center gap-2 w-full">
+                <label className="ui-input-shell flex items-center gap-2 w-full">
                     <svg
                         xmlns="http://www.w3.org/2000/svg"
                         viewBox="0 0 16 16"
@@ -85,17 +85,17 @@ export default function LoginForm() {
                 </label>
             </div>
 
-            <button type="submit" className="btn btn-neutral w-full text-lg">
+            <button type="submit" className="ui-button ui-button-primary w-full text-lg">
                 Login
             </button>
             <div id="indicator" className={`${loading ? "" : "hidden"}`}>
                 <div className="flex justify-center items-center w-full">
-                    <span className="loading loading-spinner loading-md"></span>
+                    <span className="ui-spinner ui-spinner-sm"></span>
                 </div>
             </div>
             <div
                 id="feedback"
-                className={`rounded-2xl border border-error/20 bg-error/8 px-4 py-3 text-sm text-error ${
+                className={`rounded-2xl border border-destructive/20 bg-destructive/8 px-4 py-3 text-sm text-destructive ${
                     feedback ? "" : "hidden"
                 }`}
             >

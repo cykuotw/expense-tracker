@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import {
     BrowserRouter as Router,
     Routes,
@@ -8,23 +9,36 @@ import { Toaster } from "react-hot-toast";
 import { AuthProvider } from "./contexts/AuthContext";
 import { useAuth } from "./hooks/AuthContextHooks";
 import NavbarLayout from "./layouts/NavbarLayout";
-import Login from "./pages/Login";
-import Register from "./pages/Register";
 import GuestGuard from "./components/auth/GuestGuard";
 import AuthGuard from "./components/auth/AuthGuard";
 import AdminGuard from "./components/auth/AdminGuard";
-import Home from "./pages/Home";
-import GroupDetail from "./pages/GroupDetail";
-import AddMember from "./pages/AddMember";
-import ExpenseDetail from "./pages/ExpenseDetail";
-import CreateExpense from "./pages/CreateExpense";
-import CreateGroup from "./pages/CreateGroup";
-import EditExpense from "./pages/EditExpense";
-import AdminUsers from "./pages/AdminUsers";
-import AccountSettings from "./pages/AccountSettings";
 import OfflineScreen from "./components/pwa/OfflineScreen";
 import PWAUpdatePrompt from "./components/pwa/PWAUpdatePrompt";
 import { PWAInstallProvider } from "./contexts/PWAInstallProvider";
+
+const Login = lazy(() => import("./pages/Login"));
+const Register = lazy(() => import("./pages/Register"));
+const Home = lazy(() => import("./pages/Home"));
+const GroupDetail = lazy(() => import("./pages/GroupDetail"));
+const AddMember = lazy(() => import("./pages/AddMember"));
+const ExpenseDetail = lazy(() => import("./pages/ExpenseDetail"));
+const CreateExpense = lazy(() => import("./pages/CreateExpense"));
+const CreateGroup = lazy(() => import("./pages/CreateGroup"));
+const EditExpense = lazy(() => import("./pages/EditExpense"));
+const AdminUsers = lazy(() => import("./pages/AdminUsers"));
+const AccountSettings = lazy(() => import("./pages/AccountSettings"));
+
+function RouteFallback() {
+    return (
+        <div
+            className="flex h-screen items-center justify-center"
+            role="status"
+        >
+            <span className="ui-spinner ui-spinner-xl" aria-hidden="true" />
+            <span className="sr-only">Loading page</span>
+        </div>
+    );
+}
 
 function AppRoutes() {
     const { loading, isOffline } = useAuth();
@@ -32,7 +46,7 @@ function AppRoutes() {
     if (loading) {
         return (
             <div className="flex items-center justify-center h-screen">
-                <span className="loading loading-spinner loading-xl"></span>
+                <span className="ui-spinner ui-spinner-xl"></span>
             </div>
         );
     }
@@ -42,7 +56,8 @@ function AppRoutes() {
     }
 
     return (
-        <Routes>
+        <Suspense fallback={<RouteFallback />}>
+            <Routes>
             <Route element={<GuestGuard />}>
                 <Route path="/register" element={<Register />} />
                 <Route path="/login" element={<Login />} />
@@ -68,7 +83,8 @@ function AppRoutes() {
                     <Route path="/admin/users" element={<AdminUsers />} />
                 </Route>
             </Route>
-        </Routes>
+            </Routes>
+        </Suspense>
     );
 }
 

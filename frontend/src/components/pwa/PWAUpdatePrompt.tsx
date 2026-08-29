@@ -22,7 +22,7 @@ const PWAUpdatePrompt = () => {
                 {needRefresh ? (
                     <button
                         type="button"
-                        className="btn btn-primary btn-sm"
+                        className="ui-button ui-button-primary ui-button-sm"
                         onClick={() => void updateServiceWorker(true)}
                     >
                         Reload now
@@ -30,7 +30,7 @@ const PWAUpdatePrompt = () => {
                 ) : null}
                 <button
                     type="button"
-                    className="btn btn-ghost btn-sm"
+                    className="ui-button ui-button-ghost ui-button-sm"
                     onClick={() => {
                         setNeedRefresh(false);
                         setOfflineReady(false);

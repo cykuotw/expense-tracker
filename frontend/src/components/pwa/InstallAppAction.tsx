@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { usePWAInstall } from "../../hooks/usePWAInstall";
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 
 interface InstallAppActionProps {
     className?: string;
@@ -31,22 +32,22 @@ export default function InstallAppAction({
     if (!canInstall) return null;
 
     const openInstall = () => {
-        onOpen?.();
         if (isIOS) {
             setInstructionsOpen(true);
             return;
         }
+        onOpen?.();
         void requestInstall();
     };
 
     const action = (
         <button type="button" className={className} onClick={openInstall}>
-            Install app
+            {isIOS ? "Show iOS install steps" : "Install app"}
         </button>
     );
     const instructions = instructionsOpen ? (
                 <div
-                    className="fixed inset-0 z-[100] flex items-end justify-center bg-neutral/50 p-0 backdrop-blur-sm sm:items-center sm:p-6"
+                    className="fixed inset-0 z-[100] flex items-end justify-center bg-foreground/50 p-0 backdrop-blur-sm sm:items-center sm:p-6"
                     onMouseDown={(event) => {
                         if (event.target === event.currentTarget) {
                             setInstructionsOpen(false);
@@ -57,25 +58,34 @@ export default function InstallAppAction({
                         role="dialog"
                         aria-modal="true"
                         aria-labelledby="install-app-title"
-                        className="w-full rounded-t-[2rem] border border-base-300 bg-base-100 p-6 shadow-2xl sm:max-w-md sm:rounded-[2rem] sm:p-7"
+                        className="w-full rounded-t-[2rem] border border-border bg-background p-6 shadow-2xl sm:max-w-md sm:rounded-[2rem] sm:p-7"
                     >
-                        <div className="section-label">Install the app</div>
+                        <div className="section-label">Install on iOS</div>
                         <h2
                             id="install-app-title"
-                            className="mt-2 text-xl font-semibold tracking-[-0.02em] text-base-content"
+                            className="mt-2 text-xl font-semibold tracking-[-0.02em] text-foreground"
                         >
                             Add Expense Tracker to your Home Screen
                         </h2>
-                        <ol className="mt-4 list-decimal space-y-2 pl-5 text-sm leading-6 text-base-content/70">
+                        <p className="mt-3 text-sm leading-6 text-foreground/70">
+                            Safari requires you to add web apps from its Share
+                            menu.
+                        </p>
+                        <ol className="mt-4 list-decimal space-y-2 pl-5 text-sm leading-6 text-foreground/70">
                             <li>Tap the Share button in Safari.</li>
                             <li>Choose Add to Home Screen.</li>
+                            <li>Turn on Open as Web App.</li>
                             <li>Tap Add to finish.</li>
                         </ol>
+                        <p className="mt-4 text-sm leading-6 text-muted-foreground">
+                            Don't see Add to Home Screen? In the Share menu,
+                            scroll down, choose Edit Actions, then add it.
+                        </p>
                         <div className="mt-7 flex justify-end">
                             <button
                                 ref={closeButtonRef}
                                 type="button"
-                                className="btn btn-neutral min-h-11"
+                                className="ui-button ui-button-primary min-h-11"
                                 onClick={() => setInstructionsOpen(false)}
                             >
                                 Got it
@@ -86,10 +96,10 @@ export default function InstallAppAction({
             ) : null;
 
     return listItem ? (
-        <li className="w-full">
-            {action}
+        <>
+            <DropdownMenuItem asChild>{action}</DropdownMenuItem>
             {instructions}
-        </li>
+        </>
     ) : (
         <>
             {action}

@@ -85,7 +85,7 @@ export default function GoogleSignInButton({
                     className="flex min-h-11 w-full items-center justify-center"
                 />
                 {isLoading ? (
-                    <p className="mt-3 text-center text-xs text-base-content/50">
+                    <p className="mt-3 text-center text-xs text-foreground/50">
                         Loading Google sign-in...
                     </p>
                 ) : null}

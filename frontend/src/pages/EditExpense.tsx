@@ -42,11 +42,11 @@ const EditExpenseContent = () => {
                 >
                         <div className="grid gap-5 md:grid-cols-2">
                             <div className="md:col-span-2">
-                                <label className="text-xs font-semibold uppercase tracking-[0.2em] text-base-content/60">
+                                <label className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground/60">
                                     Group
                                 </label>
                                 <select
-                                    className="select select-bordered mt-2 w-full text-base"
+                                    className="ui-select mt-2 w-full text-base"
                                     name="groupId"
                                     value={formData.groupId}
                                     onChange={handleFormDataChange}
@@ -60,11 +60,11 @@ const EditExpenseContent = () => {
                             </div>
 
                             <div className="md:col-span-2">
-                                <label className="text-xs font-semibold uppercase tracking-[0.2em] text-base-content/60">
+                                <label className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground/60">
                                     Expense type
                                 </label>
                                 <select
-                                    className="select select-bordered mt-2 w-full text-base"
+                                    className="ui-select mt-2 w-full text-base"
                                     name="expenseType"
                                     value={formData.expenseType}
                                     onChange={handleFormDataChange}
@@ -74,10 +74,10 @@ const EditExpenseContent = () => {
                             </div>
 
                             <div className="md:col-span-2">
-                                <label className="text-xs font-semibold uppercase tracking-[0.2em] text-base-content/60">
+                                <label className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground/60">
                                     Description
                                 </label>
-                                <label className="input input-bordered mt-2 flex items-center w-full bg-base-100">
+                                <label className="ui-input-shell mt-2 flex items-center w-full bg-background">
                                     <input
                                         type="text"
                                         name="description"
@@ -90,11 +90,11 @@ const EditExpenseContent = () => {
                             </div>
 
                             <div>
-                                <label className="text-xs font-semibold uppercase tracking-[0.2em] text-base-content/60">
+                                <label className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground/60">
                                     Currency
                                 </label>
                                 <select
-                                    className="select select-bordered mt-2 w-full text-base"
+                                    className="ui-select mt-2 w-full text-base"
                                     name="currency"
                                     value={formData.currency}
                                     onChange={handleFormDataChange}
@@ -105,10 +105,10 @@ const EditExpenseContent = () => {
                                 </select>
                             </div>
                             <div>
-                                <label className="text-xs font-semibold uppercase tracking-[0.2em] text-base-content/60">
+                                <label className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground/60">
                                     Amount
                                 </label>
-                                <label className="input input-bordered mt-2 flex items-center w-full bg-base-100">
+                                <label className="ui-input-shell mt-2 flex items-center w-full bg-background">
                                     <input
                                         type="number"
                                         name="total"
@@ -128,7 +128,7 @@ const EditExpenseContent = () => {
                         <div className="hidden">
                             <label
                                 style={{ display: "inline-block" }}
-                                className="w-2/3 h-12 border border-gray-400 rounded-full bg-base-100 hover:bg-base-300"
+                                className="w-2/3 h-12 border border-gray-400 rounded-full bg-background hover:bg-border"
                             >
                                 <input
                                     type="file"
@@ -142,7 +142,7 @@ const EditExpenseContent = () => {
                         </div>
 
                         <div className="mt-6">
-                            <div className="text-xs font-semibold uppercase tracking-[0.2em] text-base-content/60">
+                            <div className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground/60">
                                 Split rule
                             </div>
                             <div className="mt-3">
@@ -150,7 +150,7 @@ const EditExpenseContent = () => {
                                     <></>
                                 ) : groupMembers.length === 2 ? (
                                     <select
-                                        className="select select-bordered w-full text-base"
+                                        className="ui-select w-full text-base"
                                         name="splitRule"
                                         value={formData.splitRule}
                                         onChange={(e) => {
@@ -201,11 +201,11 @@ const EditExpenseContent = () => {
                                 ) : (
                                     <div className="flex flex-col gap-3 md:flex-row md:items-center">
                                         <div className="flex items-center gap-2">
-                                            <span className="text-sm text-base-content/70">
+                                            <span className="text-sm text-foreground/70">
                                                 Paid by
                                             </span>
                                             <select
-                                                className="select select-sm select-bordered border-dashed"
+                                                className="ui-select ui-select-sm border-dashed"
                                                 name="payerUserId"
                                                 value={formData.payerUserId}
                                                 onChange={handleFormDataChange}
@@ -253,11 +253,11 @@ const EditExpenseContent = () => {
                                             </select>
                                         </div>
                                         <div className="flex items-center gap-2">
-                                            <span className="text-sm text-base-content/70">
+                                            <span className="text-sm text-foreground/70">
                                                 Split
                                             </span>
                                             <select
-                                                className="select select-sm select-bordered border-dashed"
+                                                className="ui-select ui-select-sm border-dashed"
                                                 name="splitRule"
                                                 value={formData.splitRule}
                                                 onChange={handleFormDataChange}
@@ -284,10 +284,10 @@ const EditExpenseContent = () => {
                         >
                             {formData.ledgers.map((ledger, index) => (
                                 <div
-                                    className="flex flex-col gap-2 rounded-2xl border border-base-200 bg-base-100 px-4 py-3 sm:flex-row sm:items-center"
+                                    className="flex flex-col gap-2 rounded-2xl border border-border bg-background px-4 py-3 sm:flex-row sm:items-center"
                                     key={ledger.id}
                                 >
-                                    <p className="sm:w-1/3 text-sm text-base-content/70">
+                                    <p className="sm:w-1/3 text-sm text-foreground/70">
                                         {
                                             groupMembers.find(
                                                 (member) =>
@@ -297,7 +297,7 @@ const EditExpenseContent = () => {
                                         }
                                     </p>
 
-                                    <label className="input input-bordered flex items-center gap-2 w-full sm:w-2/3 bg-base-100">
+                                    <label className="ui-input-shell flex items-center gap-2 w-full sm:w-2/3 bg-background">
                                         Share:
                                         <input
                                             type="number"
@@ -338,14 +338,14 @@ const EditExpenseContent = () => {
                         <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                             <button
                                 type="submit"
-                                className="btn btn-neutral w-full sm:w-auto"
+                                className="ui-button ui-button-primary w-full sm:w-auto"
                                 {...(dataOk ? {} : { disabled: true })}
                             >
                                 <Icon path={mdiCheckBold} size={1} />
                                 Save changes
                             </button>
                             <Link
-                                className="btn btn-ghost w-full sm:w-auto"
+                                className="ui-button ui-button-ghost w-full sm:w-auto"
                                 to={`/expense/${expenseId}`}
                             >
                                 <Icon
@@ -355,7 +355,7 @@ const EditExpenseContent = () => {
                                 Cancel
                             </Link>
                             {indicatorShow && (
-                                <span className="loading loading-spinner loading-md"></span>
+                                <span className="ui-spinner ui-spinner-sm"></span>
                             )}
                         </div>
                 </form>

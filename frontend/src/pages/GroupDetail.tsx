@@ -2,6 +2,16 @@ import { Link } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
 import { ExpenseData } from "../types/expense";
 import ExpenseCard from "../components/expense/ExpenseCard";
+import {
+    AlertDialog,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
 import { GroupDetailProvider } from "../contexts/GroupDetailContext";
 import { useGroupDetail } from "../hooks/GroupDetailContextHooks";
 
@@ -23,6 +33,7 @@ const GroupDetailContent = () => {
         loadMoreSettledExpenses,
     } = useGroupDetail();
     const [showSettled, setShowSettled] = useState(false);
+    const [settleOpen, setSettleOpen] = useState(false);
     const settledSentinelRef = useRef<HTMLDivElement | null>(null);
 
     useEffect(() => {
@@ -46,7 +57,7 @@ const GroupDetailContent = () => {
     if (loading) {
         return (
             <div className="flex justify-center items-center h-screen">
-                <span className="loading loading-spinner loading-lg"></span>
+                <span className="ui-spinner ui-spinner-lg"></span>
             </div>
         );
     }
@@ -65,24 +76,19 @@ const GroupDetailContent = () => {
                     <div className="page-actions w-full sm:w-auto">
                         <Link
                             to={`/create_expense?g=${groupId}`}
-                            className="btn btn-neutral w-full sm:w-auto"
+                            className="ui-button ui-button-primary w-full sm:w-auto"
                         >
                             Add Expense
                         </Link>
                         <Link
                             to={`/add_member?g=${groupId}`}
-                            className="btn btn-outline w-full sm:w-auto"
+                            className="ui-button ui-button-outline w-full sm:w-auto"
                         >
                             Add Members
                         </Link>
                         <button
-                            className="btn btn-error w-full sm:w-auto"
-                            onClick={() => {
-                                const dialog = document.getElementById(
-                                    "settle_confirm"
-                                ) as HTMLDialogElement | null;
-                                dialog?.showModal();
-                            }}
+                            className="ui-button ui-button-destructive w-full sm:w-auto"
+                            onClick={() => setSettleOpen(true)}
                         >
                             Settle Up
                         </button>
@@ -94,7 +100,7 @@ const GroupDetailContent = () => {
                         <div className="section-label">Balances</div>
                         <div className="mt-4 grid gap-3">
                         {!balance?.balances || balance.balances.length === 0 ? (
-                            <div className="metric-card rounded-[1.5rem] p-4 text-sm text-base-content/70">
+                            <div className="metric-card rounded-[1.5rem] p-4 text-sm text-foreground/70">
                                 All balanced. No one owes anything.
                             </div>
                         ) : (
@@ -123,7 +129,7 @@ const GroupDetailContent = () => {
                                             <div className="font-semibold">
                                                 You owe {b.receiverUsername}
                                             </div>
-                                            <div className="text-lg font-semibold text-error">
+                                            <div className="text-lg font-semibold text-destructive">
                                                 ${b.balance} {balance.currency}
                                             </div>
                                         </div>
@@ -143,7 +149,7 @@ const GroupDetailContent = () => {
                             >
                             {unsettledExpenses.length === 0 &&
                             !unsettledLoading ? (
-                                <div className="metric-card rounded-[1.5rem] p-6 text-sm text-base-content/70">
+                                <div className="metric-card rounded-[1.5rem] p-6 text-sm text-foreground/70">
                                     No expenses yet.
                                 </div>
                             ) : (
@@ -156,7 +162,7 @@ const GroupDetailContent = () => {
                             )}
                             {unsettledLoading && (
                                 <div className="flex justify-center py-2">
-                                    <span className="loading loading-spinner loading-md"></span>
+                                    <span className="ui-spinner ui-spinner-sm"></span>
                                 </div>
                             )}
                             {unsettledHasMore &&
@@ -164,7 +170,7 @@ const GroupDetailContent = () => {
                                 unsettledExpenses.length > 0 && (
                                 <div className="pt-2">
                                     <button
-                                        className="btn btn-ghost w-full sm:w-auto"
+                                        className="ui-button ui-button-ghost w-full sm:w-auto"
                                         onClick={loadMoreUnsettledExpenses}
                                     >
                                         Load More
@@ -179,7 +185,7 @@ const GroupDetailContent = () => {
                             {!showSettled ? (
                                 <div className="mt-4">
                                 <button
-                                    className="btn btn-ghost w-full sm:w-auto"
+                                    className="ui-button ui-button-ghost w-full sm:w-auto"
                                     onClick={async () => {
                                         setShowSettled(true);
                                         await loadSettledExpenses();
@@ -192,7 +198,7 @@ const GroupDetailContent = () => {
                                 <div className="mt-4 space-y-4">
                                 {settledExpenses.length === 0 &&
                                 !settledLoading ? (
-                                    <div className="metric-card rounded-[1.5rem] p-6 text-sm text-base-content/70">
+                                    <div className="metric-card rounded-[1.5rem] p-6 text-sm text-foreground/70">
                                         No settled expenses yet.
                                     </div>
                                 ) : (
@@ -205,7 +211,7 @@ const GroupDetailContent = () => {
                                 )}
                                 {settledLoading && (
                                     <div className="flex justify-center py-2">
-                                        <span className="loading loading-spinner loading-md"></span>
+                                        <span className="ui-spinner ui-spinner-sm"></span>
                                     </div>
                                 )}
                                 {settledHasMore && (
@@ -221,26 +227,29 @@ const GroupDetailContent = () => {
                 </div>
             </div>
 
-            <dialog id="settle_confirm" className="modal">
-                <div className="modal-box">
-                    <h3 className="text-lg font-bold">Are you sure?</h3>
-                    <p className="py-4">Press settle to settle expenses.</p>
-                    <div className="modal-action">
-                        <form method="dialog" className="flex space-x-1">
-                            <button
-                                className="btn btn-outline btn-error w-1/2"
-                                onClick={handleSettle}
-                            >
-                                Settle
-                            </button>
-                            <button className="btn w-1/2">Cancel</button>
-                        </form>
-                    </div>
-                </div>
-                <form method="dialog" className="modal-backdrop">
-                    <button>close</button>
-                </form>
-            </dialog>
+            <AlertDialog open={settleOpen} onOpenChange={setSettleOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Settle all expenses?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This marks the current group balances as settled.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <Button
+                            variant="destructive"
+                            onClick={() => {
+                                void handleSettle().finally(() =>
+                                    setSettleOpen(false)
+                                );
+                            }}
+                        >
+                            Settle
+                        </Button>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 };

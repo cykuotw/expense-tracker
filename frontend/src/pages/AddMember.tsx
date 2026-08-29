@@ -31,7 +31,7 @@ const AddMemberContent = () => {
                             className="panel-card rounded-[2rem] p-6 lg:col-span-3"
                             onSubmit={handleSubmitRelatedUsers}
                         >
-                            <div className="text-sm font-semibold uppercase tracking-[0.2em] text-base-content/60">
+                            <div className="text-sm font-semibold uppercase tracking-[0.2em] text-foreground/60">
                                 Existing friends
                             </div>
                             <div id="members" className="mt-4 space-y-2">
@@ -39,7 +39,7 @@ const AddMemberContent = () => {
                                     relatedUserList.map((user) => {
                                         return (
                                             <label
-                                                className="flex items-center gap-3 rounded-2xl border border-base-200 bg-base-100 px-4 py-3"
+                                                className="flex items-center gap-3 rounded-2xl border border-border bg-background px-4 py-3"
                                                 key={user.userId}
                                             >
                                                 <input
@@ -47,7 +47,7 @@ const AddMemberContent = () => {
                                                     defaultChecked={
                                                         user.existInGroup
                                                     }
-                                                    className="checkbox checkbox-md"
+                                                    className="ui-checkbox"
                                                     name="candidate[]"
                                                     value={user.userId}
                                                 />
@@ -58,7 +58,7 @@ const AddMemberContent = () => {
                                         );
                                     })
                                 ) : (
-                                    <div className="rounded-2xl border border-base-200 bg-base-100 p-4 text-sm text-base-content/70">
+                                    <div className="rounded-2xl border border-border bg-background p-4 text-sm text-foreground/70">
                                         No friends found
                                     </div>
                                 )}
@@ -66,22 +66,22 @@ const AddMemberContent = () => {
                             <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                                 <button
                                     type="submit"
-                                    className="btn btn-neutral w-full sm:w-auto"
+                                    className="ui-button ui-button-primary w-full sm:w-auto"
                                 >
                                     Update Members
                                 </button>
                                 {loading && (
-                                    <span className="loading loading-spinner loading-md"></span>
+                                    <span className="ui-spinner ui-spinner-sm"></span>
                                 )}
                             </div>
                         </form>
 
                         <div className="panel-card rounded-[2rem] p-6 lg:col-span-2">
-                            <div className="text-sm font-semibold uppercase tracking-[0.2em] text-base-content/60">
+                            <div className="text-sm font-semibold uppercase tracking-[0.2em] text-foreground/60">
                                 Invite by email
                             </div>
                             <div className="mt-4 space-y-4">
-                                <label className="input input-bordered flex items-center gap-2 w-full bg-base-100">
+                                <label className="ui-input-shell flex items-center gap-2 w-full bg-background">
                                     <input
                                         type="email"
                                         name="email"
@@ -94,8 +94,8 @@ const AddMemberContent = () => {
                                     />
                                 </label>
                                 <button
-                                    className={`btn btn-neutral w-full ${
-                                        newMember ? "" : "btn-disabled"
+                                    className={`ui-button ui-button-primary w-full ${
+                                        newMember ? "" : "ui-button-disabled"
                                     }`}
                                     onClick={() => {
                                         handleAddNewMember();
@@ -103,7 +103,7 @@ const AddMemberContent = () => {
                                 >
                                     Add
                                 </button>
-                                <p className="text-xs text-base-content/60">
+                                <p className="text-xs text-foreground/60">
                                     We will only add users already registered.
                                 </p>
                             </div>

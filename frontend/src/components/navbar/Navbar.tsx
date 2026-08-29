@@ -2,6 +2,7 @@ import { Link, NavLink } from "react-router-dom";
 
 import Dropdown from "../Dropdown";
 import InstallAppAction from "../pwa/InstallAppAction";
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { useAuth } from "../../hooks/AuthContextHooks";
 import { USER_ROLES } from "../../types/role";
 
@@ -11,9 +12,9 @@ export default function Navbar() {
     return (
         <aside className="app-shell__desktop-nav">
             <div className="panel-card flex w-full flex-col rounded-[2rem] p-5">
-                <div className="border-b border-base-300/70 pb-5">
+                <div className="border-b border-border/70 pb-5">
                     <Link to="/" className="block rounded-2xl p-3">
-                        <div className="text-2xl font-bold tracking-[-0.04em] text-base-content">
+                        <div className="text-2xl font-bold tracking-[-0.04em] text-foreground">
                             Expense Tracker
                         </div>
                     </Link>
@@ -28,7 +29,7 @@ export default function Navbar() {
                                     `flex items-center rounded-2xl px-4 py-3 text-sm font-medium ${
                                         isActive
                                             ? "bg-primary/10 text-primary"
-                                            : "text-base-content/70 hover:bg-base-200/80"
+                                            : "text-foreground/70 hover:bg-muted/80"
                                     }`
                                 }
                             >
@@ -42,7 +43,7 @@ export default function Navbar() {
                                     `flex items-center rounded-2xl px-4 py-3 text-sm font-medium ${
                                         isActive
                                             ? "bg-primary/10 text-primary"
-                                            : "text-base-content/70 hover:bg-base-200/80"
+                                            : "text-foreground/70 hover:bg-muted/80"
                                     }`
                                 }
                             >
@@ -52,7 +53,7 @@ export default function Navbar() {
                     </ul>
                 </div>
 
-                <div className="mt-auto rounded-[1.5rem] bg-base-200/70 p-4">
+                <div className="mt-auto rounded-[1.5rem] bg-muted/70 p-4">
                     <div className="flex items-center gap-3">
                         <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
                             <svg
@@ -66,10 +67,10 @@ export default function Navbar() {
                             </svg>
                         </div>
                         <div>
-                            <div className="text-sm font-semibold text-base-content">
+                            <div className="text-sm font-semibold text-foreground">
                                 Account
                             </div>
-                            <div className="text-xs uppercase tracking-[0.18em] text-base-content/55">
+                            <div className="text-xs uppercase tracking-[0.18em] text-foreground/55">
                                 {role ?? "member"}
                             </div>
                         </div>
@@ -77,23 +78,23 @@ export default function Navbar() {
                     <div className="mt-4">
                         <Dropdown
                             label="Account"
-                            dropdownType="dropdown-top"
-                            contendTextConfig="text-sm w-48"
+                            side="top"
+                            groupClassName="flex flex-col gap-1.5"
                         >
-                            <li className="w-full">
+                            <DropdownMenuItem asChild>
                                 <Link to="/account">Settings</Link>
-                            </li>
+                            </DropdownMenuItem>
                             <InstallAppAction listItem />
                             {role === USER_ROLES.admin ? (
-                                <li className="w-full">
+                                <DropdownMenuItem asChild>
                                     <Link to="/admin/users">User Management</Link>
-                                </li>
+                                </DropdownMenuItem>
                             ) : null}
-                            <li className="w-full">
+                            <DropdownMenuItem variant="destructive" asChild>
                                 <button onClick={() => void logout()}>
                                     Logout
                                 </button>
-                            </li>
+                            </DropdownMenuItem>
                         </Dropdown>
                     </div>
                 </div>

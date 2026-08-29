@@ -35,13 +35,13 @@ function userName(user: AdminUser) {
 
 function statusBadge(status: string) {
     const styles: Record<string, string> = {
-        active: "badge-success",
-        inactive: "badge-error",
-        invited: "badge-info",
-        expired: "badge-warning",
-        used: "badge-neutral",
+        active: "ui-badge-success",
+        inactive: "ui-badge-destructive",
+        invited: "ui-badge-info",
+        expired: "ui-badge-warning",
+        used: "ui-badge-neutral",
     };
-    return `badge ${styles[status] ?? "badge-ghost"}`;
+    return `ui-badge ${styles[status] ?? "ui-badge-ghost"}`;
 }
 
 const PROTECTED_ADMIN_MESSAGE =
@@ -79,19 +79,19 @@ function UserActions({
             >
                 <dl className="grid grid-cols-2 gap-3 text-sm">
                     <div>
-                        <dt className="text-xs font-semibold uppercase tracking-wide text-base-content/55">
+                        <dt className="text-xs font-semibold uppercase tracking-wide text-foreground/55">
                             Role
                         </dt>
                         <dd className="mt-1 font-medium">Administrator</dd>
                     </div>
                     <div>
-                        <dt className="text-xs font-semibold uppercase tracking-wide text-base-content/55">
+                        <dt className="text-xs font-semibold uppercase tracking-wide text-foreground/55">
                             Status
                         </dt>
                         <dd className="mt-1 font-medium">Active</dd>
                     </div>
                 </dl>
-                <p className="mt-3 text-sm text-base-content/70">
+                <p className="mt-3 text-sm text-foreground/70">
                     {PROTECTED_ADMIN_MESSAGE}
                 </p>
             </div>
@@ -105,7 +105,7 @@ function UserActions({
             </label>
             <select
                 id={`role-${user.id}`}
-                className="select select-bordered min-h-11 w-full bg-base-100"
+                className="ui-select min-h-11 w-full bg-background"
                 value={user.role}
                 disabled={busy || isSelf}
                 onChange={(event) =>
@@ -118,8 +118,8 @@ function UserActions({
             </select>
             <button
                 type="button"
-                className={`btn min-h-11 w-full ${
-                    user.isActive ? "btn-error btn-outline" : "btn-success"
+                className={`ui-button min-h-11 w-full ${
+                    user.isActive ? "ui-button-destructive ui-button-outline" : "ui-button-success"
                 }`}
                 disabled={busy || isSelf}
                 onClick={() => void onStatusChange(user)}
@@ -128,7 +128,7 @@ function UserActions({
                 }
             >
                 {busy ? (
-                    <span className="loading loading-spinner loading-sm" />
+                    <span className="ui-spinner ui-spinner-sm" />
                 ) : user.isActive ? (
                     "Disable account"
                 ) : (
@@ -147,18 +147,18 @@ function UserCard(props: UserCardProps) {
     const { user } = props;
     return (
         <article
-            className={`rounded-3xl border bg-base-100 p-5 ${
+            className={`rounded-3xl border bg-background p-5 ${
                 user.isProtectedAdmin
                     ? "border-info/40 ring-1 ring-info/15"
-                    : "border-base-300"
+                    : "border-border"
             }`}
         >
             <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0">
-                    <h3 className="truncate font-semibold text-base-content">
+                    <h3 className="truncate font-semibold text-foreground">
                         {userName(user)}
                     </h3>
-                    <p className="break-all text-sm text-base-content/65">
+                    <p className="break-all text-sm text-foreground/65">
                         {user.email}
                     </p>
                 </div>
@@ -171,18 +171,18 @@ function UserCard(props: UserCardProps) {
                         {user.isActive ? "Active" : "Disabled"}
                     </span>
                     {user.role === USER_ROLES.admin ? (
-                        <span className="badge badge-outline">Administrator</span>
+                        <span className="ui-badge ui-badge-outline">Administrator</span>
                     ) : (
-                        <span className="badge badge-outline">Regular user</span>
+                        <span className="ui-badge ui-badge-outline">Regular user</span>
                     )}
                     {user.isProtectedAdmin ? (
-                        <span className="badge badge-info badge-outline">
+                        <span className="ui-badge ui-badge-info ui-badge-outline">
                             System owner
                         </span>
                     ) : null}
                 </div>
             </div>
-            <p className="mt-3 text-xs text-base-content/55">
+            <p className="mt-3 text-xs text-foreground/55">
                 Joined {formatDate(user.createTime)}
             </p>
             <div className="mt-5">
@@ -223,16 +223,16 @@ function UserSection({
                     <h2 id={id} className="text-lg font-semibold">
                         {title}
                     </h2>
-                    <p className="mt-1 text-sm text-base-content/65">
+                    <p className="mt-1 text-sm text-foreground/65">
                         {description}
                     </p>
                 </div>
-                <span className="badge badge-ghost" aria-label={`${users.length} ${title}`}>
+                <span className="ui-badge ui-badge-ghost" aria-label={`${users.length} ${title}`}>
                     {users.length}
                 </span>
             </div>
             {users.length === 0 ? (
-                <p className="mt-5 text-sm text-base-content/65">
+                <p className="mt-5 text-sm text-foreground/65">
                     No {title.toLowerCase()} found.
                 </p>
             ) : (
@@ -267,29 +267,29 @@ function InvitationActions({
     onExpire,
 }: InvitationActionsProps) {
     if (invitation.status !== "invited") {
-        return <span className="text-sm text-base-content/55">No actions</span>;
+        return <span className="text-sm text-foreground/55">No actions</span>;
     }
     return (
         <div className="flex min-w-[9rem] flex-col gap-2 sm:flex-row">
             <button
                 type="button"
-                className="btn btn-ghost min-h-11"
+                className="ui-button ui-button-ghost min-h-11"
                 disabled={busy}
                 onClick={() => void onCopy(invitation)}
             >
                 {busy ? (
-                    <span className="loading loading-spinner loading-sm" />
+                    <span className="ui-spinner ui-spinner-sm" />
                 ) : null}
                 Copy link
             </button>
             <button
                 type="button"
-                className="btn btn-error btn-outline min-h-11"
+                className="ui-button ui-button-destructive ui-button-outline min-h-11"
                 disabled={busy}
                 onClick={() => void onExpire(invitation)}
             >
                 {busy ? (
-                    <span className="loading loading-spinner loading-sm" />
+                    <span className="ui-spinner ui-spinner-sm" />
                 ) : null}
                 Expire
             </button>
@@ -608,12 +608,12 @@ export default function AdminUsers() {
 
                 {loading ? (
                     <div className="panel-card flex min-h-48 items-center justify-center rounded-[2rem]" aria-label="Loading users">
-                        <span className="loading loading-spinner loading-lg" />
+                        <span className="ui-spinner ui-spinner-lg" />
                     </div>
                 ) : error ? (
-                    <div className="panel-card rounded-[2rem] border-error/30 p-6" role="alert">
-                        <p className="text-error">{error}</p>
-                        <button type="button" className="btn btn-neutral mt-4 min-h-11" onClick={() => void load()}>
+                    <div className="panel-card rounded-[2rem] border-destructive/30 p-6" role="alert">
+                        <p className="text-destructive">{error}</p>
+                        <button type="button" className="ui-button ui-button-primary mt-4 min-h-11" onClick={() => void load()}>
                             Try again
                         </button>
                     </div>
@@ -642,13 +642,13 @@ export default function AdminUsers() {
                         />
 
                         <section className="panel-card rounded-[2rem] p-5 md:p-6" aria-labelledby="invitations-heading">
-                            <div className="flex flex-col gap-5 border-b border-base-300 pb-6 lg:flex-row lg:items-end lg:justify-between">
+                            <div className="flex flex-col gap-5 border-b border-border pb-6 lg:flex-row lg:items-end lg:justify-between">
                                 <div>
                                     <div className="flex items-center gap-3">
                                         <h2 id="invitations-heading" className="text-lg font-semibold">Invitations</h2>
-                                        <span className="badge badge-ghost">{data.invitations.length}</span>
+                                        <span className="ui-badge ui-badge-ghost">{data.invitations.length}</span>
                                     </div>
-                                    <p className="mt-2 text-sm text-base-content/65">
+                                    <p className="mt-2 text-sm text-foreground/65">
                                         Create an email-bound invite or leave the email blank for a generic link.
                                     </p>
                                 </div>
@@ -657,14 +657,14 @@ export default function AdminUsers() {
                                         <div className="w-full">
                                             <label
                                                 htmlFor="invitation-email"
-                                                className="text-xs font-semibold uppercase tracking-[0.18em] text-base-content/60"
+                                                className="text-xs font-semibold uppercase tracking-[0.18em] text-foreground/60"
                                             >
                                                 Email (optional)
                                             </label>
                                             <input
                                                 id="invitation-email"
                                                 type="email"
-                                                className="input input-bordered mt-2 min-h-11 w-full bg-base-100"
+                                                className="ui-input-shell mt-2 min-h-11 w-full bg-background"
                                                 value={inviteEmail}
                                                 onChange={(event) => setInviteEmail(event.target.value)}
                                                 placeholder="person@example.com"
@@ -677,11 +677,11 @@ export default function AdminUsers() {
                                         </div>
                                         <button
                                             type="submit"
-                                            className="btn btn-neutral min-h-11 w-full whitespace-nowrap sm:w-auto"
+                                            className="ui-button ui-button-primary min-h-11 w-full whitespace-nowrap sm:w-auto"
                                             disabled={creatingInvite}
                                         >
                                             {creatingInvite ? (
-                                                <span className="loading loading-spinner loading-sm" />
+                                                <span className="ui-spinner ui-spinner-sm" />
                                             ) : null}
                                             {creatingInvite ? "Creating…" : "Create invite"}
                                         </button>
@@ -689,17 +689,17 @@ export default function AdminUsers() {
                                 </form>
                             </div>
                             {data.invitations.length === 0 ? (
-                                <p className="mt-5 text-sm text-base-content/65">No invitations found.</p>
+                                <p className="mt-5 text-sm text-foreground/65">No invitations found.</p>
                             ) : (
                                 <div className="mt-5 divide-y divide-base-300">
                                     {data.invitations.map((invitation) => (
                                         <article key={invitation.id} className="flex flex-col gap-4 py-5 first:pt-0 last:pb-0 md:flex-row md:items-center md:justify-between">
                                             <div>
                                                 <div className="flex flex-wrap items-center gap-2">
-                                                    <h3 className="font-medium text-base-content">{invitation.email || "Any email"}</h3>
+                                                    <h3 className="font-medium text-foreground">{invitation.email || "Any email"}</h3>
                                                     <span className={statusBadge(invitation.status)}>{invitation.status}</span>
                                                 </div>
-                                                <p className="mt-1 text-xs text-base-content/55">
+                                                <p className="mt-1 text-xs text-foreground/55">
                                                     Created {formatDate(invitation.createdAt)} · Expires {formatDate(invitation.expiresAt)}
                                                 </p>
                                             </div>

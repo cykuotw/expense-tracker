@@ -12,10 +12,10 @@ export default function GroupCard(groupData: GroupCardData) {
 
     const balanceClass =
         groupData.balanceStatus === "settled"
-            ? "bg-base-200 text-base-content/70"
+            ? "bg-muted text-foreground/70"
             : groupData.balanceStatus === "owed"
               ? "bg-success/12 text-success"
-              : "bg-error/12 text-error";
+              : "bg-destructive/12 text-destructive";
 
     return (
         <div className="group h-full w-full">
@@ -32,8 +32,8 @@ export default function GroupCard(groupData: GroupCardData) {
                     <p
                         className={`mt-4 text-sm leading-6 break-words ${
                             hasDescription
-                                ? "text-base-content/70"
-                                : "italic text-base-content/45"
+                                ? "text-foreground/70"
+                                : "italic text-foreground/45"
                         }`}
                     >
                         {hasDescription

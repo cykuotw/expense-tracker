@@ -5,7 +5,7 @@ export interface ExpenseDetailContextType {
     expenseDetail: ExpenseDetailData | null;
     formattedDate: string;
     expenseId: string;
-    handleDeleteExpense: (e: FormEvent) => Promise<void>;
+    handleDeleteExpense: (e?: FormEvent) => Promise<void>;
 }
 
 export const ExpenseDetailContext = createContext<

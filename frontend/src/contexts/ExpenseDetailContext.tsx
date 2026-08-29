@@ -46,8 +46,8 @@ export const ExpenseDetailProvider = ({
         fetchExpenseDetail();
     }, [expenseId]);
 
-    const handleDeleteExpense = async (e: FormEvent) => {
-        e.preventDefault();
+    const handleDeleteExpense = async (e?: FormEvent) => {
+        e?.preventDefault();
         if (!expenseDetail?.groupId || !expenseId) return;
 
         try {

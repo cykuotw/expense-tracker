@@ -9,7 +9,7 @@ const HomeContent = () => {
     if (loading) {
         return (
             <div className="flex justify-center items-center h-screen">
-                <span className="loading loading-spinner loading-lg"></span>
+                <span className="ui-spinner ui-spinner-lg"></span>
             </div>
         );
     }
@@ -54,15 +54,15 @@ const HomeContent = () => {
                         </p>
                     </div>
                     <div className="page-actions">
-                        <div className="rounded-3xl bg-base-100/70 px-4 py-3 text-sm text-base-content/70">
-                            <span className="font-semibold text-base-content stat-number">
+                        <div className="rounded-3xl bg-background/70 px-4 py-3 text-sm text-foreground/70">
+                            <span className="font-semibold text-foreground stat-number">
                                 {groupCards.length}
                             </span>{" "}
                             active group{groupCards.length === 1 ? "" : "s"}
                         </div>
                         <Link
                             to="/create_group"
-                            className="btn btn-neutral w-full sm:w-auto"
+                            className="ui-button ui-button-primary w-full sm:w-auto"
                         >
                             Create Group
                         </Link>
@@ -75,13 +75,13 @@ const HomeContent = () => {
                             <div className="section-label">Summary</div>
                             <div className="mt-4 grid gap-4 lg:grid-cols-[0.7fr_1.3fr]">
                                 <div className="metric-card rounded-[1.5rem] p-5">
-                                    <div className="text-sm text-base-content/60">
+                                    <div className="text-sm text-foreground/60">
                                         Unsettled groups
                                     </div>
                                     <div className="mt-3 text-3xl font-bold tracking-[-0.04em] text-primary stat-number">
                                         {groupsWithBalances}
                                     </div>
-                                    <div className="mt-2 text-sm text-base-content/70">
+                                    <div className="mt-2 text-sm text-foreground/70">
                                         group
                                         {groupsWithBalances === 1
                                             ? ""
@@ -90,7 +90,7 @@ const HomeContent = () => {
                                     </div>
                                 </div>
                                 <div className="metric-card rounded-[1.5rem] p-5">
-                                    <div className="text-sm text-base-content/60">
+                                    <div className="text-sm text-foreground/60">
                                         Total open balances
                                     </div>
                                     {unsettledTotalEntries.length > 0 ? (
@@ -99,9 +99,9 @@ const HomeContent = () => {
                                                 ([currency, totals]) => (
                                                     <div
                                                         key={currency}
-                                                        className="rounded-2xl bg-base-100/80 px-4 py-3"
+                                                        className="rounded-2xl bg-background/80 px-4 py-3"
                                                     >
-                                                        <div className="text-xs uppercase tracking-[0.16em] text-base-content/50">
+                                                        <div className="text-xs uppercase tracking-[0.16em] text-foreground/50">
                                                             {currency}
                                                         </div>
                                                         <div className="mt-3 space-y-2">
@@ -122,7 +122,7 @@ const HomeContent = () => {
                                                                 </div>
                                                             ) : null}
                                                             {totals.owing > 0 ? (
-                                                                <div className="rounded-xl bg-error/12 px-3 py-2 text-error">
+                                                                <div className="rounded-xl bg-destructive/12 px-3 py-2 text-destructive">
                                                                     <div className="text-xs font-semibold uppercase tracking-[0.14em]">
                                                                         You owe
                                                                     </div>
@@ -143,7 +143,7 @@ const HomeContent = () => {
                                             )}
                                         </div>
                                     ) : (
-                                        <div className="mt-4 rounded-2xl bg-base-100/80 px-4 py-3 text-sm text-base-content/60">
+                                        <div className="mt-4 rounded-2xl bg-background/80 px-4 py-3 text-sm text-foreground/60">
                                             All groups are settled.
                                         </div>
                                     )}
@@ -153,16 +153,16 @@ const HomeContent = () => {
                     ) : (
                         <>
                             <div className="section-label">Get started</div>
-                            <h2 className="mt-3 text-2xl font-semibold tracking-[-0.03em] text-base-content">
+                            <h2 className="mt-3 text-2xl font-semibold tracking-[-0.03em] text-foreground">
                                 Create your first group
                             </h2>
-                            <p className="mt-3 max-w-2xl text-sm leading-6 text-base-content/70">
+                            <p className="mt-3 max-w-2xl text-sm leading-6 text-foreground/70">
                                 Start a group to track shared expenses and
                                 balances in one place.
                             </p>
                             <Link
                                 to="/create_group"
-                                className="btn btn-neutral mt-6 w-full sm:w-auto"
+                                className="ui-button ui-button-primary mt-6 w-full sm:w-auto"
                             >
                                 Create Group
                             </Link>

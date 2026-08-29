@@ -34,10 +34,10 @@ const CreateGroupContent = () => {
                 >
                         <div className="grid gap-5">
                             <div>
-                                <label className="text-xs font-semibold uppercase tracking-[0.2em] text-base-content/60">
+                                <label className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground/60">
                                     Group name
                                 </label>
-                                <label className="input input-bordered mt-2 flex items-center w-full bg-base-100">
+                                <label className="ui-input-shell mt-2 flex items-center w-full bg-background">
                                     <input
                                         type="text"
                                         className="grow"
@@ -50,10 +50,10 @@ const CreateGroupContent = () => {
                                 </label>
                             </div>
                             <div>
-                                <label className="text-xs font-semibold uppercase tracking-[0.2em] text-base-content/60">
+                                <label className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground/60">
                                     Description
                                 </label>
-                                <label className="input input-bordered mt-2 flex items-center w-full bg-base-100">
+                                <label className="ui-input-shell mt-2 flex items-center w-full bg-background">
                                     <input
                                         type="text"
                                         className="grow"
@@ -66,11 +66,11 @@ const CreateGroupContent = () => {
                                 </label>
                             </div>
                             <div>
-                                <label className="text-xs font-semibold uppercase tracking-[0.2em] text-base-content/60">
+                                <label className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground/60">
                                     Currency
                                 </label>
                                 <select
-                                    className="select select-bordered mt-2 w-full"
+                                    className="ui-select mt-2 w-full"
                                     value={currency}
                                     onChange={(e) =>
                                         setCurrency(e.target.value)
@@ -89,13 +89,13 @@ const CreateGroupContent = () => {
                         <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                             <button
                                 type="submit"
-                                className="btn btn-neutral w-full sm:w-auto"
+                                className="ui-button ui-button-primary w-full sm:w-auto"
                                 disabled={!dataOk}
                             >
                                 Create Group
                             </button>
                             {indicator && (
-                                <span className="loading loading-spinner loading-md"></span>
+                                <span className="ui-spinner ui-spinner-sm"></span>
                             )}
                         </div>
                 </form>

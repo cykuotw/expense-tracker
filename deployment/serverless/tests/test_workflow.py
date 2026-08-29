@@ -13,6 +13,24 @@ import workflow
 
 
 class WorkflowTest(unittest.TestCase):
+    def test_require_node_22_accepts_the_minimum_version(self) -> None:
+        with mock.patch.object(workflow, "run", return_value=mock.Mock(stdout="v22.13.1\n")):
+            workflow.require_node_22()
+
+    def test_require_node_22_rejects_an_unsupported_version(self) -> None:
+        with mock.patch.object(workflow, "run", return_value=mock.Mock(stdout="v23.0.0\n")):
+            with self.assertRaisesRegex(workflow.CommandError, "Node 22.13.1 through 22.x"):
+                workflow.require_node_22()
+
+    def test_require_pnpm_10_accepts_the_declared_version(self) -> None:
+        with mock.patch.object(workflow, "run", return_value=mock.Mock(stdout="10.23.0\n")):
+            workflow.require_pnpm_10()
+
+    def test_require_pnpm_10_rejects_an_unsupported_version(self) -> None:
+        with mock.patch.object(workflow, "run", return_value=mock.Mock(stdout="11.24.0\n")):
+            with self.assertRaisesRegex(workflow.CommandError, "pnpm 10.23.0 is required"):
+                workflow.require_pnpm_10()
+
     def test_fresh_deploy_runs_component_order_and_raw_cutover_last(self) -> None:
         context = mock.MagicMock()
         context.repo_root = Path("/repo")

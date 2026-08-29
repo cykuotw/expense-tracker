@@ -83,6 +83,27 @@ Complete example—replace every `REPLACE` value before deployment:
 
 Set `"first_admin": null` when no initial administrator should be created. `nickname` may be an empty string. The application generates the administrator's user ID; no ID belongs in this file.
 
+## Local build-tool provisioning
+
+The machine that runs `make deploy` builds and tests the frontend locally before
+publication. It must provide the following commands on `PATH` before invoking
+the deployer:
+
+- Node `22.13.1` through Node `22.x`; `frontend/.node-version` identifies the
+  tested baseline and `frontend/package.json` enforces the supported range.
+- pnpm `10.23.0`, as declared in `frontend/package.json`.
+
+pnpm requires Node, and the deployer intentionally does not download or install
+either tool. The serverless preflight checks that `node` and `pnpm` are
+available and rejects unsupported Node or pnpm versions before it performs AWS
+operations. On a new machine, provision Node and pnpm using the operator's
+normal user-level or CI tool manager, then verify `node --version` and
+`pnpm --version`. Do not add a Node binary to this repository or to frontend
+application dependencies.
+
+For each frontend publication, the deployer runs `pnpm install
+--frozen-lockfile`, `pnpm run test:run`, and `pnpm run build` from `frontend/`.
+
 ## Commands
 
 ```bash

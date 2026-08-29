@@ -9,11 +9,11 @@ For product setup and commands, begin with the [README](README.md). For
 deployment procedures and configuration, use the deployment documents linked
 below as the source of truth.
 
-## Primary Target: Unified Serverless Deployment
+## Deployment: Unified Serverless
 
-The primary target is the unified serverless deployment because it keeps the
-request-serving backend small and gives the deployment workflow explicit
-control over its database-connection budget.
+The unified serverless deployment is the only supported deployment path. It
+keeps the request-serving backend small and gives the deployment workflow
+explicit control over its database-connection budget.
 
 ```text
 Browser
@@ -49,16 +49,16 @@ The canonical operator guide is
 [deployment/serverless/README.md](deployment/serverless/README.md). It owns
 the detailed deployment, update, verification, resume, and destroy behavior.
 
-## Backup Deployment Path: Serverful EC2/Nginx
+## Retained Serverful Reference Code
 
-The repository also retains an EC2-backed, serverful deployment as a backup or
-alternative path. It runs the backend on EC2 behind nginx and uses the
-serverful deployment tooling for its infrastructure and frontend publication.
-It is not the primary target for new architecture decisions.
+The repository retains `deployment/serverful/` as archived implementation and
+infrastructure reference code only. It is not a backup deployment path and
+must not be used to provision, update, or destroy environments. All supported
+deployments, including frontend publication, use `deployment/serverless/`.
 
-Use [deployment/README.md](deployment/README.md) for the deployment model
-overview and [deployment/serverful/infrastructure/tf/README.md](deployment/serverful/infrastructure/tf/README.md)
-for the serverful infrastructure contract.
+Use [deployment/README.md](deployment/README.md) and
+[deployment/serverless/README.md](deployment/serverless/README.md) for the
+supported operator workflow.
 
 ## Application Boundaries
 
@@ -155,7 +155,7 @@ values into this document.
 
 Update `ARCHITECTURE.md` in the same change when any of these change:
 
-- the primary or backup deployment topology;
+- the supported deployment topology;
 - public request-routing, authentication, authorization, or data trust
   boundaries;
 - a domain's ownership or persistence model;

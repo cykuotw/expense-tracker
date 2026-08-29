@@ -82,15 +82,9 @@ Common serverless commands:
 - `make deploy ACTION=status`: inspect serverless deployment status.
 - `make deploy ACTION=destroy`: destroy the serverless deployment.
 
-### Backup: serverful EC2/nginx
-
-The supported serverful path is a backup deployment option. Use the dedicated
-target so scoped operations do not invoke the serverless deployment:
-
-- `make deploy-serverful`: deploy the EC2-backed application and frontend.
-- `make deploy-serverful all`: apply serverful infrastructure, deploy backend and frontend, then deploy nginx.
-- `make deploy-serverful infra|backend|frontend|edge`: run a scoped serverful operation.
-- `make tf-init`, `make tf-plan`, and `make tf-apply`: manage serverful Terraform infrastructure.
+`deployment/serverful/` is retained solely as archived reference code. It is
+not a supported deployment path; use the serverless `make deploy` commands
+above for every environment.
 
 See `deployment/README.md` for the deployment contract and command layout.
 

@@ -1,11 +1,11 @@
 # Deployment
 
-The repository supports the existing EC2 application deployment and the unified serverless deployment.
+The unified serverless workflow is the only supported deployment path.
 
 ## Layout
 
-- deployment/serverful: EC2 backend, edge, frontend publication, shared helpers, and infrastructure/tf state.
-- deployment/serverless: the only active serverless implementation, split into database, backend, frontend, common orchestration, and one infrastructure/tf state.
+- deployment/serverful: archived EC2/nginx implementation and infrastructure reference code; do not deploy from it.
+- deployment/serverless: the supported implementation, split into database, backend, frontend, common orchestration, and one infrastructure/tf state.
 
 ## Requirements
 
@@ -16,14 +16,6 @@ The repository supports the existing EC2 application deployment and the unified 
 - ssh, scp, and ssh-keyscan
 - an existing VPC, Internet-Gateway-backed subnet, EC2 key pair, and public Route 53 hosted zone
 - Lambda account concurrency quota of at least 4
-
-## EC2 Application
-
-- make deploy-serverful: deploy the EC2-backed application and frontend.
-- make deploy-serverful all: apply infrastructure, deploy backend/frontend, and deploy nginx.
-- make deploy-serverful infra, make deploy-serverful backend, make deploy-serverful frontend, and make deploy-serverful edge: scoped serverful operations.
-- make tf-init, make tf-plan, and make tf-apply: serverful Terraform operations.
-- make destroy: destroy the serverful deployment.
 
 ## Unified Serverless Deployment
 

@@ -11,7 +11,7 @@ from typing import Any
 from backend import artifacts, runtime
 from backend.verify import verify_api, verify_google_exchange, verify_session
 from common.aws import AWSClient
-from common.command import CommandError, deployment_lock, protected_json, require_tools
+from common.command import CommandError, deployment_lock, protected_json, require_tools, run
 from common.terraform import Terraform, require_create_only, require_cutover_only, require_non_destructive_update
 from config import Config
 from database.setup import setup as setup_database
@@ -38,8 +38,31 @@ def step(name: str, status: str = "start") -> None:
     print(f"[{status}] {name}", flush=True)
 
 
+def require_node_22() -> None:
+    version = run(["node", "--version"]).stdout.strip()
+    if version.startswith("v"):
+        version = version[1:]
+    try:
+        major, minor, patch = (int(part) for part in version.split("."))
+    except ValueError as exc:
+        raise CommandError(f"unable to parse Node version: {version!r}") from exc
+
+    if (major, minor, patch) < (22, 13, 1) or major >= 23:
+        raise CommandError(
+            f"Node 22.13.1 through 22.x is required; found v{version}"
+        )
+
+
+def require_pnpm_10() -> None:
+    version = run(["pnpm", "--version"]).stdout.strip()
+    if version != "10.23.0":
+        raise CommandError(f"pnpm 10.23.0 is required; found {version!r}")
+
+
 def preflight(context: Context, *, mutation: bool) -> None:
-    require_tools(["aws", "terraform", "go", "pnpm", "ssh", "scp", "ssh-keyscan"])
+    require_tools(["aws", "terraform", "go", "node", "pnpm", "ssh", "scp", "ssh-keyscan"])
+    require_node_22()
+    require_pnpm_10()
     identity = context.aws.identity()
     account = str(identity.get("Account", ""))
     print(f"AWS account={account} region={context.config.aws.region}")

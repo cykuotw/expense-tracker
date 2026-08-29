@@ -1,6 +1,11 @@
-# Serverful Terraform Infrastructure
+# Archived Serverful Terraform Reference
 
-This Terraform layout provisions the current EC2-backed serverful AWS infrastructure for the project.
+> This directory is retained only as historical implementation reference. Do
+> not run Terraform or deployment commands from `deployment/serverful/`; the
+> unified serverless workflow is the only supported deployment path.
+
+This Terraform layout documents the former EC2-backed serverful AWS
+infrastructure for the project.
 
 ## Managed Resources
 

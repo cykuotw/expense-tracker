@@ -13,6 +13,7 @@ type ExpenseStore interface {
 	CreateExpense(expense Expense) error
 	CreateItem(item Item) error
 	CreateLedger(ledger Ledger) error
+	ClaimExpenseCreateIdempotency(record ExpenseCreateIdempotency) (existing ExpenseCreateIdempotency, claimed bool, err error)
 
 	CheckExpenseExistByID(id string) (bool, error)
 
@@ -38,6 +39,13 @@ type ExpenseStore interface {
 	CheckBalanceExistByID(id string) (bool, error)
 	SettleBalanceByBalanceId(groupID string, balanceID string) error
 	CheckGroupBallanceAllSettled(groupId string) (bool, error)
+}
+
+type ExpenseCreateIdempotency struct {
+	CreatorUserID      uuid.UUID
+	Key                uuid.UUID
+	RequestFingerprint []byte
+	ExpenseID          uuid.UUID
 }
 
 type ExpenseController interface {

@@ -126,7 +126,8 @@ func TestRouteCreateExpense(t *testing.T) {
 				t.Fatal(err)
 			}
 			req.Header = map[string][]string{
-				"Authorization": {"Bearer " + jwt},
+				"Authorization":   {"Bearer " + jwt},
+				"Idempotency-Key": {uuid.NewString()},
 			}
 
 			rr := httptest.NewRecorder()
@@ -215,6 +216,45 @@ func TestHandleCreateExpenseRejectsInvalidLedgerBeforeTransaction(t *testing.T) 
 
 	assert.Equal(t, http.StatusBadRequest, response.Code)
 	assert.Zero(t, transactionCalls)
+}
+
+func TestHandleCreateExpenseRequiresIdempotencyKey(t *testing.T) {
+	store := createExpenseStoreMock()
+	response := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(response)
+	context.Set("userID", mockCreatorID.String())
+	context.Set("expensePayload", validCreateExpensePayload())
+	context.Request = httptest.NewRequest(http.MethodPost, "/create_expense", nil)
+
+	NewHandler(store, nil, nil, expenseControllerMock()).handleCreateExpense(context)
+
+	assert.Equal(t, http.StatusBadRequest, response.Code)
+	assert.Contains(t, response.Body.String(), `"code":"invalid_idempotency_key"`)
+}
+
+func TestHandleCreateExpenseReplaysMatchingKey(t *testing.T) {
+	store := createExpenseStoreMock()
+	existingID := uuid.New()
+	store.ClaimExpenseCreateIdempotencyFn = func(record types.ExpenseCreateIdempotency) (types.ExpenseCreateIdempotency, bool, error) {
+		return types.ExpenseCreateIdempotency{ExpenseID: existingID, RequestFingerprint: record.RequestFingerprint}, false, nil
+	}
+
+	response := runCreateExpenseHandler(t, store, validCreateExpensePayload())
+
+	assert.Equal(t, http.StatusCreated, response.Code)
+	assert.Contains(t, response.Body.String(), existingID.String())
+}
+
+func TestHandleCreateExpenseRejectsKeyReusedForDifferentPayload(t *testing.T) {
+	store := createExpenseStoreMock()
+	store.ClaimExpenseCreateIdempotencyFn = func(record types.ExpenseCreateIdempotency) (types.ExpenseCreateIdempotency, bool, error) {
+		return types.ExpenseCreateIdempotency{ExpenseID: uuid.New(), RequestFingerprint: []byte("different")}, false, nil
+	}
+
+	response := runCreateExpenseHandler(t, store, validCreateExpensePayload())
+
+	assert.Equal(t, http.StatusConflict, response.Code)
+	assert.Contains(t, response.Body.String(), `"code":"idempotency_key_conflict"`)
 }
 
 func TestHandleCreateExpensePropagatesTransactionStageErrors(t *testing.T) {
@@ -333,6 +373,8 @@ func runCreateExpenseHandler(t *testing.T, store *mockExpenseStore, payload type
 	context, _ := gin.CreateTestContext(response)
 	context.Set("userID", mockCreatorID.String())
 	context.Set("expensePayload", payload)
+	context.Request = httptest.NewRequest(http.MethodPost, "/create_expense", nil)
+	context.Request.Header.Set("Idempotency-Key", uuid.NewString())
 	handler := NewHandler(store, nil, nil, expenseControllerMock())
 
 	handler.handleCreateExpense(context)

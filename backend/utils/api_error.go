@@ -232,6 +232,12 @@ func normalizeError(status int, err error) APIErrorResponse {
 	if errors.Is(err, types.ErrProviderNotExist) {
 		return APIErrorResponse{Error: err.Error(), Code: "provider_not_exist"}
 	}
+	if errors.Is(err, types.ErrInvalidIdempotencyKey) {
+		return APIErrorResponse{Error: err.Error(), Code: "invalid_idempotency_key"}
+	}
+	if errors.Is(err, types.ErrIdempotencyKeyConflict) {
+		return APIErrorResponse{Error: err.Error(), Code: "idempotency_key_conflict"}
+	}
 	if errors.Is(err, types.ErrBalanceNotExist) {
 		return APIErrorResponse{Error: err.Error(), Code: "balance_not_exist"}
 	}

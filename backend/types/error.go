@@ -59,6 +59,8 @@ var (
 	ErrNoRemainingExpenses        = errors.New("no remaining expenses in the list")
 	ErrProviderNotExist           = errors.New("provider not exist")
 	ErrGroupParticipantNotAllowed = errors.New("expense participants must belong to the group")
+	ErrInvalidIdempotencyKey      = errors.New("a valid idempotency key is required")
+	ErrIdempotencyKeyConflict     = errors.New("this submission key was already used for different expense details")
 
 	// balance
 	ErrBalanceNotExist = errors.New("balacne not exist")

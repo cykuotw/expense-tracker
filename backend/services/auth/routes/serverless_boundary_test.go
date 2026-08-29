@@ -214,6 +214,7 @@ func TestBoundaryCORS(t *testing.T) {
 	assert.Equal(t, http.StatusNoContent, allowedPreflight.StatusCode)
 	assert.Equal(t, boundaryFrontendOrigin, allowedPreflight.Headers["Access-Control-Allow-Origin"])
 	assert.Equal(t, "true", allowedPreflight.Headers["Access-Control-Allow-Credentials"])
+	assert.Contains(t, allowedPreflight.Headers["Access-Control-Allow-Headers"], "Idempotency-Key")
 
 	// Disallowed preflight requests should be blocked before handlers run.
 	disallowedPreflight := fixture.proxy(gatewayRequest(http.MethodOptions, "/login",

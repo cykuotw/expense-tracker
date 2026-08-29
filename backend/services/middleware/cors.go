@@ -16,7 +16,7 @@ func CORSMiddleware() gin.HandlerFunc {
 			c.Writer.Header().Set("Access-Control-Allow-Origin", origin)
 			c.Writer.Header().Add("Vary", "Origin")
 			c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
-			c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-CSRF-Token")
+			c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-CSRF-Token, Idempotency-Key")
 			if config.Envs.CORSAllowCredentials {
 				c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
 			}

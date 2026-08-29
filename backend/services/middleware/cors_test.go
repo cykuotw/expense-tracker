@@ -91,4 +91,5 @@ func TestCORSMiddlewareAllowsConfiguredPatchPreflight(t *testing.T) {
 	assert.Equal(t, "https://app.example.com", rr.Header().Get("Access-Control-Allow-Origin"))
 	assert.Equal(t, "true", rr.Header().Get("Access-Control-Allow-Credentials"))
 	assert.Contains(t, rr.Header().Get("Access-Control-Allow-Methods"), http.MethodPatch)
+	assert.Contains(t, rr.Header().Get("Access-Control-Allow-Headers"), "Idempotency-Key")
 }

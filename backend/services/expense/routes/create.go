@@ -1,6 +1,8 @@
 package expense
 
 import (
+	"bytes"
+	"errors"
 	"expense-tracker/backend/services/middleware/extractors"
 	"expense-tracker/backend/types"
 	"expense-tracker/backend/utils"
@@ -15,6 +17,11 @@ func (h *Handler) handleCreateExpense(c *gin.Context) {
 	payload, err := extractors.GetExpensePayload(c)
 	if err != nil {
 		utils.WriteError(c, http.StatusBadRequest, err)
+		return
+	}
+	key, err := uuid.Parse(c.GetHeader("Idempotency-Key"))
+	if err != nil {
+		utils.WriteError(c, http.StatusBadRequest, types.ErrInvalidIdempotencyKey)
 		return
 	}
 
@@ -97,8 +104,27 @@ func (h *Handler) handleCreateExpense(c *gin.Context) {
 			Share:          ledgerPayload.Share,
 		})
 	}
+	fingerprint, err := expenseCreateFingerprint(expense, items, ledgers)
+	if err != nil {
+		utils.WriteError(c, http.StatusInternalServerError, err)
+		return
+	}
+	resultExpenseID := expenseID
 
 	err = h.store.RunInTransaction(func(store types.ExpenseStore) error {
+		existing, claimed, err := store.ClaimExpenseCreateIdempotency(types.ExpenseCreateIdempotency{
+			CreatorUserID: creatorID, Key: key, RequestFingerprint: fingerprint, ExpenseID: expenseID,
+		})
+		if err != nil {
+			return err
+		}
+		if !claimed {
+			if !bytes.Equal(existing.RequestFingerprint, fingerprint) {
+				return types.ErrIdempotencyKeyConflict
+			}
+			resultExpenseID = existing.ExpenseID
+			return nil
+		}
 		if err := store.CreateExpense(expense); err != nil {
 			return err
 		}
@@ -116,9 +142,13 @@ func (h *Handler) handleCreateExpense(c *gin.Context) {
 		return h.updateBalanceWithStore(store, payload.GroupID)
 	})
 	if err != nil {
+		if errors.Is(err, types.ErrIdempotencyKeyConflict) {
+			utils.WriteError(c, http.StatusConflict, err)
+			return
+		}
 		utils.WriteError(c, http.StatusInternalServerError, err)
 		return
 	}
 
-	utils.WriteJSON(c, http.StatusCreated, map[string]string{"expenseId": expenseID.String()})
+	utils.WriteJSON(c, http.StatusCreated, map[string]string{"expenseId": resultExpenseID.String()})
 }

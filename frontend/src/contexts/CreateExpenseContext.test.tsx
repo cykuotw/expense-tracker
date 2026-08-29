@@ -103,4 +103,43 @@ describe("CreateExpenseProvider error handling", () => {
         expect(toastSuccessMock).not.toHaveBeenCalled();
         expect(navigateMock).not.toHaveBeenCalled();
     });
+
+    it("uses one idempotency key for an in-flight submit and an unchanged retry", async () => {
+        render(
+            <CreateExpenseProvider>
+                <CreateExpenseHarness />
+            </CreateExpenseProvider>
+        );
+        await waitFor(() => {
+            expect(screen.getByTestId("members")).toHaveTextContent("1");
+        });
+
+        const form = screen.getByRole("form", { name: "expense form" });
+        fireEvent.submit(form);
+        fireEvent.submit(form);
+
+        await waitFor(() => {
+            expect(
+                apiFetchMock.mock.calls.filter(([path]) => path === "/create_expense")
+            ).toHaveLength(1);
+        });
+        const firstHeaders = apiFetchMock.mock.calls.find(
+            ([path]) => path === "/create_expense"
+        )?.[1]?.headers as Record<string, string>;
+        expect(firstHeaders["Idempotency-Key"]).toMatch(
+            /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+        );
+
+        await waitFor(() => expect(screen.getByTestId("indicator")).toHaveTextContent("idle"));
+        fireEvent.submit(form);
+        await waitFor(() => {
+            expect(
+                apiFetchMock.mock.calls.filter(([path]) => path === "/create_expense")
+            ).toHaveLength(2);
+        });
+        const retryHeaders = apiFetchMock.mock.calls.filter(
+            ([path]) => path === "/create_expense"
+        )[1][1]?.headers as Record<string, string>;
+        expect(retryHeaders["Idempotency-Key"]).toBe(firstHeaders["Idempotency-Key"]);
+    });
 });

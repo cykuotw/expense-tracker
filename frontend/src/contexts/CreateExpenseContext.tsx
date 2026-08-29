@@ -1,4 +1,4 @@
-import { useState, useEffect, ReactNode, FormEvent, ReactElement } from "react";
+import { useState, useEffect, useRef, ReactNode, FormEvent, ReactElement } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "react-hot-toast";
 import { apiFetch, getResponseErrorMessage } from "../lib/api";
@@ -21,6 +21,8 @@ export const CreateExpenseProvider = ({
 
     // handle form submission
     const [indicatorShow, setIndicatorShow] = useState<boolean>(false);
+    const submissionInFlightRef = useRef(false);
+    const submissionIntentRef = useRef<{ key: string; fingerprint: string } | null>(null);
 
     const [selectedGroupId, setSelectedGroupId] = useState<string | null>(
         groupId
@@ -42,6 +44,9 @@ export const CreateExpenseProvider = ({
 
     const handleCreateExpense = async (e: FormEvent) => {
         e.preventDefault();
+        if (submissionInFlightRef.current) return;
+
+        submissionInFlightRef.current = true;
 
         setIndicatorShow(true);
 
@@ -54,32 +59,33 @@ export const CreateExpenseProvider = ({
             };
             const precision: number =
                 currencyPrecision[currency as keyof typeof currencyPrecision];
+            const submissionLedgers = ledgers.map((ledger) => ({ ...ledger }));
             switch (selectedRule) {
                 case Rule.Equally:
                 case Rule.YouHalf:
                 case Rule.OtherHalf: {
-                    const peopleCount: number = ledgers.length;
+                    const peopleCount: number = submissionLedgers.length;
 
                     const split: number =
                         Math.floor((total / peopleCount) * 10 ** precision) /
                         10 ** precision;
                     const remaining: number = total - split * (peopleCount - 1);
 
-                    const randIndex = Math.floor(Math.random() * peopleCount);
+                    const remainderIndex = 0;
                     for (let i = 0; i < peopleCount; i++) {
-                        ledgers[i].share = i === randIndex ? remaining : split;
+                        submissionLedgers[i].share = i === remainderIndex ? remaining : split;
                     }
                     break;
                 }
 
                 case Rule.YouFull:
-                    ledgers[0].share = 0;
-                    ledgers[1].share = total;
+                    submissionLedgers[0].share = 0;
+                    submissionLedgers[1].share = total;
                     break;
 
                 case Rule.OtherFull:
-                    ledgers[0].share = total;
-                    ledgers[1].share = 0;
+                    submissionLedgers[0].share = total;
+                    submissionLedgers[1].share = 0;
                     break;
 
                 default:
@@ -94,7 +100,7 @@ export const CreateExpenseProvider = ({
                 total: total.toFixed(precision),
                 currency: currency,
                 splitRule: selectedRule,
-                ledgers: ledgers.map(
+                ledgers: submissionLedgers.map(
                     (ledger) =>
                         ({
                             borrowerUserId: ledger.userId,
@@ -104,10 +110,18 @@ export const CreateExpenseProvider = ({
                 ),
             };
 
+            const fingerprint = JSON.stringify(payload);
+            if (submissionIntentRef.current?.fingerprint !== fingerprint) {
+                submissionIntentRef.current = {
+                    key: crypto.randomUUID(),
+                    fingerprint,
+                };
+            }
             const response = await apiFetch("/create_expense", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
+                    "Idempotency-Key": submissionIntentRef.current.key,
                 },
                 body: JSON.stringify(payload),
             });
@@ -121,6 +135,7 @@ export const CreateExpenseProvider = ({
                 );
                 return;
             }
+            submissionIntentRef.current = null;
             toast.success("Your expense has been created!", {
                 duration: 1000,
             });
@@ -131,6 +146,7 @@ export const CreateExpenseProvider = ({
         } catch {
             toast.error(CREATE_EXPENSE_FALLBACK);
         } finally {
+            submissionInFlightRef.current = false;
             setIndicatorShow(false);
         }
     };

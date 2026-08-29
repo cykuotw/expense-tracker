@@ -1,4 +1,11 @@
-import { useState, useEffect, ReactNode, FormEvent } from "react";
+import {
+    useState,
+    useEffect,
+    useRef,
+    ReactNode,
+    FormEvent,
+    SetStateAction,
+} from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "react-hot-toast";
 import { isEmail } from "validator";
@@ -23,12 +30,26 @@ export const AddMemberProvider = ({ children }: { children: ReactNode }) => {
     const [searchParams] = useSearchParams();
     const groupId = searchParams.get("g");
 
-    const [loading, setLoading] = useState(false);
+    const [savingMembers, setSavingMembers] = useState(false);
+    const [checkingEmail, setCheckingEmail] = useState(false);
     const [relatedUserList, setRelatedUserList] = useState<RelatedUser[]>([]);
+    const relatedUserListRef = useRef<RelatedUser[]>([]);
+    const lookupGenerationRef = useRef(0);
 
     const [email, setEmail] = useState("");
     const debouncedEmail = useDebounce(email, 300);
     const [newMember, setNewMember] = useState<UserData | null>(null);
+    const loading = savingMembers || checkingEmail;
+
+    const invalidateEmailLookup = () => {
+        lookupGenerationRef.current += 1;
+        setCheckingEmail(false);
+    };
+
+    const updateEmail = (nextEmail: SetStateAction<string>) => {
+        invalidateEmailLookup();
+        setEmail(nextEmail);
+    };
 
     useEffect(() => {
         const fetchRelatedUsers = async () => {
@@ -49,9 +70,13 @@ export const AddMemberProvider = ({ children }: { children: ReactNode }) => {
         fetchRelatedUsers();
     }, [groupId]);
 
+    useEffect(() => {
+        relatedUserListRef.current = relatedUserList;
+    }, [relatedUserList]);
+
     const handleSubmitRelatedUsers = async (e: FormEvent) => {
         e.preventDefault();
-        setLoading(true);
+        setSavingMembers(true);
 
         const formData = new FormData(e.currentTarget as HTMLFormElement);
         const selectedUserIds = new Set(
@@ -104,11 +129,15 @@ export const AddMemberProvider = ({ children }: { children: ReactNode }) => {
         } catch {
             toast.error(UPDATE_MEMBERS_FALLBACK);
         } finally {
-            setLoading(false);
+            setSavingMembers(false);
         }
     };
 
     useEffect(() => {
+        const lookupGeneration = ++lookupGenerationRef.current;
+        const isCurrentLookup = () =>
+            lookupGenerationRef.current === lookupGeneration;
+
         if (!debouncedEmail) {
             setNewMember(null);
             return;
@@ -123,7 +152,7 @@ export const AddMemberProvider = ({ children }: { children: ReactNode }) => {
         }
 
         const checkEmailValid = async () => {
-            setLoading(true);
+            setCheckingEmail(true);
             let requestFallback = CHECK_EMAIL_FALLBACK;
 
             try {
@@ -136,11 +165,13 @@ export const AddMemberProvider = ({ children }: { children: ReactNode }) => {
                     { authMode: "none" }
                 );
                 if (!response.ok) {
+                    const errorMessage = await getResponseErrorMessage(
+                        response,
+                        CHECK_EMAIL_FALLBACK
+                    );
+                    if (!isCurrentLookup()) return;
                     toast.error(
-                        await getResponseErrorMessage(
-                            response,
-                            CHECK_EMAIL_FALLBACK
-                        ),
+                        errorMessage,
                         { id: "email-validation" }
                     );
                     setNewMember(null);
@@ -148,6 +179,7 @@ export const AddMemberProvider = ({ children }: { children: ReactNode }) => {
                 }
 
                 const data = (await response.json()) as { exist?: boolean };
+                if (!isCurrentLookup()) return;
                 if (!data.exist) {
                     toast.error("Email not found. Please contact admin.", {
                         id: "email-validation",
@@ -168,11 +200,13 @@ export const AddMemberProvider = ({ children }: { children: ReactNode }) => {
                     { authMode: "none" }
                 );
                 if (!userResponse.ok) {
+                    const errorMessage = await getResponseErrorMessage(
+                        userResponse,
+                        LOOKUP_USER_FALLBACK
+                    );
+                    if (!isCurrentLookup()) return;
                     toast.error(
-                        await getResponseErrorMessage(
-                            userResponse,
-                            LOOKUP_USER_FALLBACK
-                        ),
+                        errorMessage,
                         { id: "email-validation" }
                     );
                     setNewMember(null);
@@ -180,9 +214,10 @@ export const AddMemberProvider = ({ children }: { children: ReactNode }) => {
                 }
 
                 const userData = (await userResponse.json()) as UserData;
+                if (!isCurrentLookup()) return;
 
                 if (
-                    relatedUserList.some(
+                    relatedUserListRef.current.some(
                         (user) => user.userId === userData.id
                     )
                 ) {
@@ -195,19 +230,23 @@ export const AddMemberProvider = ({ children }: { children: ReactNode }) => {
 
                 setNewMember(userData);
             } catch {
+                if (!isCurrentLookup()) return;
                 toast.error(requestFallback, { id: "email-validation" });
                 setNewMember(null);
             } finally {
-                setLoading(false);
+                if (isCurrentLookup()) {
+                    setCheckingEmail(false);
+                }
             }
         };
 
         checkEmailValid();
-    }, [debouncedEmail, relatedUserList]);
+    }, [debouncedEmail]);
 
     const handleAddNewMember = () => {
         if (!newMember) return;
 
+        invalidateEmailLookup();
         setRelatedUserList((currentUsers) => [
             ...currentUsers,
             {
@@ -218,6 +257,10 @@ export const AddMemberProvider = ({ children }: { children: ReactNode }) => {
         ]);
         setEmail("");
         setNewMember(null);
+        toast.success("Member added", {
+            id: "email-validation",
+            duration: 1000,
+        });
     };
 
     return (
@@ -227,7 +270,7 @@ export const AddMemberProvider = ({ children }: { children: ReactNode }) => {
                 loading,
                 relatedUserList,
                 email,
-                setEmail,
+                setEmail: updateEmail,
                 newMember,
                 handleSubmitRelatedUsers,
                 handleAddNewMember,

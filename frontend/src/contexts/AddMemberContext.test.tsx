@@ -1,4 +1,11 @@
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+    act,
+    cleanup,
+    fireEvent,
+    render,
+    screen,
+    waitFor,
+} from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AddMemberProvider } from "./AddMemberContext";
 import { useAddMember } from "../hooks/AddMemberContextHooks";
@@ -44,6 +51,15 @@ function jsonResponse(body: unknown, status = 200) {
     });
 }
 
+function deferred<T>() {
+    let resolve: (value: T) => void;
+    const promise = new Promise<T>((resolvePromise) => {
+        resolve = resolvePromise;
+    });
+
+    return { promise, resolve: resolve! };
+}
+
 function AddMemberHarness() {
     const context = useAddMember();
 
@@ -70,6 +86,9 @@ function AddMemberHarness() {
             <output data-testid="loading">
                 {context.loading ? "loading" : "idle"}
             </output>
+            <button type="button" onClick={context.handleAddNewMember}>
+                Add candidate
+            </button>
         </>
     );
 }
@@ -210,5 +229,112 @@ describe("AddMemberProvider error handling", () => {
         });
         expect(screen.getByTestId("new-member")).toBeEmptyDOMElement();
         expect(screen.getByTestId("loading")).toHaveTextContent("idle");
+    });
+
+    it("ignores a stale user lookup after the email changes", async () => {
+        const firstUserLookup = deferred<Response>();
+        const secondUserLookup = deferred<Response>();
+        let userLookupCount = 0;
+
+        apiFetchMock.mockImplementation((path: string) => {
+            if (path.startsWith("/related_member")) {
+                return Promise.resolve(jsonResponse([]));
+            }
+            if (path === "/checkEmail") {
+                return Promise.resolve(jsonResponse({ exist: true }));
+            }
+            if (path.startsWith("/userInfo")) {
+                userLookupCount += 1;
+                return userLookupCount === 1
+                    ? firstUserLookup.promise
+                    : secondUserLookup.promise;
+            }
+            throw new Error(`Unexpected path: ${path}`);
+        });
+
+        renderProvider();
+        fireEvent.change(screen.getByLabelText("email"), {
+            target: { value: "first@example.com" },
+        });
+        await waitFor(() => expect(userLookupCount).toBe(1));
+
+        fireEvent.change(screen.getByLabelText("email"), {
+            target: { value: "second@example.com" },
+        });
+        await waitFor(() => expect(userLookupCount).toBe(2));
+
+        await act(async () => {
+            firstUserLookup.resolve(
+                jsonResponse({ id: "first-user", username: "First" })
+            );
+        });
+
+        expect(screen.getByTestId("new-member")).toBeEmptyDOMElement();
+        expect(toastErrorMock).not.toHaveBeenCalled();
+
+        await act(async () => {
+            secondUserLookup.resolve(
+                jsonResponse({ id: "second-user", username: "Second" })
+            );
+        });
+
+        await waitFor(() => {
+            expect(screen.getByTestId("new-member")).toHaveTextContent(
+                "second-user"
+            );
+        });
+    });
+
+    it("adds a looked-up member without repeating the lookup or showing a duplicate error", async () => {
+        let emailCheckCount = 0;
+        let userLookupCount = 0;
+
+        apiFetchMock.mockImplementation((path: string) => {
+            if (path.startsWith("/related_member")) {
+                return Promise.resolve(jsonResponse([]));
+            }
+            if (path === "/checkEmail") {
+                emailCheckCount += 1;
+                return Promise.resolve(jsonResponse({ exist: true }));
+            }
+            if (path.startsWith("/userInfo")) {
+                userLookupCount += 1;
+                return Promise.resolve(
+                    jsonResponse({ id: "new-user", username: "New User" })
+                );
+            }
+            throw new Error(`Unexpected path: ${path}`);
+        });
+
+        renderProvider();
+        fireEvent.change(screen.getByLabelText("email"), {
+            target: { value: "person@example.com" },
+        });
+
+        await waitFor(() => {
+            expect(screen.getByTestId("new-member")).toHaveTextContent(
+                "new-user"
+            );
+        });
+
+        fireEvent.click(screen.getByRole("button", { name: "Add candidate" }));
+
+        await waitFor(() => {
+            expect(screen.getAllByRole("checkbox")).toHaveLength(1);
+        });
+        await act(async () => {
+            await new Promise((resolve) => window.setTimeout(resolve, 0));
+        });
+
+        expect(toastSuccessMock).toHaveBeenCalledWith("Member added", {
+            id: "email-validation",
+            duration: 1000,
+        });
+        expect(emailCheckCount).toBe(1);
+        expect(userLookupCount).toBe(1);
+        expect(toastErrorMock).not.toHaveBeenCalledWith(
+            "User already in the group",
+            { id: "email-validation" }
+        );
     });
 });

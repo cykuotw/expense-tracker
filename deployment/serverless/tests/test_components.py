@@ -12,7 +12,7 @@ REPO = ROOT.parents[1]
 sys.path.insert(0, str(ROOT))
 
 from backend.artifacts import build
-from frontend.publish import runtime_config
+from frontend.publish import publish, runtime_config
 from tests.test_config import ConfigTest
 
 
@@ -41,6 +41,62 @@ class ComponentTest(unittest.TestCase):
             self.assertIn('"googleOAuthEnabled": true', rendered)
         finally:
             case.tearDown()
+
+    def test_frontend_publish_uses_safe_cache_headers_for_pwa_entrypoints(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            dist = Path(temporary)
+            for filename in (
+                "index.html",
+                "runtime-config.js",
+                "sw.js",
+                "manifest.webmanifest",
+                "workbox-example.js",
+                "assets/index-123.js",
+            ):
+                path = dist / filename
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text("test")
+
+            client = mock.MagicMock()
+            client.json.return_value = {"Invalidation": {"Id": "invalidation"}}
+            outputs = {
+                "frontend_bucket_name": "bucket",
+                "cloudfront_distribution_id": "distribution",
+            }
+            with mock.patch("frontend.publish.build", return_value=dist):
+                publish(client, Path("/repo"), mock.MagicMock(), outputs)
+
+        sync_call = client.call.call_args_list[0].args
+        self.assertEqual(sync_call[:4], ("s3", "sync", f"{dist}/", "s3://bucket/"))
+        self.assertIn("public, max-age=31536000, immutable", sync_call)
+        for filename in (
+            "index.html",
+            "runtime-config.js",
+            "sw.js",
+            "manifest.webmanifest",
+            "workbox-example.js",
+        ):
+            self.assertIn("--exclude", sync_call)
+            self.assertIn(filename, sync_call)
+
+        copy_calls = [
+            call.args
+            for call in client.call.call_args_list
+            if call.args[:2] == ("s3", "cp")
+        ]
+        copied = {Path(call[2]).name: call for call in copy_calls}
+        self.assertEqual(
+            set(copied),
+            {
+                "index.html",
+                "runtime-config.js",
+                "sw.js",
+                "manifest.webmanifest",
+                "workbox-example.js",
+            },
+        )
+        for call in copied.values():
+            self.assertIn("no-cache", call)
 
     def test_serverless_implementation_never_references_serverful(self) -> None:
         forbidden = "deployment/" + "serverful"

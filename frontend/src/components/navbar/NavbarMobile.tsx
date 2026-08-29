@@ -3,6 +3,7 @@ import { Link, NavLink } from "react-router-dom";
 
 import { useAuth } from "../../hooks/AuthContextHooks";
 import { USER_ROLES } from "../../types/role";
+import InstallAppAction from "../pwa/InstallAppAction";
 
 export default function NavbarMobile() {
     const [accountOpen, setAccountOpen] = useState(false);
@@ -79,33 +80,6 @@ export default function NavbarMobile() {
                     </span>
                 </button>
 
-                {role === USER_ROLES.admin && (
-                    <NavLink
-                        to="/admin/users"
-                        className={({ isActive }) =>
-                            `app-shell__mobile-item ${
-                                isActive
-                                    ? "app-shell__mobile-item--active"
-                                    : ""
-                            }`
-                        }
-                    >
-                        <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            width="16"
-                            height="16"
-                            fill="currentColor"
-                            className="size-[1.5rem]"
-                            viewBox="0 0 24 24"
-                        >
-                            <path d="M16 13c-.29 0-.62.02-.97.05C16.19 13.89 17 15.24 17 17v2H7v-2c0-1.76.81-3.11 1.97-3.95C8.62 13.02 8.29 13 8 13c-2.67 0-8 1.34-8 4v3h24v-3c0-2.66-5.33-4-8-4M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4Z" />
-                        </svg>
-                        <span className="app-shell__mobile-item-label">
-                            Users
-                        </span>
-                    </NavLink>
-                )}
-
             </div>
             </nav>
 
@@ -140,6 +114,19 @@ export default function NavbarMobile() {
                         >
                             Settings
                         </Link>
+                        <InstallAppAction
+                            className="btn btn-outline w-full"
+                            onOpen={() => setAccountOpen(false)}
+                        />
+                        {role === USER_ROLES.admin ? (
+                            <Link
+                                to="/admin/users"
+                                className="btn btn-outline w-full"
+                                onClick={() => setAccountOpen(false)}
+                            >
+                                User Management
+                            </Link>
+                        ) : null}
                         <button
                             type="button"
                             className="btn btn-error w-full"

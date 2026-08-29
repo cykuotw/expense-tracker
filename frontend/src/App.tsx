@@ -22,9 +22,12 @@ import CreateGroup from "./pages/CreateGroup";
 import EditExpense from "./pages/EditExpense";
 import AdminUsers from "./pages/AdminUsers";
 import AccountSettings from "./pages/AccountSettings";
+import OfflineScreen from "./components/pwa/OfflineScreen";
+import PWAUpdatePrompt from "./components/pwa/PWAUpdatePrompt";
+import { PWAInstallProvider } from "./contexts/PWAInstallProvider";
 
 function AppRoutes() {
-    const { loading } = useAuth();
+    const { loading, isOffline } = useAuth();
 
     if (loading) {
         return (
@@ -32,6 +35,10 @@ function AppRoutes() {
                 <span className="loading loading-spinner loading-xl"></span>
             </div>
         );
+    }
+
+    if (isOffline) {
+        return <OfflineScreen />;
     }
 
     return (
@@ -68,10 +75,13 @@ function AppRoutes() {
 function App() {
     return (
         <Router>
-            <AuthProvider>
-                <Toaster position="bottom-center" />
-                <AppRoutes />
-            </AuthProvider>
+            <PWAInstallProvider>
+                <AuthProvider>
+                    <Toaster position="bottom-center" />
+                    {import.meta.env.PROD ? <PWAUpdatePrompt /> : null}
+                    <AppRoutes />
+                </AuthProvider>
+            </PWAInstallProvider>
         </Router>
     );
 }

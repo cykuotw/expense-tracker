@@ -9,6 +9,16 @@ from common.command import CommandError, run
 from config import Config
 
 
+IMMUTABLE_CACHE_CONTROL = "public, max-age=31536000, immutable"
+NO_CACHE = "no-cache"
+MUTABLE_FRONTEND_FILES = {
+    "index.html": "text/html; charset=utf-8",
+    "runtime-config.js": "application/javascript; charset=utf-8",
+    "sw.js": "application/javascript; charset=utf-8",
+    "manifest.webmanifest": "application/manifest+json",
+}
+
+
 def runtime_config(config: Config) -> str:
     value = {
         "apiOrigin": config.api_origin,
@@ -35,7 +45,39 @@ def publish(client: AWSClient, repo_root: Path, config: Config, outputs: dict[st
     dist = build(repo_root, config)
     bucket = str(outputs["frontend_bucket_name"])
     distribution = str(outputs["cloudfront_distribution_id"])
-    client.call("s3", "sync", f"{dist}/", f"s3://{bucket}/", "--delete")
+    mutable_files = dict(MUTABLE_FRONTEND_FILES)
+    mutable_files.update(
+        {
+            asset.relative_to(dist).as_posix(): "application/javascript; charset=utf-8"
+            for asset in dist.glob("workbox-*.js")
+        }
+    )
+    immutable_sync_args = [
+        "sync",
+        f"{dist}/",
+        f"s3://{bucket}/",
+        "--delete",
+        "--cache-control",
+        IMMUTABLE_CACHE_CONTROL,
+    ]
+    for relative_path in mutable_files:
+        immutable_sync_args.extend(["--exclude", relative_path])
+    client.call("s3", *immutable_sync_args)
+
+    for relative_path, content_type in mutable_files.items():
+        source = dist / relative_path
+        if not source.is_file():
+            continue
+        client.call(
+            "s3",
+            "cp",
+            str(source),
+            f"s3://{bucket}/{relative_path}",
+            "--cache-control",
+            NO_CACHE,
+            "--content-type",
+            content_type,
+        )
     invalidation = client.json("cloudfront", "create-invalidation", "--distribution-id", distribution, "--paths", "/*")
     invalidation_id = invalidation["Invalidation"]["Id"]
     client.call("cloudfront", "wait", "invalidation-completed", "--distribution-id", distribution, "--id", invalidation_id)

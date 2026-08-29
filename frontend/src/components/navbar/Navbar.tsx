@@ -1,6 +1,7 @@
 import { Link, NavLink } from "react-router-dom";
 
 import Dropdown from "../Dropdown";
+import InstallAppAction from "../pwa/InstallAppAction";
 import { useAuth } from "../../hooks/AuthContextHooks";
 import { USER_ROLES } from "../../types/role";
 
@@ -48,22 +49,6 @@ export default function Navbar() {
                                 Create Group
                             </NavLink>
                         </li>
-                        {role === USER_ROLES.admin && (
-                            <li>
-                                <NavLink
-                                    to="/admin/users"
-                                    className={({ isActive }) =>
-                                        `flex items-center rounded-2xl px-4 py-3 text-sm font-medium ${
-                                            isActive
-                                                ? "bg-primary/10 text-primary"
-                                                : "text-base-content/70 hover:bg-base-200/80"
-                                        }`
-                                    }
-                                >
-                                    User Management
-                                </NavLink>
-                            </li>
-                        )}
                     </ul>
                 </div>
 
@@ -98,6 +83,12 @@ export default function Navbar() {
                             <li className="w-full">
                                 <Link to="/account">Settings</Link>
                             </li>
+                            <InstallAppAction listItem />
+                            {role === USER_ROLES.admin ? (
+                                <li className="w-full">
+                                    <Link to="/admin/users">User Management</Link>
+                                </li>
+                            ) : null}
                             <li className="w-full">
                                 <button onClick={() => void logout()}>
                                     Logout

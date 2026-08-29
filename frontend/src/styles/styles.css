@@ -58,6 +58,54 @@ body {
     background: var(--app-shell-bg);
 }
 
+.pwa-status-screen {
+    display: grid;
+    min-height: 100dvh;
+    place-items: center;
+    padding: 1.5rem;
+    background: var(--app-shell-bg);
+}
+
+.pwa-status-screen__card {
+    width: min(100%, 28rem);
+    border: 1px solid var(--color-base-300);
+    border-radius: 1.5rem;
+    padding: 2rem;
+    background: var(--color-base-100);
+    box-shadow: var(--card-shadow);
+}
+
+.pwa-status-screen__card h1 {
+    margin-top: 0.5rem;
+    font-size: 1.5rem;
+    font-weight: 700;
+}
+
+.pwa-status-screen__card p:last-child {
+    margin-top: 0.75rem;
+    color: color-mix(in srgb, var(--color-base-content) 75%, transparent);
+}
+
+.pwa-update-prompt {
+    position: fixed;
+    right: 1rem;
+    bottom: 1rem;
+    z-index: 60;
+    width: min(calc(100% - 2rem), 24rem);
+    border: 1px solid var(--color-base-300);
+    border-radius: 1rem;
+    padding: 1rem;
+    background: var(--color-base-100);
+    box-shadow: var(--card-shadow);
+}
+
+.pwa-update-prompt__actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+}
+
 a,
 button,
 input,
@@ -104,7 +152,7 @@ textarea {
 
 .app-shell__mobile-nav-inner {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 0.5rem;
     padding: 0.7rem 1rem calc(0.7rem + env(safe-area-inset-bottom));
 }

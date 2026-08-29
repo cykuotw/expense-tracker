@@ -81,6 +81,11 @@ PostgreSQL
 - The frontend owns presentation, local form state, and user-facing feedback.
   It calls the backend through the shared API client; it must not be treated as
   the authorization or accounting boundary.
+- The frontend's PWA worker may cache only public static shell assets. API,
+  authentication, CSRF, and other credential-bearing requests remain
+  network-only; offline mode never exposes cached expense or account data.
+  The serverless publisher serves versioned assets as immutable and entry-point
+  files (including the worker and runtime configuration) with `no-cache`.
 - `backend/internal/tracker` assembles the Gin application and its public,
   authenticated, and administrator route groups.
 - `backend/services/` is organized by domain, including auth, users, groups,

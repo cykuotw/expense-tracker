@@ -7,6 +7,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "generate-pwa-assets": "pwa-assets-generator --preset minimal public/pwa-icon-source.png --manifest=false --html=false",
     "lint": "eslint .",
     "test": "vitest",
     "test:run": "vitest run",
@@ -30,6 +31,7 @@
     "@types/react": "^19.0.8",
     "@types/react-dom": "^19.0.3",
     "@types/validator": "^13.15.10",
+    "@vite-pwa/assets-generator": "^1.0.2",
     "@vitejs/plugin-react": "^1.3.2",
     "autoprefixer": "^10.4.20",
     "daisyui": "^5.0.0",
@@ -43,7 +45,9 @@
     "typescript": "~5.7.2",
     "typescript-eslint": "^8.22.0",
     "vite": "^6.1.0",
+    "vite-plugin-pwa": "^1.3.0",
     "vite-tsconfig-paths": "^5.1.4",
-    "vitest": "^4.1.2"
+    "vitest": "^4.1.2",
+    "workbox-window": "^7.4.1"
   }
 }

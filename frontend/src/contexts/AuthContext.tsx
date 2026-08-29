@@ -14,6 +14,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const location = useLocation();
     const [loading, setLoading] = useState(true);
     const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const [isOffline, setIsOffline] = useState(() => !navigator.onLine);
     const [userID, setUserID] = useState<string | null>(null);
     const [role, setRole] = useState<UserRole | null>(null);
 
@@ -28,6 +29,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         try {
             const response = await apiFetch("/auth/me", { method: "GET" });
             if (!response.ok) {
+                setIsOffline(false);
                 clearAuthState();
                 return false;
             }
@@ -36,10 +38,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setIsAuthenticated(true);
             setUserID(data.userID ?? null);
             setRole(data.role ?? null);
+            setIsOffline(false);
             setLoading(false);
             return true;
         } catch {
-            clearAuthState();
+            setIsOffline(true);
+            setLoading(false);
             return false;
         }
     }, [clearAuthState]);
@@ -62,6 +66,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     useEffect(() => {
         void refreshSession();
+    }, [refreshSession]);
+
+    useEffect(() => {
+        const handleOffline = () => {
+            setIsOffline(true);
+            setLoading(false);
+        };
+        const handleOnline = () => {
+            setLoading(true);
+            void refreshSession();
+        };
+
+        window.addEventListener("offline", handleOffline);
+        window.addEventListener("online", handleOnline);
+        return () => {
+            window.removeEventListener("offline", handleOffline);
+            window.removeEventListener("online", handleOnline);
+        };
     }, [refreshSession]);
 
     const markLoggedIn = async () => {
@@ -91,6 +113,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 isAuthenticated,
                 role,
                 loading,
+                isOffline,
                 refreshSession,
                 markLoggedIn,
                 logout,

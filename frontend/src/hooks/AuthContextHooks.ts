@@ -6,6 +6,7 @@ export interface AuthContextType {
     isAuthenticated: boolean;
     role: UserRole | null;
     loading: boolean;
+    isOffline: boolean;
     refreshSession: () => Promise<boolean>;
     markLoggedIn: () => Promise<boolean>;
     logout: () => Promise<void>;

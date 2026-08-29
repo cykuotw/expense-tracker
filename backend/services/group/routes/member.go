@@ -44,7 +44,7 @@ func (h *Handler) handleGetGroupMember(c *gin.Context) {
 	}
 
 	// make response
-	var members []types.GroupMember
+	members := make([]types.GroupMember, 0, len(users))
 	var currUser types.GroupMember
 	for _, user := range users {
 		if user.ID.String() == userID {
@@ -158,6 +158,9 @@ func (h *Handler) handleGetRelatedMember(c *gin.Context) {
 	if err != nil {
 		utils.WriteError(c, http.StatusInternalServerError, err)
 		return
+	}
+	if members == nil {
+		members = []*types.RelatedMember{}
 	}
 
 	utils.WriteJSON(c, http.StatusOK, members)

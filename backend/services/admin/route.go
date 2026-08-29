@@ -52,6 +52,12 @@ func (h *Handler) handleList(c *gin.Context) {
 		utils.WriteError(c, http.StatusInternalServerError, err)
 		return
 	}
+	if users == nil {
+		users = []types.AdminUserResponse{}
+	}
+	if invitations == nil {
+		invitations = []types.AdminInvitationResponse{}
+	}
 	utils.WriteJSON(c, http.StatusOK, gin.H{
 		"users":       users,
 		"invitations": invitations,

@@ -13,7 +13,7 @@ func (s *Store) GetGroupMemberByGroupID(groupID string) ([]*types.User, error) {
 	}
 	defer rowsGroup.Close()
 
-	var userIDs []string
+	userIDs := make([]string, 0)
 	for rowsGroup.Next() {
 		var id string
 		if err := rowsGroup.Scan(&id); err != nil {
@@ -25,7 +25,7 @@ func (s *Store) GetGroupMemberByGroupID(groupID string) ([]*types.User, error) {
 		return nil, err
 	}
 
-	var users []*types.User
+	users := make([]*types.User, 0, len(userIDs))
 	for _, id := range userIDs {
 		user, err := s.getGroupMemberUser(id)
 		if err != nil {

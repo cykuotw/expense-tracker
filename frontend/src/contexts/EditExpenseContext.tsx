@@ -8,7 +8,7 @@ import {
 } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "react-hot-toast";
-import { apiFetch, getResponseErrorMessage } from "../lib/api";
+import { apiFetch, asArray, getResponseErrorMessage } from "../lib/api";
 import {
     ExpenseDetailData,
     ExpenseTypeItem,
@@ -154,12 +154,12 @@ export const EditExpenseProvider = ({ children }: { children: ReactNode }) => {
             });
             if (!response.ok) return;
 
-            const data: GroupListItem[] = await response.json();
+            const data = asArray<GroupListItem>(await response.json());
 
             setGroupList(data);
             setFormData((prev) => ({
                 ...prev,
-                groupId: data[0].id,
+                groupId: data[0]?.id ?? prev.groupId,
             }));
         };
 
@@ -169,7 +169,7 @@ export const EditExpenseProvider = ({ children }: { children: ReactNode }) => {
             });
             if (!response.ok) return;
 
-            const data: ExpenseTypeItem[] = await response.json();
+            const data = asArray<ExpenseTypeItem>(await response.json());
             // create options
             const options: ReactElement[] = [];
             let lastCategory = "";
@@ -202,7 +202,16 @@ export const EditExpenseProvider = ({ children }: { children: ReactNode }) => {
             });
             if (!response.ok) return;
 
-            const data: ExpenseDetailData = await response.json();
+            const responseData = (await response.json()) as ExpenseDetailData;
+            const data = {
+                ...responseData,
+                items: asArray<ExpenseDetailData["items"][number]>(
+                    responseData.items
+                ),
+                ledgers: asArray<ExpenseDetailData["ledgers"][number]>(
+                    responseData.ledgers
+                ),
+            };
 
             setFormData((prev) => ({
                 ...prev,
@@ -212,7 +221,7 @@ export const EditExpenseProvider = ({ children }: { children: ReactNode }) => {
                 total: parseFloat(data.total),
                 currency: data.currency,
                 splitRule: data.splitRule as Rule,
-                payerUserId: data.ledgers[0].lenderUserId,
+                payerUserId: data.ledgers[0]?.lenderUserId ?? "",
                 ledgers: data.ledgers.map((ledger) => ({
                     id: ledger.id,
                     userId: ledger.borrowerUserId,
@@ -228,7 +237,9 @@ export const EditExpenseProvider = ({ children }: { children: ReactNode }) => {
             );
             if (!responseGroupMember.ok) return;
 
-            const groupMember: GroupMember[] = await responseGroupMember.json();
+            const groupMember = asArray<GroupMember>(
+                await responseGroupMember.json()
+            );
 
             setGroupMembers(groupMember);
         };

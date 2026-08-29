@@ -2,6 +2,11 @@ import { API_URL } from "../configs/config";
 
 export type AuthMode = "required" | "none";
 
+/** Return a safe empty collection for a missing, legacy, or malformed array response. */
+export function asArray<T>(value: unknown): T[] {
+    return Array.isArray(value) ? (value as T[]) : [];
+}
+
 interface ApiFetchOptions {
     authMode?: AuthMode;
     retryOnAuthFailure?: boolean;

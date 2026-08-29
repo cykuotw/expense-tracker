@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, ReactNode, FormEvent } from "react";
 import { useParams } from "react-router-dom";
 import { toast } from "react-hot-toast";
-import { apiFetch, getResponseErrorMessage } from "../lib/api";
+import { apiFetch, asArray, getResponseErrorMessage } from "../lib/api";
 import { ExpenseDetailData } from "../types/expense";
 import { ExpenseDetailContext } from "../hooks/ExpenseDetailContextHooks";
 
@@ -36,8 +36,16 @@ export const ExpenseDetailProvider = ({
                         "Content-Type": "application/json",
                     },
                 });
-                const data: ExpenseDetailData = await response.json();
-                setExpenseDetail(data);
+                const responseData = (await response.json()) as ExpenseDetailData;
+                setExpenseDetail({
+                    ...responseData,
+                    items: asArray<ExpenseDetailData["items"][number]>(
+                        responseData.items
+                    ),
+                    ledgers: asArray<ExpenseDetailData["ledgers"][number]>(
+                        responseData.ledgers
+                    ),
+                });
             } catch (error) {
                 console.log(error);
             }

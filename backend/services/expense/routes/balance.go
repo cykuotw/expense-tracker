@@ -25,7 +25,7 @@ func (h *Handler) handleGetUnsettledBalance(c *gin.Context) {
 		utils.WriteError(c, http.StatusInternalServerError, err)
 		return
 	}
-	var balances []types.BalanceRsp
+	balances := make([]types.BalanceRsp, 0, len(balanceSimplified))
 	for _, balance := range balanceSimplified {
 		senderUsername, err := h.userStore.GetUsernameByID(balance.SenderUserID.String())
 		if err != nil {

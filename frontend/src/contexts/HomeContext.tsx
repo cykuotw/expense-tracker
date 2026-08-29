@@ -1,5 +1,5 @@
 import { useState, useEffect, ReactNode } from "react";
-import { apiFetch } from "../lib/api";
+import { apiFetch, asArray } from "../lib/api";
 import { GroupCardData } from "../types/group";
 import { HomeContext } from "./HomeContextHooks";
 
@@ -17,7 +17,7 @@ export const HomeProvider = ({ children }: { children: ReactNode }) => {
                     },
                 });
                 const groups = await response.json();
-                setGroupCards(groups);
+                setGroupCards(asArray<GroupCardData>(groups));
             } catch (error) {
                 console.log(error);
             } finally {

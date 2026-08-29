@@ -15,7 +15,7 @@ func (h *Handler) handleGetExpenseType(c *gin.Context) {
 		return
 	}
 
-	var response []types.ExpenseTypeResponse
+	response := make([]types.ExpenseTypeResponse, 0, len(expenseTypes))
 	for _, expexpenseType := range expenseTypes {
 		res := types.ExpenseTypeResponse{
 			ID:       expexpenseType.ID.String(),

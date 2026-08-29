@@ -47,10 +47,10 @@ func (h *Handler) handleGetExpenseList(c *gin.Context) {
 		return
 	}
 
-	var response []types.ExpenseResponseBrief
+	response := make([]types.ExpenseResponseBrief, 0, len(expenseList))
 	for _, expense := range expenseList {
-		var payerUserIDs []uuid.UUID
-		var payerUsernames []string
+		payerUserIDs := make([]uuid.UUID, 0)
+		payerUsernames := make([]string, 0)
 
 		ledgers, err := h.store.GetLedgersByExpenseID(expense.ID.String())
 		if err != nil {

@@ -131,6 +131,25 @@ describe("AddMemberProvider error handling", () => {
         expect(screen.getByTestId("loading")).toHaveTextContent("idle");
     });
 
+    it("normalizes a null related-member response to an empty list", async () => {
+        apiFetchMock.mockImplementation((path: string) => {
+            if (path.startsWith("/related_member")) {
+                return Promise.resolve(jsonResponse(null));
+            }
+            throw new Error(`Unexpected path: ${path}`);
+        });
+
+        renderProvider();
+
+        await waitFor(() => {
+            expect(apiFetchMock).toHaveBeenCalledWith(
+                "/related_member?g=group-1",
+                expect.any(Object),
+            );
+        });
+        expect(screen.queryAllByRole("checkbox")).toHaveLength(0);
+    });
+
     it("does not run user lookup when the email check fails", async () => {
         apiFetchMock.mockImplementation((path: string) => {
             if (path.startsWith("/related_member")) {

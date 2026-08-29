@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, ReactNode, FormEvent, ReactElement } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "react-hot-toast";
-import { apiFetch, getResponseErrorMessage } from "../lib/api";
+import { apiFetch, asArray, getResponseErrorMessage } from "../lib/api";
 import { ExpenseCreateData, ExpenseTypeItem } from "../types/expense";
 import { GroupListItem, GroupMember } from "../types/group";
 import { LedgerCreateData } from "../types/ledger";
@@ -163,7 +163,7 @@ export const CreateExpenseProvider = ({
             });
             if (!response.ok) return;
 
-            const data: GroupListItem[] = await response.json();
+            const data = asArray<GroupListItem>(await response.json());
             setGroupList(data);
         };
         const fetchExpeseTypes = async () => {
@@ -172,7 +172,7 @@ export const CreateExpenseProvider = ({
             });
             if (!response.ok) return;
 
-            const data: ExpenseTypeItem[] = await response.json();
+            const data = asArray<ExpenseTypeItem>(await response.json());
             // create options
             const options: ReactElement[] = [];
             let lastCategory = "";
@@ -212,10 +212,10 @@ export const CreateExpenseProvider = ({
             });
             if (!response.ok) return;
 
-            const data: GroupMember[] = await response.json();
+            const data = asArray<GroupMember>(await response.json());
 
             setGroupMembers(data);
-            setPayer(data[data.length - 1].userId);
+            setPayer(data[data.length - 1]?.userId ?? "");
             setLedgers(
                 data.map((member) => ({
                     userId: member.userId,

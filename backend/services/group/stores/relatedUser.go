@@ -36,7 +36,7 @@ func (s *Store) GetRelatedUser(currentUser string, groupId string) ([]*types.Rel
 	}
 	defer rows.Close()
 
-	var members []*types.RelatedMember
+	members := make([]*types.RelatedMember, 0)
 	for rows.Next() {
 		member := new(types.RelatedMember)
 		err := rows.Scan(&member.UserID, &member.Username, &member.ExistInGroup)

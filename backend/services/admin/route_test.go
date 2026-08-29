@@ -97,6 +97,22 @@ func TestListReturnsSafeManagementData(t *testing.T) {
 	assert.Contains(t, response.Body.String(), `"isProtectedAdmin":true`)
 }
 
+func TestListReturnsEmptyArraysForNilStoreResults(t *testing.T) {
+	users := &userStoreMock{
+		getUsersFn:  func() ([]types.AdminUserResponse, error) { return nil, nil },
+		setActiveFn: func(string, string, bool) error { return nil },
+		setRoleFn:   func(string, string, string) error { return nil },
+	}
+	invitations := baseInvitationMock()
+	invitations.getFn = func() ([]types.AdminInvitationResponse, error) { return nil, nil }
+
+	response := httptest.NewRecorder()
+	adminTestRouter(users, invitations).ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/admin/users", nil))
+
+	assert.Equal(t, http.StatusOK, response.Code)
+	assert.JSONEq(t, `{"users":[],"invitations":[]}`, response.Body.String())
+}
+
 func TestUpdateStatusRejectsProtectedChange(t *testing.T) {
 	actor := uuid.New()
 	target := uuid.New()

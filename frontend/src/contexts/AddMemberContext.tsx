@@ -2,7 +2,7 @@ import { useState, useEffect, ReactNode, FormEvent } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "react-hot-toast";
 import { isEmail } from "validator";
-import { apiFetch, getResponseErrorMessage } from "../lib/api";
+import { apiFetch, asArray, getResponseErrorMessage } from "../lib/api";
 import { RelatedUser } from "../types/group";
 import { UserData } from "../types/user";
 import useDebounce from "../hooks/useDebounce";
@@ -40,7 +40,7 @@ export const AddMemberProvider = ({ children }: { children: ReactNode }) => {
                     },
                 });
                 const data = await response.json();
-                setRelatedUserList(data);
+                setRelatedUserList(asArray<RelatedUser>(data));
             } catch (error) {
                 console.log(error);
             }

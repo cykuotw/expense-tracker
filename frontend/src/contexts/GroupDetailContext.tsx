@@ -1,7 +1,7 @@
 import { useState, useEffect, ReactNode, useRef, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import { toast } from "react-hot-toast";
-import { apiFetch, getResponseErrorMessage } from "../lib/api";
+import { apiFetch, asArray, getResponseErrorMessage } from "../lib/api";
 import { GroupInfo } from "../types/group";
 import { BalanceData } from "../types/balance";
 import { ExpenseData } from "../types/expense";
@@ -35,8 +35,14 @@ export const GroupDetailProvider = ({ children }: { children: ReactNode }) => {
                 apiFetch(`/balance/${groupId}`),
             ]);
 
-            if (groupRes.ok) setGroupInfo(await groupRes.json());
-            if (balanceRes.ok) setBalance(await balanceRes.json());
+            if (groupRes.ok) {
+                const group = (await groupRes.json()) as GroupInfo;
+                setGroupInfo({ ...group, members: asArray(group.members) });
+            }
+            if (balanceRes.ok) {
+                const balance = (await balanceRes.json()) as BalanceData;
+                setBalance({ ...balance, balances: asArray(balance.balances) });
+            }
         } catch (error) {
             console.error(error);
         } finally {
@@ -52,7 +58,12 @@ export const GroupDetailProvider = ({ children }: { children: ReactNode }) => {
         if (!groupId) return [];
         const response = await apiFetch(`/expense_list/${groupId}/${page}`);
         if (!response.ok) return [];
-        return (await response.json()) as ExpenseData[];
+        const expenses = asArray<ExpenseData>(await response.json());
+        return expenses.map((expense) => ({
+            ...expense,
+            payerUserIds: asArray<string>(expense.payerUserIds),
+            payerUsernames: asArray<string>(expense.payerUsernames),
+        }));
     }, [groupId]);
 
     const refreshExpenseLists = useCallback(async () => {

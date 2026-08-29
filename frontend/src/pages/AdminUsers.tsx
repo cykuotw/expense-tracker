@@ -3,7 +3,7 @@ import { toast } from "react-hot-toast";
 
 import ConfirmationDialog from "../components/ConfirmationDialog";
 import { useAuth } from "../hooks/AuthContextHooks";
-import { apiFetch, getResponseError, getResponseErrorMessage } from "../lib/api";
+import { apiFetch, asArray, getResponseError, getResponseErrorMessage } from "../lib/api";
 import {
     AdminInvitation,
     AdminManagementData,
@@ -331,7 +331,11 @@ export default function AdminUsers() {
                     ),
                 );
             }
-            setData((await response.json()) as AdminManagementData);
+            const responseData = (await response.json()) as AdminManagementData;
+            setData({
+                users: asArray(responseData.users),
+                invitations: asArray(responseData.invitations),
+            });
         } catch (loadError) {
             setError(
                 loadError instanceof Error

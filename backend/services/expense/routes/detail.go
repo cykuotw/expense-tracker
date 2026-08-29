@@ -32,7 +32,7 @@ func (h *Handler) handleGetExpenseDetail(c *gin.Context) {
 		utils.WriteError(c, http.StatusInternalServerError, err)
 		return
 	}
-	var itemRsp []types.ItemResponse
+	itemRsp := make([]types.ItemResponse, 0, len(items))
 	for _, it := range items {
 		item := types.ItemResponse{
 			ItemID:       it.ID,
@@ -46,7 +46,7 @@ func (h *Handler) handleGetExpenseDetail(c *gin.Context) {
 		utils.WriteError(c, http.StatusInternalServerError, err)
 		return
 	}
-	var ledgerRsp []types.LedgerResponse
+	ledgerRsp := make([]types.LedgerResponse, 0, len(ledgers))
 	for _, led := range ledgers {
 		lenderUsername, err := h.userStore.GetUsernameByID(led.LenderUserID.String())
 		if err != nil {

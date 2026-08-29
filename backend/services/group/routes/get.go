@@ -39,7 +39,7 @@ func (h *Handler) handleGetGroup(c *gin.Context) {
 	}
 
 	// make response
-	var members []types.GroupMember
+	members := make([]types.GroupMember, 0, len(users))
 	var currUser types.GroupMember
 	for _, user := range users {
 		if user.ID.String() == userID {

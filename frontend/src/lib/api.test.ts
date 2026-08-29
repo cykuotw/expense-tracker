@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { getResponseError, getResponseErrorMessage } from "./api";
+
+import { asArray, getResponseError, getResponseErrorMessage } from "./api";
 
 const fallback = "Fallback message";
 
@@ -92,5 +93,13 @@ describe("getResponseError", () => {
             message: "invitation required",
             code: "INVITATION_REQUIRED",
         });
+    });
+});
+
+describe("asArray", () => {
+    it("keeps valid arrays and normalizes non-array API payloads", () => {
+        expect(asArray<string>(["member"])).toEqual(["member"]);
+        expect(asArray<string>(null)).toEqual([]);
+        expect(asArray<string>({ members: [] })).toEqual([]);
     });
 });

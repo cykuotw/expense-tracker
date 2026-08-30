@@ -12,7 +12,7 @@ func (s *Store) GetItemsByExpenseID(expenseID string) ([]*types.Item, error) {
 	}
 	defer rows.Close()
 
-	var itemList []*types.Item
+	itemList := make([]*types.Item, 0)
 	for rows.Next() {
 		item := new(types.Item)
 		item, err := scanRowIntoItem(rows)

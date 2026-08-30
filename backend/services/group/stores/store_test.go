@@ -355,10 +355,10 @@ func TestGetGroupMemberByGroupID(t *testing.T) {
 			expectError: nil,
 		},
 		{
-			name:        "invalid group id",
+			name:        "non-existing group",
 			mockGroupID: uuid.NewString(),
-			expectFail:  true,
-			expectUsers: nil,
+			expectFail:  false,
+			expectUsers: []*types.User{},
 			expectError: nil,
 		},
 	}
@@ -584,11 +584,11 @@ func TestGetRelatedUser(t *testing.T) {
 			expectError: nil,
 		},
 		{
-			name:               "invalid user",
+			name:               "non-existing user",
 			mockUserID:         uuid.NewString(),
 			mockgroupID:        mockGroupID.String(),
-			expectFail:         true,
-			expectGroupMembers: nil,
+			expectFail:         false,
+			expectGroupMembers: []*types.RelatedMember{},
 			expectError:        nil,
 		},
 	}

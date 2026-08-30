@@ -3,6 +3,7 @@ package store_test
 import (
 	expense "expense-tracker/backend/services/expense/stores"
 	"expense-tracker/backend/types"
+	"fmt"
 	"strconv"
 	"testing"
 
@@ -56,27 +57,29 @@ func TestGetItemsByExpenseID(t *testing.T) {
 			expectError:  nil,
 		},
 		{
-			name:         "invalid expense id",
+			name:         "non-existing expense id",
 			expenseID:    uuid.NewString(),
-			expectFail:   true,
+			expectFail:   false,
 			expectLength: 0,
-			expectItemID: nil,
-			expectError:  types.ErrExpenseNotExist,
+			expectItemID: []uuid.UUID{},
+			expectError:  nil,
 		},
 	}
 
 	for _, test := range subtests {
 		t.Run(test.name, func(t *testing.T) {
 			itemList, err := store.GetItemsByExpenseID(test.expenseID)
+			fmt.Println(itemList)
 
 			if test.expectFail {
 				assert.Nil(t, itemList)
 				assert.Equal(t, test.expectError, err)
 			} else {
+				assert.NoError(t, err)
 				assert.NotNil(t, itemList)
-				assert.Equal(t, test.expectLength, len(itemList))
-				for i := 0; i < test.expectLength; i++ {
-					assert.Contains(t, test.expectItemID, itemList[i].ID)
+				assert.Len(t, itemList, test.expectLength)
+				for _, item := range itemList {
+					assert.Contains(t, test.expectItemID, item.ID)
 				}
 			}
 		})

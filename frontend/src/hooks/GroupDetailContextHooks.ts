@@ -12,6 +12,7 @@ export interface GroupDetailContextType {
     unsettledLoading: boolean;
     unsettledHasMore: boolean;
     expenseOrder: ExpenseListOrder;
+    expenseListRefreshVersion: number;
     setExpenseOrder: (order: ExpenseListOrder) => void;
     settledExpenses: ExpenseData[];
     settledLoading: boolean;

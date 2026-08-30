@@ -37,11 +37,19 @@ func (h *Handler) handleGetExpenseList(c *gin.Context) {
 		utils.WriteError(c, http.StatusBadRequest, errors.New("order must be newest or oldest"))
 		return
 	}
+	status := types.ExpenseListStatus(c.DefaultQuery("status", string(types.ExpenseListStatusAll)))
+	if status != types.ExpenseListStatusAll && status != types.ExpenseListStatusUnsettled && status != types.ExpenseListStatusSettled {
+		utils.WriteError(c, http.StatusBadRequest, errors.New("status must be all, unsettled, or settled"))
+		return
+	}
 
 	// get expense list wrt page
-	expenseList, err := h.store.GetExpenseList(groupIdStr, page, order)
+	expensePage, err := h.store.GetExpenseList(groupIdStr, page, order, status)
 	if errors.Is(err, types.ErrNoRemainingExpenses) {
-		utils.WriteJSON(c, http.StatusOK, []types.ExpenseResponseBrief{})
+		utils.WriteJSON(c, http.StatusOK, types.ExpenseResponsePage{
+			Expenses: []types.ExpenseResponseBrief{},
+			HasMore:  false,
+		})
 		return
 	} else if err != nil {
 		utils.WriteError(c, http.StatusInternalServerError, err)
@@ -63,8 +71,8 @@ func (h *Handler) handleGetExpenseList(c *gin.Context) {
 		typesByID[expenseType.ID] = expenseType
 	}
 
-	response := make([]types.ExpenseResponseBrief, 0, len(expenseList))
-	for _, expense := range expenseList {
+	response := make([]types.ExpenseResponseBrief, 0, len(expensePage.Expenses))
+	for _, expense := range expensePage.Expenses {
 		payerUserIDs := make([]uuid.UUID, 0)
 		payerUsernames := make([]string, 0)
 
@@ -74,7 +82,7 @@ func (h *Handler) handleGetExpenseList(c *gin.Context) {
 			return
 		}
 
-		inserted := make(map[string]interface{})
+		inserted := make(map[string]struct{})
 		for _, ledger := range ledgers {
 			// 2024.01.12 Single payer model
 			// just in case there are multiple payers
@@ -87,7 +95,7 @@ func (h *Handler) handleGetExpenseList(c *gin.Context) {
 					return
 				}
 				payerUsernames = append(payerUsernames, username)
-				inserted[ledger.LenderUserID.String()] = nil
+				inserted[ledger.LenderUserID.String()] = struct{}{}
 			}
 		}
 
@@ -112,5 +120,8 @@ func (h *Handler) handleGetExpenseList(c *gin.Context) {
 		response = append(response, res)
 	}
 
-	utils.WriteJSON(c, http.StatusOK, response)
+	utils.WriteJSON(c, http.StatusOK, types.ExpenseResponsePage{
+		Expenses: response,
+		HasMore:  expensePage.HasMore,
+	})
 }

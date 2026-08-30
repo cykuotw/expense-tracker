@@ -23,6 +23,7 @@ const GroupDetailContent = () => {
         unsettledLoading,
         unsettledHasMore,
         expenseOrder,
+        expenseListRefreshVersion,
         setExpenseOrder,
         settledExpenses,
         settledLoading,
@@ -37,7 +38,7 @@ const GroupDetailContent = () => {
     const [showSettled, setShowSettled] = useState(false);
     const [settleOpen, setSettleOpen] = useState(false);
     const [showAllBalances, setShowAllBalances] = useState(false);
-    const settledSentinelRef = useRef<HTMLDivElement | null>(null);
+    const loadedSettledExpensesRef = useRef<string | null>(null);
     const balanceEntries = balance
         ? balance.balances.flatMap((entry) => {
               if (entry.receiverUserId === balance.currentUser) {
@@ -67,21 +68,17 @@ const GroupDetailContent = () => {
 
     useEffect(() => {
         if (!showSettled) return;
-        const sentinel = settledSentinelRef.current;
-        if (!sentinel) return;
+        const requestKey = `${expenseOrder}:${expenseListRefreshVersion}`;
+        if (loadedSettledExpensesRef.current === requestKey) return;
 
-        const observer = new IntersectionObserver(
-            (entries) => {
-                if (entries[0]?.isIntersecting) {
-                    loadMoreSettledExpenses();
-                }
-            },
-            { rootMargin: "200px" }
-        );
-
-        observer.observe(sentinel);
-        return () => observer.disconnect();
-    }, [showSettled, loadMoreSettledExpenses]);
+        loadedSettledExpensesRef.current = requestKey;
+        void loadSettledExpenses();
+    }, [
+        expenseListRefreshVersion,
+        expenseOrder,
+        loadSettledExpenses,
+        showSettled,
+    ]);
 
     if (loading) {
         return (
@@ -217,36 +214,43 @@ const GroupDetailContent = () => {
                                 className="mt-4 space-y-4"
                                 id="unsettled-expenses"
                             >
-                            {unsettledExpenses.length === 0 &&
-                            !unsettledLoading ? (
-                                <div className="metric-card rounded-[1.5rem] p-6 text-sm text-foreground/70">
-                                    No expenses yet.
-                                </div>
-                            ) : (
-                                unsettledExpenses.map((exp: ExpenseData) => (
-                                    <ExpenseCard
-                                        key={exp.expenseId}
-                                        {...exp}
-                                    />
-                                ))
-                            )}
-                            {unsettledLoading && (
-                                <div className="flex justify-center py-2">
-                                    <span className="ui-spinner ui-spinner-sm"></span>
-                                </div>
-                            )}
-                            {unsettledHasMore &&
-                                !unsettledLoading &&
-                                unsettledExpenses.length > 0 && (
-                                <div className="pt-2">
-                                    <button
-                                        className="ui-button ui-button-ghost w-full sm:w-auto"
-                                        onClick={loadMoreUnsettledExpenses}
-                                    >
-                                        Load More
-                                    </button>
-                                </div>
-                            )}
+                                {unsettledExpenses.length === 0 &&
+                                !unsettledLoading ? (
+                                    <div className="metric-card rounded-[1.5rem] p-6 text-sm text-foreground/70">
+                                        No expenses yet.
+                                    </div>
+                                ) : (
+                                    unsettledExpenses.map((exp: ExpenseData) => (
+                                        <ExpenseCard
+                                            key={exp.expenseId}
+                                            {...exp}
+                                        />
+                                    ))
+                                )}
+                                {unsettledLoading && (
+                                    <div className="flex justify-center py-2">
+                                        <span className="ui-spinner ui-spinner-sm"></span>
+                                    </div>
+                                )}
+                                {unsettledHasMore &&
+                                    !unsettledLoading &&
+                                    unsettledExpenses.length > 0 && (
+                                        <div className="flex pt-2 sm:justify-end">
+                                            <button
+                                                className="ui-button ui-button-ghost w-full sm:w-auto"
+                                                onClick={loadMoreUnsettledExpenses}
+                                            >
+                                                Load more unsettled expenses
+                                            </button>
+                                        </div>
+                                    )}
+                                {!unsettledHasMore &&
+                                    !unsettledLoading &&
+                                    unsettledExpenses.length > 0 && (
+                                    <p className="pt-2 text-center text-sm text-foreground/60 sm:text-right">
+                                        No more unsettled expenses
+                                    </p>
+                                )}
                             </div>
                         </div>
 
@@ -254,42 +258,56 @@ const GroupDetailContent = () => {
                             <div className="section-label">Settled</div>
                             {!showSettled ? (
                                 <div className="mt-4">
-                                <button
-                                    className="ui-button ui-button-ghost w-full sm:w-auto"
-                                    onClick={async () => {
-                                        setShowSettled(true);
-                                        await loadSettledExpenses();
-                                    }}
-                                >
-                                    Load Settled Expenses
-                                </button>
+                                    <button
+                                        className="ui-button ui-button-ghost w-full sm:w-auto"
+                                        onClick={() => {
+                                            setShowSettled(true);
+                                        }}
+                                    >
+                                        Load Settled Expenses
+                                    </button>
                                 </div>
                             ) : (
                                 <div className="mt-4 space-y-4">
-                                {settledExpenses.length === 0 &&
-                                !settledLoading ? (
-                                    <div className="metric-card rounded-[1.5rem] p-6 text-sm text-foreground/70">
-                                        No settled expenses yet.
-                                    </div>
-                                ) : (
-                                    settledExpenses.map((exp: ExpenseData) => (
-                                        <ExpenseCard
-                                            key={exp.expenseId}
-                                            {...exp}
-                                        />
-                                    ))
-                                )}
-                                {settledLoading && (
-                                    <div className="flex justify-center py-2">
-                                        <span className="ui-spinner ui-spinner-sm"></span>
-                                    </div>
-                                )}
-                                {settledHasMore && (
-                                    <div
-                                        ref={settledSentinelRef}
-                                        className="h-6"
-                                    />
-                                )}
+                                    {settledExpenses.length === 0 &&
+                                    !settledLoading ? (
+                                        <div className="metric-card rounded-[1.5rem] p-6 text-sm text-foreground/70">
+                                            No settled expenses yet.
+                                        </div>
+                                    ) : (
+                                        settledExpenses.map(
+                                            (exp: ExpenseData) => (
+                                                <ExpenseCard
+                                                    key={exp.expenseId}
+                                                    {...exp}
+                                                />
+                                            )
+                                        )
+                                    )}
+                                    {settledLoading && (
+                                        <div className="flex justify-center py-2">
+                                            <span className="ui-spinner ui-spinner-sm"></span>
+                                        </div>
+                                    )}
+                                    {settledHasMore &&
+                                        !settledLoading &&
+                                        settledExpenses.length > 0 && (
+                                            <div className="flex pt-2 sm:justify-end">
+                                                <button
+                                                    className="ui-button ui-button-ghost w-full sm:w-auto"
+                                                    onClick={loadMoreSettledExpenses}
+                                                >
+                                                    Load more settled expenses
+                                                </button>
+                                            </div>
+                                        )}
+                                    {!settledHasMore &&
+                                        !settledLoading &&
+                                        settledExpenses.length > 0 && (
+                                            <p className="pt-2 text-center text-sm text-foreground/60 sm:text-right">
+                                                No more settled expenses
+                                            </p>
+                                        )}
                                 </div>
                             )}
                         </div>

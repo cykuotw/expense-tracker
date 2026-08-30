@@ -14,6 +14,19 @@ const (
 	ExpenseListOrderOldest ExpenseListOrder = "oldest"
 )
 
+type ExpenseListStatus string
+
+const (
+	ExpenseListStatusAll       ExpenseListStatus = "all"
+	ExpenseListStatusUnsettled ExpenseListStatus = "unsettled"
+	ExpenseListStatusSettled   ExpenseListStatus = "settled"
+)
+
+type ExpenseListPage struct {
+	Expenses []*Expense
+	HasMore  bool
+}
+
 type ExpenseStore interface {
 	RunInTransaction(func(ExpenseStore) error) error
 
@@ -25,7 +38,7 @@ type ExpenseStore interface {
 	CheckExpenseExistByID(id string) (bool, error)
 
 	GetExpenseByID(expenseID string) (*Expense, error)
-	GetExpenseList(groupID string, page int64, order ExpenseListOrder) ([]*Expense, error)
+	GetExpenseList(groupID string, page int64, order ExpenseListOrder, status ExpenseListStatus) (*ExpenseListPage, error)
 	GetExpenseType() ([]*ExpenseType, error)
 	GetExpenseTypeById(id uuid.UUID) (string, error)
 	GetItemsByExpenseID(expenseID string) ([]*Item, error)
@@ -136,6 +149,11 @@ type ExpenseResponseBrief struct {
 	ExpenseTypeID   uuid.UUID       `json:"expenseTypeId"`
 	ExpenseType     string          `json:"expenseType"`
 	ExpenseCategory string          `json:"expenseCategory"`
+}
+
+type ExpenseResponsePage struct {
+	Expenses []ExpenseResponseBrief `json:"expenses"`
+	HasMore  bool                   `json:"hasMore"`
 }
 
 type ExpenseResponse struct {

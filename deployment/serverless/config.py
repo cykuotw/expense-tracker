@@ -308,7 +308,7 @@ def template() -> dict[str, Any]:
         "deployment": {"account_id": "000000000000", "name_prefix": "expense-tracker", "environment": "serverless", "tags": {}},
         "aws": {"region": "ca-central-1", "vpc_id": "vpc-REPLACE", "subnet_id": "subnet-REPLACE", "key_pair_name": "REPLACE", "operator_ssh_cidr": "203.0.113.10/32", "hosted_zone_name": "example.com"},
         "database": {"name": "expense_tracker", "admin_user": "expense_admin", "admin_password": "REPLACE_WITH_RANDOM_SECRET", "migration_user": "expense_migration", "migration_password": "REPLACE_WITH_RANDOM_SECRET", "runtime_user": "expense_runtime", "runtime_password": "REPLACE_WITH_RANDOM_SECRET", "instance_type": "t4g.micro", "ami_id": None},
-        "backend": {"api_hostname": "api.example.com", "google_client_id": "REPLACE.apps.googleusercontent.com", "jwt_secret": "REPLACE_WITH_32_BYTE_RANDOM_SECRET", "jwt_exp": 900, "refresh_jwt_secret": "REPLACE_WITH_32_BYTE_RANDOM_SECRET", "refresh_jwt_exp": 604800, "expenses_per_page": 20, "db_conn_max_lifetime_seconds": 300, "db_conn_max_idle_time_seconds": 60},
+        "backend": {"api_hostname": "api.example.com", "google_client_id": "REPLACE.apps.googleusercontent.com", "jwt_secret": "REPLACE_WITH_32_BYTE_RANDOM_SECRET", "jwt_exp": 900, "refresh_jwt_secret": "REPLACE_WITH_32_BYTE_RANDOM_SECRET", "refresh_jwt_exp": 604800, "expenses_per_page": 25, "db_conn_max_lifetime_seconds": 300, "db_conn_max_idle_time_seconds": 60},
         "frontend": {"hostname": "expense.example.com"},
         "first_admin": None,
         "local_credentials": {"ssh_private_key_file": "/absolute/path/to/key.pem", "google_id_token_file": None},

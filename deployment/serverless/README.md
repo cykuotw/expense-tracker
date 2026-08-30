@@ -60,7 +60,7 @@ Complete example—replace every `REPLACE` value before deployment:
         "jwt_exp": 900,
         "refresh_jwt_secret": "REPLACE_WITH_AT_LEAST_32_RANDOM_CHARACTERS",
         "refresh_jwt_exp": 604800,
-        "expenses_per_page": 20,
+        "expenses_per_page": 25,
         "db_conn_max_lifetime_seconds": 300,
         "db_conn_max_idle_time_seconds": 60
     },

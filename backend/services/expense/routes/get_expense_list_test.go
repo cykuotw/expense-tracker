@@ -30,9 +30,11 @@ func TestRouteGetExpenseList(t *testing.T) {
 		groupID          string
 		page             int
 		order            string
+		status           string
 		expectFail       bool
 		expectStatusCode int
 		expectResponse   []types.ExpenseResponseBrief
+		expectHasMore    bool
 	}
 
 	subtests := []testcase{
@@ -43,6 +45,17 @@ func TestRouteGetExpenseList(t *testing.T) {
 			expectFail:       false,
 			expectStatusCode: http.StatusOK,
 			expectResponse:   mockGetExpenseListRsp,
+			expectHasMore:    true,
+		},
+		{
+			name:             "valid unsettled status",
+			groupID:          mockGroupID.String(),
+			page:             0,
+			status:           "unsettled",
+			expectFail:       false,
+			expectStatusCode: http.StatusOK,
+			expectResponse:   mockGetExpenseListRsp,
+			expectHasMore:    true,
 		},
 		{
 			name:             "valid no page num",
@@ -51,6 +64,7 @@ func TestRouteGetExpenseList(t *testing.T) {
 			expectFail:       false,
 			expectStatusCode: http.StatusOK,
 			expectResponse:   mockGetExpenseListRsp,
+			expectHasMore:    true,
 		},
 		{
 			name:             "valid oldest first order",
@@ -60,6 +74,7 @@ func TestRouteGetExpenseList(t *testing.T) {
 			expectFail:       false,
 			expectStatusCode: http.StatusOK,
 			expectResponse:   mockGetExpenseListRsp,
+			expectHasMore:    true,
 		},
 		{
 			name:             "invalid order",
@@ -71,12 +86,22 @@ func TestRouteGetExpenseList(t *testing.T) {
 			expectResponse:   nil,
 		},
 		{
+			name:             "invalid status",
+			groupID:          mockGroupID.String(),
+			page:             0,
+			status:           "invalid",
+			expectFail:       true,
+			expectStatusCode: http.StatusBadRequest,
+			expectResponse:   nil,
+		},
+		{
 			name:             "invalid page",
 			groupID:          mockGroupID.String(),
 			page:             mockTotalPage + 1,
 			expectFail:       true,
 			expectStatusCode: http.StatusOK,
 			expectResponse:   nil,
+			expectHasMore:    false,
 		},
 		{
 			name:             "invalid group id",
@@ -85,6 +110,7 @@ func TestRouteGetExpenseList(t *testing.T) {
 			expectFail:       true,
 			expectStatusCode: http.StatusNotFound,
 			expectResponse:   nil,
+			expectHasMore:    false,
 		},
 		{
 			name:             "invalid empty group id",
@@ -93,6 +119,7 @@ func TestRouteGetExpenseList(t *testing.T) {
 			expectFail:       true,
 			expectStatusCode: http.StatusNotFound,
 			expectResponse:   nil,
+			expectHasMore:    false,
 		},
 	}
 
@@ -103,8 +130,17 @@ func TestRouteGetExpenseList(t *testing.T) {
 				url = "/expense_list/" + test.groupID
 
 			}
+			if test.order != "" || test.status != "" {
+				url += "?"
+			}
 			if test.order != "" {
-				url += "?order=" + test.order
+				url += "order=" + test.order
+			}
+			if test.status != "" {
+				if test.order != "" {
+					url += "&"
+				}
+				url += "status=" + test.status
 			}
 			req, err := http.NewRequest(http.MethodGet, url, nil)
 			if err != nil {
@@ -128,7 +164,7 @@ func TestRouteGetExpenseList(t *testing.T) {
 
 			router.ServeHTTP(rr, req)
 
-			var rsp []types.ExpenseResponseBrief
+			var rsp types.ExpenseResponsePage
 			if !test.expectFail || test.expectStatusCode == http.StatusOK {
 				err = json.NewDecoder(rr.Body).Decode(&rsp)
 				if err != nil {
@@ -138,8 +174,9 @@ func TestRouteGetExpenseList(t *testing.T) {
 
 			assert.Equal(t, test.expectStatusCode, rr.Code)
 			if !test.expectFail || test.expectStatusCode == http.StatusOK {
-				if assert.Equal(t, len(test.expectResponse), len(rsp)) {
-					for i, r := range rsp {
+				assert.Equal(t, test.expectHasMore, rsp.HasMore)
+				if assert.Equal(t, len(test.expectResponse), len(rsp.Expenses)) {
+					for i, r := range rsp.Expenses {
 						assert.Equal(t, test.expectResponse[i].ExpenseID, r.ExpenseID)
 						assert.Equal(t, mockExpenseTypeID, r.ExpenseTypeID)
 						assert.Equal(t, "Groceries", r.ExpenseType)

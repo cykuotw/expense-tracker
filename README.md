@@ -99,13 +99,3 @@ This repo uses a lightweight task-note workflow for AI-assisted changes:
 
 Use this workflow to preserve context between agent sessions and make in-flight work easier to audit.
 Refer to `AGENTS.md` for the full repository-specific agent instructions and constraints.
-
-## Roadmap
-
-Planned follow-up work includes:
-
-- tracing and monitoring logs
-- ISO-based multi-currency support
-- OCR support for receipts
-- frontend migration from DaisyUI to shadcn/ui
-- deployment automation and backup hardening

@@ -117,15 +117,18 @@ type ExpenseUpdatePayload struct {
 }
 
 type ExpenseResponseBrief struct {
-	ExpenseID      uuid.UUID       `json:"expenseId"`
-	Description    string          `json:"description"`
-	Total          decimal.Decimal `json:"total"`
-	ExpenseTime    time.Time       `json:"expenseTime"`
-	CurrentUser    string          `json:"currentUser"`
-	Currency       string          `json:"currency"`
-	IsSettled      bool            `json:"isSettled"`
-	PayerUserIDs   []uuid.UUID     `json:"payerUserIds"`
-	PayerUsernames []string        `json:"payerUsernames"`
+	ExpenseID       uuid.UUID       `json:"expenseId"`
+	Description     string          `json:"description"`
+	Total           decimal.Decimal `json:"total"`
+	ExpenseTime     time.Time       `json:"expenseTime"`
+	CurrentUser     string          `json:"currentUser"`
+	Currency        string          `json:"currency"`
+	IsSettled       bool            `json:"isSettled"`
+	PayerUserIDs    []uuid.UUID     `json:"payerUserIds"`
+	PayerUsernames  []string        `json:"payerUsernames"`
+	ExpenseTypeID   uuid.UUID       `json:"expenseTypeId"`
+	ExpenseType     string          `json:"expenseType"`
+	ExpenseCategory string          `json:"expenseCategory"`
 }
 
 type ExpenseResponse struct {

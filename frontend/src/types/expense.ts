@@ -11,6 +11,9 @@ export interface ExpenseData {
     isSettled: boolean;
     payerUserIds: string[];
     payerUsernames: string[];
+    expenseTypeId: string;
+    expenseType: string;
+    expenseCategory: string;
 }
 
 export interface ExpenseDetailData {

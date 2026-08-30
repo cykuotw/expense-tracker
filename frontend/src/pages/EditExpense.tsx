@@ -1,17 +1,34 @@
 import Icon from "@mdi/react";
 import { Link } from "react-router-dom";
-import { mdiCamera, mdiCheckBold, mdiSubdirectoryArrowLeft } from "@mdi/js";
+import {
+    mdiAccountGroupOutline,
+    mdiAccountOutline,
+    mdiCamera,
+    mdiCheckBold,
+    mdiSubdirectoryArrowLeft,
+} from "@mdi/js";
 
 import { Rule } from "../types/splitRule";
 import { EditExpenseProvider } from "../contexts/EditExpenseContext";
 import { useEditExpense } from "../hooks/EditExpenseContextHooks";
+import { ExpenseTypePicker } from "../components/expense/ExpenseTypePicker";
+import {
+    ExpenseFormPicker,
+    ExpenseFormPickerOption,
+} from "../components/expense/ExpenseFormPicker";
+
+const currencyOptions: ExpenseFormPickerOption[] = [
+    { value: "CAD", label: "CAD" },
+    { value: "NTD", label: "NTD" },
+    { value: "USD", label: "USD" },
+];
 
 const EditExpenseContent = () => {
     const {
         formData,
         setFormData,
         groupList,
-        expTypeOptions,
+        expenseTypes,
         groupMembers,
         indicatorShow,
         dataOk,
@@ -22,6 +39,41 @@ const EditExpenseContent = () => {
     } = useEditExpense();
 
     const expenseId = window.location.pathname.split("/")[2] || "";
+    const payerOptions: ExpenseFormPickerOption[] = groupMembers.map(
+        (member, index) => ({
+            value: member.userId,
+            label:
+                index === groupMembers.length - 1 ? "You" : member.username,
+            description:
+                index === groupMembers.length - 1
+                    ? "Your account"
+                    : undefined,
+        })
+    );
+
+    const handleTwoPersonRuleChange = (value: string) => {
+        const splitRule = value as Rule;
+        let payerUserId = formData.payerUserId;
+
+        switch (splitRule) {
+            case Rule.YouHalf:
+            case Rule.YouFull:
+                payerUserId = groupMembers.at(-1)?.userId ?? "";
+                break;
+            case Rule.OtherHalf:
+            case Rule.OtherFull:
+                payerUserId = groupMembers[0]?.userId ?? "";
+                break;
+            default:
+                break;
+        }
+
+        setFormData((current) => ({
+            ...current,
+            splitRule,
+            payerUserId,
+        }));
+    };
 
     return (
         <div className="page-shell">
@@ -45,43 +97,54 @@ const EditExpenseContent = () => {
                                 <label className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground/60">
                                     Group
                                 </label>
-                                <select
-                                    className="ui-select mt-2 w-full text-base"
-                                    name="groupId"
-                                    value={formData.groupId}
-                                    onChange={handleFormDataChange}
-                                >
-                                    {groupList.map((group) => (
-                                        <option key={group.id} value={group.id}>
-                                            {group.groupName}
-                                        </option>
-                                    ))}
-                                </select>
+                                <div className="mt-2">
+                                    <ExpenseFormPicker
+                                        label="Group"
+                                        emptyLabel="Choose a group"
+                                        icon={mdiAccountGroupOutline}
+                                        value={formData.groupId}
+                                        onChange={(groupId) =>
+                                            setFormData((current) => ({
+                                                ...current,
+                                                groupId,
+                                            }))
+                                        }
+                                        options={groupList.map((group) => ({
+                                            value: group.id,
+                                            label: group.groupName,
+                                            description: group.description,
+                                        }))}
+                                    />
+                                </div>
                             </div>
 
                             <div className="md:col-span-2">
                                 <label className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground/60">
                                     Expense type
                                 </label>
-                                <select
-                                    className="ui-select mt-2 w-full text-base"
-                                    name="expenseType"
-                                    value={formData.expenseType}
-                                    onChange={handleFormDataChange}
-                                >
-                                    {expTypeOptions}
-                                </select>
+                                <div className="mt-2">
+                                    <ExpenseTypePicker
+                                        expenseTypes={expenseTypes}
+                                        value={formData.expenseType}
+                                        onChange={(expenseType) =>
+                                            setFormData((current) => ({
+                                                ...current,
+                                                expenseType,
+                                            }))
+                                        }
+                                    />
+                                </div>
                             </div>
 
                             <div className="md:col-span-2">
                                 <label className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground/60">
                                     Description
                                 </label>
-                                <label className="ui-input-shell mt-2 flex items-center w-full bg-background">
+                                <label className="mt-2 flex min-h-20 w-full items-center rounded-2xl border border-border bg-background px-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] transition hover:border-primary/60 focus-within:border-primary focus-within:outline-none focus-within:ring-2 focus-within:ring-primary">
                                     <input
                                         type="text"
                                         name="description"
-                                        className="grow"
+                                        className="min-w-0 grow border-0 bg-transparent outline-none"
                                         placeholder="Description"
                                         value={formData.description}
                                         onChange={handleFormDataChange}
@@ -93,26 +156,30 @@ const EditExpenseContent = () => {
                                 <label className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground/60">
                                     Currency
                                 </label>
-                                <select
-                                    className="ui-select mt-2 w-full text-base"
-                                    name="currency"
-                                    value={formData.currency}
-                                    onChange={handleFormDataChange}
-                                >
-                                    <option>CAD</option>
-                                    <option>NTD</option>
-                                    <option>USD</option>
-                                </select>
+                                <div className="mt-2">
+                                    <ExpenseFormPicker
+                                        label="Currency"
+                                        emptyLabel="Choose currency"
+                                        value={formData.currency}
+                                        onChange={(currency) =>
+                                            setFormData((current) => ({
+                                                ...current,
+                                                currency,
+                                            }))
+                                        }
+                                        options={currencyOptions}
+                                    />
+                                </div>
                             </div>
                             <div>
                                 <label className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground/60">
                                     Amount
                                 </label>
-                                <label className="ui-input-shell mt-2 flex items-center w-full bg-background">
+                                <label className="mt-2 flex min-h-20 w-full items-center rounded-2xl border border-border bg-background px-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] transition hover:border-primary/60 focus-within:border-primary focus-within:outline-none focus-within:ring-2 focus-within:ring-primary">
                                     <input
                                         type="number"
                                         name="total"
-                                        className="grow"
+                                        className="min-w-0 grow border-0 bg-transparent outline-none"
                                         step="0.001"
                                         placeholder="0.00"
                                         value={formData.total}
@@ -149,127 +216,70 @@ const EditExpenseContent = () => {
                                 {groupMembers.length <= 1 ? (
                                     <></>
                                 ) : groupMembers.length === 2 ? (
-                                    <select
-                                        className="ui-select w-full text-base"
-                                        name="splitRule"
+                                    <ExpenseFormPicker
+                                        label="Split rule"
+                                        emptyLabel="Choose a split rule"
                                         value={formData.splitRule}
-                                        onChange={(e) => {
-                                            handleFormDataChange(e);
-
-                                            let payerUserId = "";
-                                            switch (e.target.value) {
-                                                case Rule.YouHalf:
-                                                case Rule.YouFull:
-                                                    payerUserId =
-                                                        groupMembers[
-                                                            groupMembers.length -
-                                                                1
-                                                        ].userId;
-                                                    break;
-                                                case Rule.OtherHalf:
-                                                case Rule.OtherFull:
-                                                    payerUserId =
-                                                        groupMembers[0].userId;
-                                                    break;
-                                                default:
-                                                    break;
-                                            }
-                                            setFormData((prev) => ({
-                                                ...prev,
-                                                payerUserId: payerUserId,
-                                            }));
-                                        }}
-                                    >
-                                        <option value={Rule.YouHalf}>
-                                            You paid, split equally
-                                        </option>
-                                        <option value={Rule.YouFull}>
-                                            You are owed the full amount
-                                        </option>
-                                        <option value={Rule.OtherHalf}>
-                                            {groupMembers[0].username} paid,
-                                            split equally
-                                        </option>
-                                        <option value={Rule.OtherFull}>
-                                            {groupMembers[0].username} is owed
-                                            the full amount
-                                        </option>
-                                        <option value={Rule.Unequally}>
-                                            Unequally
-                                        </option>
-                                    </select>
+                                        onChange={handleTwoPersonRuleChange}
+                                        options={[
+                                            {
+                                                value: Rule.YouHalf,
+                                                label: "You paid, split equally",
+                                            },
+                                            {
+                                                value: Rule.YouFull,
+                                                label: "You are owed the full amount",
+                                            },
+                                            {
+                                                value: Rule.OtherHalf,
+                                                label: `${groupMembers[0].username} paid, split equally`,
+                                            },
+                                            {
+                                                value: Rule.OtherFull,
+                                                label: `${groupMembers[0].username} is owed the full amount`,
+                                            },
+                                            {
+                                                value: Rule.Unequally,
+                                                label: "Unequally",
+                                            },
+                                        ]}
+                                    />
                                 ) : (
-                                    <div className="flex flex-col gap-3 md:flex-row md:items-center">
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-sm text-foreground/70">
-                                                Paid by
-                                            </span>
-                                            <select
-                                                className="ui-select ui-select-sm border-dashed"
-                                                name="payerUserId"
-                                                value={formData.payerUserId}
-                                                onChange={handleFormDataChange}
-                                            >
-                                                <option
-                                                    value={
-                                                        groupMembers[
-                                                            groupMembers.length -
-                                                                1
-                                                        ].userId
-                                                    }
-                                                    key={
-                                                        groupMembers[
-                                                            groupMembers.length -
-                                                                1
-                                                        ].userId
-                                                    }
-                                                >
-                                                    You
-                                                </option>
-                                                {groupMembers.map((member) => {
-                                                    if (
-                                                        member.userId !==
-                                                        groupMembers[
-                                                            groupMembers.length -
-                                                                1
-                                                        ].userId
-                                                    ) {
-                                                        return (
-                                                            <option
-                                                                value={
-                                                                    member.userId
-                                                                }
-                                                                key={
-                                                                    member.userId
-                                                                }
-                                                            >
-                                                                {
-                                                                    member.username
-                                                                }
-                                                            </option>
-                                                        );
-                                                    }
-                                                })}
-                                            </select>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-sm text-foreground/70">
-                                                Split
-                                            </span>
-                                            <select
-                                                className="ui-select ui-select-sm border-dashed"
-                                                name="splitRule"
-                                                value={formData.splitRule}
-                                                onChange={handleFormDataChange}
-                                            >
-                                                <option value={Rule.Equally}>
-                                                    Equally
-                                                </option>
-                                                <option value={Rule.Unequally}>
-                                                    Unequally
-                                                </option>
-                                            </select>
-                                        </div>
+                                    <div className="grid gap-3 md:grid-cols-2">
+                                        <ExpenseFormPicker
+                                            label="Paid by"
+                                            emptyLabel="Choose a payer"
+                                            icon={mdiAccountOutline}
+                                            value={formData.payerUserId}
+                                            onChange={(payerUserId) =>
+                                                setFormData((current) => ({
+                                                    ...current,
+                                                    payerUserId,
+                                                }))
+                                            }
+                                            options={payerOptions}
+                                        />
+                                        <ExpenseFormPicker
+                                            label="Split"
+                                            emptyLabel="Choose a split"
+                                            value={formData.splitRule}
+                                            onChange={(value) =>
+                                                setFormData((current) => ({
+                                                    ...current,
+                                                    splitRule: value as Rule,
+                                                }))
+                                            }
+                                            options={[
+                                                {
+                                                    value: Rule.Equally,
+                                                    label: "Equally",
+                                                },
+                                                {
+                                                    value: Rule.Unequally,
+                                                    label: "Unequally",
+                                                },
+                                            ]}
+                                        />
                                     </div>
                                 )}
                             </div>

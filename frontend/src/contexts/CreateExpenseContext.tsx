@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, ReactNode, FormEvent, ReactElement } from "react";
+import { useState, useEffect, useRef, ReactNode, FormEvent } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "react-hot-toast";
 import { apiFetch, asArray, getResponseErrorMessage } from "../lib/api";
@@ -154,7 +154,7 @@ export const CreateExpenseProvider = ({
 
     // handle on page load
     const [groupList, setGroupList] = useState<GroupListItem[]>([]);
-    const [expTypeOptions, setExpTypeOptions] = useState<ReactElement[]>([]);
+    const [expenseTypes, setExpenseTypes] = useState<ExpenseTypeItem[]>([]);
     const [groupMembers, setGroupMembers] = useState<GroupMember[]>([]);
 
     useEffect(() => {
@@ -174,34 +174,13 @@ export const CreateExpenseProvider = ({
             if (!response.ok) return;
 
             const data = asArray<ExpenseTypeItem>(await response.json());
-            // create options
-            const options: ReactElement[] = [];
-            let lastCategory = "";
             let generalId = "";
             data.forEach((type) => {
                 if (type.name === "General") {
                     generalId = type.id;
                 }
-                if (lastCategory !== type.category) {
-                    options.push(
-                        <option
-                            disabled
-                            key={type.category}
-                            className="text-lg font-black font-mono"
-                        >
-                            {type.category}
-                        </option>
-                    );
-                    lastCategory = type.category;
-                }
-
-                options.push(
-                    <option value={type.id} key={type.id}>
-                        {type.name}
-                    </option>
-                );
             });
-            setExpTypeOptions(options);
+            setExpenseTypes(data);
 
             if (generalId !== "") {
                 setSelectedExpenseTypeId(generalId);
@@ -288,7 +267,7 @@ export const CreateExpenseProvider = ({
                 ledgerShareOk,
                 ledgerShareMessage,
                 groupList,
-                expTypeOptions,
+                expenseTypes,
                 groupMembers,
                 handleCreateExpense,
             }}

@@ -3,7 +3,6 @@ import {
     useEffect,
     ReactNode,
     FormEvent,
-    ReactElement,
     ChangeEvent,
 } from "react";
 import { useNavigate, useParams } from "react-router-dom";
@@ -145,7 +144,7 @@ export const EditExpenseProvider = ({ children }: { children: ReactNode }) => {
 
     // handle page load
     const [groupList, setGroupList] = useState<GroupListItem[]>([]);
-    const [expTypeOptions, setExpTypeOptions] = useState<ReactElement[]>([]);
+    const [expenseTypes, setExpenseTypes] = useState<ExpenseTypeItem[]>([]);
     const [groupMembers, setGroupMembers] = useState<GroupMember[]>([]);
 
     useEffect(() => {
@@ -171,30 +170,7 @@ export const EditExpenseProvider = ({ children }: { children: ReactNode }) => {
             if (!response.ok) return;
 
             const data = asArray<ExpenseTypeItem>(await response.json());
-            // create options
-            const options: ReactElement[] = [];
-            let lastCategory = "";
-            data.forEach((type) => {
-                if (lastCategory !== type.category) {
-                    options.push(
-                        <option
-                            disabled
-                            key={type.category}
-                            className="text-lg font-black font-mono"
-                        >
-                            {type.category}
-                        </option>
-                    );
-                    lastCategory = type.category;
-                }
-
-                options.push(
-                    <option value={type.id} key={type.id}>
-                        {type.name}
-                    </option>
-                );
-            });
-            setExpTypeOptions(options);
+            setExpenseTypes(data);
         };
 
         const fetchExpenseDetail = async () => {
@@ -314,7 +290,7 @@ export const EditExpenseProvider = ({ children }: { children: ReactNode }) => {
                 formData,
                 setFormData,
                 groupList,
-                expTypeOptions,
+                expenseTypes,
                 groupMembers,
                 indicatorShow,
                 dataOk,

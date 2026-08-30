@@ -3,12 +3,12 @@ import {
     useContext,
     FormEvent,
     ChangeEvent,
-    ReactElement,
     Dispatch,
     SetStateAction,
 } from "react";
 import { Rule } from "../types/splitRule";
 import { GroupListItem, GroupMember } from "../types/group";
+import { ExpenseTypeItem } from "../types/expense";
 
 export interface expenseFormData {
     groupId: string;
@@ -30,7 +30,7 @@ export interface EditExpenseContextType {
     formData: expenseFormData;
     setFormData: Dispatch<SetStateAction<expenseFormData>>;
     groupList: GroupListItem[];
-    expTypeOptions: ReactElement[];
+    expenseTypes: ExpenseTypeItem[];
     groupMembers: GroupMember[];
     indicatorShow: boolean;
     dataOk: boolean;

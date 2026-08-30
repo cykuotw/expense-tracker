@@ -46,6 +46,15 @@ func (h *Handler) handleGetExpenseList(c *gin.Context) {
 		utils.WriteError(c, http.StatusInternalServerError, err)
 		return
 	}
+	expenseTypes, err := h.store.GetExpenseType()
+	if err != nil {
+		utils.WriteError(c, http.StatusInternalServerError, err)
+		return
+	}
+	typesByID := make(map[uuid.UUID]*types.ExpenseType, len(expenseTypes))
+	for _, expenseType := range expenseTypes {
+		typesByID[expenseType.ID] = expenseType
+	}
 
 	response := make([]types.ExpenseResponseBrief, 0, len(expenseList))
 	for _, expense := range expenseList {
@@ -76,6 +85,7 @@ func (h *Handler) handleGetExpenseList(c *gin.Context) {
 		}
 
 		// get ledger detail
+		expenseType := typesByID[expense.ExpenseTypeID]
 		res := types.ExpenseResponseBrief{
 			ExpenseID:      expense.ID,
 			Description:    expense.Description,
@@ -86,6 +96,11 @@ func (h *Handler) handleGetExpenseList(c *gin.Context) {
 			IsSettled:      expense.IsSettled,
 			PayerUserIDs:   payerUserIDs,
 			PayerUsernames: payerUsernames,
+			ExpenseTypeID:  expense.ExpenseTypeID,
+		}
+		if expenseType != nil {
+			res.ExpenseType = expenseType.Name
+			res.ExpenseCategory = expenseType.Category
 		}
 		response = append(response, res)
 	}

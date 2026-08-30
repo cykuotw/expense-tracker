@@ -462,7 +462,18 @@ func getExpenseListStoreMock() *mockExpenseStore {
 		if page > int64(mockTotalPage) {
 			return nil, types.ErrNoRemainingExpenses
 		}
-		return []*types.Expense{{ID: mockExpenseIDs[0]}, {ID: mockExpenseIDs[1]}, {ID: mockExpenseIDs[2]}}, nil
+		return []*types.Expense{
+			{ID: mockExpenseIDs[0], ExpenseTypeID: mockExpenseTypeID},
+			{ID: mockExpenseIDs[1], ExpenseTypeID: mockExpenseTypeID},
+			{ID: mockExpenseIDs[2], ExpenseTypeID: mockExpenseTypeID},
+		}, nil
+	}
+	store.GetExpenseTypeFn = func() ([]*types.ExpenseType, error) {
+		return []*types.ExpenseType{{
+			ID:       mockExpenseTypeID,
+			Name:     "Groceries",
+			Category: "Food and Drink",
+		}}, nil
 	}
 	return store
 }

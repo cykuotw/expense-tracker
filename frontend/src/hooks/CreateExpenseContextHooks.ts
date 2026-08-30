@@ -2,12 +2,12 @@ import {
     createContext,
     useContext,
     FormEvent,
-    ReactElement,
     Dispatch,
     SetStateAction,
 } from "react";
 import { Rule } from "../types/splitRule";
 import { GroupListItem, GroupMember } from "../types/group";
+import { ExpenseTypeItem } from "../types/expense";
 
 export interface CreateExpenseContextType {
     groupId: string | null;
@@ -35,7 +35,7 @@ export interface CreateExpenseContextType {
     ledgerShareMessage: string;
 
     groupList: GroupListItem[];
-    expTypeOptions: ReactElement[];
+    expenseTypes: ExpenseTypeItem[];
     groupMembers: GroupMember[];
 
     handleCreateExpense: (e: FormEvent) => Promise<void>;

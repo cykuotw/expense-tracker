@@ -119,6 +119,9 @@ func TestRouteGetExpenseList(t *testing.T) {
 				if assert.Equal(t, len(test.expectResponse), len(rsp)) {
 					for i, r := range rsp {
 						assert.Equal(t, test.expectResponse[i].ExpenseID, r.ExpenseID)
+						assert.Equal(t, mockExpenseTypeID, r.ExpenseTypeID)
+						assert.Equal(t, "Groceries", r.ExpenseType)
+						assert.Equal(t, "Food and Drink", r.ExpenseCategory)
 					}
 				}
 			}

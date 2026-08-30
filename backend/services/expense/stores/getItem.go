@@ -25,9 +25,5 @@ func (s *Store) GetItemsByExpenseID(expenseID string) ([]*types.Item, error) {
 		return nil, err
 	}
 
-	if len(itemList) == 0 {
-		return nil, types.ErrExpenseNotExist
-	}
-
 	return itemList, nil
 }

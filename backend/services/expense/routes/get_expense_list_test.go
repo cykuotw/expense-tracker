@@ -29,6 +29,7 @@ func TestRouteGetExpenseList(t *testing.T) {
 		name             string
 		groupID          string
 		page             int
+		order            string
 		expectFail       bool
 		expectStatusCode int
 		expectResponse   []types.ExpenseResponseBrief
@@ -50,6 +51,24 @@ func TestRouteGetExpenseList(t *testing.T) {
 			expectFail:       false,
 			expectStatusCode: http.StatusOK,
 			expectResponse:   mockGetExpenseListRsp,
+		},
+		{
+			name:             "valid oldest first order",
+			groupID:          mockGroupID.String(),
+			page:             0,
+			order:            "oldest",
+			expectFail:       false,
+			expectStatusCode: http.StatusOK,
+			expectResponse:   mockGetExpenseListRsp,
+		},
+		{
+			name:             "invalid order",
+			groupID:          mockGroupID.String(),
+			page:             0,
+			order:            "random",
+			expectFail:       true,
+			expectStatusCode: http.StatusBadRequest,
+			expectResponse:   nil,
 		},
 		{
 			name:             "invalid page",
@@ -83,6 +102,9 @@ func TestRouteGetExpenseList(t *testing.T) {
 			if test.page == -1 {
 				url = "/expense_list/" + test.groupID
 
+			}
+			if test.order != "" {
+				url += "?order=" + test.order
 			}
 			req, err := http.NewRequest(http.MethodGet, url, nil)
 			if err != nil {

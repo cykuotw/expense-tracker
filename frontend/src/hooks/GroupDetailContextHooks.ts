@@ -3,12 +3,16 @@ import { GroupInfo } from "../types/group";
 import { BalanceData } from "../types/balance";
 import { ExpenseData } from "../types/expense";
 
+export type ExpenseListOrder = "newest" | "oldest";
+
 export interface GroupDetailContextType {
     groupinfo: GroupInfo | null;
     balance: BalanceData | null;
     unsettledExpenses: ExpenseData[];
     unsettledLoading: boolean;
     unsettledHasMore: boolean;
+    expenseOrder: ExpenseListOrder;
+    setExpenseOrder: (order: ExpenseListOrder) => void;
     settledExpenses: ExpenseData[];
     settledLoading: boolean;
     settledHasMore: boolean;

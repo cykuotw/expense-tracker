@@ -100,7 +100,7 @@ func TestGetExpenseListStopsAfterCurrencyFailure(t *testing.T) {
 	wantErr := errors.New("currency read failed")
 	stages := []string{}
 	store := expenseStoreMock()
-	store.GetExpenseListFn = func(string, int64) ([]*types.Expense, error) {
+	store.GetExpenseListFn = func(string, int64, types.ExpenseListOrder) ([]*types.Expense, error) {
 		stages = append(stages, "expenses")
 		return []*types.Expense{{ID: uuid.New()}}, nil
 	}

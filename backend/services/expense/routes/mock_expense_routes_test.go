@@ -35,7 +35,7 @@ type mockExpenseStore struct {
 	CreateLedgerFn                  func(ledger types.Ledger) error
 	ClaimExpenseCreateIdempotencyFn func(record types.ExpenseCreateIdempotency) (types.ExpenseCreateIdempotency, bool, error)
 	GetExpenseByIDFn                func(expenseID string) (*types.Expense, error)
-	GetExpenseListFn                func(groupID string, page int64) ([]*types.Expense, error)
+	GetExpenseListFn                func(groupID string, page int64, order types.ExpenseListOrder) ([]*types.Expense, error)
 	GetExpenseTypeFn                func() ([]*types.ExpenseType, error)
 	GetItemsByExpenseIDFn           func(expenseID string) ([]*types.Item, error)
 	GetLedgersByExpenseIDFn         func(expenseID string) ([]*types.Ledger, error)
@@ -94,9 +94,9 @@ func (s *mockExpenseStore) GetExpenseByID(expenseID string) (*types.Expense, err
 	}
 	return nil, nil
 }
-func (s *mockExpenseStore) GetExpenseList(groupID string, page int64) ([]*types.Expense, error) {
+func (s *mockExpenseStore) GetExpenseList(groupID string, page int64, order types.ExpenseListOrder) ([]*types.Expense, error) {
 	if s.GetExpenseListFn != nil {
-		return s.GetExpenseListFn(groupID, page)
+		return s.GetExpenseListFn(groupID, page, order)
 	}
 	return nil, nil
 }
@@ -458,7 +458,7 @@ func updateExpenseDetailUserStoreMock() *mockUserStore {
 
 func getExpenseListStoreMock() *mockExpenseStore {
 	store := expenseStoreMock()
-	store.GetExpenseListFn = func(groupID string, page int64) ([]*types.Expense, error) {
+	store.GetExpenseListFn = func(groupID string, page int64, _ types.ExpenseListOrder) ([]*types.Expense, error) {
 		if page > int64(mockTotalPage) {
 			return nil, types.ErrNoRemainingExpenses
 		}

@@ -22,6 +22,8 @@ const GroupDetailContent = () => {
         unsettledExpenses,
         unsettledLoading,
         unsettledHasMore,
+        expenseOrder,
+        setExpenseOrder,
         settledExpenses,
         settledLoading,
         settledHasMore,
@@ -190,7 +192,27 @@ const GroupDetailContent = () => {
 
                     <section className="order-2 space-y-8 xl:order-1">
                         <div className="panel-card rounded-[2rem] p-6 md:p-8">
-                            <div className="section-label">Unsettled</div>
+                            <div className="flex items-center justify-between gap-3">
+                                <div className="section-label">Unsettled</div>
+                                <label className="flex min-h-11 items-center gap-2 text-sm font-medium text-foreground/70">
+                                    <span className="hidden sm:inline">Order</span>
+                                    <select
+                                        aria-label="Expense order"
+                                        className="ui-select min-h-11 w-auto bg-background py-2 pl-3 pr-8 text-sm"
+                                        value={expenseOrder}
+                                        onChange={(event) =>
+                                            setExpenseOrder(
+                                                event.target.value === "oldest"
+                                                    ? "oldest"
+                                                    : "newest"
+                                            )
+                                        }
+                                    >
+                                        <option value="newest">New to old</option>
+                                        <option value="oldest">Old to new</option>
+                                    </select>
+                                </label>
+                            </div>
                             <div
                                 className="mt-4 space-y-4"
                                 id="unsettled-expenses"

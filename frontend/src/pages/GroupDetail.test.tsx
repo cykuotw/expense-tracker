@@ -31,6 +31,7 @@ function renderGroupDetail() {
 
 describe("GroupDetail mobile balance summary", () => {
     it("shows two balances initially and expands the compact mobile summary", () => {
+        const setExpenseOrder = vi.fn();
         groupDetailMock.mockReturnValue({
             groupinfo: { groupName: "Trip", description: "", currency: "CAD" },
             balance: {
@@ -66,6 +67,8 @@ describe("GroupDetail mobile balance summary", () => {
             unsettledExpenses: [],
             unsettledLoading: false,
             unsettledHasMore: false,
+            expenseOrder: "newest",
+            setExpenseOrder,
             settledExpenses: [],
             settledLoading: false,
             settledHasMore: false,
@@ -90,5 +93,10 @@ describe("GroupDetail mobile balance summary", () => {
         expect(
             screen.getByRole("button", { name: "Show fewer balances" })
         ).toHaveAttribute("aria-expanded", "true");
+
+        const expenseOrder = screen.getByLabelText("Expense order");
+        expect(expenseOrder).toHaveValue("newest");
+        fireEvent.change(expenseOrder, { target: { value: "oldest" } });
+        expect(setExpenseOrder).toHaveBeenCalledWith("oldest");
     });
 });

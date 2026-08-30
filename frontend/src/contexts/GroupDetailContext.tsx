@@ -5,7 +5,10 @@ import { apiFetch, asArray, getResponseErrorMessage } from "../lib/api";
 import { GroupInfo } from "../types/group";
 import { BalanceData } from "../types/balance";
 import { ExpenseData } from "../types/expense";
-import { GroupDetailContext } from "../hooks/GroupDetailContextHooks";
+import {
+    ExpenseListOrder,
+    GroupDetailContext,
+} from "../hooks/GroupDetailContextHooks";
 
 const SETTLE_EXPENSES_FALLBACK = "Failed to settle expenses.";
 
@@ -17,6 +20,8 @@ export const GroupDetailProvider = ({ children }: { children: ReactNode }) => {
     const [unsettledExpenses, setUnsettledExpenses] = useState<ExpenseData[]>(
         []
     );
+    const [expenseOrder, setExpenseOrder] =
+        useState<ExpenseListOrder>("newest");
     const [unsettledPage, setUnsettledPage] = useState(0);
     const [unsettledHasMore, setUnsettledHasMore] = useState(false);
     const [unsettledLoading, setUnsettledLoading] = useState(false);
@@ -24,7 +29,7 @@ export const GroupDetailProvider = ({ children }: { children: ReactNode }) => {
     const [settledPage, setSettledPage] = useState(0);
     const [settledHasMore, setSettledHasMore] = useState(false);
     const [settledLoading, setSettledLoading] = useState(false);
-    const initialUnsettledLoadedRef = useRef(false);
+    const expenseListGenerationRef = useRef(0);
 
     const refreshGroupSummary = useCallback(async () => {
         if (!groupId) return;
@@ -54,9 +59,14 @@ export const GroupDetailProvider = ({ children }: { children: ReactNode }) => {
         void refreshGroupSummary();
     }, [refreshGroupSummary]);
 
-    const fetchExpensePage = useCallback(async (page: number) => {
+    const fetchExpensePage = useCallback(async (
+        page: number,
+        order: ExpenseListOrder
+    ) => {
         if (!groupId) return [];
-        const response = await apiFetch(`/expense_list/${groupId}/${page}`);
+        const response = await apiFetch(
+            `/expense_list/${groupId}/${page}?order=${order}`
+        );
         if (!response.ok) return [];
         const expenses = asArray<ExpenseData>(await response.json());
         return expenses.map((expense) => ({
@@ -67,10 +77,12 @@ export const GroupDetailProvider = ({ children }: { children: ReactNode }) => {
     }, [groupId]);
 
     const refreshExpenseLists = useCallback(async () => {
+        const generation = ++expenseListGenerationRef.current;
         setUnsettledLoading(true);
         setSettledLoading(true);
         try {
-            const data = await fetchExpensePage(0);
+            const data = await fetchExpensePage(0, expenseOrder);
+            if (generation !== expenseListGenerationRef.current) return;
             setUnsettledExpenses(data.filter((exp) => !exp.isSettled));
             setSettledExpenses(data.filter((exp) => exp.isSettled));
             setUnsettledPage(1);
@@ -78,28 +90,31 @@ export const GroupDetailProvider = ({ children }: { children: ReactNode }) => {
             setUnsettledHasMore(data.length > 0);
             setSettledHasMore(data.length > 0);
         } catch (error) {
+            if (generation !== expenseListGenerationRef.current) return;
             console.error(error);
             setUnsettledHasMore(false);
             setSettledHasMore(false);
         } finally {
-            setUnsettledLoading(false);
-            setSettledLoading(false);
+            if (generation === expenseListGenerationRef.current) {
+                setUnsettledLoading(false);
+                setSettledLoading(false);
+            }
         }
-    }, [fetchExpensePage]);
+    }, [expenseOrder, fetchExpensePage]);
 
     useEffect(() => {
         if (!groupId) return;
 
-        if (initialUnsettledLoadedRef.current) return;
-        initialUnsettledLoadedRef.current = true;
         void refreshExpenseLists();
     }, [groupId, refreshExpenseLists]);
 
     const loadMoreUnsettledExpenses = async () => {
         if (unsettledLoading || !unsettledHasMore) return;
+        const generation = expenseListGenerationRef.current;
         setUnsettledLoading(true);
         try {
-            const data = await fetchExpensePage(unsettledPage);
+            const data = await fetchExpensePage(unsettledPage, expenseOrder);
+            if (generation !== expenseListGenerationRef.current) return;
             if (data.length === 0) {
                 setUnsettledHasMore(false);
                 return;
@@ -110,21 +125,26 @@ export const GroupDetailProvider = ({ children }: { children: ReactNode }) => {
             ]);
             setUnsettledPage((prev) => prev + 1);
         } catch (error) {
+            if (generation !== expenseListGenerationRef.current) return;
             console.error(error);
             setUnsettledHasMore(false);
         } finally {
-            setUnsettledLoading(false);
+            if (generation === expenseListGenerationRef.current) {
+                setUnsettledLoading(false);
+            }
         }
     };
 
     const loadSettledExpenses = async () => {
         if (settledLoading) return;
+        const generation = ++expenseListGenerationRef.current;
         setSettledLoading(true);
         setSettledHasMore(true);
         setSettledPage(0);
         setSettledExpenses([]);
         try {
-            const data = await fetchExpensePage(0);
+            const data = await fetchExpensePage(0, expenseOrder);
+            if (generation !== expenseListGenerationRef.current) return;
             if (data.length === 0) {
                 setSettledHasMore(false);
                 return;
@@ -132,18 +152,23 @@ export const GroupDetailProvider = ({ children }: { children: ReactNode }) => {
             setSettledExpenses(data.filter((exp) => exp.isSettled));
             setSettledPage(1);
         } catch (error) {
+            if (generation !== expenseListGenerationRef.current) return;
             console.error(error);
             setSettledHasMore(false);
         } finally {
-            setSettledLoading(false);
+            if (generation === expenseListGenerationRef.current) {
+                setSettledLoading(false);
+            }
         }
     };
 
     const loadMoreSettledExpenses = async () => {
         if (settledLoading || !settledHasMore) return;
+        const generation = expenseListGenerationRef.current;
         setSettledLoading(true);
         try {
-            const data = await fetchExpensePage(settledPage);
+            const data = await fetchExpensePage(settledPage, expenseOrder);
+            if (generation !== expenseListGenerationRef.current) return;
             if (data.length === 0) {
                 setSettledHasMore(false);
                 return;
@@ -154,10 +179,13 @@ export const GroupDetailProvider = ({ children }: { children: ReactNode }) => {
             ]);
             setSettledPage((prev) => prev + 1);
         } catch (error) {
+            if (generation !== expenseListGenerationRef.current) return;
             console.error(error);
             setSettledHasMore(false);
         } finally {
-            setSettledLoading(false);
+            if (generation === expenseListGenerationRef.current) {
+                setSettledLoading(false);
+            }
         }
     };
 
@@ -195,6 +223,8 @@ export const GroupDetailProvider = ({ children }: { children: ReactNode }) => {
                 unsettledExpenses,
                 unsettledLoading,
                 unsettledHasMore,
+                expenseOrder,
+                setExpenseOrder,
                 settledExpenses,
                 settledLoading,
                 settledHasMore,

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { mdiCheck, mdiChevronDown } from "@mdi/js";
 import Icon from "@mdi/react";
 
@@ -27,8 +27,16 @@ export function ExpenseFormPicker({
     emptyLabel,
 }: ExpenseFormPickerProps) {
     const [open, setOpen] = useState(false);
+    const pointerSelectionRef = useRef<string | null>(null);
     const selected = options.find((option) => option.value === value);
     const selectedIcon = selected?.icon ?? icon;
+    const selectOption = useCallback(
+        (nextValue: string) => {
+            onChange(nextValue);
+            setOpen(false);
+        },
+        [onChange]
+    );
 
     return (
         <div
@@ -48,7 +56,10 @@ export function ExpenseFormPicker({
                 aria-expanded={open}
                 aria-haspopup="listbox"
                 className="flex min-h-20 w-full items-center gap-3 rounded-2xl border border-border bg-background px-4 py-3 text-left transition hover:border-primary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                onClick={() => setOpen((current) => !current)}
+                onClick={() => {
+                    pointerSelectionRef.current = null;
+                    setOpen((current) => !current);
+                }}
             >
                 {selectedIcon && (
                     <span className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
@@ -85,9 +96,17 @@ export function ExpenseFormPicker({
                                 role="option"
                                 aria-selected={option.value === value}
                                 className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${option.value === value ? "bg-primary/10" : ""}`}
+                                onPointerDown={(event) => {
+                                    event.preventDefault();
+                                    pointerSelectionRef.current = option.value;
+                                    selectOption(option.value);
+                                }}
                                 onClick={() => {
-                                    onChange(option.value);
-                                    setOpen(false);
+                                    if (pointerSelectionRef.current === option.value) {
+                                        pointerSelectionRef.current = null;
+                                        return;
+                                    }
+                                    selectOption(option.value);
                                 }}
                             >
                                 {option.icon ?? icon ? (

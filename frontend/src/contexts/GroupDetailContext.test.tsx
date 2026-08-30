@@ -41,6 +41,10 @@ function GroupDetailHarness() {
             <output data-testid="loading">
                 {context.loading ? "loading" : "idle"}
             </output>
+            <output data-testid="expense-order">{context.expenseOrder}</output>
+            <button type="button" onClick={() => context.setExpenseOrder("oldest")}>
+                Oldest first
+            </button>
             <button type="button" onClick={context.handleSettle}>
                 Settle
             </button>
@@ -71,7 +75,7 @@ describe("GroupDetailProvider error handling", () => {
                     })
                 );
             }
-            if (path === "/expense_list/group-1/0") {
+            if (path.startsWith("/expense_list/group-1/0?order=")) {
                 return Promise.resolve(jsonResponse([]));
             }
             if (path === "/settle_expense/group-1") {
@@ -98,6 +102,11 @@ describe("GroupDetailProvider error handling", () => {
             expect(screen.getByTestId("loading")).toHaveTextContent("idle");
         });
 
+        expect(screen.getByTestId("expense-order")).toHaveTextContent("newest");
+        expect(apiFetchMock).toHaveBeenCalledWith(
+            "/expense_list/group-1/0?order=newest"
+        );
+
         fireEvent.click(screen.getByRole("button", { name: "Settle" }));
 
         await waitFor(() => {
@@ -117,7 +126,7 @@ describe("GroupDetailProvider error handling", () => {
             if (path === "/balance/group-1") {
                 return Promise.resolve(jsonResponse({ currency: "CAD", currentUser: "user-1", balances: [] }));
             }
-            if (path === "/expense_list/group-1/0") return Promise.resolve(jsonResponse([]));
+            if (path.startsWith("/expense_list/group-1/0?order=")) return Promise.resolve(jsonResponse([]));
             if (path === "/settle_expense/group-1") return Promise.resolve(jsonResponse({}));
             throw new Error(`Unexpected path: ${path}`);
         });
@@ -138,7 +147,26 @@ describe("GroupDetailProvider error handling", () => {
             });
             expect(apiFetchMock).toHaveBeenCalledWith("/group/group-1");
             expect(apiFetchMock).toHaveBeenCalledWith("/balance/group-1");
-            expect(apiFetchMock).toHaveBeenCalledWith("/expense_list/group-1/0");
+            expect(apiFetchMock).toHaveBeenCalledWith("/expense_list/group-1/0?order=newest");
+        });
+    });
+
+    it("reloads expenses in the order selected by the user", async () => {
+        render(
+            <GroupDetailProvider>
+                <GroupDetailHarness />
+            </GroupDetailProvider>
+        );
+        await waitFor(() => expect(screen.getByTestId("loading")).toHaveTextContent("idle"));
+        apiFetchMock.mockClear();
+
+        fireEvent.click(screen.getByRole("button", { name: "Oldest first" }));
+
+        await waitFor(() => {
+            expect(screen.getByTestId("expense-order")).toHaveTextContent("oldest");
+            expect(apiFetchMock).toHaveBeenCalledWith(
+                "/expense_list/group-1/0?order=oldest"
+            );
         });
     });
 });

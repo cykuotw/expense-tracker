@@ -12,7 +12,7 @@ export default function ExpenseCard(expense: ExpenseData) {
           )
         : "";
     const dateDay = validDate
-        ? new Intl.DateTimeFormat(undefined, { day: "numeric" }).format(
+        ? new Intl.DateTimeFormat("en-US", { day: "numeric" }).format(
               parsedDate
           )
         : expense.expenseTime;

@@ -33,14 +33,20 @@ func (s *Store) GetExpenseByID(expenseID string) (*types.Expense, error) {
 	return expense, nil
 }
 
-func (s *Store) GetExpenseList(groupID string, page int64) ([]*types.Expense, error) {
+func (s *Store) GetExpenseList(groupID string, page int64, order types.ExpenseListOrder) ([]*types.Expense, error) {
 	offset := page * config.Envs.ExpensesPerPage
 	limit := config.Envs.ExpensesPerPage
 
 	query := "SELECT * FROM expense " +
 		"WHERE group_id = $1 AND is_deleted = False " +
-		"ORDER BY create_time_utc ASC " +
+		"ORDER BY expense_time_utc DESC, id DESC " +
 		"OFFSET $2 LIMIT $3;"
+	if order == types.ExpenseListOrderOldest {
+		query = "SELECT * FROM expense " +
+			"WHERE group_id = $1 AND is_deleted = False " +
+			"ORDER BY expense_time_utc ASC, id ASC " +
+			"OFFSET $2 LIMIT $3;"
+	}
 
 	rows, err := s.db.Query(query, groupID, offset, limit)
 	if err != nil {

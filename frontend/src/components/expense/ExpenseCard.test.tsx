@@ -33,6 +33,7 @@ describe("ExpenseCard", () => {
         expect(card).toHaveTextContent("Total");
         expect(card).toHaveTextContent("Aug");
         expect(card).toHaveTextContent("29");
+        expect(card).not.toHaveTextContent("日");
         expect(card).not.toHaveTextContent("2026-08-29T23:33:02Z");
     });
 });

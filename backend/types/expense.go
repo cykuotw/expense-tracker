@@ -7,6 +7,13 @@ import (
 	"github.com/shopspring/decimal"
 )
 
+type ExpenseListOrder string
+
+const (
+	ExpenseListOrderNewest ExpenseListOrder = "newest"
+	ExpenseListOrderOldest ExpenseListOrder = "oldest"
+)
+
 type ExpenseStore interface {
 	RunInTransaction(func(ExpenseStore) error) error
 
@@ -18,7 +25,7 @@ type ExpenseStore interface {
 	CheckExpenseExistByID(id string) (bool, error)
 
 	GetExpenseByID(expenseID string) (*Expense, error)
-	GetExpenseList(groupID string, page int64) ([]*Expense, error)
+	GetExpenseList(groupID string, page int64, order ExpenseListOrder) ([]*Expense, error)
 	GetExpenseType() ([]*ExpenseType, error)
 	GetExpenseTypeById(id uuid.UUID) (string, error)
 	GetItemsByExpenseID(expenseID string) ([]*Item, error)

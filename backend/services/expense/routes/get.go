@@ -1,6 +1,7 @@
 package expense
 
 import (
+	"errors"
 	"expense-tracker/backend/types"
 	"expense-tracker/backend/utils"
 	"net/http"
@@ -31,9 +32,15 @@ func (h *Handler) handleGetExpenseList(c *gin.Context) {
 
 	userID := c.GetString("userID")
 
+	order := types.ExpenseListOrder(c.DefaultQuery("order", string(types.ExpenseListOrderNewest)))
+	if order != types.ExpenseListOrderNewest && order != types.ExpenseListOrderOldest {
+		utils.WriteError(c, http.StatusBadRequest, errors.New("order must be newest or oldest"))
+		return
+	}
+
 	// get expense list wrt page
-	expenseList, err := h.store.GetExpenseList(groupIdStr, page)
-	if err == types.ErrNoRemainingExpenses {
+	expenseList, err := h.store.GetExpenseList(groupIdStr, page, order)
+	if errors.Is(err, types.ErrNoRemainingExpenses) {
 		utils.WriteJSON(c, http.StatusOK, []types.ExpenseResponseBrief{})
 		return
 	} else if err != nil {

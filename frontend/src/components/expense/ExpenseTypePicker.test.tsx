@@ -1,8 +1,10 @@
-import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { ExpenseTypePicker } from "./ExpenseTypePicker";
 
 describe("ExpenseTypePicker", () => {
+    afterEach(cleanup);
+
     it("filters types and returns the selected expense type ID", () => {
         const onChange = vi.fn();
 
@@ -33,9 +35,9 @@ describe("ExpenseTypePicker", () => {
             target: { value: "movie" },
         });
 
-        expect(screen.queryByRole("button", { name: "Games" })).toBeNull();
+        expect(screen.queryByRole("option", { name: "Games" })).toBeNull();
 
-        fireEvent.click(screen.getByRole("button", { name: "Movies" }));
+        fireEvent.click(screen.getByRole("option", { name: "Movies" }));
 
         expect(onChange).toHaveBeenCalledWith("movies");
         expect(trigger).toHaveAttribute("aria-expanded", "false");
@@ -68,5 +70,43 @@ describe("ExpenseTypePicker", () => {
         });
 
         expect(screen.queryByPlaceholderText("Search categories")).toBeNull();
+    });
+
+    it("selects an option on pointer press before Safari can close the picker", () => {
+        const onChange = vi.fn();
+
+        render(
+            <ExpenseTypePicker
+                expenseTypes={[
+                    { id: "games", category: "Entertainment", name: "Games" },
+                ]}
+                value=""
+                onChange={onChange}
+            />
+        );
+
+        fireEvent.click(screen.getByRole("button", { name: /choose a category/i }));
+        fireEvent.pointerDown(screen.getByRole("option", { name: "Games" }));
+
+        expect(onChange).toHaveBeenCalledWith("games");
+        expect(screen.queryByRole("listbox", { name: "Expense type options" })).toBeNull();
+    });
+
+    it("does not focus search until the user chooses to search", () => {
+        render(
+            <ExpenseTypePicker
+                expenseTypes={[
+                    { id: "games", category: "Entertainment", name: "Games" },
+                ]}
+                value=""
+                onChange={vi.fn()}
+            />
+        );
+
+        const trigger = screen.getByRole("button", { name: /choose a category/i });
+        trigger.focus();
+        fireEvent.click(trigger);
+
+        expect(document.activeElement).toBe(trigger);
     });
 });

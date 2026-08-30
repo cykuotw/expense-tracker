@@ -95,6 +95,23 @@ PostgreSQL
 - `backend/types` contains shared contracts and models. Domain-only types
   should stay close to their owning domain unless sharing is genuinely needed.
 
+## Frontend Browser Compatibility
+
+Browser behavior is part of the frontend quality boundary. For every frontend
+change, assess whether its behavior can vary by browser or platform. When it
+can, retain focused automated coverage and manually verify the affected flow
+in Safari before release: iOS Safari for mobile behavior and macOS Safari when
+the desktop interaction differs.
+
+This includes, but is not limited to, custom controls, forms, focus and blur,
+touch and gestures, software-keyboard behavior, viewport and safe-area layout,
+scrolling, date/number/locale formatting, media or file APIs, PWA behavior,
+and CSS features with browser-dependent rendering. Chromium verification alone
+is not sufficient for such changes. Verify the user-visible behavior, not only
+that the page renders: opening and dismissal, selection and submission,
+keyboard and touch operation, navigation, state updates, and responsive
+layout as applicable.
+
 ## Authentication and Authorization
 
 - Local password and Google sign-in create application sessions using access

@@ -101,6 +101,7 @@ func TestGetExpenseList(t *testing.T) {
 			PayByUserId:    mockPayerID,
 			ExpenseTypeID:  mockExpenseTypeID,
 			CreateTime:     t,
+			ExpenseTime:    t,
 			IsSettled:      false,
 			Total:          decimal.NewFromFloat(10.112),
 			Currency:       "CAD",
@@ -115,6 +116,7 @@ func TestGetExpenseList(t *testing.T) {
 	type testcase struct {
 		name               string
 		groupID            string
+		order              types.ExpenseListOrder
 		totalPage          int64
 		expectFail         bool
 		expectExpenseCount []int
@@ -122,10 +124,31 @@ func TestGetExpenseList(t *testing.T) {
 		expectError        []error
 	}
 
+	newestFirstIDs := make([]uuid.UUID, len(idList))
+	for i := range idList {
+		newestFirstIDs[i] = idList[len(idList)-1-i]
+	}
+
 	subtests := []testcase{
 		{
-			name:               "valid",
+			name:               "valid newest first",
 			groupID:            mockGroupID.String(),
+			order:              types.ExpenseListOrderNewest,
+			totalPage:          4,
+			expectFail:         false,
+			expectExpenseCount: []int{25, 25, 10, 0},
+			expectExpenseID: [][]uuid.UUID{
+				newestFirstIDs[:25],
+				newestFirstIDs[25:50],
+				newestFirstIDs[50:60],
+				nil,
+			},
+			expectError: []error{nil, nil, nil, types.ErrNoRemainingExpenses},
+		},
+		{
+			name:               "valid oldest first",
+			groupID:            mockGroupID.String(),
+			order:              types.ExpenseListOrderOldest,
 			totalPage:          4,
 			expectFail:         false,
 			expectExpenseCount: []int{25, 25, 10, 0},
@@ -140,6 +163,7 @@ func TestGetExpenseList(t *testing.T) {
 		{
 			name:               "invalid group id",
 			groupID:            uuid.NewString(),
+			order:              types.ExpenseListOrderNewest,
 			totalPage:          1,
 			expectFail:         true,
 			expectExpenseCount: nil,
@@ -152,7 +176,7 @@ func TestGetExpenseList(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			var page int64
 			for page = 0; page < test.totalPage; page++ {
-				expenseList, err := store.GetExpenseList(test.groupID, page)
+				expenseList, err := store.GetExpenseList(test.groupID, page, test.order)
 
 				if test.expectFail {
 					assert.Nil(t, expenseList)

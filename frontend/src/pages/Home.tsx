@@ -1,10 +1,12 @@
 import { Link } from "react-router-dom";
+import { useState } from "react";
 import GroupCard from "../components/group/GroupCard";
 import { HomeProvider } from "../contexts/HomeContext";
 import { useHome } from "../contexts/HomeContextHooks";
 
 const HomeContent = () => {
     const { groupCards, loading } = useHome();
+    const [showAllMobileBalances, setShowAllMobileBalances] = useState(false);
 
     if (loading) {
         return (
@@ -40,6 +42,34 @@ const HomeContent = () => {
     const unsettledTotalEntries = Object.entries(unsettledTotals).sort(
         ([currencyA], [currencyB]) => currencyA.localeCompare(currencyB),
     );
+    const mobileBalanceDetails = unsettledTotalEntries.flatMap(
+        ([currency, totals]) => {
+            const precision = currency === "NTD" ? 0 : 2;
+            return [
+                ...(totals.owed > 0
+                    ? [
+                          {
+                              key: `${currency}-owed`,
+                              label: `You are owed ${totals.owed.toFixed(precision)} ${currency}`,
+                              tone: "text-success",
+                          },
+                      ]
+                    : []),
+                ...(totals.owing > 0
+                    ? [
+                          {
+                              key: `${currency}-owing`,
+                              label: `You owe ${totals.owing.toFixed(precision)} ${currency}`,
+                              tone: "text-destructive",
+                          },
+                      ]
+                    : []),
+            ];
+        },
+    );
+    const visibleMobileBalanceDetails = showAllMobileBalances
+        ? mobileBalanceDetails
+        : mobileBalanceDetails.slice(0, 2);
 
     return (
         <div className="page-shell">
@@ -54,11 +84,63 @@ const HomeContent = () => {
                         </p>
                     </div>
                     <div className="page-actions">
-                        <div className="rounded-3xl bg-background/70 px-4 py-3 text-sm text-foreground/70">
-                            <span className="font-semibold text-foreground stat-number">
-                                {groupCards.length}
-                            </span>{" "}
-                            active group{groupCards.length === 1 ? "" : "s"}
+                        <div
+                            className="rounded-3xl bg-background/70 px-4 py-3 text-sm text-foreground/70"
+                            data-testid="mobile-home-summary"
+                        >
+                            <div className="hidden sm:block">
+                                <span className="font-semibold text-foreground stat-number">
+                                    {groupCards.length}
+                                </span>{" "}
+                                active group{groupCards.length === 1 ? "" : "s"}
+                            </div>
+                            {hasGroups && (
+                                <>
+                                <div className="flex flex-wrap gap-x-2 gap-y-1 text-base font-semibold sm:hidden">
+                                    {visibleMobileBalanceDetails.length > 0 ? (
+                                        visibleMobileBalanceDetails.map(
+                                            (detail) => (
+                                                <span
+                                                    key={detail.key}
+                                                    className={`rounded-xl px-2.5 py-1 ${detail.tone} ${
+                                                        detail.tone === "text-success"
+                                                            ? "bg-success/12"
+                                                            : "bg-destructive/12"
+                                                    }`}
+                                                >
+                                                    {detail.label}
+                                                </span>
+                                            ),
+                                        )
+                                    ) : (
+                                        <span className="rounded-xl bg-success/12 px-2.5 py-1 text-success">
+                                            All settled
+                                        </span>
+                                    )}
+                                </div>
+                                <div className="mt-2 text-xs text-foreground/60 sm:hidden">
+                                    {groupCards.length} active group
+                                    {groupCards.length === 1 ? "" : "s"} ·{" "}
+                                    {groupsWithBalances} unsettled
+                                </div>
+                                {mobileBalanceDetails.length > 2 && (
+                                    <button
+                                        type="button"
+                                        className="mt-2 text-xs font-semibold text-primary underline-offset-4 hover:underline sm:hidden"
+                                        onClick={() =>
+                                            setShowAllMobileBalances((showAll) =>
+                                                !showAll,
+                                            )
+                                        }
+                                        aria-expanded={showAllMobileBalances}
+                                    >
+                                        {showAllMobileBalances
+                                            ? "Show fewer balances"
+                                            : `View all ${mobileBalanceDetails.length} balances`}
+                                    </button>
+                                )}
+                                </>
+                            )}
                         </div>
                         <Link
                             to="/create_group"
@@ -69,7 +151,12 @@ const HomeContent = () => {
                     </div>
                 </div>
 
-                <section className="panel-card rounded-[2rem] p-6 md:p-8">
+                <section
+                    className={`panel-card rounded-[2rem] p-6 md:p-8 ${
+                        hasGroups ? "hidden sm:block" : ""
+                    }`}
+                    data-testid="home-summary-panel"
+                >
                     {hasGroups ? (
                         <>
                             <div className="section-label">Summary</div>
@@ -171,7 +258,10 @@ const HomeContent = () => {
                 </section>
 
                 {hasGroups ? (
-                    <div className="mt-8 grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+                    <div
+                        className="mt-6 grid gap-5 sm:mt-8 sm:grid-cols-2 xl:grid-cols-3"
+                        data-testid="group-card-list"
+                    >
                         {groupCards.map((group) => (
                             <GroupCard key={group.id} {...group} />
                         ))}

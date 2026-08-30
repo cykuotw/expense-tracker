@@ -34,7 +34,34 @@ const GroupDetailContent = () => {
     } = useGroupDetail();
     const [showSettled, setShowSettled] = useState(false);
     const [settleOpen, setSettleOpen] = useState(false);
+    const [showAllBalances, setShowAllBalances] = useState(false);
     const settledSentinelRef = useRef<HTMLDivElement | null>(null);
+    const balanceEntries = balance
+        ? balance.balances.flatMap((entry) => {
+              if (entry.receiverUserId === balance.currentUser) {
+                  return [
+                      {
+                          ...entry,
+                          label: `${entry.senderUsername} owes you`,
+                          tone: "text-success",
+                      },
+                  ];
+              }
+              if (entry.senderUserId === balance.currentUser) {
+                  return [
+                      {
+                          ...entry,
+                          label: `You owe ${entry.receiverUsername}`,
+                          tone: "text-destructive",
+                      },
+                  ];
+              }
+              return [];
+          })
+        : [];
+    const visibleMobileBalances = showAllBalances
+        ? balanceEntries
+        : balanceEntries.slice(0, 2);
 
     useEffect(() => {
         if (!showSettled) return;
@@ -96,51 +123,72 @@ const GroupDetailContent = () => {
                 </div>
 
                 <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(18rem,0.55fr)]">
-                    <section className="panel-card order-2 self-start rounded-[2rem] p-6 md:p-8 xl:sticky xl:top-6">
-                        <div className="section-label">Balances</div>
-                        <div className="mt-4 grid gap-3">
-                        {!balance?.balances || balance.balances.length === 0 ? (
-                            <div className="metric-card rounded-[1.5rem] p-4 text-sm text-foreground/70">
+                    <section className="panel-card order-1 self-start rounded-[1.5rem] p-4 sm:p-5 xl:order-2 xl:sticky xl:top-6 xl:rounded-[2rem] xl:p-6">
+                        <div className="flex items-center justify-between gap-3">
+                            <div>
+                                <div className="section-label">Balances</div>
+                                <p className="mt-1 text-xs text-foreground/60 xl:hidden">
+                                    Your current group summary
+                                </p>
+                            </div>
+                            {balanceEntries.length > 0 && (
+                                <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary xl:hidden">
+                                    {balanceEntries.length}
+                                </span>
+                            )}
+                        </div>
+
+                        {balanceEntries.length === 0 ? (
+                            <div className="metric-card mt-3 rounded-2xl p-3 text-sm text-foreground/70 xl:mt-4 xl:p-4">
                                 All balanced. No one owes anything.
                             </div>
                         ) : (
-                            balance.balances.map((b) => {
-                                if (b.receiverUserId == balance.currentUser) {
-                                    return (
-                                        <div
-                                            key={b.id}
-                                            className="metric-card rounded-[1.5rem] p-4 text-sm"
-                                        >
-                                            <div className="font-semibold">
-                                                {b.senderUsername} owes you
-                                            </div>
-                                            <div className="text-lg font-semibold text-success">
-                                                ${b.balance} {balance.currency}
-                                            </div>
-                                        </div>
-                                    );
-                                }
-                                if (b.senderUserId == balance.currentUser) {
-                                    return (
-                                        <div
-                                            key={b.id}
-                                            className="metric-card rounded-[1.5rem] p-4 text-sm"
-                                        >
-                                            <div className="font-semibold">
-                                                You owe {b.receiverUsername}
-                                            </div>
-                                            <div className="text-lg font-semibold text-destructive">
-                                                ${b.balance} {balance.currency}
-                                            </div>
-                                        </div>
-                                    );
-                                }
-                            })
+                            <>
+                                <div
+                                    className="mt-3 grid gap-2 xl:hidden"
+                                    data-testid="mobile-balance-summary"
+                                >
+                                    {visibleMobileBalances.map((entry) => (
+                                        <BalanceEntry
+                                            key={entry.id}
+                                            label={entry.label}
+                                            amount={entry.balance}
+                                            currency={balance?.currency ?? ""}
+                                            tone={entry.tone}
+                                            compact
+                                        />
+                                    ))}
+                                </div>
+                                {balanceEntries.length > 2 && (
+                                    <button
+                                        type="button"
+                                        className="ui-button ui-button-ghost ui-button-sm mt-3 w-full xl:hidden"
+                                        onClick={() =>
+                                            setShowAllBalances((showAll) => !showAll)
+                                        }
+                                        aria-expanded={showAllBalances}
+                                    >
+                                        {showAllBalances
+                                            ? "Show fewer balances"
+                                            : `View all ${balanceEntries.length} balances`}
+                                    </button>
+                                )}
+                                <div className="mt-4 hidden gap-3 xl:grid">
+                                    {balanceEntries.map((entry) => (
+                                        <BalanceEntry
+                                            key={entry.id}
+                                            label={entry.label}
+                                            amount={entry.balance}
+                                            currency={balance?.currency ?? ""}
+                                            tone={entry.tone}
+                                        />
+                                    ))}
+                                </div>
+                            </>
                         )}
-                        </div>
                     </section>
 
-                    <section className="order-1 space-y-8">
+                    <section className="order-2 space-y-8 xl:order-1">
                         <div className="panel-card rounded-[2rem] p-6 md:p-8">
                             <div className="section-label">Unsettled</div>
                             <div
@@ -253,6 +301,35 @@ const GroupDetailContent = () => {
         </div>
     );
 };
+
+const BalanceEntry = ({
+    label,
+    amount,
+    currency,
+    tone,
+    compact = false,
+}: {
+    label: string;
+    amount: string;
+    currency: string;
+    tone: string;
+    compact?: boolean;
+}) => (
+    <div
+        className={`metric-card rounded-2xl text-sm ${
+            compact ? "flex items-center justify-between gap-3 p-3" : "p-4"
+        }`}
+    >
+        <div className="min-w-0 font-semibold">{label}</div>
+        <div
+            className={`shrink-0 font-semibold ${
+                compact ? "text-base" : "mt-1 text-lg"
+            } ${tone}`}
+        >
+            ${amount} {currency}
+        </div>
+    </div>
+);
 
 export default function GroupDetail() {
     return (

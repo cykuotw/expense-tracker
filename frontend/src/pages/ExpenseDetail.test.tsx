@@ -62,5 +62,17 @@ describe("ExpenseDetail", () => {
 
         expect(await screen.findByRole("heading", { name: "Dinner" })).toBeVisible();
         expect(screen.getByText("No split details are available.")).toBeVisible();
+
+        const editExpense = screen.getByRole("link", {
+            name: "Edit Expense",
+        });
+        const backToGroup = screen.getByRole("link", {
+            name: "Back to Group",
+        });
+
+        expect(editExpense).toHaveAttribute("href", "/expense/expense-1/edit");
+        expect(backToGroup).toHaveAttribute("href", "/group/group-1");
+        expect(editExpense.closest(".page-header")).toContainElement(editExpense);
+        expect(backToGroup.closest(".page-header")).toContainElement(backToGroup);
     });
 });

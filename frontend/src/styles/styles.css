@@ -161,7 +161,7 @@ textarea {
 
 .app-shell__mobile-nav-inner {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 0.5rem;
     padding: 0.7rem 1rem calc(0.7rem + env(safe-area-inset-bottom));
 }

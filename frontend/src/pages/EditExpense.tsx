@@ -86,6 +86,18 @@ const EditExpenseContent = () => {
                             Update details and adjust how this expense is split.
                         </p>
                     </div>
+                    <div className="page-actions w-full sm:w-auto">
+                        <Link
+                            className="ui-button ui-button-ghost w-full sm:w-auto"
+                            to={`/expense/${expenseId}`}
+                        >
+                            <Icon
+                                path={mdiSubdirectoryArrowLeft}
+                                size={1}
+                            />
+                            Back to Expense
+                        </Link>
+                    </div>
                 </div>
 
                 <form
@@ -354,16 +366,6 @@ const EditExpenseContent = () => {
                                 <Icon path={mdiCheckBold} size={1} />
                                 Save changes
                             </button>
-                            <Link
-                                className="ui-button ui-button-ghost w-full sm:w-auto"
-                                to={`/expense/${expenseId}`}
-                            >
-                                <Icon
-                                    path={mdiSubdirectoryArrowLeft}
-                                    size={1}
-                                />
-                                Cancel
-                            </Link>
                             {indicatorShow && (
                                 <span className="ui-spinner ui-spinner-sm"></span>
                             )}

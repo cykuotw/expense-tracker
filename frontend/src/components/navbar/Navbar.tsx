@@ -36,20 +36,6 @@ export default function Navbar() {
                                 Home
                             </NavLink>
                         </li>
-                        <li>
-                            <NavLink
-                                to="/create_group"
-                                className={({ isActive }) =>
-                                    `flex items-center rounded-2xl px-4 py-3 text-sm font-medium ${
-                                        isActive
-                                            ? "bg-primary/10 text-primary"
-                                            : "text-foreground/70 hover:bg-muted/80"
-                                    }`
-                                }
-                            >
-                                Create Group
-                            </NavLink>
-                        </li>
                     </ul>
                 </div>
 

@@ -36,7 +36,10 @@ describe("NavbarMobile account actions", () => {
             screen
                 .getByRole("navigation", { name: "Primary" })
                 .querySelectorAll(".app-shell__mobile-item"),
-        ).toHaveLength(3);
+        ).toHaveLength(2);
+        expect(
+            screen.queryByRole("link", { name: "Create" }),
+        ).not.toBeInTheDocument();
         fireEvent.click(
             screen.getByRole("button", { name: "Open account actions" }),
         );

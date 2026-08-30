@@ -94,6 +94,18 @@ const CreateExpenseContent = () => {
                             Track what was paid and split it across the group.
                         </p>
                     </div>
+                    <div className="page-actions w-full sm:w-auto">
+                        <Link
+                            className="ui-button ui-button-ghost w-full sm:w-auto"
+                            to={`/group/${groupId}`}
+                        >
+                            <Icon
+                                path={mdiSubdirectoryArrowLeft}
+                                size={1}
+                            />
+                            Back to Group
+                        </Link>
+                    </div>
                 </div>
 
                 <form
@@ -338,16 +350,6 @@ const CreateExpenseContent = () => {
                                 <Icon path={mdiCheckBold} size={1} />
                                 Save Expense
                             </button>
-                            <Link
-                                className="ui-button ui-button-ghost w-full sm:w-auto"
-                                to={`/group/${groupId}`}
-                            >
-                                <Icon
-                                    path={mdiSubdirectoryArrowLeft}
-                                    size={1}
-                                />
-                                Back to Group
-                            </Link>
                         </div>
 
                         {indicatorShow && (

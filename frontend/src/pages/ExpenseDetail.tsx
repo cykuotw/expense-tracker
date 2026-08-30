@@ -62,6 +62,24 @@ const ExpenseDetailContent = () => {
                                 {formattedDate}
                             </p>
                         </div>
+                        <div className="page-actions w-full sm:w-auto">
+                            <Link
+                                to={`/expense/${expenseId}/edit`}
+                                className="ui-button ui-button-primary w-full sm:w-auto"
+                            >
+                                Edit Expense
+                            </Link>
+                            <Link
+                                className="ui-button ui-button-ghost w-full sm:w-auto"
+                                to={`/group/${expenseDetail.groupId}`}
+                            >
+                                <Icon
+                                    path={mdiSubdirectoryArrowLeft}
+                                    size={1}
+                                />
+                                Back to Group
+                            </Link>
+                        </div>
                     </div>
 
                     <div className="panel-card rounded-[2rem] p-6 md:p-8">
@@ -87,24 +105,8 @@ const ExpenseDetailContent = () => {
                         </div>
 
                         <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                            <Link
-                                to={`/expense/${expenseId}/edit`}
-                                className="ui-button ui-button-primary w-full sm:w-auto"
-                            >
-                                Edit Expense
-                            </Link>
                             <DeleteBtn />
                         </div>
-                    </div>
-
-                    <div className="flex justify-start">
-                        <Link
-                            className="ui-button ui-button-ghost w-full sm:w-auto"
-                            to={`/group/${expenseDetail?.groupId}`}
-                        >
-                            <Icon path={mdiSubdirectoryArrowLeft} size={1} />
-                            Back to Group
-                        </Link>
                     </div>
                 </div>
             </div>

@@ -47,6 +47,22 @@ describe("Navbar account actions", () => {
         expect(userManagement.closest('[role="menu"]')).toBeTruthy();
     });
 
+    it("keeps the desktop primary navigation focused on top-level destinations", () => {
+        render(
+            <MemoryRouter>
+                <Navbar />
+            </MemoryRouter>,
+        );
+
+        expect(screen.getByRole("link", { name: "Home" })).toHaveAttribute(
+            "href",
+            "/",
+        );
+        expect(
+            screen.queryByRole("link", { name: "Create Group" }),
+        ).not.toBeInTheDocument();
+    });
+
     it("does not show user management to regular members", () => {
         useAuthMock.mockReturnValue({
             role: "user",

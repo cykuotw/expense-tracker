@@ -7,7 +7,7 @@ export default function ExpenseCard(expense: ExpenseData) {
     const parsedDate = new Date(expense.expenseTime);
     const validDate = !Number.isNaN(parsedDate.getTime());
     const dateMonth = validDate
-        ? new Intl.DateTimeFormat(undefined, { month: "short" }).format(
+        ? new Intl.DateTimeFormat("en-US", { month: "short" }).format(
               parsedDate
           )
         : "";

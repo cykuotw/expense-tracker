@@ -103,18 +103,18 @@ const GroupDetailContent = () => {
                     <div className="page-actions w-full sm:w-auto">
                         <Link
                             to={`/create_expense?g=${groupId}`}
-                            className="ui-button ui-button-primary w-full sm:w-auto"
+                            className="ui-button ui-button-primary w-full sm:w-40"
                         >
                             Add Expense
                         </Link>
                         <Link
                             to={`/add_member?g=${groupId}`}
-                            className="ui-button ui-button-outline w-full sm:w-auto"
+                            className="ui-button ui-button-outline w-full sm:w-40"
                         >
                             Add Members
                         </Link>
                         <button
-                            className="ui-button ui-button-destructive w-full sm:w-auto"
+                            className="ui-button ui-button-destructive w-full sm:w-40"
                             onClick={() => setSettleOpen(true)}
                         >
                             Settle Up

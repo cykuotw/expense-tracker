@@ -126,3 +126,30 @@ class ComponentTest(unittest.TestCase):
 
         self.assertEqual(source.count("source_code_hash,"), 2)
         self.assertEqual(source.count("filename,"), 2)
+
+    def test_api_route_throttling_covers_anonymous_and_authenticated_mutations(self) -> None:
+        source = (ROOT / "infrastructure/tf/api.tf").read_text()
+
+        self.assertIn("throttling_burst_limit = 40", source)
+        self.assertIn("throttling_rate_limit  = 20", source)
+        self.assertIn("resource \"aws_apigatewayv2_route\" \"authenticated_mutation\"", source)
+        self.assertIn("for_each = local.authenticated_mutation_routes", source)
+        self.assertIn("dynamic \"route_settings\"", source)
+        for route_key in (
+            "POST ${local.api_path}/create_expense",
+            "PUT ${local.api_path}/expense/{expenseId}",
+            "POST ${local.api_path}/create_group",
+            "PATCH ${local.api_path}/account",
+            "POST ${local.api_path}/invitations",
+            "POST ${local.api_path}/userInfo",
+        ):
+            self.assertIn(route_key, source)
+
+    def test_serverful_reference_applies_the_mutation_limit_without_limiting_reads(self) -> None:
+        source = (ROOT.parents[0] / "serverful/edge/nginx/expense-tracker.conf").read_text()
+
+        self.assertIn("zone=expense_tracker_mutations:10m rate=5r/s", source)
+        self.assertIn("$request_method:$uri", source)
+        self.assertIn("limit_req zone=expense_tracker_mutations burst=10 nodelay;", source)
+        self.assertIn("limit_req zone=expense_tracker_reads burst=40 nodelay;", source)
+        self.assertIn("Retry-After 60", source)

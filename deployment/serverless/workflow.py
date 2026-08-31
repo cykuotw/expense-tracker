@@ -280,6 +280,8 @@ def _infrastructure_targets(scope: str) -> tuple[str, ...]:
     if scope in {"backend", "all"}:
         targets.append("aws_apigatewayv2_route.google_register")
         targets.append("aws_apigatewayv2_route.google_link")
+        targets.append("aws_apigatewayv2_route.authenticated_mutation")
+        targets.append("aws_apigatewayv2_stage.default")
     if scope in {"frontend", "all"}:
         targets.extend((
             "aws_cloudfront_response_headers_policy.frontend_security",

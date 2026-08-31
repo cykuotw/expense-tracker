@@ -106,11 +106,49 @@ resource "aws_apigatewayv2_route" "check_email" {
   route_key = "POST ${local.api_path}/checkEmail"
   target    = "integrations/${aws_apigatewayv2_integration.worker.id}"
 }
+resource "aws_apigatewayv2_route" "user_info" {
+  api_id    = aws_apigatewayv2_api.worker.id
+  route_key = "POST ${local.api_path}/userInfo"
+  target    = "integrations/${aws_apigatewayv2_integration.worker.id}"
+}
 resource "aws_apigatewayv2_route" "invitation_lookup" {
   api_id    = aws_apigatewayv2_api.worker.id
   route_key = "GET ${local.api_path}/invitations/{token}"
   target    = "integrations/${aws_apigatewayv2_integration.worker.id}"
 }
+
+locals {
+  authenticated_mutation_routes = {
+    refresh                  = "POST ${local.api_path}/auth/refresh"
+    logout                   = "POST ${local.api_path}/logout"
+    update_account           = "PATCH ${local.api_path}/account"
+    change_password          = "PATCH ${local.api_path}/account/password"
+    create_group             = "POST ${local.api_path}/create_group"
+    update_group             = "PUT ${local.api_path}/group/{groupid}"
+    update_group_member      = "PUT ${local.api_path}/group_member"
+    replace_group_members    = "PUT ${local.api_path}/group_members"
+    archive_group            = "PUT ${local.api_path}/archive_group/{groupId}"
+    create_expense           = "POST ${local.api_path}/create_expense"
+    update_expense           = "PUT ${local.api_path}/expense/{expenseId}"
+    delete_expense           = "PUT ${local.api_path}/delete_expense/{expenseId}"
+    settle_expense           = "PUT ${local.api_path}/settle_expense/{groupId}"
+    settle_balance           = "POST ${local.api_path}/settle_balance/{groupId}/{balanceId}"
+    create_invitation        = "POST ${local.api_path}/invitations"
+    expire_invitation        = "POST ${local.api_path}/invitations/{token}/expire"
+    update_admin_user_status = "PATCH ${local.api_path}/admin/users/{id}/status"
+    update_admin_user_role   = "PATCH ${local.api_path}/admin/users/{id}/role"
+    expire_admin_invitation  = "POST ${local.api_path}/admin/invitations/{id}/expire"
+  }
+}
+
+resource "aws_apigatewayv2_route" "authenticated_mutation" {
+  for_each = local.authenticated_mutation_routes
+
+  api_id    = aws_apigatewayv2_api.worker.id
+  route_key = each.value
+  target    = "integrations/${aws_apigatewayv2_integration.worker.id}"
+}
+
 resource "aws_apigatewayv2_route" "default" {
   api_id             = aws_apigatewayv2_api.worker.id
   route_key          = "$default"
@@ -141,6 +179,11 @@ resource "aws_apigatewayv2_stage" "default" {
     throttling_rate_limit  = 1
   }
   route_settings {
+    route_key              = aws_apigatewayv2_route.user_info.route_key
+    throttling_burst_limit = 3
+    throttling_rate_limit  = 1
+  }
+  route_settings {
     route_key              = aws_apigatewayv2_route.invitation_lookup.route_key
     throttling_burst_limit = 3
     throttling_rate_limit  = 1
@@ -159,6 +202,14 @@ resource "aws_apigatewayv2_stage" "default" {
     route_key              = aws_apigatewayv2_route.google_link.route_key
     throttling_burst_limit = 10
     throttling_rate_limit  = 5
+  }
+  dynamic "route_settings" {
+    for_each = aws_apigatewayv2_route.authenticated_mutation
+    content {
+      route_key              = route_settings.value.route_key
+      throttling_burst_limit = 10
+      throttling_rate_limit  = 5
+    }
   }
   tags = local.common_tags
 }

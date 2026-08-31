@@ -72,6 +72,8 @@ class UpdateCompatibilityTest(unittest.TestCase):
             (
                 "aws_apigatewayv2_route.google_register",
                 "aws_apigatewayv2_route.google_link",
+                "aws_apigatewayv2_route.authenticated_mutation",
+                "aws_apigatewayv2_stage.default",
                 "aws_cloudfront_response_headers_policy.frontend_security",
                 "aws_cloudfront_distribution.frontend",
             ),

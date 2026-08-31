@@ -41,6 +41,12 @@ type User struct {
 	Role             string    `json:"role"`
 }
 
+// UserLookupResponse is the minimum identity data required to add a member to a group.
+type UserLookupResponse struct {
+	ID       uuid.UUID `json:"id"`
+	Username string    `json:"username"`
+}
+
 type RegisterUserPayload struct {
 	Nickname  string `json:"nickname"`
 	Firstname string `json:"firstname" validate:"required"`

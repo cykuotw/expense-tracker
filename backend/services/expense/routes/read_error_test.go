@@ -55,12 +55,12 @@ func TestGetExpenseDetailStopsAfterRequiredReadFailure(t *testing.T) {
 					BorrowerUesrID: borrowerID,
 				}}, nil
 			}
-			store.GetExpenseTypeByIdFn = func(uuid.UUID) (string, error) {
+			store.GetExpenseTypeFn = func() ([]*types.ExpenseType, error) {
 				stages = append(stages, "expense type")
 				if test.failAt == "expense type" {
-					return "", wantErr
+					return nil, wantErr
 				}
-				return "Dining", nil
+				return []*types.ExpenseType{{ID: expenseTypeID, Name: "Dining", Category: "Food and Drink"}}, nil
 			}
 
 			userStore := userStoreMock()

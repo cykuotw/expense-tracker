@@ -559,6 +559,13 @@ func getExpenseDetailStoreMock() *mockExpenseStore {
 	store.GetItemsByExpenseIDFn = func(expenseID string) ([]*types.Item, error) {
 		return mockItems, nil
 	}
+	store.GetExpenseTypeFn = func() ([]*types.ExpenseType, error) {
+		return []*types.ExpenseType{{
+			ID:       mockExpenseTypeID,
+			Name:     "Groceries",
+			Category: "Food and Drink",
+		}}, nil
+	}
 	store.CheckExpenseExistByIDFn = func(id string) (bool, error) {
 		return id == mockExpenseID.String(), nil
 	}

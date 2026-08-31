@@ -171,6 +171,7 @@ type ExpenseResponse struct {
 	CreatedByUsername string           `json:"createdByUsername"`
 	ExpenseTypeId     uuid.UUID        `json:"expenseTypeId"`
 	ExpenseType       string           `json:"expenseType"`
+	ExpenseCategory   string           `json:"expenseCategory"`
 	SubTotal          decimal.Decimal  `json:"subTotal"`
 	TaxFeeTip         decimal.Decimal  `json:"taxFeeTip"`
 	Total             decimal.Decimal  `json:"total"`

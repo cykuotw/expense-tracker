@@ -72,7 +72,7 @@ describe("ExpenseTypePicker", () => {
         expect(screen.queryByPlaceholderText("Search categories")).toBeNull();
     });
 
-    it("selects an option on pointer press before Safari can close the picker", () => {
+    it("selects an option on a pointer tap without closing during the press", () => {
         const onChange = vi.fn();
 
         render(
@@ -87,9 +87,34 @@ describe("ExpenseTypePicker", () => {
 
         fireEvent.click(screen.getByRole("button", { name: /choose a category/i }));
         fireEvent.pointerDown(screen.getByRole("option", { name: "Games" }));
+        fireEvent.pointerUp(screen.getByRole("option", { name: "Games" }));
 
         expect(onChange).toHaveBeenCalledWith("games");
         expect(screen.queryByRole("listbox", { name: "Expense type options" })).toBeNull();
+    });
+
+    it("does not select an option when a mobile swipe starts on it", () => {
+        const onChange = vi.fn();
+
+        render(
+            <ExpenseTypePicker
+                expenseTypes={[
+                    { id: "games", category: "Entertainment", name: "Games" },
+                ]}
+                value=""
+                onChange={onChange}
+            />
+        );
+
+        fireEvent.click(screen.getByRole("button", { name: /choose a category/i }));
+        const option = screen.getByRole("option", { name: "Games" });
+        fireEvent.pointerDown(option, { clientY: 120 });
+        fireEvent.pointerMove(option, { clientY: 80 });
+        fireEvent.pointerUp(option, { clientY: 80 });
+        fireEvent.click(option);
+
+        expect(onChange).not.toHaveBeenCalled();
+        expect(screen.getByRole("listbox", { name: "Expense type options" })).toBeVisible();
     });
 
     it("does not focus search until the user chooses to search", () => {

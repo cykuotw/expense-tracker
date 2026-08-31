@@ -23,6 +23,7 @@ export interface ExpenseDetailData {
     createdByUsername: string;
     expenseTypeId: string;
     expenseType: string;
+    expenseCategory: string;
     subTotal: string;
     taxFeeTip: string;
     total: string;

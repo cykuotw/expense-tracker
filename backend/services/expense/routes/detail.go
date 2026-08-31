@@ -66,10 +66,20 @@ func (h *Handler) handleGetExpenseDetail(c *gin.Context) {
 		}
 		ledgerRsp = append(ledgerRsp, ledger)
 	}
-	expenseType, err := h.store.GetExpenseTypeById(expense.ExpenseTypeID)
+	expenseTypes, err := h.store.GetExpenseType()
 	if err != nil {
 		utils.WriteError(c, http.StatusInternalServerError, err)
 		return
+	}
+	expenseType := ""
+	expenseCategory := ""
+	for _, item := range expenseTypes {
+		if item.ID != expense.ExpenseTypeID {
+			continue
+		}
+		expenseType = item.Name
+		expenseCategory = item.Category
+		break
 	}
 	response := types.ExpenseResponse{
 		ID:                expense.ID,
@@ -78,6 +88,7 @@ func (h *Handler) handleGetExpenseDetail(c *gin.Context) {
 		CreatedByUsername: user.Username,
 		ExpenseTypeId:     expense.ExpenseTypeID,
 		ExpenseType:       expenseType,
+		ExpenseCategory:   expenseCategory,
 		SubTotal:          expense.SubTotal,
 		TaxFeeTip:         expense.TaxFeeTip,
 		Total:             expense.Total,

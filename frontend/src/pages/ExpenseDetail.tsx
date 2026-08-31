@@ -18,6 +18,7 @@ import {
 import { Button } from "@/components/ui/button";
 
 import { ExpenseDetailData } from "../types/expense";
+import { getExpenseTypePresentation } from "../lib/expenseCategoryPresentation";
 import { ExpenseDetailProvider } from "../contexts/ExpenseDetailContext";
 import { useExpenseDetail } from "../hooks/ExpenseDetailContextHooks";
 
@@ -47,16 +48,31 @@ const ExpenseDetailContent = () => {
         );
     }
 
+    const categoryPresentation = getExpenseTypePresentation(
+        expenseDetail.expenseCategory,
+        expenseDetail.expenseType
+    );
+
     return (
         <div className="page-shell">
             <div className="page-container max-w-4xl">
                 <div className="flex flex-col gap-6">
                     <div className="page-header">
-                        <div className="page-header__copy">
+                        <div className="page-header__copy min-w-0">
                             <div className="page-eyebrow">Expense</div>
-                            <h1 className="page-title">
-                                {expenseDetail?.description}
-                            </h1>
+                            <div className="mt-2 flex min-w-0 items-start gap-3 md:items-center md:gap-4">
+                                <div
+                                    aria-hidden="true"
+                                    data-testid="expense-category-icon"
+                                    className={`flex size-11 shrink-0 items-center justify-center rounded-xl ${categoryPresentation.iconClassName} md:size-14 md:rounded-2xl`}
+                                >
+                                    <Icon path={categoryPresentation.icon} size={1.2} className="md:hidden" />
+                                    <Icon path={categoryPresentation.icon} size={1.45} className="hidden md:block" />
+                                </div>
+                                <h1 className="page-title min-w-0 pt-1 md:pt-0">
+                                    {expenseDetail.description || expenseDetail.expenseType}
+                                </h1>
+                            </div>
                             <p className="page-copy">
                                 Added by {expenseDetail?.createdByUsername} on{" "}
                                 {formattedDate}

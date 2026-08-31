@@ -38,6 +38,7 @@ describe("ExpenseDetail", () => {
                 createdByUsername: "Current",
                 expenseTypeId: "type-1",
                 expenseType: "General",
+                expenseCategory: "Uncategorized",
                 subTotal: "10.00",
                 taxFeeTip: "0.00",
                 total: "10.00",
@@ -61,6 +62,7 @@ describe("ExpenseDetail", () => {
         );
 
         expect(await screen.findByRole("heading", { name: "Dinner" })).toBeVisible();
+        expect(screen.getByTestId("expense-category-icon").querySelector("svg")).toBeInTheDocument();
         expect(screen.getByText("No split details are available.")).toBeVisible();
 
         const editExpense = screen.getByRole("link", {

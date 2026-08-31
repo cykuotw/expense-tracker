@@ -2,6 +2,7 @@ package invitation
 
 import (
 	"database/sql"
+	"expense-tracker/backend/services/auth"
 	"expense-tracker/backend/types"
 	"time"
 )
@@ -43,17 +44,34 @@ func (s *Store) GetAdminInvitations() ([]types.AdminInvitationResponse, error) {
 	return invitations, nil
 }
 
-func (s *Store) GetInvitationTokenByID(id string) (string, error) {
-	var token string
+func (s *Store) RotateInvitationTokenByID(id string) (string, error) {
+	token, err := auth.GenerateOpaqueToken()
+	if err != nil {
+		return "", err
+	}
 	var expiresAt time.Time
 	var usedAt sql.NullTime
 	if err := s.db.QueryRow(
-		"SELECT token, expires_at, used_at FROM invitations WHERE id = $1;",
+		"SELECT expires_at, used_at FROM invitations WHERE id = $1;",
 		id,
-	).Scan(&token, &expiresAt, &usedAt); err != nil {
+	).Scan(&expiresAt, &usedAt); err != nil {
 		return "", err
 	}
 	if usedAt.Valid || time.Now().After(expiresAt) {
+		return "", types.ErrInvalidAction
+	}
+	result, err := s.db.Exec(`
+		UPDATE invitations
+		SET token_hash = $2, registration_session_hash = NULL, registration_session_expires_at = NULL
+		WHERE id = $1 AND used_at IS NULL AND expires_at > NOW()`, id, auth.HashToken(token))
+	if err != nil {
+		return "", err
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return "", err
+	}
+	if affected != 1 {
 		return "", types.ErrInvalidAction
 	}
 	return token, nil
@@ -61,7 +79,7 @@ func (s *Store) GetInvitationTokenByID(id string) (string, error) {
 
 func (s *Store) ExpireInvitationByID(id string) error {
 	result, err := s.db.Exec(
-		"UPDATE invitations SET expires_at = NOW() WHERE id = $1 AND used_at IS NULL AND expires_at > NOW();",
+		"UPDATE invitations SET expires_at = NOW(), registration_session_hash = NULL, registration_session_expires_at = NULL WHERE id = $1 AND used_at IS NULL AND expires_at > NOW();",
 		id,
 	)
 	if err != nil {

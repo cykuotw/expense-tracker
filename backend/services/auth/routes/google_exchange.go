@@ -125,11 +125,6 @@ func (h *Handler) finishGoogleRegister(c *gin.Context, claims *types.VerifiedGoo
 		utils.WriteError(c, http.StatusBadRequest, err)
 		return err
 	}
-	payload.Token = strings.TrimSpace(payload.Token)
-	if payload.Token == "" {
-		return writeRegistrationError(c, types.ErrInvitationRequired)
-	}
-
 	user, err := h.googleService.PrepareUserFromClaims(claims)
 	if err != nil {
 		return writeGoogleExchangeError(c, err)
@@ -139,10 +134,15 @@ func (h *Handler) finishGoogleRegister(c *gin.Context, claims *types.VerifiedGoo
 		utils.WriteError(c, http.StatusInternalServerError, err)
 		return err
 	}
-	if err := h.registrationStore.CreateInvitedUser(c.Request.Context(), payload.Token, *user); err != nil {
+	registrationSession, err := c.Cookie(registrationSessionCookieName)
+	if err != nil {
+		return writeRegistrationError(c, types.ErrInvitationRequired)
+	}
+	if err := h.registrationStore.CreateInvitedUser(c.Request.Context(), registrationSession, *user); err != nil {
 		return writeRegistrationError(c, err)
 	}
 
+	clearRegistrationSessionCookie(c)
 	utils.WriteJSON(c, http.StatusCreated, nil)
 	return nil
 }

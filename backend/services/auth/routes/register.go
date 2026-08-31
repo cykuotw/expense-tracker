@@ -22,13 +22,8 @@ func (h *Handler) handleRegister(c *gin.Context) {
 	}
 
 	payload.Email = auth.NormalizeEmail(payload.Email)
-	payload.Token = strings.TrimSpace(payload.Token)
 	if err := utils.Validate.Struct(payload); err != nil {
 		validationErrors := err.(validator.ValidationErrors)
-		if len(validationErrors) == 1 && hasValidationError(validationErrors, "Token", "required") {
-			utils.WriteError(c, http.StatusBadRequest, types.ErrInvitationRequired)
-			return
-		}
 		utils.WriteError(c, http.StatusBadRequest, utils.NewValidationError(validationErrors))
 		return
 	}
@@ -65,21 +60,18 @@ func (h *Handler) handleRegister(c *gin.Context) {
 		utils.WriteError(c, http.StatusInternalServerError, errors.New("registration store is unavailable"))
 		return
 	}
-	if err := h.registrationStore.CreateInvitedUser(c.Request.Context(), payload.Token, user); err != nil {
+	registrationSession, err := c.Cookie(registrationSessionCookieName)
+	if err != nil {
+		utils.WriteError(c, http.StatusBadRequest, types.ErrInvitationRequired)
+		return
+	}
+	if err := h.registrationStore.CreateInvitedUser(c.Request.Context(), registrationSession, user); err != nil {
 		writeRegistrationError(c, err)
 		return
 	}
 
+	clearRegistrationSessionCookie(c)
 	utils.WriteJSON(c, http.StatusCreated, nil)
-}
-
-func hasValidationError(validationErrors validator.ValidationErrors, field string, tag string) bool {
-	for _, validationError := range validationErrors {
-		if validationError.Field() == field && validationError.Tag() == tag {
-			return true
-		}
-	}
-	return false
 }
 
 func registrationStatus(err error) int {

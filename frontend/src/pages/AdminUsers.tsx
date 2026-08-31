@@ -1,5 +1,7 @@
-import { FormEvent, useCallback, useEffect, useState } from "react";
+import { FormEvent, type ReactNode, useCallback, useEffect, useState } from "react";
 import { toast } from "react-hot-toast";
+import Icon from "@mdi/react";
+import { mdiChevronDown } from "@mdi/js";
 
 import ConfirmationDialog from "../components/ConfirmationDialog";
 import { useAuth } from "../hooks/AuthContextHooks";
@@ -192,27 +194,27 @@ function UserCard(props: UserCardProps) {
     );
 }
 
-interface UserSectionProps {
+interface CollapsibleSectionProps {
     id: string;
     title: string;
     description: string;
-    users: AdminUser[];
-    currentUserID: string | null;
-    busyID: string | null;
-    onStatusChange: (user: AdminUser) => Promise<void>;
-    onRoleChange: (user: AdminUser, role: UserRole) => Promise<void>;
+    count: number;
+    expanded: boolean;
+    onToggle: () => void;
+    children: ReactNode;
 }
 
-function UserSection({
+function CollapsibleSection({
     id,
     title,
     description,
-    users,
-    currentUserID,
-    busyID,
-    onStatusChange,
-    onRoleChange,
-}: UserSectionProps) {
+    count,
+    expanded,
+    onToggle,
+    children,
+}: CollapsibleSectionProps) {
+    const contentID = `${id}-content`;
+
     return (
         <section
             className="panel-card rounded-[2rem] p-5 md:p-6"
@@ -227,10 +229,65 @@ function UserSection({
                         {description}
                     </p>
                 </div>
-                <span className="ui-badge ui-badge-ghost" aria-label={`${users.length} ${title}`}>
-                    {users.length}
-                </span>
+                <button
+                    type="button"
+                    className="ui-button ui-button-outline min-h-11 shrink-0 gap-2 px-3 transition-colors hover:bg-base-200"
+                    aria-controls={contentID}
+                    aria-expanded={expanded}
+                    aria-label={`${expanded ? "Hide" : "Show"} ${title} section`}
+                    onClick={onToggle}
+                >
+                    <span className="ui-badge ui-badge-ghost" aria-hidden="true">
+                        {count}
+                    </span>
+                    <span aria-hidden="true">{expanded ? "Hide" : "Show"}</span>
+                    <Icon
+                        path={mdiChevronDown}
+                        size={0.85}
+                        aria-hidden="true"
+                        className={`transition-transform ${expanded ? "rotate-180" : ""}`}
+                    />
+                </button>
             </div>
+            {expanded ? <div id={contentID}>{children}</div> : null}
+        </section>
+    );
+}
+
+interface UserSectionProps {
+    id: string;
+    title: string;
+    description: string;
+    users: AdminUser[];
+    expanded: boolean;
+    onToggle: () => void;
+    currentUserID: string | null;
+    busyID: string | null;
+    onStatusChange: (user: AdminUser) => Promise<void>;
+    onRoleChange: (user: AdminUser, role: UserRole) => Promise<void>;
+}
+
+function UserSection({
+    id,
+    title,
+    description,
+    users,
+    expanded,
+    onToggle,
+    currentUserID,
+    busyID,
+    onStatusChange,
+    onRoleChange,
+}: UserSectionProps) {
+    return (
+        <CollapsibleSection
+            id={id}
+            title={title}
+            description={description}
+            count={users.length}
+            expanded={expanded}
+            onToggle={onToggle}
+        >
             {users.length === 0 ? (
                 <p className="mt-5 text-sm text-foreground/65">
                     No {title.toLowerCase()} found.
@@ -249,7 +306,7 @@ function UserSection({
                     ))}
                 </div>
             )}
-        </section>
+        </CollapsibleSection>
     );
 }
 
@@ -307,6 +364,11 @@ export default function AdminUsers() {
     const [creatingInvite, setCreatingInvite] = useState(false);
     const [confirmation, setConfirmation] =
         useState<ConfirmationRequest | null>(null);
+    const [expandedSections, setExpandedSections] = useState({
+        administrators: true,
+        regularUsers: false,
+        invitations: false,
+    });
 
     const administrators: AdminUser[] = [];
     const regularUsers: AdminUser[] = [];
@@ -513,6 +575,7 @@ export default function AdminUsers() {
         try {
             const response = await apiFetch(
                 `/admin/invitations/${invitation.id}/link`,
+                { method: "POST" },
             );
             if (!response.ok) {
                 throw new Error(
@@ -525,9 +588,9 @@ export default function AdminUsers() {
             const value = (await response.json()) as { token: string };
             try {
                 await clipboard.writeText(
-                    `${window.location.origin}/register?token=${value.token}`,
+                    `${window.location.origin}/register#${value.token}`,
                 );
-                toast.success("Invitation link copied");
+                toast.success("New invitation link copied; any older link no longer works.");
             } catch {
                 toast.error(
                     "We couldn't copy the invitation link. Check your browser's clipboard permission and try again.",
@@ -628,6 +691,13 @@ export default function AdminUsers() {
                             title="Administrators"
                             description="Accounts that can manage users, roles, access, and invitations."
                             users={administrators}
+                            expanded={expandedSections.administrators}
+                            onToggle={() =>
+                                setExpandedSections((current) => ({
+                                    ...current,
+                                    administrators: !current.administrators,
+                                }))
+                            }
                             currentUserID={userID}
                             busyID={busyID}
                             onStatusChange={requestStatusUpdate}
@@ -639,21 +709,36 @@ export default function AdminUsers() {
                             title="Regular users"
                             description="Accounts with standard expense-tracking access."
                             users={regularUsers}
+                            expanded={expandedSections.regularUsers}
+                            onToggle={() =>
+                                setExpandedSections((current) => ({
+                                    ...current,
+                                    regularUsers: !current.regularUsers,
+                                }))
+                            }
                             currentUserID={userID}
                             busyID={busyID}
                             onStatusChange={requestStatusUpdate}
                             onRoleChange={requestRoleUpdate}
                         />
 
-                        <section className="panel-card rounded-[2rem] p-5 md:p-6" aria-labelledby="invitations-heading">
-                            <div className="flex flex-col gap-5 border-b border-border pb-6 lg:flex-row lg:items-end lg:justify-between">
+                        <CollapsibleSection
+                            id="invitations-heading"
+                            title="Invitations"
+                            description="Create an email-bound invite or leave the email blank for a generic link."
+                            count={data.invitations.length}
+                            expanded={expandedSections.invitations}
+                            onToggle={() =>
+                                setExpandedSections((current) => ({
+                                    ...current,
+                                    invitations: !current.invitations,
+                                }))
+                            }
+                        >
+                            <div className="mt-5 flex flex-col gap-5 border-b border-border pb-6 lg:flex-row lg:items-end lg:justify-between">
                                 <div>
-                                    <div className="flex items-center gap-3">
-                                        <h2 id="invitations-heading" className="text-lg font-semibold">Invitations</h2>
-                                        <span className="ui-badge ui-badge-ghost">{data.invitations.length}</span>
-                                    </div>
-                                    <p className="mt-2 text-sm text-foreground/65">
-                                        Create an email-bound invite or leave the email blank for a generic link.
+                                    <p className="text-sm text-foreground/65">
+                                        Create a new invitation.
                                     </p>
                                 </div>
                                 <form onSubmit={createInvitation} className="w-full lg:max-w-xl">
@@ -717,7 +802,7 @@ export default function AdminUsers() {
                                     ))}
                                 </div>
                             )}
-                        </section>
+                        </CollapsibleSection>
                     </div>
                 )}
             </div>

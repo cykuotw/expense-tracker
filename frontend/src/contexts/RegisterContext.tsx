@@ -6,9 +6,7 @@ import { RegisterContext } from "../hooks/RegisterContextHooks";
 
 export const RegisterProvider = ({ children }: { children: ReactNode }) => {
     const location = useLocation();
-    const [token] = useState(() =>
-        new URLSearchParams(location.search).get("token"),
-    );
+    const [token, setToken] = useState(() => location.hash.slice(1).trim());
     const navigate = useNavigate();
 
     const [formData, setFormData] = useState({
@@ -29,12 +27,9 @@ export const RegisterProvider = ({ children }: { children: ReactNode }) => {
     useEffect(() => {
         if (!token) return;
 
-        const params = new URLSearchParams(location.search);
-        params.delete("token");
-        const remainingQuery = params.toString();
-        const safeURL = `${location.pathname}${remainingQuery ? `?${remainingQuery}` : ""}${location.hash}`;
-        window.history.replaceState(window.history.state, "", safeURL);
-    }, [location.hash, location.pathname, location.search, token]);
+        const safeURL = `${location.pathname}${location.search}`;
+        navigate(safeURL, { replace: true });
+    }, [location.pathname, location.search, navigate, token]);
 
     useEffect(() => {
         if (!token) {
@@ -42,12 +37,15 @@ export const RegisterProvider = ({ children }: { children: ReactNode }) => {
             return;
         }
 
-        const validateToken = async () => {
+        const exchangeInvitation = async () => {
             try {
                 const response = await apiFetch(
-                    `/invitations/${encodeURIComponent(token)}`,
-                    {},
-                    { authMode: "none" }
+                    "/register/invitation/exchange",
+                    {
+                        method: "POST",
+                        body: JSON.stringify({ token }),
+                    },
+                    { authMode: "none" },
                 );
                 if (response.ok) {
                     const data = await response.json();
@@ -62,6 +60,7 @@ export const RegisterProvider = ({ children }: { children: ReactNode }) => {
                             ...prev,
                             email: invitationEmail,
                         }));
+                        setToken("");
                     }
                 } else {
                     setError("Invalid or expired invitation link.");
@@ -73,7 +72,7 @@ export const RegisterProvider = ({ children }: { children: ReactNode }) => {
             }
         };
 
-        validateToken();
+        exchangeInvitation();
     }, [token]);
 
     const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -92,7 +91,6 @@ export const RegisterProvider = ({ children }: { children: ReactNode }) => {
                     method: "POST",
                     body: JSON.stringify({
                         ...formData,
-                        token: token,
                     }),
                 },
                 { authMode: "none" }
@@ -122,9 +120,9 @@ export const RegisterProvider = ({ children }: { children: ReactNode }) => {
     const handleGoogleCredentialResponse = useCallback(
         async (response: GoogleCredentialResponse) => {
             if (googleSubmissionInFlight.current) return;
-            if (!token || !response.credential?.trim()) {
+            if (!tokenValid || !response.credential?.trim()) {
                 setError(
-                    token
+                    tokenValid
                         ? "Google registration did not return a credential. Please try again."
                         : "Registration requires a valid invitation link.",
                 );
@@ -142,7 +140,7 @@ export const RegisterProvider = ({ children }: { children: ReactNode }) => {
                         headers: {
                             Authorization: `Bearer ${response.credential}`,
                         },
-                        body: JSON.stringify({ token }),
+                        body: JSON.stringify({}),
                     },
                     { authMode: "none" },
                 );
@@ -170,7 +168,7 @@ export const RegisterProvider = ({ children }: { children: ReactNode }) => {
                 setGoogleLoading(false);
             }
         },
-        [navigate, token],
+        [navigate, tokenValid],
     );
 
     return (
@@ -183,7 +181,7 @@ export const RegisterProvider = ({ children }: { children: ReactNode }) => {
                 error,
                 tokenValid,
                 emailBound,
-                token,
+                sessionReady: tokenValid,
                 handleChange,
                 handleSubmit,
                 handleGoogleCredentialResponse,

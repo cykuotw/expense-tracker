@@ -4,9 +4,6 @@ import (
 	"database/sql"
 	"expense-tracker/backend/services/auth"
 	"expense-tracker/backend/types"
-	"fmt"
-
-	"github.com/google/uuid"
 )
 
 type Store struct {
@@ -18,89 +15,34 @@ func NewStore(db *sql.DB) *Store {
 }
 
 func (s *Store) CreateInvitation(invitation types.Invitation) error {
-	query := "INSERT INTO invitations (id, token, email, inviter_id, expires_at, created_at) VALUES ($1, $2, $3, $4, $5, $6);"
+	query := "INSERT INTO invitations (id, token_hash, email, inviter_id, expires_at, created_at) VALUES ($1, $2, $3, $4, NOW() + INTERVAL '24 hours', NOW());"
 	_, err := s.db.Exec(query,
-		invitation.ID, invitation.Token, auth.NormalizeEmail(invitation.Email), invitation.InviterID,
-		invitation.ExpiresAt.Format("2006-01-02 15:04:05"),
-		invitation.CreatedAt.Format("2006-01-02 15:04:05"),
+		invitation.ID, invitation.TokenHash, auth.NormalizeEmail(invitation.Email), invitation.InviterID,
 	)
 	return err
 }
 
-func (s *Store) GetInvitationByToken(token string) (*types.Invitation, error) {
-	query := "SELECT * FROM invitations WHERE token = $1;"
-	rows, err := s.db.Query(query, token)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
+func (s *Store) ExchangeInvitation(token string, registrationSession string) (*types.Invitation, error) {
 	invitation := new(types.Invitation)
-	for rows.Next() {
-		err := rows.Scan(
-			&invitation.ID,
-			&invitation.Token,
-			&invitation.Email,
-			&invitation.InviterID,
-			&invitation.ExpiresAt,
-			&invitation.UsedAt,
-			&invitation.CreatedAt,
-		)
-		if err != nil {
-			return nil, err
-		}
+	err := s.db.QueryRow(`
+		UPDATE invitations
+		SET registration_session_hash = $2, registration_session_expires_at = NOW() + INTERVAL '15 minutes'
+		WHERE token_hash = $1 AND used_at IS NULL AND expires_at > NOW()
+		RETURNING id, email, inviter_id, expires_at, used_at, created_at`,
+		auth.HashToken(token), auth.HashToken(registrationSession),
+	).Scan(
+		&invitation.ID,
+		&invitation.Email,
+		&invitation.InviterID,
+		&invitation.ExpiresAt,
+		&invitation.UsedAt,
+		&invitation.CreatedAt,
+	)
+	if err == sql.ErrNoRows {
+		return nil, types.ErrInvitationInvalid
 	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-
-	if invitation.ID == uuid.Nil {
-		return nil, fmt.Errorf("invitation not found")
-	}
-
-	return invitation, nil
-}
-
-func (s *Store) MarkInvitationUsed(token string, email string) error {
-	query := "UPDATE invitations SET used_at = NOW(), email = $2 WHERE token = $1;"
-	_, err := s.db.Exec(query, token, auth.NormalizeEmail(email))
-	return err
-}
-
-func (s *Store) ExpireInvitation(token string) error {
-	query := "UPDATE invitations SET expires_at = NOW() WHERE token = $1;"
-	_, err := s.db.Exec(query, token)
-	return err
-}
-
-func (s *Store) GetInvitations() ([]types.Invitation, error) {
-	query := "SELECT * FROM invitations ORDER BY created_at DESC;"
-	rows, err := s.db.Query(query)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-
-	invitations := []types.Invitation{}
-	for rows.Next() {
-		var invitation types.Invitation
-		err := rows.Scan(
-			&invitation.ID,
-			&invitation.Token,
-			&invitation.Email,
-			&invitation.InviterID,
-			&invitation.ExpiresAt,
-			&invitation.UsedAt,
-			&invitation.CreatedAt,
-		)
-		if err != nil {
-			return nil, err
-		}
-		invitations = append(invitations, invitation)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-
-	return invitations, nil
+	return invitation, nil
 }

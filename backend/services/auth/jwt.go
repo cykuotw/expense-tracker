@@ -1,7 +1,9 @@
 package auth
 
 import (
+	"crypto/rand"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"expense-tracker/backend/config"
 	"expense-tracker/backend/types"
@@ -109,6 +111,14 @@ func ExtractJWTClaim(c *gin.Context, key string) (string, error) {
 func HashToken(token string) string {
 	hash := sha256.Sum256([]byte(token))
 	return hex.EncodeToString(hash[:])
+}
+
+func GenerateOpaqueToken() (string, error) {
+	bytes := make([]byte, 32)
+	if _, err := rand.Read(bytes); err != nil {
+		return "", err
+	}
+	return base64.RawURLEncoding.EncodeToString(bytes), nil
 }
 
 func ParseTokenString(tokenStr string, expectedType string) (*Claims, error) {

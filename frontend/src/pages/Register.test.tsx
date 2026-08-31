@@ -51,7 +51,7 @@ function invitationResponse(email: string) {
 
 function renderRegister() {
     return render(
-        <MemoryRouter initialEntries={["/register?token=invite-token"]}>
+        <MemoryRouter initialEntries={["/register#invite-token"]}>
             <Routes>
                 <Route path="/register" element={<Register />} />
                 <Route path="/login" element={<div>Login destination</div>} />
@@ -123,7 +123,7 @@ describe("Register invitation email", () => {
                 {
                     method: "POST",
                     headers: { Authorization: "Bearer google-id-token" },
-                    body: JSON.stringify({ token: "invite-token" }),
+                    body: JSON.stringify({}),
                 },
                 { authMode: "none" },
             );
@@ -155,12 +155,18 @@ describe("Register invitation email", () => {
         );
     });
 
-    it("removes the invitation token from the visible URL after capture", async () => {
+    it("uses the fragment only for the one-time exchange and then removes it", async () => {
         apiFetchMock.mockResolvedValue(invitationResponse(""));
         renderRegister();
 
         await screen.findByRole("textbox", { name: "Email" });
-        await waitFor(() => expect(window.location.search).toBe(""));
-        expect(window.location.pathname).toBe("/register");
+        expect(apiFetchMock).toHaveBeenCalledWith(
+            "/register/invitation/exchange",
+            {
+                method: "POST",
+                body: JSON.stringify({ token: "invite-token" }),
+            },
+            { authMode: "none" },
+        );
     });
 });

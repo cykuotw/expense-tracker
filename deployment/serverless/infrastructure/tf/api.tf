@@ -111,9 +111,9 @@ resource "aws_apigatewayv2_route" "user_info" {
   route_key = "POST ${local.api_path}/userInfo"
   target    = "integrations/${aws_apigatewayv2_integration.worker.id}"
 }
-resource "aws_apigatewayv2_route" "invitation_lookup" {
+resource "aws_apigatewayv2_route" "invitation_exchange" {
   api_id    = aws_apigatewayv2_api.worker.id
-  route_key = "GET ${local.api_path}/invitations/{token}"
+  route_key = "POST ${local.api_path}/register/invitation/exchange"
   target    = "integrations/${aws_apigatewayv2_integration.worker.id}"
 }
 
@@ -134,9 +134,9 @@ locals {
     settle_expense           = "PUT ${local.api_path}/settle_expense/{groupId}"
     settle_balance           = "POST ${local.api_path}/settle_balance/{groupId}/{balanceId}"
     create_invitation        = "POST ${local.api_path}/invitations"
-    expire_invitation        = "POST ${local.api_path}/invitations/{token}/expire"
     update_admin_user_status = "PATCH ${local.api_path}/admin/users/{id}/status"
     update_admin_user_role   = "PATCH ${local.api_path}/admin/users/{id}/role"
+    reissue_admin_invitation = "POST ${local.api_path}/admin/invitations/{id}/link"
     expire_admin_invitation  = "POST ${local.api_path}/admin/invitations/{id}/expire"
   }
 }
@@ -184,7 +184,7 @@ resource "aws_apigatewayv2_stage" "default" {
     throttling_rate_limit  = 1
   }
   route_settings {
-    route_key              = aws_apigatewayv2_route.invitation_lookup.route_key
+    route_key              = aws_apigatewayv2_route.invitation_exchange.route_key
     throttling_burst_limit = 3
     throttling_rate_limit  = 1
   }

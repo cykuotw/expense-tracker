@@ -185,7 +185,7 @@ is not configured for forced deletion.
 - Terraform never receives database/JWT/first-admin secrets and never manages Lambda environments.
 - The Worker begins at reserved concurrency `0`; Python publishes runtime configuration and activates it at `3`.
 - The raw execute-api endpoint is disabled only after custom-domain and frontend checks pass.
-- Normal updates use narrowly targeted, non-destructive Terraform plans only for explicitly supported API and CloudFront infrastructure changes; Lambda code and runtime environments remain owned by the deployment runtime after initial creation.
+- Normal updates use narrowly targeted, non-destructive Terraform plans only for explicitly supported API and CloudFront infrastructure changes; Lambda code and runtime environments remain owned by the deployment runtime after initial creation. The invitation-security release has a precise allowlist for retiring its two obsolete token-bearing routes; this is not a general permission to delete infrastructure.
 - Before an update, the deployer removes only unmanaged Worker/Bootstrap runtime environments if an AWS provider response persisted them into local state, then verifies that no configured protected value remains anywhere in Terraform artifacts.
 - Destroy deletes Lambdas first, waits for their owned ENIs, then runs `terraform destroy -refresh=false`.
 - A deployment failure keeps persistent resources for an explicit resume; it never performs automatic rollback or destroy.

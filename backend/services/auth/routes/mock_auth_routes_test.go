@@ -103,11 +103,8 @@ func registerUserStoreMock() *baseAuthUserStore {
 }
 
 type baseInvitationStore struct {
-	CreateInvitationFn     func(invitation types.Invitation) error
-	GetInvitationByTokenFn func(token string) (*types.Invitation, error)
-	MarkInvitationUsedFn   func(token string, email string) error
-	ExpireInvitationFn     func(token string) error
-	GetInvitationsFn       func() ([]types.Invitation, error)
+	CreateInvitationFn   func(invitation types.Invitation) error
+	ExchangeInvitationFn func(token string, registrationSession string) (*types.Invitation, error)
 }
 
 func (m *baseInvitationStore) CreateInvitation(invitation types.Invitation) error {
@@ -116,29 +113,11 @@ func (m *baseInvitationStore) CreateInvitation(invitation types.Invitation) erro
 	}
 	return nil
 }
-func (m *baseInvitationStore) GetInvitationByToken(token string) (*types.Invitation, error) {
-	if m.GetInvitationByTokenFn != nil {
-		return m.GetInvitationByTokenFn(token)
+func (m *baseInvitationStore) ExchangeInvitation(token string, registrationSession string) (*types.Invitation, error) {
+	if m.ExchangeInvitationFn != nil {
+		return m.ExchangeInvitationFn(token, registrationSession)
 	}
-	return &types.Invitation{Token: token, ExpiresAt: time.Now().Add(1 * time.Hour)}, nil
-}
-func (m *baseInvitationStore) MarkInvitationUsed(token string, email string) error {
-	if m.MarkInvitationUsedFn != nil {
-		return m.MarkInvitationUsedFn(token, email)
-	}
-	return nil
-}
-func (m *baseInvitationStore) ExpireInvitation(token string) error {
-	if m.ExpireInvitationFn != nil {
-		return m.ExpireInvitationFn(token)
-	}
-	return nil
-}
-func (m *baseInvitationStore) GetInvitations() ([]types.Invitation, error) {
-	if m.GetInvitationsFn != nil {
-		return m.GetInvitationsFn()
-	}
-	return []types.Invitation{}, nil
+	return &types.Invitation{Email: "", ExpiresAt: time.Now().Add(time.Hour)}, nil
 }
 
 func invitationStoreMock() *baseInvitationStore {

@@ -118,6 +118,10 @@ layout as applicable.
   and refresh tokens. Browser clients use cookie-based authentication; the
   backend also supports bearer-token extraction where required by its request
   boundary.
+- Invitation links carry an opaque one-time secret only in their URL fragment.
+  The browser exchanges it in a CSRF-protected request for a short-lived,
+  HttpOnly registration-session cookie; PostgreSQL retains hashes of both the
+  invitation secret and temporary registration session, never their raw values.
 - Protected routes derive the authenticated actor from the access token. The
   request body is not authority for a user, group, or expense relationship.
 - Authorization belongs in backend domain handling and uses persisted resource

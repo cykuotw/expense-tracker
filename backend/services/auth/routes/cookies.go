@@ -9,8 +9,9 @@ import (
 )
 
 const (
-	authCookiePath     = "/"
-	authCookieHTTPOnly = true
+	authCookiePath                = "/"
+	authCookieHTTPOnly            = true
+	registrationSessionCookieName = "registration_session"
 )
 
 func setAuthCookies(c *gin.Context, accessToken string, refreshToken string) {
@@ -21,6 +22,14 @@ func setAuthCookies(c *gin.Context, accessToken string, refreshToken string) {
 func clearAuthCookies(c *gin.Context) {
 	http.SetCookie(c.Writer, buildAuthCookie("access_token", "", -1, c))
 	http.SetCookie(c.Writer, buildAuthCookie("refresh_token", "", -1, c))
+}
+
+func setRegistrationSessionCookie(c *gin.Context, session string) {
+	http.SetCookie(c.Writer, buildAuthCookie(registrationSessionCookieName, session, int(registrationSessionTTL.Seconds()), c))
+}
+
+func clearRegistrationSessionCookie(c *gin.Context) {
+	http.SetCookie(c.Writer, buildAuthCookie(registrationSessionCookieName, "", -1, c))
 }
 
 func resolveAuthCookieSecure(c *gin.Context) bool {

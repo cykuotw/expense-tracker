@@ -139,13 +139,16 @@ def require_restore_verification_cleanup(plan: dict[str, Any]) -> dict[str, list
     return _require_restore_verification_plan(plan, ["delete"])
 
 
-def require_non_destructive_update(plan: dict[str, Any]) -> dict[str, list[str]]:
+def require_non_destructive_update(
+    plan: dict[str, Any], *, allowed_deletes: frozenset[str] = frozenset()
+) -> dict[str, list[str]]:
     actions = plan_actions(plan)
     allowed_actions = (["create"], ["update"])
     unsafe = {
         address: action
         for address, action in actions.items()
         if action not in allowed_actions
+        and not (address in allowed_deletes and action == ["delete"])
     }
     if unsafe:
         raise CommandError(f"update plan contains destructive or replacement actions: {unsafe}")

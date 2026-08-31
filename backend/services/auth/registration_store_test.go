@@ -36,9 +36,9 @@ func TestRegistrationStoreConsumesInvitationExactlyOnce(t *testing.T) {
 	t.Cleanup(func() { _, _ = conn.Exec("DELETE FROM users WHERE id = $1", inviterID) })
 
 	invitationID := uuid.New()
-	token := "registration-concurrency-" + uuid.NewString()
-	_, err := conn.Exec(`INSERT INTO invitations (id, token, email, inviter_id, expires_at, created_at)
-		VALUES ($1, $2, '', $3, NOW() + INTERVAL '1 hour', NOW())`, invitationID, token, inviterID)
+	registrationSession := "registration-concurrency-" + uuid.NewString()
+	_, err := conn.Exec(`INSERT INTO invitations (id, token_hash, registration_session_hash, registration_session_expires_at, email, inviter_id, expires_at, created_at)
+		VALUES ($1, $2, $3, NOW() + INTERVAL '15 minutes', '', $4, NOW() + INTERVAL '1 hour', NOW())`, invitationID, auth.HashToken("invitation-"+uuid.NewString()), auth.HashToken(registrationSession), inviterID)
 	require.NoError(t, err)
 
 	store := auth.NewRegistrationStore(conn)
@@ -59,7 +59,7 @@ func TestRegistrationStoreConsumesInvitationExactlyOnce(t *testing.T) {
 		go func(candidate types.User) {
 			defer wg.Done()
 			<-start
-			results <- store.CreateInvitedUser(t.Context(), token, candidate)
+			results <- store.CreateInvitedUser(t.Context(), registrationSession, candidate)
 		}(user)
 	}
 	close(start)
@@ -89,14 +89,14 @@ func TestRegistrationStoreConflictRollsBackInvitationConsumption(t *testing.T) {
 	t.Cleanup(func() { _, _ = conn.Exec("DELETE FROM users WHERE id = $1", existingID) })
 
 	invitationID := uuid.New()
-	token := "registration-rollback-" + uuid.NewString()
-	_, err := conn.Exec(`INSERT INTO invitations (id, token, email, inviter_id, expires_at, created_at)
-		VALUES ($1, $2, '', $3, NOW() + INTERVAL '1 hour', NOW())`, invitationID, token, existingID)
+	registrationSession := "registration-rollback-" + uuid.NewString()
+	_, err := conn.Exec(`INSERT INTO invitations (id, token_hash, registration_session_hash, registration_session_expires_at, email, inviter_id, expires_at, created_at)
+		VALUES ($1, $2, $3, NOW() + INTERVAL '15 minutes', '', $4, NOW() + INTERVAL '1 hour', NOW())`, invitationID, auth.HashToken("invitation-"+uuid.NewString()), auth.HashToken(registrationSession), existingID)
 	require.NoError(t, err)
 
 	conflicting := newRegistrationUser("different-" + uuid.NewString() + "@example.test")
 	conflicting.ID = existingID
-	err = auth.NewRegistrationStore(conn).CreateInvitedUser(t.Context(), token, conflicting)
+	err = auth.NewRegistrationStore(conn).CreateInvitedUser(t.Context(), registrationSession, conflicting)
 	assert.ErrorIs(t, err, types.ErrAccountConflict)
 
 	var usedAt sql.NullTime
@@ -109,11 +109,11 @@ func TestRegistrationStoreNormalizedEmailUniqueAcrossInvitations(t *testing.T) {
 	inviterID := insertRegistrationUser(t, conn, "inviter-"+uuid.NewString()+"@example.test")
 	t.Cleanup(func() { _, _ = conn.Exec("DELETE FROM users WHERE id = $1", inviterID) })
 
-	tokens := []string{"normalized-first-" + uuid.NewString(), "normalized-second-" + uuid.NewString()}
+	sessions := []string{"normalized-first-" + uuid.NewString(), "normalized-second-" + uuid.NewString()}
 	invitationIDs := []uuid.UUID{uuid.New(), uuid.New()}
-	for index := range tokens {
-		_, err := conn.Exec(`INSERT INTO invitations (id, token, email, inviter_id, expires_at, created_at)
-			VALUES ($1, $2, '', $3, NOW() + INTERVAL '1 hour', NOW())`, invitationIDs[index], tokens[index], inviterID)
+	for index := range sessions {
+		_, err := conn.Exec(`INSERT INTO invitations (id, token_hash, registration_session_hash, registration_session_expires_at, email, inviter_id, expires_at, created_at)
+			VALUES ($1, $2, $3, NOW() + INTERVAL '15 minutes', '', $4, NOW() + INTERVAL '1 hour', NOW())`, invitationIDs[index], auth.HashToken("invitation-"+uuid.NewString()), auth.HashToken(sessions[index]), inviterID)
 		require.NoError(t, err)
 	}
 
@@ -130,11 +130,11 @@ func TestRegistrationStoreNormalizedEmailUniqueAcrossInvitations(t *testing.T) {
 	var wg sync.WaitGroup
 	for index := range users {
 		wg.Add(1)
-		go func(candidate types.User, token string) {
+		go func(candidate types.User, registrationSession string) {
 			defer wg.Done()
 			<-start
-			results <- store.CreateInvitedUser(t.Context(), token, candidate)
-		}(users[index], tokens[index])
+			results <- store.CreateInvitedUser(t.Context(), registrationSession, candidate)
+		}(users[index], sessions[index])
 	}
 	close(start)
 	wg.Wait()

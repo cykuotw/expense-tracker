@@ -41,7 +41,7 @@ type invitationStoreMock struct {
 func (m *invitationStoreMock) GetAdminInvitations() ([]types.AdminInvitationResponse, error) {
 	return m.getFn()
 }
-func (m *invitationStoreMock) GetInvitationTokenByID(id string) (string, error) {
+func (m *invitationStoreMock) RotateInvitationTokenByID(id string) (string, error) {
 	return m.tokenFn(id)
 }
 func (m *invitationStoreMock) ExpireInvitationByID(id string) error {

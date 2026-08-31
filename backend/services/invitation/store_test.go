@@ -1,165 +1,85 @@
 package invitation_test
 
 import (
-	"database/sql"
+	"expense-tracker/backend/services/auth"
 	"expense-tracker/backend/services/invitation"
 	"expense-tracker/backend/types"
-	"fmt"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-func TestCreateInvitation(t *testing.T) {
+func TestInvitationStorePersistsOnlyTokenHashAndExchangesItForSession(t *testing.T) {
 	dbConn := openTestDB(t)
 	store := invitation.NewStore(dbConn)
 
-	// Setup inviter (User)
 	inviterID := uuid.New()
-	setupUser(dbConn, inviterID)
-	defer cleanUser(dbConn, inviterID)
+	setupUser(t, dbConn, inviterID)
+	t.Cleanup(func() { cleanUser(t, dbConn, inviterID) })
 
+	rawToken := "test-invitation-" + uuid.NewString()
 	invitationID := uuid.New()
-	token := "test-token-create-" + uuid.NewString()[:8]
-	inv := types.Invitation{
+	require.NoError(t, store.CreateInvitation(types.Invitation{
 		ID:        invitationID,
-		Token:     token,
+		TokenHash: auth.HashToken(rawToken),
 		Email:     "invitee@test.com",
 		InviterID: inviterID,
-		ExpiresAt: time.Now().Add(24 * time.Hour),
+		ExpiresAt: time.Now().Add(time.Hour),
 		CreatedAt: time.Now(),
-	}
+	}))
+	t.Cleanup(func() { cleanInvitation(t, dbConn, invitationID) })
 
-	// Test Create
-	err := store.CreateInvitation(inv)
-	assert.Nil(t, err)
-	defer cleanInvitation(dbConn, invitationID)
+	var storedHash string
+	require.NoError(t, dbConn.QueryRow("SELECT token_hash FROM invitations WHERE id = $1", invitationID).Scan(&storedHash))
+	assert.Equal(t, auth.HashToken(rawToken), storedHash)
+	assert.NotEqual(t, rawToken, storedHash)
+	var active bool
+	require.NoError(t, dbConn.QueryRow("SELECT expires_at > NOW() FROM invitations WHERE id = $1", invitationID).Scan(&active))
+	require.True(t, active)
 
-	// Verify in DB
-	savedInv, err := store.GetInvitationByToken(token)
-	assert.Nil(t, err)
-	assert.Equal(t, inv.ID, savedInv.ID)
-	assert.Equal(t, inv.Email, savedInv.Email)
+	registrationSession := "registration-session-" + uuid.NewString()
+	exchanged, err := store.ExchangeInvitation(rawToken, registrationSession)
+	require.NoError(t, err)
+	assert.Equal(t, invitationID, exchanged.ID)
+	assert.Equal(t, "invitee@test.com", exchanged.Email)
+
+	var sessionHash string
+	require.NoError(t, dbConn.QueryRow("SELECT registration_session_hash FROM invitations WHERE id = $1", invitationID).Scan(&sessionHash))
+	assert.Equal(t, auth.HashToken(registrationSession), sessionHash)
+	assert.NotEqual(t, registrationSession, sessionHash)
 }
 
-func TestGetInvitationByToken(t *testing.T) {
+func TestRotateInvitationInvalidatesEarlierSecretAndRegistrationSession(t *testing.T) {
 	dbConn := openTestDB(t)
 	store := invitation.NewStore(dbConn)
 
 	inviterID := uuid.New()
-	setupUser(dbConn, inviterID)
-	defer cleanUser(dbConn, inviterID)
+	setupUser(t, dbConn, inviterID)
+	t.Cleanup(func() { cleanUser(t, dbConn, inviterID) })
 
+	firstToken := "first-invitation-" + uuid.NewString()
 	invitationID := uuid.New()
-	token := "test-token-get-" + uuid.NewString()[:8]
-	inv := types.Invitation{
+	require.NoError(t, store.CreateInvitation(types.Invitation{
 		ID:        invitationID,
-		Token:     token,
-		Email:     "get@test.com",
+		TokenHash: auth.HashToken(firstToken),
+		Email:     "invitee@test.com",
 		InviterID: inviterID,
-		ExpiresAt: time.Now().Add(24 * time.Hour),
+		ExpiresAt: time.Now().Add(time.Hour),
 		CreatedAt: time.Now(),
-	}
-	insertInvitation(dbConn, inv)
-	defer cleanInvitation(dbConn, invitationID)
+	}))
+	t.Cleanup(func() { cleanInvitation(t, dbConn, invitationID) })
 
-	// Test Valid
-	res, err := store.GetInvitationByToken(token)
-	assert.Nil(t, err)
-	assert.Equal(t, inv.ID, res.ID)
+	_, err := store.ExchangeInvitation(firstToken, "first-session-"+uuid.NewString())
+	require.NoError(t, err)
+	rotatedToken, err := store.RotateInvitationTokenByID(invitationID.String())
+	require.NoError(t, err)
+	assert.NotEqual(t, firstToken, rotatedToken)
 
-	// Test Invalid
-	_, err = store.GetInvitationByToken("invalid-token-" + uuid.NewString())
-	assert.Error(t, err)
-}
-
-func TestMarkInvitationUsed(t *testing.T) {
-	dbConn := openTestDB(t)
-	store := invitation.NewStore(dbConn)
-
-	inviterID := uuid.New()
-	setupUser(dbConn, inviterID)
-	defer cleanUser(dbConn, inviterID)
-
-	invitationID := uuid.New()
-	token := "test-token-mark-" + uuid.NewString()[:8]
-	inv := types.Invitation{
-		ID:        invitationID,
-		Token:     token,
-		Email:     "mark@test.com",
-		InviterID: inviterID,
-		ExpiresAt: time.Now().Add(24 * time.Hour),
-		CreatedAt: time.Now(),
-	}
-	insertInvitation(dbConn, inv)
-	defer cleanInvitation(dbConn, invitationID)
-
-	// Mark as used
-	err := store.MarkInvitationUsed(token, "updated@test.com")
-	assert.Nil(t, err)
-
-	// Verify
-	updatedInv, err := store.GetInvitationByToken(token)
-	assert.Nil(t, err)
-	assert.NotNil(t, updatedInv.UsedAt)
-	assert.Equal(t, "updated@test.com", updatedInv.Email)
-}
-
-func TestExpireInvitation(t *testing.T) {
-	dbConn := openTestDB(t)
-	store := invitation.NewStore(dbConn)
-
-	inviterID := uuid.New()
-	setupUser(dbConn, inviterID)
-	defer cleanUser(dbConn, inviterID)
-
-	invitationID := uuid.New()
-	token := "test-token-expire-" + uuid.NewString()[:8]
-	inv := types.Invitation{
-		ID:        invitationID,
-		Token:     token,
-		Email:     "expire@test.com",
-		InviterID: inviterID,
-		ExpiresAt: time.Now().Add(24 * time.Hour),
-		CreatedAt: time.Now(),
-	}
-	insertInvitation(dbConn, inv)
-	defer cleanInvitation(dbConn, invitationID)
-
-	err := store.ExpireInvitation(token)
-	assert.Nil(t, err)
-
-	updatedInv, err := store.GetInvitationByToken(token)
-	assert.Nil(t, err)
-	assert.True(t, updatedInv.ExpiresAt.Before(time.Now().Add(1*time.Minute)))
-}
-
-// Helpers
-
-func setupUser(db *sql.DB, id uuid.UUID) {
-	// We need a user to satisfy the foreign key constraint on invitations.inviter_id
-	query := fmt.Sprintf(`INSERT INTO users (id, username, firstname, lastname, nickname, email, password_hash, create_time_utc, is_active, role) 
-		VALUES ('%s', 'testuser_%s', 'Test', 'User', 'test', 'test_%s@test.com', 'hash', '%s', true, 'admin')`,
-		id, id.String()[:8], id.String()[:8], time.Now().Format("2006-01-02 15:04:05-0700"))
-	db.Exec(query)
-}
-
-func cleanUser(db *sql.DB, id uuid.UUID) {
-	db.Exec(fmt.Sprintf("DELETE FROM users WHERE id = '%s'", id))
-}
-
-func insertInvitation(db *sql.DB, inv types.Invitation) {
-	query := fmt.Sprintf(
-		"INSERT INTO invitations (id, token, email, inviter_id, expires_at, created_at) VALUES ('%s', '%s', '%s', '%s', '%s', '%s');",
-		inv.ID, inv.Token, inv.Email, inv.InviterID,
-		inv.ExpiresAt.Format("2006-01-02 15:04:05"),
-		inv.CreatedAt.Format("2006-01-02 15:04:05"),
-	)
-	db.Exec(query)
-}
-
-func cleanInvitation(db *sql.DB, id uuid.UUID) {
-	db.Exec(fmt.Sprintf("DELETE FROM invitations WHERE id = '%s'", id))
+	_, err = store.ExchangeInvitation(firstToken, "old-session-"+uuid.NewString())
+	assert.ErrorIs(t, err, types.ErrInvitationInvalid)
+	_, err = store.ExchangeInvitation(rotatedToken, "new-session-"+uuid.NewString())
+	require.NoError(t, err)
 }

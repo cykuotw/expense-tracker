@@ -5,6 +5,7 @@ import (
 	googleAuth "expense-tracker/backend/services/auth/google"
 	"expense-tracker/backend/services/common"
 	"expense-tracker/backend/types"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -52,6 +53,9 @@ func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 	}
 
 	router.POST("/register", h.handleRegister)
+	router.POST("/register/invitation/exchange", h.handleInvitationExchange)
 	router.POST("/login", h.handleLogin)
 	router.POST("/logout", common.Make(h.handleLogout))
 }
+
+const registrationSessionTTL = 15 * time.Minute

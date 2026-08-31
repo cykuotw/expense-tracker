@@ -26,13 +26,13 @@ func TestServiceRegister(t *testing.T) {
 			Lastname:  "lname",
 			Email:     "adsf@test.com",
 			Password:  "longpassword",
-			Token:     "test-invite-token",
 		}
 		marshalled, _ := json.Marshal(payload)
 		req, err := http.NewRequest(http.MethodPost, "/register", bytes.NewBuffer(marshalled))
 		if err != nil {
 			t.Fatal(err)
 		}
+		req.AddCookie(&http.Cookie{Name: registrationSessionCookieName, Value: "registration-session"})
 
 		rr := httptest.NewRecorder()
 		router := gin.New()
@@ -88,12 +88,13 @@ func TestRegisterInvitationErrorContract(t *testing.T) {
 			})
 			payload := types.RegisterUserPayload{
 				Firstname: "First", Lastname: "Last", Email: " User@Example.com ",
-				Password: "longpassword", Token: "invite-token",
+				Password: "longpassword",
 			}
 			body, err := json.Marshal(payload)
 			assert.NoError(t, err)
 			req := httptest.NewRequest(http.MethodPost, "/register", bytes.NewReader(body))
 			req.Header.Set("Content-Type", "application/json")
+			req.AddCookie(&http.Cookie{Name: registrationSessionCookieName, Value: "registration-session"})
 			rr := httptest.NewRecorder()
 			router := gin.New()
 			router.POST("/register", handler.handleRegister)
@@ -115,12 +116,13 @@ func TestRegisterNormalizesEmailBeforeAtomicCreation(t *testing.T) {
 	})
 	payload := types.RegisterUserPayload{
 		Firstname: "First", Lastname: "Last", Email: " User@Example.com ",
-		Password: "longpassword", Token: "invite-token",
+		Password: "longpassword",
 	}
 	body, err := json.Marshal(payload)
 	assert.NoError(t, err)
 	req := httptest.NewRequest(http.MethodPost, "/register", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
+	req.AddCookie(&http.Cookie{Name: registrationSessionCookieName, Value: "registration-session"})
 	rr := httptest.NewRecorder()
 	router := gin.New()
 	router.POST("/register", handler.handleRegister)

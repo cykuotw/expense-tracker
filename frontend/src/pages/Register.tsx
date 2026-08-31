@@ -13,7 +13,7 @@ const RegisterContent = () => {
         error,
         tokenValid,
         emailBound,
-        token,
+        sessionReady,
         handleChange,
         handleSubmit,
         handleGoogleCredentialResponse,
@@ -37,7 +37,7 @@ const RegisterContent = () => {
                     <div className="flex justify-center items-center py-12">
                         <span className="ui-spinner ui-spinner-lg"></span>
                     </div>
-                ) : !token || !tokenValid ? (
+                ) : !sessionReady || !tokenValid ? (
                     <div className="panel-card rounded-[2rem] border-destructive/30 p-6 text-sm text-destructive">
                         {error ||
                             "Registration requires a valid invitation link."}

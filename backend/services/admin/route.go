@@ -20,7 +20,7 @@ type UserStore interface {
 
 type InvitationStore interface {
 	GetAdminInvitations() ([]types.AdminInvitationResponse, error)
-	GetInvitationTokenByID(id string) (string, error)
+	RotateInvitationTokenByID(id string) (string, error)
 	ExpireInvitationByID(id string) error
 }
 
@@ -37,7 +37,7 @@ func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 	router.GET("/admin/users", h.handleList)
 	router.PATCH("/admin/users/:id/status", h.handleUpdateStatus)
 	router.PATCH("/admin/users/:id/role", h.handleUpdateRole)
-	router.GET("/admin/invitations/:id/link", h.handleInvitationLink)
+	router.POST("/admin/invitations/:id/link", h.handleInvitationLink)
 	router.POST("/admin/invitations/:id/expire", h.handleExpireInvitation)
 }
 
@@ -152,7 +152,7 @@ func (h *Handler) handleInvitationLink(c *gin.Context) {
 		writeMutationError(c, err)
 		return
 	}
-	token, err := h.invitations.GetInvitationTokenByID(id)
+	token, err := h.invitations.RotateInvitationTokenByID(id)
 	if err != nil {
 		writeMutationError(c, err)
 		return

@@ -19,13 +19,13 @@ func NewRegistrationStore(db *sql.DB) *RegistrationStore {
 	return &RegistrationStore{db: db}
 }
 
-func (s *RegistrationStore) CreateInvitedUser(ctx context.Context, token string, user types.User) error {
+func (s *RegistrationStore) CreateInvitedUser(ctx context.Context, registrationSession string, user types.User) error {
 	if s == nil || s.db == nil {
 		return fmt.Errorf("registration store is unavailable")
 	}
 
-	token = strings.TrimSpace(token)
-	if token == "" {
+	registrationSession = strings.TrimSpace(registrationSession)
+	if registrationSession == "" {
 		return types.ErrInvitationRequired
 	}
 	user.Email = NormalizeEmail(user.Email)
@@ -39,11 +39,12 @@ func (s *RegistrationStore) CreateInvitedUser(ctx context.Context, token string,
 	var invitationEmail string
 	var used bool
 	var expired bool
+	var sessionExpired bool
 	err = tx.QueryRow(`
-		SELECT email, used_at IS NOT NULL, expires_at <= NOW()
+		SELECT email, used_at IS NOT NULL, expires_at <= NOW(), registration_session_expires_at <= NOW()
 		FROM invitations
-		WHERE token = $1
-		FOR UPDATE`, token).Scan(&invitationEmail, &used, &expired)
+		WHERE registration_session_hash = $1
+		FOR UPDATE`, HashToken(registrationSession)).Scan(&invitationEmail, &used, &expired, &sessionExpired)
 	if errors.Is(err, sql.ErrNoRows) {
 		return types.ErrInvitationInvalid
 	}
@@ -55,6 +56,9 @@ func (s *RegistrationStore) CreateInvitedUser(ctx context.Context, token string,
 	}
 	if expired {
 		return types.ErrInvitationExpired
+	}
+	if sessionExpired {
+		return types.ErrInvitationInvalid
 	}
 	if normalizedInvitationEmail := NormalizeEmail(invitationEmail); normalizedInvitationEmail != "" && normalizedInvitationEmail != user.Email {
 		return types.ErrInvitationEmailMismatch
@@ -78,7 +82,7 @@ func (s *RegistrationStore) CreateInvitedUser(ctx context.Context, token string,
 	result, err := tx.Exec(`
 		UPDATE invitations
 		SET used_at = NOW(), email = $2
-		WHERE token = $1 AND used_at IS NULL`, token, user.Email)
+		WHERE registration_session_hash = $1 AND used_at IS NULL`, HashToken(registrationSession), user.Email)
 	if err != nil {
 		return err
 	}

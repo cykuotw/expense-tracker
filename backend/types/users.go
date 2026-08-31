@@ -22,7 +22,7 @@ type UserStore interface {
 }
 
 type RegistrationStore interface {
-	CreateInvitedUser(ctx context.Context, token string, user User) error
+	CreateInvitedUser(ctx context.Context, registrationSession string, user User) error
 }
 
 type User struct {
@@ -53,11 +53,12 @@ type RegisterUserPayload struct {
 	Lastname  string `json:"lastname" validate:"required"`
 	Email     string `json:"email" validate:"required,email"`
 	Password  string `json:"password" validate:"required,min=8"`
-	Token     string `json:"token" validate:"required"`
 }
 
-type RegisterGooglePayload struct {
-	Token string `json:"token" validate:"required"`
+type RegisterGooglePayload struct{}
+
+type ExchangeInvitationPayload struct {
+	Token string `json:"token" validate:"required,max=512"`
 }
 
 type LoginUserPayload struct {

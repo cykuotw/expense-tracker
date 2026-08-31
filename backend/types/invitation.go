@@ -8,7 +8,7 @@ import (
 
 type Invitation struct {
 	ID        uuid.UUID  `json:"id"`
-	Token     string     `json:"token"`
+	TokenHash string     `json:"-"`
 	Email     string     `json:"email"`
 	InviterID uuid.UUID  `json:"inviterId"`
 	ExpiresAt time.Time  `json:"expiresAt"`
@@ -18,10 +18,7 @@ type Invitation struct {
 
 type InvitationStore interface {
 	CreateInvitation(invitation Invitation) error
-	GetInvitationByToken(token string) (*Invitation, error)
-	MarkInvitationUsed(token string, email string) error
-	ExpireInvitation(token string) error
-	GetInvitations() ([]Invitation, error)
+	ExchangeInvitation(token string, registrationSession string) (*Invitation, error)
 }
 
 type CreateInvitationPayload struct {

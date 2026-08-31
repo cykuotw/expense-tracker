@@ -295,7 +295,11 @@ def _infrastructure_targets(scope: str) -> tuple[str, ...]:
     if scope in {"backend", "all"}:
         targets.append("aws_apigatewayv2_route.google_register")
         targets.append("aws_apigatewayv2_route.google_link")
+        targets.append("aws_apigatewayv2_route.invitation_lookup")
         targets.append("aws_apigatewayv2_route.authenticated_mutation")
+        targets.append(
+            'aws_apigatewayv2_route.authenticated_mutation["expire_invitation"]'
+        )
         targets.append("aws_apigatewayv2_stage.default")
     if scope in {"frontend", "all"}:
         targets.extend((
@@ -320,6 +324,14 @@ def _infrastructure_targets(scope: str) -> tuple[str, ...]:
             "aws_instance.postgres",
         ))
     return tuple(targets)
+
+
+RETIRED_INVITATION_ROUTE_ADDRESSES = frozenset(
+    {
+        "aws_apigatewayv2_route.invitation_lookup",
+        'aws_apigatewayv2_route.authenticated_mutation["expire_invitation"]',
+    }
+)
 
 
 def _backup_infrastructure_targets() -> tuple[str, ...]:
@@ -353,7 +365,10 @@ def _apply_infrastructure_updates(context: Context, scope: str) -> None:
         terraform.validate()
         plan_path = Path(temporary) / "update.tfplan"
         terraform.plan(plan_path, targets=targets)
-        actions = require_non_destructive_update(terraform.show_plan(plan_path))
+        actions = require_non_destructive_update(
+            terraform.show_plan(plan_path),
+            allowed_deletes=RETIRED_INVITATION_ROUTE_ADDRESSES,
+        )
         _print_plan(actions)
         if actions:
             terraform.apply(plan_path)

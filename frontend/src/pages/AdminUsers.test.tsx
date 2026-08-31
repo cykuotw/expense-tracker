@@ -103,6 +103,14 @@ function renderPage() {
     );
 }
 
+async function showSection(title: string) {
+    fireEvent.click(
+        await screen.findByRole("button", {
+            name: `Show ${title} section`,
+        }),
+    );
+}
+
 describe("AdminUsers", () => {
     beforeEach(() => {
         vi.clearAllMocks();
@@ -129,7 +137,19 @@ describe("AdminUsers", () => {
     it("shows account and invitation statuses and locks self-management", async () => {
         renderPage();
 
-        expect(await screen.findByText("user@example.com")).toBeInTheDocument();
+        expect(await screen.findByText("admin@example.com")).toBeInTheDocument();
+        expect(screen.queryByText("user@example.com")).not.toBeInTheDocument();
+        expect(screen.queryByText("invited@example.com")).not.toBeInTheDocument();
+        expect(
+            screen.getByRole("button", { name: "Hide Administrators section" }),
+        ).toHaveAttribute("aria-expanded", "true");
+        expect(
+            screen.getByRole("button", { name: "Show Regular users section" }),
+        ).toHaveAttribute("aria-expanded", "false");
+
+        await showSection("Regular users");
+        await showSection("Invitations");
+        expect(screen.getByText("user@example.com")).toBeInTheDocument();
         expect(screen.getByText("invited@example.com")).toBeInTheDocument();
         expect(screen.getByText("invited")).toBeInTheDocument();
 
@@ -159,6 +179,8 @@ describe("AdminUsers", () => {
         renderPage();
 
         expect(await screen.findByText("No administrators found.")).toBeInTheDocument();
+        await showSection("Regular users");
+        await showSection("Invitations");
         expect(screen.getByText("No regular users found.")).toBeInTheDocument();
         expect(screen.getByText("No invitations found.")).toBeInTheDocument();
     });
@@ -184,6 +206,7 @@ describe("AdminUsers", () => {
 
     it("updates role and account status with separate API calls", async () => {
         renderPage();
+        await showSection("Regular users");
         const userEmail = await screen.findByText("user@example.com");
         const userCard = userEmail.closest("article");
         expect(userCard).not.toBeNull();
@@ -252,6 +275,7 @@ describe("AdminUsers", () => {
 
     it("cancels a role change without calling the mutation API", async () => {
         renderPage();
+        await showSection("Regular users");
         const userCard = (await screen.findByText("user@example.com")).closest(
             "article",
         );
@@ -289,6 +313,7 @@ describe("AdminUsers", () => {
             code: "PROTECTED_ADMIN",
         });
         renderPage();
+        await showSection("Regular users");
 
         const userCard = (await screen.findByText("user@example.com")).closest(
             "article",
@@ -321,7 +346,8 @@ describe("AdminUsers", () => {
         ],
     ])("creates %s from user management", async (_label, input, expected) => {
         renderPage();
-        await screen.findByText("user@example.com");
+        await screen.findByText("admin@example.com");
+        await showSection("Invitations");
 
         const emailInput = screen.getByRole("textbox", {
             name: "Email (optional)",
@@ -341,6 +367,7 @@ describe("AdminUsers", () => {
 
     it("confirms before expiring an invitation", async () => {
         renderPage();
+        await showSection("Invitations");
         await screen.findByText("invited@example.com");
 
         fireEvent.click(screen.getByRole("button", { name: "Expire" }));
@@ -360,8 +387,9 @@ describe("AdminUsers", () => {
         );
     });
 
-    it("retrieves an invitation token only when copying the link", async () => {
+    it("rotates an invitation token only when copying the link", async () => {
         renderPage();
+        await showSection("Invitations");
         await screen.findByText("invited@example.com");
 
         fireEvent.click(screen.getByRole("button", { name: "Copy link" }));
@@ -369,9 +397,10 @@ describe("AdminUsers", () => {
         await waitFor(() => {
             expect(apiFetchMock).toHaveBeenCalledWith(
                 "/admin/invitations/invite-1/link",
+                { method: "POST" },
             );
             expect(clipboardWriteMock).toHaveBeenCalledWith(
-                "http://localhost:3000/register?token=invite-token",
+                "http://localhost:3000/register#invite-token",
             );
         });
     });
@@ -382,6 +411,7 @@ describe("AdminUsers", () => {
             value: undefined,
         });
         renderPage();
+        await showSection("Invitations");
         await screen.findByText("invited@example.com");
 
         fireEvent.click(screen.getByRole("button", { name: "Copy link" }));
@@ -397,6 +427,7 @@ describe("AdminUsers", () => {
     it("explains how to recover when clipboard permission is denied", async () => {
         clipboardWriteMock.mockRejectedValue(new Error("permission denied"));
         renderPage();
+        await showSection("Invitations");
         await screen.findByText("invited@example.com");
 
         fireEvent.click(screen.getByRole("button", { name: "Copy link" }));

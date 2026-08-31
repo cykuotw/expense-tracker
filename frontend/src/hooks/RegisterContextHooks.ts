@@ -14,7 +14,7 @@ export interface RegisterContextType {
     error: string;
     tokenValid: boolean;
     emailBound: boolean;
-    token: string | null;
+    sessionReady: boolean;
     handleChange: (e: ChangeEvent<HTMLInputElement>) => void;
     handleSubmit: (e: FormEvent) => void;
     handleGoogleCredentialResponse: (

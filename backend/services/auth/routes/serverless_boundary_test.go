@@ -171,18 +171,18 @@ func TestBoundaryGoogleRegistrationRequiresInvitation(t *testing.T) {
 
 	registered := fixture.proxy(gatewayRequest(http.MethodPost, "/auth/google/register",
 		withOrigin(boundaryFrontendOrigin),
-		withCookies(csrfCookies),
+		withCookies(append(csrfCookies, "registration_session=boundary-email-invite")),
 		withHeader(middleware.CSRFHeaderName, csrf),
 		withAuthorizerClaims(claims),
-		withJSONBody(t, types.RegisterGooglePayload{Token: "boundary-email-invite"}),
+		withJSONBody(t, types.RegisterGooglePayload{}),
 	))
 	require.Equal(t, http.StatusCreated, registered.StatusCode)
-	assert.Empty(t, responseSetCookies(registered), "registration must not create a session")
+	assert.Equal(t, -1, requireCookie(t, responseSetCookies(registered), registrationSessionCookieName).MaxAge)
 
 	// Once provisioned, the same identity can use the normal login-only exchange.
 	exchanged := fixture.proxy(gatewayRequest(http.MethodPost, "/auth/google/exchange",
 		withOrigin(boundaryFrontendOrigin),
-		withCookies(csrfCookies),
+		withCookies(append(csrfCookies, "registration_session=boundary-email-invite")),
 		withHeader(middleware.CSRFHeaderName, csrf),
 		withAuthorizerClaims(claims),
 	))
@@ -191,12 +191,12 @@ func TestBoundaryGoogleRegistrationRequiresInvitation(t *testing.T) {
 
 	reused := fixture.proxy(gatewayRequest(http.MethodPost, "/auth/google/register",
 		withOrigin(boundaryFrontendOrigin),
-		withCookies(csrfCookies),
+		withCookies(append(csrfCookies, "registration_session=boundary-email-invite")),
 		withHeader(middleware.CSRFHeaderName, csrf),
 		withAuthorizerClaims(map[string]string{
 			"sub": "another-google-sub", "email": "another@example.test", "email_verified": "true",
 		}),
-		withJSONBody(t, types.RegisterGooglePayload{Token: "boundary-email-invite"}),
+		withJSONBody(t, types.RegisterGooglePayload{}),
 	))
 	assert.Equal(t, http.StatusForbidden, reused.StatusCode)
 	assert.Contains(t, reused.Body, `"code":"INVITATION_USED"`)

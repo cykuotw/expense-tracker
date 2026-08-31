@@ -144,8 +144,8 @@ func TestHandleGoogleRegisterInProcess(t *testing.T) {
 	t.Run("creates invited account without issuing a session", func(t *testing.T) {
 		var registeredUser types.User
 		handler := NewHandler(loginUserStoreMock(), invitationStoreMock(), refreshStoreMock(), &baseRegistrationStore{
-			CreateInvitedUserFn: func(ctx context.Context, token string, user types.User) error {
-				assert.Equal(t, "invite-token", token)
+			CreateInvitedUserFn: func(ctx context.Context, session string, user types.User) error {
+				assert.Equal(t, "registration-session", session)
 				registeredUser = user
 				return nil
 			},
@@ -159,9 +159,10 @@ func TestHandleGoogleRegisterInProcess(t *testing.T) {
 			return &types.User{ID: uuid.New(), Email: received.Email, ExternalType: "google", ExternalID: received.Subject}, nil
 		}}
 
-		req := httptest.NewRequest(http.MethodPost, "/auth/google/register", bytes.NewBufferString(`{"token":"invite-token"}`))
+		req := httptest.NewRequest(http.MethodPost, "/auth/google/register", bytes.NewBufferString(`{}`))
 		req.Header.Set("Authorization", "Bearer google-token")
 		req.Header.Set("Content-Type", "application/json")
+		req.AddCookie(&http.Cookie{Name: registrationSessionCookieName, Value: "registration-session"})
 		rr := httptest.NewRecorder()
 		router := gin.New()
 		router.POST("/auth/google/register", common.Make(handler.handleGoogleRegisterInProcess))
@@ -169,7 +170,7 @@ func TestHandleGoogleRegisterInProcess(t *testing.T) {
 
 		assert.Equal(t, http.StatusCreated, rr.Code)
 		assert.Equal(t, "google", registeredUser.ExternalType)
-		assert.Empty(t, rr.Result().Cookies())
+		assert.Equal(t, -1, rr.Result().Cookies()[0].MaxAge)
 	})
 
 	t.Run("requires invitation token", func(t *testing.T) {
@@ -206,9 +207,10 @@ func TestHandleGoogleRegisterInProcess(t *testing.T) {
 			return &types.User{}, nil
 		}}
 
-		req := httptest.NewRequest(http.MethodPost, "/auth/google/register", bytes.NewBufferString(`{"token":"invite-token"}`))
+		req := httptest.NewRequest(http.MethodPost, "/auth/google/register", bytes.NewBufferString(`{}`))
 		req.Header.Set("Authorization", "Bearer google-token")
 		req.Header.Set("Content-Type", "application/json")
+		req.AddCookie(&http.Cookie{Name: registrationSessionCookieName, Value: "registration-session"})
 		rr := httptest.NewRecorder()
 		router := gin.New()
 		router.POST("/auth/google/register", common.Make(handler.handleGoogleRegisterInProcess))

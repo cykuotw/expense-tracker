@@ -356,6 +356,15 @@ func (m *mockUserStore) GetUsernameByID(userid string) (string, error) {
 	}
 	return "", nil
 }
+
+type batchUserStoreMock struct {
+	*mockUserStore
+	getUsernamesByIDsFn func(userIDs []string) (map[string]string, error)
+}
+
+func (m *batchUserStoreMock) GetUsernamesByIDs(userIDs []string) (map[string]string, error) {
+	return m.getUsernamesByIDsFn(userIDs)
+}
 func (m *mockUserStore) CheckEmailExist(email string) (bool, error) {
 	if m.CheckEmailExistFn != nil {
 		return m.CheckEmailExistFn(email)

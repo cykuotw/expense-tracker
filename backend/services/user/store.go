@@ -132,7 +132,14 @@ func (s *Store) GetUsernamesByIDs(userIDs []string) (map[string]string, error) {
 	}
 
 	rows, err := s.db.Query(
-		"SELECT id, username FROM users WHERE id = ANY($1::uuid[]);",
+		`SELECT id,
+			COALESCE(
+				NULLIF(BTRIM(nickname), ''),
+				NULLIF(BTRIM(CONCAT_WS(' ', firstname, lastname)), ''),
+				username
+			)
+		FROM users
+		WHERE id = ANY($1::uuid[]);`,
 		userIDs,
 	)
 	if err != nil {

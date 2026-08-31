@@ -14,6 +14,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestRouteGetExpenseDetail(t *testing.T) {
@@ -109,4 +110,52 @@ func TestRouteGetExpenseDetail(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestGetExpenseDetailUsesCurrentLedgerDisplayNames(t *testing.T) {
+	creatorID := uuid.New()
+	lenderID := uuid.New()
+	borrowerID := uuid.New()
+	expenseTypeID := uuid.New()
+	store := expenseStoreMock()
+	store.GetItemsByExpenseIDFn = func(string) ([]*types.Item, error) {
+		return []*types.Item{}, nil
+	}
+	store.GetLedgersByExpenseIDFn = func(string) ([]*types.Ledger, error) {
+		return []*types.Ledger{{
+			ID:             uuid.New(),
+			LenderUserID:   lenderID,
+			BorrowerUesrID: borrowerID,
+		}}, nil
+	}
+	store.GetExpenseTypeFn = func() ([]*types.ExpenseType, error) {
+		return []*types.ExpenseType{{ID: expenseTypeID, Name: "Groceries", Category: "Food and Drink"}}, nil
+	}
+	baseUserStore := userStoreMock()
+	baseUserStore.GetUserByIDFn = func(string) (*types.User, error) {
+		return &types.User{ID: creatorID, Username: "creator"}, nil
+	}
+	userStore := &batchUserStoreMock{
+		mockUserStore: baseUserStore,
+		getUsernamesByIDsFn: func([]string) (map[string]string, error) {
+			return map[string]string{
+				lenderID.String():   "Updated payer",
+				borrowerID.String(): "Updated borrower",
+			}, nil
+		},
+	}
+
+	handler := NewHandler(store, userStore, groupStoreMock(), expenseControllerMock())
+	context, recorder := newReadContext(gin.Params{{Key: "expenseId", Value: uuid.NewString()}})
+	context.Set("userID", uuid.NewString())
+	context.Set("expense", &types.Expense{CreateByUserID: creatorID, ExpenseTypeID: expenseTypeID})
+
+	handler.handleGetExpenseDetail(context)
+
+	require.Equal(t, http.StatusOK, recorder.Code)
+	var response types.ExpenseResponse
+	require.NoError(t, json.NewDecoder(recorder.Body).Decode(&response))
+	require.Len(t, response.Ledgers, 1)
+	assert.Equal(t, "Updated payer", response.Ledgers[0].LenderUsername)
+	assert.Equal(t, "Updated borrower", response.Ledgers[0].BorrowerUsername)
 }

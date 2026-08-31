@@ -265,6 +265,36 @@ func TestGetUsernameByID(t *testing.T) {
 	}
 }
 
+func TestGetUsernamesByIDsUsesCurrentProfileDisplayName(t *testing.T) {
+	db := openTestDB(t)
+	userID := uuid.New()
+	profileUser := types.User{
+		ID:               userID,
+		Username:         "ledger-account",
+		Nickname:         "Ledger name",
+		Firstname:        "Taylor",
+		Lastname:         "Swift",
+		Email:            "ledger-name@example.com",
+		PasswordHashed:   "hash",
+		HasLocalPassword: true,
+		CreateTime:       time.Now(),
+		IsActive:         true,
+	}
+	insertUser(db, profileUser)
+	defer cleanUser(db, userID)
+
+	store := user.NewStore(db)
+	names, err := store.GetUsernamesByIDs([]string{userID.String()})
+	assert.NoError(t, err)
+	assert.Equal(t, "Ledger name", names[userID.String()])
+
+	_, err = db.Exec("UPDATE users SET nickname = $1 WHERE id = $2", "", userID)
+	assert.NoError(t, err)
+	names, err = store.GetUsernamesByIDs([]string{userID.String()})
+	assert.NoError(t, err)
+	assert.Equal(t, "Taylor Swift", names[userID.String()])
+}
+
 func insertUser(db *sql.DB, user types.User) {
 	createTime := user.CreateTime.UTC().Format("2006-01-02 15:04:05-0700")
 	query := fmt.Sprintf(

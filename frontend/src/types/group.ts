@@ -5,6 +5,7 @@ export interface GroupCardData {
     groupName: string;
     description: string;
     currency: string;
+    groupType: string;
     balanceStatus: GroupBalanceStatus;
     balanceAmount: string;
 }
@@ -18,6 +19,7 @@ export interface GroupInfo {
     groupName: string;
     description: string;
     currency: string;
+    groupType: string;
     members: GroupMember[];
 }
 
@@ -32,10 +34,12 @@ export interface GroupListItem {
     groupName: string;
     description: string;
     currency: string;
+    groupType: string;
 }
 
 export interface GroupNewData {
     groupName: string;
     description: string;
     currency: string;
+    groupType: string;
 }

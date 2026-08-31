@@ -21,6 +21,7 @@ const AddMember = lazy(() => import("./pages/AddMember"));
 const ExpenseDetail = lazy(() => import("./pages/ExpenseDetail"));
 const CreateExpense = lazy(() => import("./pages/CreateExpense"));
 const CreateGroup = lazy(() => import("./pages/CreateGroup"));
+const EditGroup = lazy(() => import("./pages/EditGroup"));
 const EditExpense = lazy(() => import("./pages/EditExpense"));
 const AdminUsers = lazy(() => import("./pages/AdminUsers"));
 const AccountSettings = lazy(() => import("./pages/AccountSettings"));
@@ -66,6 +67,7 @@ function AppRoutes() {
 
                         <Route path="/group/:id" element={<GroupDetail />} />
                         <Route path="/create_group" element={<CreateGroup />} />
+                        <Route path="/group/:id/edit" element={<EditGroup />} />
 
                         <Route
                             path="/expense/:id"

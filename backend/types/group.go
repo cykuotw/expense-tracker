@@ -19,6 +19,7 @@ type GroupStore interface {
 
 	UpdateGroupMember(action string, userid string, groupID string) error
 	UpdateGroupStatus(groupID string, creatorID string, isActive bool) error
+	UpdateGroup(group Group) error
 
 	CheckGroupExistById(id string) (bool, error)
 	CheckGroupUserPairExist(groupId string, userId string) (bool, error)
@@ -31,6 +32,7 @@ type Group struct {
 	CreateTime   time.Time `json:"createTime"`
 	IsActive     bool      `json:"isActive"`
 	Currency     string    `json:"currency"`
+	GroupType    string    `json:"groupType"`
 	CreateByUser uuid.UUID `json:"createByUser"`
 }
 
@@ -38,6 +40,14 @@ type CreateGroupPayload struct {
 	GroupName   string `json:"groupName"`
 	Description string `json:"description"`
 	Currency    string `json:"currency"`
+	GroupType   string `json:"groupType"`
+}
+
+type UpdateGroupPayload struct {
+	GroupName   string `json:"groupName"`
+	Description string `json:"description"`
+	Currency    string `json:"currency"`
+	GroupType   string `json:"groupType"`
 }
 
 type UpdateGroupMemberPayload struct {
@@ -57,6 +67,7 @@ type GetGroupResponse struct {
 	GroupName   string        `json:"groupName"`
 	Description string        `json:"description"`
 	Currency    string        `json:"currency"`
+	GroupType   string        `json:"groupType"`
 	Members     []GroupMember `json:"members"`
 }
 
@@ -84,6 +95,7 @@ type GetGroupListResponse struct {
 	GroupName     string             `json:"groupName"`
 	Description   string             `json:"description"`
 	Currency      string             `json:"currency"`
+	GroupType     string             `json:"groupType"`
 	BalanceStatus GroupBalanceStatus `json:"balanceStatus"`
 	BalanceAmount decimal.Decimal    `json:"balanceAmount"`
 }

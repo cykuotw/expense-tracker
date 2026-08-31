@@ -119,10 +119,16 @@ describe("PWAUpdatePrompt", () => {
         expect(update).toHaveBeenCalledTimes(1);
     });
 
-    it("lets the user explicitly apply a waiting update", () => {
+    it("lets the user explicitly apply a waiting update", async () => {
+        let resolveUpdate: (() => void) | undefined;
+        updateServiceWorkerMock.mockImplementation(
+            () => new Promise<void>((resolve) => { resolveUpdate = resolve; })
+        );
         render(<PWAUpdatePrompt />);
 
         fireEvent.click(screen.getByRole("button", { name: "Reload now" }));
         expect(updateServiceWorkerMock).toHaveBeenCalledWith(true);
+        expect(screen.getByRole("button", { name: "Reloading…" })).toBeDisabled();
+        await act(async () => resolveUpdate?.());
     });
 });

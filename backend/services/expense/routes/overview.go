@@ -65,7 +65,7 @@ func (h *Handler) handleGetGroupOverview(c *gin.Context) {
 		groupMembers = append(groupMembers, *current)
 	}
 	utils.WriteJSON(c, http.StatusOK, types.GroupOverviewResponse{
-		Group:    types.GetGroupResponse{GroupName: group.GroupName, Description: group.Description, Currency: group.Currency, Members: groupMembers},
+		Group:    types.GetGroupResponse{GroupName: group.GroupName, Description: group.Description, Currency: group.Currency, GroupType: group.GroupType, Members: groupMembers},
 		Balance:  balances,
 		Expenses: expenses,
 	})

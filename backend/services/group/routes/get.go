@@ -42,6 +42,7 @@ func (h *Handler) handleGetGroup(c *gin.Context) {
 		GroupName:   group.GroupName,
 		Description: group.Description,
 		Currency:    group.Currency,
+		GroupType:   group.GroupType,
 		Members:     groupMembersForUser(users, userID),
 	}
 

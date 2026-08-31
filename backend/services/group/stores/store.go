@@ -24,6 +24,7 @@ func scanRowIntoGroup(rows *sql.Rows) (*types.Group, error) {
 		&group.IsActive,
 		&group.CreateByUser,
 		&group.Currency,
+		&group.GroupType,
 	)
 	if err != nil {
 		return nil, err

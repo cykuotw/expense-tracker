@@ -1,5 +1,6 @@
 import { CreateGroupProvider } from "../contexts/CreateGroupContext";
 import { useCreateGroup } from "../hooks/CreateGroupContextHooks";
+import { GroupTypePicker } from "../components/group/GroupTypePicker";
 
 const CreateGroupContent = () => {
     const {
@@ -9,6 +10,8 @@ const CreateGroupContent = () => {
         setDescription,
         currency,
         setCurrency,
+        groupType,
+        setGroupType,
         indicator,
         dataOk,
         createGroup,
@@ -22,8 +25,7 @@ const CreateGroupContent = () => {
                         <div className="page-eyebrow">Groups</div>
                         <h1 className="page-title">Create a new group</h1>
                         <p className="page-copy">
-                            Set a name, add a short description, and pick the
-                            currency your group will use.
+                            Set a name, choose its type, and pick the currency your group will use.
                         </p>
                     </div>
                 </div>
@@ -33,6 +35,12 @@ const CreateGroupContent = () => {
                     onSubmit={createGroup}
                 >
                         <div className="grid gap-5">
+                            <div>
+                                <div className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground/60">Group type</div>
+                                <div className="mt-2">
+                                    <GroupTypePicker value={groupType} onChange={setGroupType} />
+                                </div>
+                            </div>
                             <div>
                                 <label className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground/60">
                                     Group name

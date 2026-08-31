@@ -8,7 +8,7 @@ import (
 )
 
 func (s *Store) GetGroupByID(id string) (*types.Group, error) {
-	query := "SELECT * FROM groups WHERE id = $1;"
+	query := "SELECT id, group_name, description, create_time_utc, is_active, create_by_user_id, currency, group_type FROM groups WHERE id = $1;"
 	rows, err := s.db.Query(query, id)
 	if err != nil {
 		return nil, err

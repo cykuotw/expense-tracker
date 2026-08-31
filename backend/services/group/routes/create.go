@@ -36,6 +36,13 @@ func (h *Handler) handleCreateGroup(c *gin.Context) {
 	if payload.GroupName == "" {
 		payload.GroupName = "Default Group Name"
 	}
+	if payload.GroupType == "" {
+		payload.GroupType = "home"
+	}
+	if !isValidGroupType(payload.GroupType) {
+		utils.WriteError(c, http.StatusBadRequest, types.ErrInvalidAction)
+		return
+	}
 
 	group := types.Group{
 		ID:           uuid.New(),
@@ -44,6 +51,7 @@ func (h *Handler) handleCreateGroup(c *gin.Context) {
 		CreateTime:   time.Now(),
 		IsActive:     true,
 		Currency:     payload.Currency,
+		GroupType:    payload.GroupType,
 		CreateByUser: user.ID,
 	}
 

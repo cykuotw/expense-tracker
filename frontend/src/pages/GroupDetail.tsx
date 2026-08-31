@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
+import Icon from "@mdi/react";
 import { ExpenseData } from "../types/expense";
 import ExpenseCard from "../components/expense/ExpenseCard";
 import {
@@ -14,6 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { GroupDetailProvider } from "../contexts/GroupDetailContext";
 import { useGroupDetail } from "../hooks/GroupDetailContextHooks";
+import { getGroupTypePresentation } from "../lib/groupTypePresentation";
 
 const GroupDetailContent = () => {
     const {
@@ -38,6 +40,7 @@ const GroupDetailContent = () => {
     const [showSettled, setShowSettled] = useState(false);
     const [settleOpen, setSettleOpen] = useState(false);
     const [showAllBalances, setShowAllBalances] = useState(false);
+    const groupType = getGroupTypePresentation(groupinfo?.groupType);
     const loadedSettledExpensesRef = useRef<string | null>(null);
     const balanceEntries = balance
         ? balance.balances.flatMap((entry) => {
@@ -94,7 +97,7 @@ const GroupDetailContent = () => {
                 <div className="page-header">
                     <div className="page-header__copy">
                         <div className="page-eyebrow">Group</div>
-                        <h1 className="page-title">{groupinfo?.groupName}</h1>
+                        <div className="mt-2 flex items-center gap-3"><span className={`flex size-11 items-center justify-center rounded-xl ${groupType.iconClassName}`} aria-hidden="true"><Icon path={groupType.icon} size={1.1} /></span><h1 className="page-title">{groupinfo?.groupName}</h1></div>
                         <p className="page-copy">
                             Review balances, add expenses, and update members.
                         </p>
@@ -106,6 +109,7 @@ const GroupDetailContent = () => {
                         >
                             Add Expense
                         </Link>
+                        <Link to={`/group/${groupId}/edit`} className="ui-button ui-button-outline w-full sm:w-40">Edit Group</Link>
                         <Link
                             to={`/add_member?g=${groupId}`}
                             className="ui-button ui-button-outline w-full sm:w-40"

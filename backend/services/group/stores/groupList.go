@@ -14,6 +14,7 @@ func (s *Store) GetGroupListByUser(userID string) ([]types.GetGroupListResponse,
 				g.group_name,
 				g.description,
 				g.currency,
+				g.group_type,
 				g.create_time_utc
 			FROM groups g
 			INNER JOIN group_member gm ON gm.group_id = g.id
@@ -48,6 +49,7 @@ func (s *Store) GetGroupListByUser(userID string) ([]types.GetGroupListResponse,
 			mg.group_name,
 			mg.description,
 			mg.currency,
+			mg.group_type,
 			CASE
 				WHEN COALESCE(bn.net, 0) = 0 THEN 'settled'
 				WHEN COALESCE(bn.net, 0) > 0 THEN 'owed'
@@ -80,6 +82,7 @@ func (s *Store) GetGroupListByUser(userID string) ([]types.GetGroupListResponse,
 			&group.GroupName,
 			&group.Description,
 			&group.Currency,
+			&group.GroupType,
 			&status,
 			&amount,
 		); err != nil {

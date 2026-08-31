@@ -70,3 +70,11 @@ func (s *Store) UpdateGroupStatus(groupID string, creatorID string, isActive boo
 	}
 	return nil
 }
+
+func (s *Store) UpdateGroup(group types.Group) error {
+	_, err := s.db.Exec(`UPDATE groups
+		SET group_name = $1, description = $2, currency = $3, group_type = $4
+		WHERE id = $5 AND create_by_user_id = $6`,
+		group.GroupName, group.Description, group.Currency, group.GroupType, group.ID, group.CreateByUser)
+	return err
+}

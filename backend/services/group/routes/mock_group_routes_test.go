@@ -16,6 +16,7 @@ type mockGroupStore struct {
 	GetGroupMemberByGroupIDFn func(groupId string) ([]*types.User, error)
 	UpdateGroupMemberFn       func(action string, userid string, groupid string) error
 	UpdateGroupStatusFn       func(groupID string, creatorID string, isActive bool) error
+	UpdateGroupFn             func(group types.Group) error
 	GetGroupCurrencyFn        func(groupID string) (string, error)
 	GetRelatedUserFn          func(currentUser string, groupId string) ([]*types.RelatedMember, error)
 	CheckGroupExistByIdFn     func(id string) (bool, error)
@@ -61,6 +62,12 @@ func (m *mockGroupStore) UpdateGroupMember(action string, userid string, groupid
 func (m *mockGroupStore) UpdateGroupStatus(groupID string, creatorID string, isActive bool) error {
 	if m.UpdateGroupStatusFn != nil {
 		return m.UpdateGroupStatusFn(groupID, creatorID, isActive)
+	}
+	return nil
+}
+func (m *mockGroupStore) UpdateGroup(group types.Group) error {
+	if m.UpdateGroupFn != nil {
+		return m.UpdateGroupFn(group)
 	}
 	return nil
 }

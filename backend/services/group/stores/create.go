@@ -7,16 +7,19 @@ import (
 )
 
 func (s *Store) CreateGroup(group types.Group) error {
+	if group.GroupType == "" {
+		group.GroupType = "home"
+	}
 	// create group
 	createTime := group.CreateTime.UTC().Format("2006-01-02 15:04:05-0700")
 	query := "INSERT INTO groups (" +
 		"id, group_name, description, " +
-		"create_time_utc, is_active, currency, create_by_user_id" +
-		") VALUES ($1, $2, $3, $4, $5, $6, $7);"
+		"create_time_utc, is_active, currency, create_by_user_id, group_type" +
+		") VALUES ($1, $2, $3, $4, $5, $6, $7, $8);"
 
 	_, err := s.db.Exec(query,
 		group.ID, group.GroupName, group.Description,
-		createTime, group.IsActive, group.Currency, group.CreateByUser)
+		createTime, group.IsActive, group.Currency, group.CreateByUser, group.GroupType)
 	if err != nil {
 		return err
 	}

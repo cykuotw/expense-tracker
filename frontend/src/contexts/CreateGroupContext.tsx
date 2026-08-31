@@ -13,6 +13,7 @@ export const CreateGroupProvider = ({ children }: { children: ReactNode }) => {
     const [groupName, setGroupName] = useState<string>("");
     const [description, setDescription] = useState<string>("");
     const [currency, setCurrency] = useState<string>("");
+    const [groupType, setGroupType] = useState<string>("home");
 
     useEffect(() => {
         const ok = groupName.length > 0 && currency.length > 0;
@@ -26,6 +27,7 @@ export const CreateGroupProvider = ({ children }: { children: ReactNode }) => {
             groupName: groupName,
             description: description,
             currency: currency,
+            groupType,
         };
 
         try {
@@ -71,6 +73,8 @@ export const CreateGroupProvider = ({ children }: { children: ReactNode }) => {
                 setDescription,
                 currency,
                 setCurrency,
+                groupType,
+                setGroupType,
                 indicator,
                 dataOk,
                 createGroup,

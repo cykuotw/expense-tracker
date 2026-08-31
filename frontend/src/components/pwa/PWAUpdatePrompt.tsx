@@ -7,6 +7,7 @@ const PWAUpdatePrompt = () => {
     const [registration, setRegistration] =
         useState<ServiceWorkerRegistration>();
     const [isUpdateDismissed, setIsUpdateDismissed] = useState(false);
+    const [isReloading, setIsReloading] = useState(false);
     const {
         needRefresh: [needRefresh],
         offlineReady: [offlineReady, setOfflineReady],
@@ -48,6 +49,16 @@ const PWAUpdatePrompt = () => {
 
     const showUpdatePrompt = needRefresh && !isUpdateDismissed;
 
+    const applyUpdate = async () => {
+        if (isReloading) return;
+        setIsReloading(true);
+        try {
+            await updateServiceWorker(true);
+        } catch {
+            setIsReloading(false);
+        }
+    };
+
     if (!showUpdatePrompt && !offlineReady) {
         return null;
     }
@@ -64,9 +75,10 @@ const PWAUpdatePrompt = () => {
                     <button
                         type="button"
                         className="ui-button ui-button-primary ui-button-sm"
-                        onClick={() => void updateServiceWorker(true)}
+                        onClick={() => void applyUpdate()}
+                        disabled={isReloading}
                     >
-                        Reload now
+                        {isReloading ? "Reloading…" : "Reload now"}
                     </button>
                 ) : null}
                 <button

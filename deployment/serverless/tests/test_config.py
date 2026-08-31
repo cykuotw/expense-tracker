@@ -50,7 +50,27 @@ class ConfigTest(unittest.TestCase):
         variables = config.terraform_variables(temporary_access=True)
         self.assertNotIn("runtime_password", variables)
         self.assertTrue(variables["enable_temporary_public_access"])
+        self.assertFalse(variables["enable_restore_verification"])
+        self.assertEqual(config.backup.time, "03:17:00")
+        self.assertEqual(config.backup.timezone, "UTC")
         self.assertEqual(config.worker_environment("10.0.0.2")["Variables"]["AUTH_COOKIE_SAME_SITE"], "lax")
+
+    def test_accepts_configured_backup_time_and_iana_timezone(self) -> None:
+        self.value["backup"] = {"time": "01:17:00", "timezone": "America/Toronto"}
+        self.write()
+        config = load(self.path, Path("/unrelated/repository"))
+        self.assertEqual(config.backup.time, "01:17:00")
+        self.assertEqual(config.backup.timezone, "America/Toronto")
+
+    def test_rejects_invalid_backup_schedule(self) -> None:
+        self.value["backup"] = {"time": "1:17", "timezone": "America/Toronto"}
+        self.write()
+        with self.assertRaisesRegex(ConfigError, "backup.time"):
+            load(self.path, Path("/unrelated/repository"))
+        self.value["backup"] = {"time": "01:17:00", "timezone": "Toronto"}
+        self.write()
+        with self.assertRaisesRegex(ConfigError, "backup.timezone"):
+            load(self.path, Path("/unrelated/repository"))
 
     def test_rejects_unknown_keys(self) -> None:
         self.value["backend"]["surprise"] = True

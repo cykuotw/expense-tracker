@@ -55,6 +55,20 @@ def _secret(value: Any, name: str, *, minimum: int = 16) -> str:
     return result
 
 
+def _backup_time(value: Any, name: str) -> str:
+    result = _string(value, name)
+    if not re.fullmatch(r"(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d", result):
+        raise ConfigError(f"{name} must use 24-hour HH:MM:SS format")
+    return result
+
+
+def _time_zone(value: Any, name: str) -> str:
+    result = _string(value, name)
+    if not re.fullmatch(r"(?:UTC|[A-Za-z0-9_+-]+(?:/[A-Za-z0-9_+-]+)+)", result):
+        raise ConfigError(f"{name} must be an IANA time zone such as America/Toronto")
+    return result
+
+
 @dataclass(frozen=True)
 class Deployment:
     account_id: str
@@ -84,6 +98,12 @@ class Database:
     runtime_password: str
     instance_type: str
     ami_id: str | None
+
+
+@dataclass(frozen=True)
+class Backup:
+    time: str
+    timezone: str
 
 
 @dataclass(frozen=True)
@@ -124,6 +144,7 @@ class Config:
     deployment: Deployment
     aws: AWS
     database: Database
+    backup: Backup
     backend: Backend
     frontend: Frontend
     first_admin: FirstAdmin | None
@@ -137,7 +158,7 @@ class Config:
     def api_origin(self) -> str:
         return f"https://{self.backend.api_hostname}"
 
-    def terraform_variables(self, *, temporary_access: bool) -> dict[str, Any]:
+    def terraform_variables(self, *, temporary_access: bool, restore_verification: bool = False) -> dict[str, Any]:
         return {
             "aws_region": self.aws.region,
             "expected_account_id": self.deployment.account_id,
@@ -149,6 +170,7 @@ class Config:
             "key_pair_name": self.aws.key_pair_name,
             "operator_ssh_cidr": self.aws.operator_ssh_cidr,
             "enable_temporary_public_access": temporary_access,
+            "enable_restore_verification": restore_verification,
             "hosted_zone_name": self.aws.hosted_zone_name,
             "database_instance_type": self.database.instance_type,
             "database_ami_id": self.database.ami_id,
@@ -235,7 +257,7 @@ def load(path: Path, repo_root: Path) -> Config:
     except (OSError, json.JSONDecodeError) as exc:
         raise ConfigError(f"cannot read deployment config: {exc}") from exc
     required_sections = {"deployment", "aws", "database", "backend", "frontend", "local_credentials"}
-    _keys(raw, "config", required_sections, {"first_admin"})
+    _keys(raw, "config", required_sections, {"backup", "first_admin"})
 
     deployment = _object(raw["deployment"], "deployment")
     _keys(deployment, "deployment", {"account_id", "name_prefix", "environment"}, {"tags"})
@@ -276,6 +298,13 @@ def load(path: Path, repo_root: Path) -> Config:
     if database.name == "postgres":
         raise ConfigError("database.name must differ from postgres")
 
+    backup_raw = _object(raw.get("backup", {}), "backup")
+    _keys(backup_raw, "backup", set(), {"time", "timezone"})
+    backup = Backup(
+        _backup_time(backup_raw.get("time", "03:17:00"), "backup.time"),
+        _time_zone(backup_raw.get("timezone", "UTC"), "backup.timezone"),
+    )
+
     backend_raw = _object(raw["backend"], "backend")
     backend_required = {"api_hostname", "google_client_id", "jwt_secret", "jwt_exp", "refresh_jwt_secret", "refresh_jwt_exp", "expenses_per_page", "db_conn_max_lifetime_seconds", "db_conn_max_idle_time_seconds"}
     _keys(backend_raw, "backend", backend_required)
@@ -300,7 +329,7 @@ def load(path: Path, repo_root: Path) -> Config:
     credentials_raw = _object(raw["local_credentials"], "local_credentials")
     _keys(credentials_raw, "local_credentials", {"ssh_private_key_file"}, {"google_id_token_file"})
     credentials = LocalCredentials(_protected_path(credentials_raw["ssh_private_key_file"], "local_credentials.ssh_private_key_file", repo_root, required=True), _protected_path(credentials_raw.get("google_id_token_file"), "local_credentials.google_id_token_file", repo_root, required=False))
-    return Config(deploy, aws, database, backend, frontend, admin, credentials)
+    return Config(deploy, aws, database, backup, backend, frontend, admin, credentials)
 
 
 def template() -> dict[str, Any]:
@@ -308,6 +337,7 @@ def template() -> dict[str, Any]:
         "deployment": {"account_id": "000000000000", "name_prefix": "expense-tracker", "environment": "serverless", "tags": {}},
         "aws": {"region": "ca-central-1", "vpc_id": "vpc-REPLACE", "subnet_id": "subnet-REPLACE", "key_pair_name": "REPLACE", "operator_ssh_cidr": "203.0.113.10/32", "hosted_zone_name": "example.com"},
         "database": {"name": "expense_tracker", "admin_user": "expense_admin", "admin_password": "REPLACE_WITH_RANDOM_SECRET", "migration_user": "expense_migration", "migration_password": "REPLACE_WITH_RANDOM_SECRET", "runtime_user": "expense_runtime", "runtime_password": "REPLACE_WITH_RANDOM_SECRET", "instance_type": "t4g.micro", "ami_id": None},
+        "backup": {"time": "03:17:00", "timezone": "UTC"},
         "backend": {"api_hostname": "api.example.com", "google_client_id": "REPLACE.apps.googleusercontent.com", "jwt_secret": "REPLACE_WITH_32_BYTE_RANDOM_SECRET", "jwt_exp": 900, "refresh_jwt_secret": "REPLACE_WITH_32_BYTE_RANDOM_SECRET", "refresh_jwt_exp": 604800, "expenses_per_page": 25, "db_conn_max_lifetime_seconds": 300, "db_conn_max_idle_time_seconds": 60},
         "frontend": {"hostname": "expense.example.com"},
         "first_admin": None,

@@ -117,6 +117,10 @@ make deploy ACTION=update SCOPE=backend
 make deploy ACTION=update SCOPE=frontend
 make deploy ACTION=update SCOPE=all
 make deploy ACTION=status
+make deploy ACTION=backup-configure
+make deploy ACTION=restore-verify
+make deploy ACTION=backup-status
+make deploy ACTION=backup-cleanup
 make deploy ACTION=destroy
 ```
 
@@ -127,6 +131,54 @@ make deploy ACTION=destroy
 Use `SCOPE=all` for the account-linking release so the local-password capability migration, Google-authorized API route, Worker code, and Account Settings UI are published together. The migration preserves password capability for existing local accounts and classifies existing Google-created accounts as Google-only.
 
 Use `SERVERLESS_AUTO_APPROVE=true` only in a controlled disposable test. `FORCE_DETACH_LAMBDA_ENI=true` permits the bounded owned-ENI force cleanup only after the normal 20-minute wait plus five additional minutes.
+
+## PostgreSQL backup and restore verification
+
+`make deploy ACTION=backup-configure` provisions the private logical-backup
+bucket and the database instance's least-privilege upload role, briefly enables
+the existing restricted SSH bootstrap path, installs a root-owned systemd timer,
+and runs the first backup. The timer writes a PostgreSQL custom-format dump to
+the bucket every day. S3 encrypts the objects at rest and deletes daily dumps
+after 90 days.
+
+The compatibility default is `03:17:00 UTC`. To schedule at a fixed local
+time, add this non-secret block to the protected deployment configuration and
+run `ACTION=backup-configure` again:
+
+```json
+"backup": {
+  "time": "01:17:00",
+  "timezone": "America/Toronto"
+}
+```
+
+`timezone` must be an available IANA zone name. With the example above, the
+timer remains at 1:17 AM Toronto time through daylight-saving transitions.
+
+`make deploy ACTION=restore-verify` creates a temporary, isolated PostgreSQL
+16 host. It downloads the newest retained dump, restores it locally, verifies
+the core application schema and queryable data, writes the last successful
+verification marker to the backup bucket, and removes the temporary host,
+security group, and public IP even when the restore fails. It never writes to
+the production database. The command requires typing
+`restore-verify-<name_prefix>` unless `SERVERLESS_AUTO_APPROVE=true` is set for
+a controlled disposable test.
+
+`make deploy ACTION=backup-status` prints the newest retained backup object,
+the latest backup status, and the timestamp of the latest successful
+restore-verification marker. The backup timer records its failures in
+`expense-tracker-postgres-backup.service` in the database host's systemd
+journal; a stale latest-backup timestamp or status is therefore an actionable
+failure signal. A failed interactive backup configuration also uploads a
+diagnostic report for this status command.
+
+Backups intentionally make application teardown a deliberate operation.
+`ACTION=destroy` refuses before changing application resources while the backup
+bucket contains objects. Retain the bucket for recovery, or run
+`ACTION=backup-cleanup` only after the retention decision is approved; it checks
+the deployment ownership tags and requires typing `backup-cleanup-<name_prefix>`
+before clearing retained data. Then run `ACTION=destroy` separately. The bucket
+is not configured for forced deletion.
 
 ## Safety boundary
 

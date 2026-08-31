@@ -12,6 +12,7 @@ REPO = ROOT.parents[1]
 sys.path.insert(0, str(ROOT))
 
 from backend.artifacts import build
+from database import backup
 from frontend.publish import publish, runtime_config
 from tests.test_config import ConfigTest
 
@@ -108,6 +109,58 @@ class ComponentTest(unittest.TestCase):
         source = (ROOT / "database/setup.py").read_text()
         self.assertNotIn("rpm -ql postgresql16-contrib | grep -E", source)
         self.assertIn("pgcrypto_control=", source)
+
+    def test_postgres_backup_is_encrypted_retained_and_least_privilege(self) -> None:
+        source = (ROOT / "infrastructure/tf/backup.tf").read_text()
+
+        self.assertIn('sse_algorithm = "AES256"', source)
+        self.assertIn('days = 90', source)
+        self.assertIn('prefix = "daily/"', source)
+        self.assertIn('"aws:SecureTransport" = "false"', source)
+        self.assertIn('"${aws_s3_bucket.postgres_backup.arn}/daily/*"', source)
+        self.assertNotIn('Resource = "${aws_s3_bucket.postgres_backup.arn}/*"', source)
+
+    def test_postgres_backup_and_restore_scripts_do_not_embed_credentials(self) -> None:
+        source = (ROOT / "database/backup.py").read_text()
+
+        self.assertIn("pg_dump --dbname", source)
+        self.assertIn("--format=custom", source)
+        self.assertIn("install -d -o postgres -g postgres -m 0700 /var/lib/expense-tracker-backups", source)
+        self.assertIn("chown postgres:postgres /var/lib/expense-tracker-backups", source)
+        self.assertIn('chown postgres:postgres "$archive"', source)
+        self.assertIn("dnf install -y awscli2", source)
+        self.assertIn("REMOTE_BACKUP_DIAGNOSTIC", source)
+        self.assertNotIn("bash -x /usr/local/sbin/expense-tracker-postgres-backup", source)
+        self.assertIn("OnCalendar=*-*-* $BACKUP_TIME $BACKUP_TIMEZONE", source)
+        self.assertIn("expense-tracker-postgres-backup.timer <<TIMER", source)
+        self.assertNotIn("expense-tracker-postgres-backup.timer <<'TIMER'", source)
+        self.assertIn("systemd-analyze calendar", source)
+        self.assertIn("pg_restore --exit-on-error", source)
+        self.assertGreaterEqual(source.count('chown postgres:postgres "$archive"'), 2)
+        self.assertIn('restore_listing="$(sudo -u postgres pg_restore --list "$archive")"', source)
+        self.assertNotIn('pg_restore --list "$archive" | grep', source)
+        self.assertIn('status=success\\ncompleted_at=%s\\nbackup_key=%s\\n', source)
+        self.assertIn('aws s3 rm "s3://${BACKUP_BUCKET}/verification/restore-failure.txt"', source)
+        self.assertIn("expense_tracker_restore_verification", source)
+        self.assertIn("restore-failure.txt", source)
+        self.assertNotIn("admin_password", source)
+        self.assertNotIn("runtime_password", source)
+
+    def test_backup_helpers_require_the_expected_temporary_outputs(self) -> None:
+        config = mock.MagicMock()
+        config.database.name = "expense_tracker"
+        config.aws.region = "ca-central-1"
+        with mock.patch.object(backup, "_run_remote") as run_remote:
+            backup.configure(
+                config,
+                {"database_temporary_public_ipv4": "203.0.113.10", "postgres_backup_bucket_name": "backup-bucket"},
+            )
+        self.assertEqual(run_remote.call_args.args[1], "203.0.113.10")
+        self.assertEqual(run_remote.call_args.args[3]["BACKUP_DATABASE"], "expense_tracker")
+        self.assertEqual(run_remote.call_args.args[3]["BACKUP_TIME"], config.backup.time)
+        self.assertEqual(run_remote.call_args.args[3]["BACKUP_TIMEZONE"], config.backup.timezone)
+        with self.assertRaisesRegex(Exception, "temporary database access"):
+            backup.configure(config, {"postgres_backup_bucket_name": "backup-bucket"})
 
     def test_frontend_referrer_policy_uses_cloudfront_security_header(self) -> None:
         source = (ROOT / "infrastructure/tf/frontend.tf").read_text()

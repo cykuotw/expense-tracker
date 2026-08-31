@@ -8,7 +8,14 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from common.command import CommandError
-from common.terraform import require_create_only, require_cutover_only, require_non_destructive_update
+from common.terraform import (
+    require_create_only,
+    require_cutover_only,
+    require_non_destructive_update,
+    require_restore_verification_cleanup,
+    require_restore_verification_create,
+    require_temporary_access_create,
+)
 
 
 def plan(*changes: tuple[str, list[str]]) -> dict:
@@ -27,6 +34,31 @@ class PlanGuardTest(unittest.TestCase):
             ("aws_vpc_security_group_ingress_rule.ssh[0]", ["delete"]),
         )
         self.assertEqual(len(require_cutover_only(value)), 3)
+
+    def test_temporary_access_accepts_only_expected_creates(self) -> None:
+        value = plan(
+            ("aws_eip.temporary_postgres[0]", ["create"]),
+            ("aws_eip_association.temporary_postgres[0]", ["create"]),
+            ("aws_vpc_security_group_ingress_rule.ssh[0]", ["create"]),
+        )
+        self.assertEqual(len(require_temporary_access_create(value)), 3)
+
+    def test_restore_verification_guards_only_temporary_resources(self) -> None:
+        addresses = (
+            "aws_security_group.restore_verification[0]",
+            "aws_vpc_security_group_ingress_rule.restore_verification_ssh[0]",
+            "aws_vpc_security_group_egress_rule.restore_verification_https[0]",
+            "aws_vpc_security_group_egress_rule.restore_verification_dns[0]",
+            "aws_instance.restore_verification[0]",
+            "aws_eip.restore_verification[0]",
+            "aws_eip_association.restore_verification[0]",
+        )
+        create_changes = tuple((address, ["create"]) for address in addresses)
+        delete_changes = tuple((address, ["delete"]) for address in addresses)
+        self.assertEqual(len(require_restore_verification_create(plan(*create_changes))), 7)
+        self.assertEqual(len(require_restore_verification_cleanup(plan(*delete_changes))), 7)
+        with self.assertRaises(CommandError):
+            require_restore_verification_create(plan(("aws_instance.postgres", ["create"])))
 
     def test_update_accepts_only_create_and_in_place_update(self) -> None:
         value = plan(

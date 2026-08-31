@@ -148,9 +148,10 @@ resource "aws_launch_template" "postgres" {
   })
 }
 resource "aws_instance" "postgres" {
-  ami           = local.database_ami_id
-  instance_type = var.database_instance_type
-  key_name      = var.key_pair_name
+  ami                  = local.database_ami_id
+  instance_type        = var.database_instance_type
+  key_name             = var.key_pair_name
+  iam_instance_profile = aws_iam_instance_profile.postgres_backup_writer.name
   launch_template {
     id      = aws_launch_template.postgres.id
     version = aws_launch_template.postgres.latest_version
@@ -180,6 +181,91 @@ resource "aws_instance" "postgres" {
     }
 
   }
+}
+
+resource "aws_security_group" "restore_verification" {
+  count       = var.enable_restore_verification ? 1 : 0
+  name_prefix = "${local.resource_prefix}-postgres-restore-"
+  description = "Isolated PostgreSQL restore verification host"
+  vpc_id      = var.vpc_id
+
+  tags = merge(local.common_tags, {
+    Component = "database-restore-verification"
+  })
+}
+
+resource "aws_vpc_security_group_ingress_rule" "restore_verification_ssh" {
+  count             = var.enable_restore_verification ? 1 : 0
+  security_group_id = aws_security_group.restore_verification[0].id
+  cidr_ipv4         = var.operator_ssh_cidr
+  ip_protocol       = "tcp"
+  from_port         = 22
+  to_port           = 22
+  description       = "Temporary operator SSH for restore verification"
+}
+
+resource "aws_vpc_security_group_egress_rule" "restore_verification_https" {
+  count             = var.enable_restore_verification ? 1 : 0
+  security_group_id = aws_security_group.restore_verification[0].id
+  cidr_ipv4         = "0.0.0.0/0"
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  description       = "Package and S3 HTTPS access"
+}
+
+resource "aws_vpc_security_group_egress_rule" "restore_verification_dns" {
+  count             = var.enable_restore_verification ? 1 : 0
+  security_group_id = aws_security_group.restore_verification[0].id
+  cidr_ipv4         = data.aws_vpc.selected.cidr_block
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  description       = "VPC DNS resolution"
+}
+
+resource "aws_instance" "restore_verification" {
+  count                       = var.enable_restore_verification ? 1 : 0
+  ami                         = local.database_ami_id
+  instance_type               = var.database_instance_type
+  key_name                    = var.key_pair_name
+  iam_instance_profile        = aws_iam_instance_profile.postgres_restore_verifier.name
+  subnet_id                   = var.subnet_id
+  vpc_security_group_ids      = [aws_security_group.restore_verification[0].id]
+  associate_public_ip_address = false
+
+  metadata_options {
+    http_endpoint = "enabled"
+    http_tokens   = "required"
+  }
+
+  root_block_device {
+    encrypted             = true
+    volume_type           = "gp3"
+    volume_size           = 10
+    delete_on_termination = true
+  }
+
+  tags = merge(local.common_tags, {
+    Name      = "${local.resource_prefix}-postgres-restore-verification"
+    Component = "database-restore-verification"
+  })
+}
+
+resource "aws_eip" "restore_verification" {
+  count  = var.enable_restore_verification ? 1 : 0
+  domain = "vpc"
+
+  tags = merge(local.common_tags, {
+    Name      = "${local.resource_prefix}-postgres-restore-verification"
+    Component = "database-restore-verification"
+  })
+}
+
+resource "aws_eip_association" "restore_verification" {
+  count                = var.enable_restore_verification ? 1 : 0
+  network_interface_id = aws_instance.restore_verification[0].primary_network_interface_id
+  allocation_id        = aws_eip.restore_verification[0].id
 }
 resource "aws_eip" "temporary_postgres" {
   count  = var.enable_temporary_public_access ? 1 : 0

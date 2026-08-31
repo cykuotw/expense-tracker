@@ -93,6 +93,52 @@ def require_cutover_only(plan: dict[str, Any]) -> dict[str, list[str]]:
     return actions
 
 
+def require_temporary_access_create(plan: dict[str, Any]) -> dict[str, list[str]]:
+    actions = plan_actions(plan)
+    allowed = {
+        "aws_eip.temporary_postgres",
+        "aws_eip_association.temporary_postgres",
+        "aws_vpc_security_group_ingress_rule.ssh",
+    }
+    unsafe = {}
+    for address, action in actions.items():
+        normalized_address = address[:-3] if address.endswith("[0]") else address
+        if normalized_address not in allowed or action != ["create"]:
+            unsafe[address] = action
+    if unsafe or not actions:
+        raise CommandError(f"temporary-access plan is not the expected creation: {actions}")
+    return actions
+
+
+def _require_restore_verification_plan(plan: dict[str, Any], expected_action: list[str]) -> dict[str, list[str]]:
+    actions = plan_actions(plan)
+    allowed = {
+        "aws_security_group.restore_verification",
+        "aws_vpc_security_group_ingress_rule.restore_verification_ssh",
+        "aws_vpc_security_group_egress_rule.restore_verification_https",
+        "aws_vpc_security_group_egress_rule.restore_verification_dns",
+        "aws_instance.restore_verification",
+        "aws_eip.restore_verification",
+        "aws_eip_association.restore_verification",
+    }
+    unsafe = {}
+    for address, action in actions.items():
+        normalized_address = address[:-3] if address.endswith("[0]") else address
+        if normalized_address not in allowed or action != expected_action:
+            unsafe[address] = action
+    if unsafe or not actions:
+        raise CommandError(f"restore-verification plan is not the expected {expected_action}: {actions}")
+    return actions
+
+
+def require_restore_verification_create(plan: dict[str, Any]) -> dict[str, list[str]]:
+    return _require_restore_verification_plan(plan, ["create"])
+
+
+def require_restore_verification_cleanup(plan: dict[str, Any]) -> dict[str, list[str]]:
+    return _require_restore_verification_plan(plan, ["delete"])
+
+
 def require_non_destructive_update(plan: dict[str, Any]) -> dict[str, list[str]]:
     actions = plan_actions(plan)
     allowed_actions = (["create"], ["update"])

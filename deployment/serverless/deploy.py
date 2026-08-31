@@ -20,7 +20,11 @@ DEFAULT_CONFIG = Path("~/.config/expense-tracker/deploy.json").expanduser()
 
 def parser() -> argparse.ArgumentParser:
     result = argparse.ArgumentParser(description="Expense Tracker unified serverless deployment")
-    result.add_argument("--action", choices=["auto", "init", "plan", "deploy", "update", "status", "destroy"], default="auto")
+    result.add_argument(
+        "--action",
+        choices=["auto", "init", "plan", "deploy", "update", "status", "backup-configure", "restore-verify", "backup-status", "backup-cleanup", "destroy"],
+        default="auto",
+    )
     result.add_argument("--scope", choices=["migrations", "backend", "frontend", "all"], default="all")
     return result
 

@@ -13,6 +13,25 @@ import workflow
 
 
 class WorkflowTest(unittest.TestCase):
+
+    def test_backup_status_reports_latest_backup_and_restore_marker(self) -> None:
+        context = mock.MagicMock()
+        context.terraform_root = Path("/repo/deployment/serverless/infrastructure/tf")
+        terraform = mock.MagicMock()
+        terraform.has_state.return_value = True
+        terraform.output.return_value = {"postgres_backup_bucket_name": "backup-bucket"}
+        context.aws.json.side_effect = [
+            {"Contents": [{"Key": "daily/expense_tracker-20260831T000000Z.dump", "LastModified": "2026-08-31T00:00:00+00:00", "Size": 42}]},
+            {"LastModified": "2026-08-31T01:00:00+00:00"},
+        ]
+        context.aws.resource_exists.return_value = True
+        with mock.patch.object(workflow, "preflight"), \
+             mock.patch.object(workflow, "_terraform", return_value=contextlib.nullcontext(Path("/tmp/variables"))), \
+             mock.patch.object(workflow, "Terraform", return_value=terraform), \
+             mock.patch("builtins.print") as printed:
+            workflow.backup_status(context)
+        self.assertIn(mock.call("latest_postgres_backup=daily/expense_tracker-20260831T000000Z.dump"), printed.call_args_list)
+        self.assertIn(mock.call("latest_restore_verification_time=2026-08-31T01:00:00+00:00"), printed.call_args_list)
     def test_require_node_22_accepts_the_minimum_version(self) -> None:
         with mock.patch.object(workflow, "run", return_value=mock.Mock(stdout="v22.13.1\n")):
             workflow.require_node_22()

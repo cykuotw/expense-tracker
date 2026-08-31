@@ -157,12 +157,16 @@ when the architectural boundary changes.
 - Human-edited deployment configuration and credentials stay outside version
   control. The serverless deployer creates protected temporary projections
   rather than storing runtime secrets in Terraform state or repository files.
+- Deployment and repository Python tooling must run through `uv` (for example,
+  `uv run python ...`); the system `python3` version is not a supported
+  execution environment.
 - Runtime configuration, database credentials, signing keys, invitation
   secrets, cookies, and external-provider credentials must never be added to
   source code, public documentation, logs, or client-side storage.
-- PostgreSQL is durable state. Backup and restore procedures are operational
-  requirements; this overview does not claim automated backup, restore, high
-  availability, or failover coverage.
+- PostgreSQL is durable state. The supported deployment uses daily encrypted
+  logical PostgreSQL dumps in a private S3 bucket with bounded retention and a
+  separate, on-demand isolated restore verification. This is backup and
+  recovery coverage, not high availability or failover.
 
 Refer to the relevant deployment guide for configuration ownership and
 operational procedures. Do not copy secret-bearing examples or environment

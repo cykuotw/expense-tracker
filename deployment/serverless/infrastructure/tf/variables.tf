@@ -14,6 +14,7 @@ variable "operator_ssh_cidr" {
   }
 }
 variable "enable_temporary_public_access" { type = bool }
+variable "enable_restore_verification" { type = bool }
 variable "hosted_zone_name" { type = string }
 variable "database_instance_type" { type = string }
 variable "database_ami_id" {

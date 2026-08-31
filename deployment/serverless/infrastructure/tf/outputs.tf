@@ -16,6 +16,12 @@ output "database_network_interface_id" {
 output "database_temporary_public_ipv4" {
   value = try(aws_eip.temporary_postgres[0].public_ip, "")
 }
+output "postgres_backup_bucket_name" {
+  value = aws_s3_bucket.postgres_backup.bucket
+}
+output "restore_verification_temporary_public_ipv4" {
+  value = try(aws_eip.restore_verification[0].public_ip, "")
+}
 output "vpc_ipv4_cidr" {
   value = data.aws_vpc.selected.cidr_block
 }

@@ -12,8 +12,17 @@ from backend import artifacts, runtime
 from backend.verify import verify_api, verify_google_exchange, verify_session
 from common.aws import AWSClient
 from common.command import CommandError, deployment_lock, protected_json, require_tools, run
-from common.terraform import Terraform, require_create_only, require_cutover_only, require_non_destructive_update
+from common.terraform import (
+    Terraform,
+    require_create_only,
+    require_cutover_only,
+    require_non_destructive_update,
+    require_restore_verification_cleanup,
+    require_restore_verification_create,
+    require_temporary_access_create,
+)
 from config import Config
+from database import backup as database_backup
 from database.setup import setup as setup_database
 from frontend.publish import publish as publish_frontend
 from frontend.verify import verify as verify_frontend
@@ -80,8 +89,14 @@ def preflight(context: Context, *, mutation: bool) -> None:
             raise CommandError("Lambda account concurrency must be at least 4")
 
 
-def _terraform(context: Context, temporary: bool):
-    return protected_json(context.config.terraform_variables(temporary_access=temporary), prefix="expense-terraform-vars-")
+def _terraform(context: Context, temporary: bool, *, restore_verification: bool = False):
+    return protected_json(
+        context.config.terraform_variables(
+            temporary_access=temporary,
+            restore_verification=restore_verification,
+        ),
+        prefix="expense-terraform-vars-",
+    )
 
 
 def _confirm(prompt: str, expected: str) -> None:
@@ -287,7 +302,43 @@ def _infrastructure_targets(scope: str) -> tuple[str, ...]:
             "aws_cloudfront_response_headers_policy.frontend_security",
             "aws_cloudfront_distribution.frontend",
         ))
+    if scope == "all":
+        targets.extend((
+            "aws_s3_bucket.postgres_backup",
+            "aws_s3_bucket_public_access_block.postgres_backup",
+            "aws_s3_bucket_ownership_controls.postgres_backup",
+            "aws_s3_bucket_server_side_encryption_configuration.postgres_backup",
+            "aws_s3_bucket_lifecycle_configuration.postgres_backup",
+            "aws_s3_bucket_policy.postgres_backup",
+            "aws_vpc_endpoint.s3",
+            "aws_iam_role.postgres_backup_writer",
+            "aws_iam_role_policy.postgres_backup_writer",
+            "aws_iam_instance_profile.postgres_backup_writer",
+            "aws_iam_role.postgres_restore_verifier",
+            "aws_iam_role_policy.postgres_restore_verifier",
+            "aws_iam_instance_profile.postgres_restore_verifier",
+            "aws_instance.postgres",
+        ))
     return tuple(targets)
+
+
+def _backup_infrastructure_targets() -> tuple[str, ...]:
+    return (
+        "aws_s3_bucket.postgres_backup",
+        "aws_s3_bucket_public_access_block.postgres_backup",
+        "aws_s3_bucket_ownership_controls.postgres_backup",
+        "aws_s3_bucket_server_side_encryption_configuration.postgres_backup",
+        "aws_s3_bucket_lifecycle_configuration.postgres_backup",
+        "aws_s3_bucket_policy.postgres_backup",
+        "aws_vpc_endpoint.s3",
+        "aws_iam_role.postgres_backup_writer",
+        "aws_iam_role_policy.postgres_backup_writer",
+        "aws_iam_instance_profile.postgres_backup_writer",
+        "aws_iam_role.postgres_restore_verifier",
+        "aws_iam_role_policy.postgres_restore_verifier",
+        "aws_iam_instance_profile.postgres_restore_verifier",
+        "aws_instance.postgres",
+    )
 
 
 def _apply_infrastructure_updates(context: Context, scope: str) -> None:
@@ -333,6 +384,181 @@ def update(context: Context, scope: str) -> None:
         verify_frontend(context.config)
         step("frontend", "pass")
     print("deployment_state=complete")
+
+
+def _apply_backup_infrastructure(context: Context) -> dict[str, Any]:
+    step("backup infrastructure")
+    with tempfile.TemporaryDirectory(prefix="expense-serverless-backup-") as temporary, _terraform(context, False) as variables:
+        terraform = Terraform(context.terraform_root, variables)
+        terraform.init()
+        terraform.validate()
+        plan_path = Path(temporary) / "backup.tfplan"
+        terraform.plan(plan_path, targets=_backup_infrastructure_targets())
+        actions = require_non_destructive_update(terraform.show_plan(plan_path))
+        _print_plan(actions)
+        if actions:
+            terraform.apply(plan_path)
+        outputs = terraform.output()
+    if not outputs.get("postgres_backup_bucket_name"):
+        raise CommandError("backup infrastructure did not expose a PostgreSQL backup bucket")
+    step("backup infrastructure", "pass")
+    return outputs
+
+
+def _configure_backup_with_temporary_access(context: Context) -> None:
+    with tempfile.TemporaryDirectory(prefix="expense-serverless-backup-access-") as temporary:
+        with _terraform(context, True) as variables:
+            terraform = Terraform(context.terraform_root, variables)
+            terraform.init()
+            terraform.validate()
+            plan_path = Path(temporary) / "backup-access.tfplan"
+            terraform.plan(plan_path)
+            actions = require_temporary_access_create(terraform.show_plan(plan_path))
+            _print_plan(actions)
+            terraform.apply(plan_path)
+            public_outputs = terraform.output()
+        try:
+            database_backup.configure(context.config, public_outputs)
+        except CommandError as error:
+            try:
+                database_backup.diagnose(context.config, public_outputs)
+            except CommandError as diagnostic_error:
+                raise CommandError(f"backup configuration failed; diagnostics also failed: {diagnostic_error}") from error
+            raise
+        finally:
+            with _terraform(context, False) as variables:
+                terraform = Terraform(context.terraform_root, variables)
+                cleanup_path = Path(temporary) / "backup-access-cleanup.tfplan"
+                terraform.plan(cleanup_path)
+                actions = require_cutover_only(terraform.show_plan(cleanup_path))
+                _print_plan(actions)
+                terraform.apply(cleanup_path)
+
+
+def configure_backup(context: Context) -> None:
+    preflight(context, mutation=True)
+    runtime.repair_secret_boundary(context.terraform_root, context.config)
+    _require_complete(context)
+    # Terraform evaluates Lambda artifact hashes even for targeted plans.
+    artifacts.build(context.repo_root, context.serverless_root / "build")
+    _apply_backup_infrastructure(context)
+    step("database backup configuration")
+    _configure_backup_with_temporary_access(context)
+    step("database backup configuration", "pass")
+    print("deployment_state=complete")
+
+
+def restore_verify(context: Context) -> None:
+    preflight(context, mutation=True)
+    runtime.repair_secret_boundary(context.terraform_root, context.config)
+    _require_complete(context)
+    # Terraform evaluates Lambda artifact hashes even for targeted plans.
+    artifacts.build(context.repo_root, context.serverless_root / "build")
+    _apply_backup_infrastructure(context)
+    expected = f"restore-verify-{context.config.deployment.name_prefix}"
+    _confirm("Create an isolated temporary PostgreSQL restore-verification host?", expected)
+
+    with tempfile.TemporaryDirectory(prefix="expense-serverless-restore-") as temporary:
+        with _terraform(context, False, restore_verification=True) as variables:
+            terraform = Terraform(context.terraform_root, variables)
+            terraform.init()
+            terraform.validate()
+            plan_path = Path(temporary) / "restore-create.tfplan"
+            terraform.plan(plan_path)
+            actions = require_restore_verification_create(terraform.show_plan(plan_path))
+            _print_plan(actions)
+            terraform.apply(plan_path)
+            restore_outputs = terraform.output()
+        try:
+            step("restore verification")
+            database_backup.restore_verify(context.config, restore_outputs)
+            step("restore verification", "pass")
+        finally:
+            with _terraform(context, False) as variables:
+                terraform = Terraform(context.terraform_root, variables)
+                cleanup_path = Path(temporary) / "restore-cleanup.tfplan"
+                terraform.plan(cleanup_path)
+                actions = require_restore_verification_cleanup(terraform.show_plan(cleanup_path))
+                _print_plan(actions)
+                terraform.apply(cleanup_path)
+    print("deployment_state=complete")
+
+
+def _backup_bucket_has_objects(context: Context, bucket: str) -> bool:
+    response = context.aws.json("s3api", "list-objects-v2", "--bucket", bucket, "--max-keys", "1")
+    return bool(response.get("Contents"))
+
+
+def backup_status(context: Context) -> None:
+    preflight(context, mutation=False)
+    with _terraform(context, False) as variables:
+        terraform = Terraform(context.terraform_root, variables)
+        if not terraform.has_state():
+            raise CommandError("backup status requires an existing Terraform state")
+        outputs = terraform.output()
+    bucket = str(outputs.get("postgres_backup_bucket_name", ""))
+    if not bucket:
+        raise CommandError("backup status requires a managed PostgreSQL backup bucket")
+    contents = context.aws.json("s3api", "list-objects-v2", "--bucket", bucket, "--prefix", "daily/").get("Contents", [])
+    latest = max(contents, key=lambda item: str(item.get("LastModified", "")), default=None)
+    print(f"postgres_backup_bucket={bucket}")
+    if latest:
+        print(f"latest_postgres_backup={latest.get('Key', 'unavailable')}")
+        print(f"latest_postgres_backup_time={latest.get('LastModified', 'unavailable')}")
+        print(f"latest_postgres_backup_size_bytes={latest.get('Size', 'unavailable')}")
+    else:
+        print("latest_postgres_backup=none")
+    verification_key = "verification/latest.json"
+    if context.aws.resource_exists("s3api", "head-object", "--bucket", bucket, "--key", verification_key, missing=("404", "NoSuchKey", "Not Found")):
+        verification = context.aws.json("s3api", "head-object", "--bucket", bucket, "--key", verification_key)
+        print(f"latest_restore_verification_time={verification.get('LastModified', 'unavailable')}")
+    else:
+        print("latest_restore_verification_time=none")
+    restore_failure_key = "verification/restore-failure.txt"
+    if context.aws.resource_exists("s3api", "head-object", "--bucket", bucket, "--key", restore_failure_key, missing=("404", "NoSuchKey", "Not Found")):
+        restore_failure = context.aws.call("s3", "cp", f"s3://{bucket}/{restore_failure_key}", "-", "--only-show-errors")
+        print("latest_restore_failure_start")
+        print(restore_failure.rstrip())
+        print("latest_restore_failure_end")
+    diagnostic_key = "status/latest.txt"
+    if context.aws.resource_exists("s3api", "head-object", "--bucket", bucket, "--key", diagnostic_key, missing=("404", "NoSuchKey", "Not Found")):
+        diagnostic = context.aws.call("s3", "cp", f"s3://{bucket}/{diagnostic_key}", "-", "--only-show-errors")
+        print("latest_backup_diagnostic_start")
+        print(diagnostic.rstrip())
+        print("latest_backup_diagnostic_end")
+
+
+def cleanup_backups(context: Context) -> None:
+    preflight(context, mutation=True)
+    with _terraform(context, False) as variables:
+        terraform = Terraform(context.terraform_root, variables)
+        if not terraform.has_state():
+            raise CommandError("backup cleanup requires an existing Terraform state")
+        outputs = terraform.output()
+    bucket = str(outputs.get("postgres_backup_bucket_name", ""))
+    if not bucket:
+        raise CommandError("backup cleanup requires a managed PostgreSQL backup bucket")
+    tags = {
+        item.get("Key"): item.get("Value")
+        for item in context.aws.json("s3api", "get-bucket-tagging", "--bucket", bucket).get("TagSet", [])
+    }
+    expected_tags = {
+        "Project": context.config.deployment.name_prefix,
+        "Environment": context.config.deployment.environment,
+        "Component": "database-backup",
+        "Recovery": "postgres-logical-dump",
+    }
+    if any(tags.get(name) != value for name, value in expected_tags.items()):
+        raise CommandError("refusing backup cleanup because bucket ownership tags do not match this deployment")
+    expected = f"backup-cleanup-{context.config.deployment.name_prefix}"
+    _confirm(
+        f"Permanently remove all retained PostgreSQL backups from {bucket}? This cannot be undone.",
+        expected,
+    )
+    context.aws.call("s3", "rm", f"s3://{bucket}", "--recursive", "--only-show-errors")
+    if _backup_bucket_has_objects(context, bucket):
+        raise CommandError("backup cleanup did not remove every object; refusing destroy")
+    print("PostgreSQL backup bucket is empty. You may now run ACTION=destroy if intended.")
 
 
 def _wait_enis(context: Context, security_group_ids: list[str]) -> None:
@@ -429,6 +655,11 @@ def destroy(context: Context) -> None:
             return
         if not outputs:
             raise CommandError("cannot safely destroy state without required outputs")
+        backup_bucket = str(outputs.get("postgres_backup_bucket_name", ""))
+        if backup_bucket and _backup_bucket_has_objects(context, backup_bucket):
+            raise CommandError(
+                "refusing destroy while PostgreSQL backups are retained; use ACTION=backup-cleanup for an explicit guarded deletion"
+            )
         expected = f"destroy-{context.config.deployment.name_prefix}"
         _confirm("Delete all resources owned by the unified serverless deployment?", expected)
         context.aws.delete_function(str(outputs["worker_function_name"]))
@@ -452,6 +683,14 @@ def execute(context: Context, action: str, scope: str) -> None:
             update(context, scope)
         elif action == "status":
             status(context)
+        elif action == "backup-configure":
+            configure_backup(context)
+        elif action == "restore-verify":
+            restore_verify(context)
+        elif action == "backup-status":
+            backup_status(context)
+        elif action == "backup-cleanup":
+            cleanup_backups(context)
         elif action == "destroy":
             destroy(context)
         else:

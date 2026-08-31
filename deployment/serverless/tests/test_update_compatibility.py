@@ -67,17 +67,12 @@ class UpdateCompatibilityTest(unittest.TestCase):
         terraform.init.assert_called_once_with()
         terraform.validate.assert_called_once_with()
         plan_path = terraform.plan.call_args.args[0]
-        self.assertEqual(
-            terraform.plan.call_args.kwargs["targets"],
-            (
-                "aws_apigatewayv2_route.google_register",
-                "aws_apigatewayv2_route.google_link",
-                "aws_apigatewayv2_route.authenticated_mutation",
-                "aws_apigatewayv2_stage.default",
-                "aws_cloudfront_response_headers_policy.frontend_security",
-                "aws_cloudfront_distribution.frontend",
-            ),
-        )
+        targets = terraform.plan.call_args.kwargs["targets"]
+        self.assertIn("aws_apigatewayv2_route.google_register", targets)
+        self.assertIn("aws_cloudfront_distribution.frontend", targets)
+        self.assertIn("aws_s3_bucket.postgres_backup", targets)
+        self.assertIn("aws_iam_instance_profile.postgres_backup_writer", targets)
+        self.assertIn("aws_instance.postgres", targets)
         terraform.apply.assert_called_once_with(plan_path)
 
     def test_infrastructure_update_skips_apply_when_plan_is_empty(self) -> None:

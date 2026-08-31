@@ -81,13 +81,6 @@ type LoginResponse struct {
 	Token string `json:"token"`
 }
 
-type UserInfoResponse struct {
-	Nickname  string `json:"nickname"`
-	Firstname string `json:"firstname" validate:"required"`
-	Lastname  string `json:"lastname" validate:"required"`
-	Email     string `json:"email" validate:"required,email"`
-}
-
 type AccountResponse struct {
 	Nickname              string `json:"nickname"`
 	Firstname             string `json:"firstname"`

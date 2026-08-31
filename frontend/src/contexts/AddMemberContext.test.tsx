@@ -123,7 +123,7 @@ describe("AddMemberProvider error handling", () => {
                     ])
                 );
             }
-            if (path === "/group_member") {
+            if (path === "/group_members") {
                 return Promise.resolve(
                     jsonResponse(
                         {

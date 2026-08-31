@@ -43,25 +43,41 @@ export const GroupDetailProvider = ({ children }: { children: ReactNode }) => {
         if (!groupId) return;
         setLoading(true);
         try {
-            const [groupRes, balanceRes] = await Promise.all([
-                apiFetch(`/group/${groupId}`),
-                apiFetch(`/balance/${groupId}`),
-            ]);
-
-            if (groupRes.ok) {
-                const group = (await groupRes.json()) as GroupInfo;
-                setGroupInfo({ ...group, members: asArray(group.members) });
+            const response = await apiFetch(
+                `/group_overview/${groupId}/0?order=${expenseOrder}&status=unsettled`
+            );
+            if (!response.ok) return;
+            const data = (await response.json()) as {
+                group?: GroupInfo;
+                balance?: BalanceData;
+                expenses?: ExpenseListPage;
+            };
+            if (data.group) {
+                setGroupInfo({ ...data.group, members: asArray(data.group.members) });
             }
-            if (balanceRes.ok) {
-                const balance = (await balanceRes.json()) as BalanceData;
-                setBalance({ ...balance, balances: asArray(balance.balances) });
+            if (data.balance) {
+                setBalance({ ...data.balance, balances: asArray(data.balance.balances) });
+            }
+            if (data.expenses) {
+                const expenses = asArray<ExpenseData>(data.expenses.expenses).map((expense) => ({
+                    ...expense,
+                    payerUserIds: asArray<string>(expense.payerUserIds),
+                    payerUsernames: asArray<string>(expense.payerUsernames),
+                }));
+                setUnsettledExpenses(expenses);
+                setUnsettledPage(1);
+                setUnsettledHasMore(data.expenses.hasMore === true);
+                setSettledExpenses([]);
+                setSettledPage(0);
+                setSettledHasMore(false);
+                setExpenseListRefreshVersion((version) => version + 1);
             }
         } catch (error) {
             console.error(error);
         } finally {
             setLoading(false);
         }
-    }, [groupId]);
+    }, [expenseOrder, groupId]);
 
     useEffect(() => {
         void refreshGroupSummary();
@@ -91,40 +107,6 @@ export const GroupDetailProvider = ({ children }: { children: ReactNode }) => {
             hasMore: pageData.hasMore === true,
         };
     }, [groupId]);
-
-    const refreshExpenseLists = useCallback(async () => {
-        const generation = ++unsettledExpenseListGenerationRef.current;
-        ++settledExpenseListGenerationRef.current;
-        setUnsettledLoading(true);
-        setSettledLoading(true);
-        try {
-            const data = await fetchExpensePage(0, expenseOrder, "unsettled");
-            if (generation !== unsettledExpenseListGenerationRef.current) return;
-            setUnsettledExpenses(data.expenses);
-            setUnsettledPage(1);
-            setUnsettledHasMore(data.hasMore);
-            setSettledExpenses([]);
-            setSettledPage(0);
-            setSettledHasMore(false);
-        } catch (error) {
-            if (generation !== unsettledExpenseListGenerationRef.current) return;
-            console.error(error);
-            setUnsettledHasMore(false);
-            setSettledHasMore(false);
-        } finally {
-            if (generation === unsettledExpenseListGenerationRef.current) {
-                setUnsettledLoading(false);
-                setSettledLoading(false);
-                setExpenseListRefreshVersion((version) => version + 1);
-            }
-        }
-    }, [expenseOrder, fetchExpensePage]);
-
-    useEffect(() => {
-        if (!groupId) return;
-
-        void refreshExpenseLists();
-    }, [groupId, refreshExpenseLists]);
 
     const loadMoreUnsettledExpenses = async () => {
         if (unsettledLoading || !unsettledHasMore) return;
@@ -219,7 +201,7 @@ export const GroupDetailProvider = ({ children }: { children: ReactNode }) => {
                 return;
             }
 
-            await Promise.all([refreshGroupSummary(), refreshExpenseLists()]);
+            await refreshGroupSummary();
         } catch {
             toast.error(SETTLE_EXPENSES_FALLBACK);
         }

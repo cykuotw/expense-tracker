@@ -126,6 +126,35 @@ func (s *Store) GetUsernameByID(userid string) (string, error) {
 	return username, nil
 }
 
+func (s *Store) GetUsernamesByIDs(userIDs []string) (map[string]string, error) {
+	if len(userIDs) == 0 {
+		return map[string]string{}, nil
+	}
+
+	rows, err := s.db.Query(
+		"SELECT id, username FROM users WHERE id = ANY($1::uuid[]);",
+		userIDs,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	usernames := make(map[string]string, len(userIDs))
+	for rows.Next() {
+		var id, username string
+		if err := rows.Scan(&id, &username); err != nil {
+			return nil, err
+		}
+		usernames[id] = username
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return usernames, nil
+}
+
 func (s *Store) checkUserExist(query string, args ...interface{}) (bool, error) {
 	rows, err := s.db.Query(query, args...)
 	if err != nil {

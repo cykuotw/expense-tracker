@@ -10,6 +10,10 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+type groupMemberBatchStore interface {
+	ReplaceGroupMembers(groupID, creatorID string, memberIDs []string) error
+}
+
 func (h *Handler) handleGetGroupMember(c *gin.Context) {
 	// get group id
 	groupId := c.Param("groupid")
@@ -137,6 +141,63 @@ func (h *Handler) handleUpdateGroupMember(c *gin.Context) {
 	}
 
 	utils.WriteJSON(c, http.StatusCreated, nil)
+}
+
+// handleReplaceGroupMembers replaces membership through one authorized request.
+// It intentionally retains the creator even if a stale client omits that ID.
+func (h *Handler) handleReplaceGroupMembers(c *gin.Context) {
+	var payload types.ReplaceGroupMembersPayload
+	if err := utils.ParseJSON(c, &payload); err != nil {
+		utils.WriteError(c, http.StatusBadRequest, err)
+		return
+	}
+	userID, err := auth.ExtractJWTClaim(c, "userID")
+	if err != nil {
+		utils.WriteError(c, http.StatusInternalServerError, err)
+		return
+	}
+	group, err := h.store.GetGroupByID(payload.GroupID)
+	if err != nil {
+		utils.WriteError(c, http.StatusNotFound, types.ErrGroupNotExist)
+		return
+	}
+	if group == nil || group.CreateByUser.String() != userID {
+		utils.WriteError(c, http.StatusNotFound, types.ErrGroupNotExist)
+		return
+	}
+	wanted := make(map[string]struct{}, len(payload.MemberIDs)+1)
+	wanted[group.CreateByUser.String()] = struct{}{}
+	for _, memberID := range payload.MemberIDs {
+		exists, err := h.userStore.CheckUserExistByID(memberID)
+		if err != nil {
+			utils.WriteError(c, http.StatusInternalServerError, err)
+			return
+		}
+		if !exists {
+			utils.WriteError(c, http.StatusBadRequest, types.ErrUserNotExist)
+			return
+		}
+		wanted[memberID] = struct{}{}
+	}
+	memberIDs := make([]string, 0, len(wanted))
+	for id := range wanted {
+		memberIDs = append(memberIDs, id)
+	}
+	if batchStore, ok := h.store.(groupMemberBatchStore); ok {
+		if err := batchStore.ReplaceGroupMembers(payload.GroupID, group.CreateByUser.String(), memberIDs); err != nil {
+			utils.WriteError(c, http.StatusInternalServerError, err)
+			return
+		}
+	} else {
+		// The fallback keeps existing route mocks compatible; production uses the atomic store method.
+		for _, memberID := range memberIDs {
+			if err := h.store.UpdateGroupMember("add", memberID, payload.GroupID); err != nil {
+				utils.WriteError(c, http.StatusInternalServerError, err)
+				return
+			}
+		}
+	}
+	utils.WriteJSON(c, http.StatusOK, nil)
 }
 
 func (h *Handler) handleGetRelatedMember(c *gin.Context) {

@@ -46,6 +46,13 @@ type UpdateGroupMemberPayload struct {
 	GroupID string `json:"groupId"`
 }
 
+// ReplaceGroupMembersPayload replaces a group's membership in one mutation.
+// The authenticated group creator is always retained by the server.
+type ReplaceGroupMembersPayload struct {
+	GroupID   string   `json:"groupId"`
+	MemberIDs []string `json:"memberIds"`
+}
+
 type GetGroupResponse struct {
 	GroupName   string        `json:"groupName"`
 	Description string        `json:"description"`

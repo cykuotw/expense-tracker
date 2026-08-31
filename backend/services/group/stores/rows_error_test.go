@@ -85,7 +85,7 @@ func TestGetGroupMemberClosesInnerRows(t *testing.T) {
 				Columns: groupMemberUserColumns(),
 				Rows: [][]driver.Value{{
 					uuid.NewString(), "username", "first", "last", "user@example.com", "hash",
-					nil, nil, time.Now().UTC(), true, "nickname", "user",
+					"", "", time.Now().UTC(), true, "nickname", "user",
 				}},
 			},
 			wantResult: 1,
@@ -112,13 +112,7 @@ func TestGetGroupMemberClosesInnerRows(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			var innerClosed atomic.Bool
 			test.inner.OnRowsClose = func() { innerClosed.Store(true) }
-			db, cleanup := testsql.Open(
-				testsql.Result{
-					Columns: []string{"user_id"},
-					Rows:    [][]driver.Value{{"user-id"}},
-				},
-				test.inner,
-			)
+			db, cleanup := testsql.Open(test.inner)
 			t.Cleanup(cleanup)
 
 			users, err := NewStore(db).GetGroupMemberByGroupID("group-id")

@@ -156,6 +156,14 @@ type ExpenseResponsePage struct {
 	HasMore  bool                   `json:"hasMore"`
 }
 
+// GroupOverviewResponse is the bounded initial read for the group page.
+// Additional expense pages remain independently pageable.
+type GroupOverviewResponse struct {
+	Group    GetGroupResponse    `json:"group"`
+	Balance  BalanceResponse     `json:"balance"`
+	Expenses ExpenseResponsePage `json:"expenses"`
+}
+
 type ExpenseResponse struct {
 	ID                uuid.UUID        `json:"expenseId"`
 	Description       string           `json:"description"`

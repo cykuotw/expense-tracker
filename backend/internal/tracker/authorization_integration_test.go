@@ -79,8 +79,8 @@ func createAuthorizationFixture(t *testing.T, db *sql.DB) authorizationFixture {
 		id       uuid.UUID
 		username string
 	}{
-		{id: fixture.aliceID, username: "authorization-alice-" + fixture.aliceID.String()},
-		{id: fixture.bobID, username: "authorization-bob-" + fixture.bobID.String()},
+		{id: fixture.aliceID, username: "authorization-alice-" + fixture.aliceID.String()[:8]},
+		{id: fixture.bobID, username: "authorization-bob-" + fixture.bobID.String()[:8]},
 	} {
 		_, err := db.Exec(`INSERT INTO users (id, username, firstname, lastname, email, password_hash, create_time_utc, is_active, has_local_password, role)
 			VALUES ($1, $2, 'Authorization', 'Test', $3, 'not-used', $4, TRUE, TRUE, 'user')`,

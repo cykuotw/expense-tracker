@@ -35,7 +35,6 @@ func NewProtectedHandler(store AccountStore) *HandlerProtected {
 }
 
 func (h *HandlerProtected) RegisterRoutes(router *gin.RouterGroup) {
-	router.GET("/user_info", h.handleUserInfo)
 	router.GET("/account", h.handleAccount)
 	router.PATCH("/account", h.handleUpdateProfile)
 	router.PATCH("/account/password", h.handleChangePassword)
@@ -46,30 +45,6 @@ func (h *HandlerProtected) RegisterRoutes(router *gin.RouterGroup) {
 		}
 		router.POST("/account/google/link", googleLinkHandler)
 	}
-}
-
-func (h *HandlerProtected) handleUserInfo(c *gin.Context) {
-	// get user id from jwt
-	userID, err := auth.ExtractJWTClaim(c, "userID")
-	if err != nil {
-		utils.WriteError(c, http.StatusUnauthorized, err)
-		return
-	}
-
-	// request user info
-	user, err := h.store.GetUserByID(userID)
-	if err != nil {
-		utils.WriteError(c, http.StatusInternalServerError, err)
-		return
-	}
-
-	response := types.UserInfoResponse{
-		Nickname:  user.Nickname,
-		Firstname: user.Firstname,
-		Lastname:  user.Lastname,
-		Email:     user.Email,
-	}
-	utils.WriteJSON(c, http.StatusOK, response)
 }
 
 func accountResponse(user *types.User) types.AccountResponse {

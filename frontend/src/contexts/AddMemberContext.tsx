@@ -15,12 +15,6 @@ import { UserData } from "../types/user";
 import useDebounce from "../hooks/useDebounce";
 import { AddMemberContext } from "../hooks/AddMemberContextHooks";
 
-interface UpdateGroupMemberPayload {
-    action: "add" | "delete";
-    userId: string;
-    groupId: string;
-}
-
 const UPDATE_MEMBERS_FALLBACK = "Update failed";
 const CHECK_EMAIL_FALLBACK = "Unable to check email";
 const LOOKUP_USER_FALLBACK = "Unable to look up user";
@@ -82,41 +76,18 @@ export const AddMemberProvider = ({ children }: { children: ReactNode }) => {
         const selectedUserIds = new Set(
             formData.getAll("candidate[]") as string[]
         );
-        const payloads: UpdateGroupMemberPayload[] = relatedUserList.map(
-            (user) => ({
-                action: selectedUserIds.has(user.userId) ? "add" : "delete",
-                userId: user.userId,
-                groupId: groupId as string,
-            })
-        );
+        const memberIds = relatedUserList
+            .filter((user) => selectedUserIds.has(user.userId))
+            .map((user) => user.userId);
 
         try {
-            const errorMessages = await Promise.all(
-                payloads.map(async (payload) => {
-                    const response = await apiFetch("/group_member", {
-                        method: "PUT",
-                        headers: {
-                            "Content-Type": "application/json",
-                        },
-                        body: JSON.stringify(payload),
-                    });
-
-                    if (!response.ok) {
-                        return getResponseErrorMessage(
-                            response,
-                            UPDATE_MEMBERS_FALLBACK
-                        );
-                    }
-
-                    return null;
-                })
-            );
-
-            const errorMessage = errorMessages.find(
-                (message): message is string => message !== null
-            );
-            if (errorMessage) {
-                toast.error(errorMessage);
+            const response = await apiFetch("/group_members", {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ groupId, memberIds }),
+            });
+            if (!response.ok) {
+                toast.error(await getResponseErrorMessage(response, UPDATE_MEMBERS_FALLBACK));
                 return;
             }
 

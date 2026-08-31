@@ -26,7 +26,6 @@ func (h *Handler) handleGetExpenseDetail(c *gin.Context) {
 		utils.WriteError(c, http.StatusInternalServerError, err)
 		return
 	}
-	username := user.Username
 	items, err := h.store.GetItemsByExpenseID(expenseID)
 	if err != nil {
 		utils.WriteError(c, http.StatusInternalServerError, err)
@@ -46,24 +45,23 @@ func (h *Handler) handleGetExpenseDetail(c *gin.Context) {
 		utils.WriteError(c, http.StatusInternalServerError, err)
 		return
 	}
+	userIDs := make([]string, 0, len(ledgers)*2)
+	for _, ledger := range ledgers {
+		userIDs = append(userIDs, ledger.LenderUserID.String(), ledger.BorrowerUesrID.String())
+	}
+	usernames, err := usernamesByIDs(h.userStore, userIDs)
+	if err != nil {
+		utils.WriteError(c, http.StatusInternalServerError, err)
+		return
+	}
 	ledgerRsp := make([]types.LedgerResponse, 0, len(ledgers))
 	for _, led := range ledgers {
-		lenderUsername, err := h.userStore.GetUsernameByID(led.LenderUserID.String())
-		if err != nil {
-			utils.WriteError(c, http.StatusInternalServerError, err)
-			return
-		}
-		borrowerUsername, err := h.userStore.GetUsernameByID(led.BorrowerUesrID.String())
-		if err != nil {
-			utils.WriteError(c, http.StatusInternalServerError, err)
-			return
-		}
 		ledger := types.LedgerResponse{
 			ID:               led.ID.String(),
 			LenderUserId:     led.LenderUserID.String(),
-			LenderUsername:   lenderUsername,
+			LenderUsername:   usernames[led.LenderUserID.String()],
 			BorrowerUserId:   led.BorrowerUesrID.String(),
-			BorrowerUsername: borrowerUsername,
+			BorrowerUsername: usernames[led.BorrowerUesrID.String()],
 			Share:            led.Share,
 		}
 		ledgerRsp = append(ledgerRsp, ledger)
@@ -77,7 +75,7 @@ func (h *Handler) handleGetExpenseDetail(c *gin.Context) {
 		ID:                expense.ID,
 		Description:       expense.Description,
 		CreatedByUserID:   expense.CreateByUserID,
-		CreatedByUsername: username,
+		CreatedByUsername: user.Username,
 		ExpenseTypeId:     expense.ExpenseTypeID,
 		ExpenseType:       expenseType,
 		SubTotal:          expense.SubTotal,

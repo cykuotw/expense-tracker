@@ -24,6 +24,7 @@ func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 	router.GET("/groups", h.handleGetGroupList)
 	router.GET("/group_member/:groupid", h.handleGetGroupMember)
 	router.PUT("/group_member", h.handleUpdateGroupMember)
+	router.PUT("/group_members", h.handleReplaceGroupMembers)
 	router.PUT("/archive_group/:groupId", h.handleArchiveGroup)
 
 	router.GET("/related_member", h.handleGetRelatedMember)

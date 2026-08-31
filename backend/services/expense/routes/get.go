@@ -70,30 +70,46 @@ func (h *Handler) handleGetExpenseList(c *gin.Context) {
 	for _, expenseType := range expenseTypes {
 		typesByID[expenseType.ID] = expenseType
 	}
+	expenseIDs := make([]string, 0, len(expensePage.Expenses))
+	for _, expense := range expensePage.Expenses {
+		expenseIDs = append(expenseIDs, expense.ID.String())
+	}
+	ledgersByExpense, err := ledgersByExpenseIDs(h.store, expenseIDs)
+	if err != nil {
+		utils.WriteError(c, http.StatusInternalServerError, err)
+		return
+	}
+	payerIDs := make([]string, 0)
+	seenPayerIDs := make(map[string]struct{})
+	for _, ledgers := range ledgersByExpense {
+		for _, ledger := range ledgers {
+			payerID := ledger.LenderUserID.String()
+			if _, seen := seenPayerIDs[payerID]; seen {
+				continue
+			}
+			seenPayerIDs[payerID] = struct{}{}
+			payerIDs = append(payerIDs, payerID)
+		}
+	}
+	payerNames, err := usernamesByIDs(h.userStore, payerIDs)
+	if err != nil {
+		utils.WriteError(c, http.StatusInternalServerError, err)
+		return
+	}
 
 	response := make([]types.ExpenseResponseBrief, 0, len(expensePage.Expenses))
 	for _, expense := range expensePage.Expenses {
 		payerUserIDs := make([]uuid.UUID, 0)
 		payerUsernames := make([]string, 0)
 
-		ledgers, err := h.store.GetLedgersByExpenseID(expense.ID.String())
-		if err != nil {
-			utils.WriteError(c, http.StatusInternalServerError, err)
-			return
-		}
-
 		inserted := make(map[string]struct{})
-		for _, ledger := range ledgers {
+		for _, ledger := range ledgersByExpense[expense.ID.String()] {
 			// 2024.01.12 Single payer model
 			// just in case there are multiple payers
 			_, ok := inserted[ledger.LenderUserID.String()]
 			if !ok {
 				payerUserIDs = append(payerUserIDs, ledger.LenderUserID)
-				username, err := h.userStore.GetUsernameByID(ledger.LenderUserID.String())
-				if err != nil {
-					utils.WriteError(c, http.StatusInternalServerError, err)
-					return
-				}
+				username := payerNames[ledger.LenderUserID.String()]
 				payerUsernames = append(payerUsernames, username)
 				inserted[ledger.LenderUserID.String()] = struct{}{}
 			}

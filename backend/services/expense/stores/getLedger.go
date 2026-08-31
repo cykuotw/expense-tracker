@@ -31,6 +31,36 @@ func (s *Store) GetLedgersByExpenseID(expenseID string) ([]*types.Ledger, error)
 	return ledgerList, nil
 }
 
+func (s *Store) GetLedgersByExpenseIDs(expenseIDs []string) (map[string][]*types.Ledger, error) {
+	if len(expenseIDs) == 0 {
+		return map[string][]*types.Ledger{}, nil
+	}
+
+	rows, err := s.db.Query(
+		"SELECT * FROM ledger WHERE expense_id = ANY($1::uuid[]) ORDER BY expense_id ASC, borrower_user_id ASC;",
+		expenseIDs,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	ledgersByExpense := make(map[string][]*types.Ledger, len(expenseIDs))
+	for rows.Next() {
+		ledger, err := scanRowIntoLedger(rows)
+		if err != nil {
+			return nil, err
+		}
+		expenseID := ledger.ExpenseID.String()
+		ledgersByExpense[expenseID] = append(ledgersByExpense[expenseID], ledger)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return ledgersByExpense, nil
+}
+
 func (s *Store) GetLedgerUnsettledFromGroup(groupID string) ([]*types.Ledger, error) {
 	query := "SELECT l.* " +
 		"FROM expense AS e " +

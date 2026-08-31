@@ -25,24 +25,23 @@ func (h *Handler) handleGetUnsettledBalance(c *gin.Context) {
 		utils.WriteError(c, http.StatusInternalServerError, err)
 		return
 	}
+	userIDs := make([]string, 0, len(balanceSimplified)*2)
+	for _, balance := range balanceSimplified {
+		userIDs = append(userIDs, balance.SenderUserID.String(), balance.ReceiverUserID.String())
+	}
+	usernames, err := usernamesByIDs(h.userStore, userIDs)
+	if err != nil {
+		utils.WriteError(c, http.StatusInternalServerError, err)
+		return
+	}
 	balances := make([]types.BalanceRsp, 0, len(balanceSimplified))
 	for _, balance := range balanceSimplified {
-		senderUsername, err := h.userStore.GetUsernameByID(balance.SenderUserID.String())
-		if err != nil {
-			utils.WriteError(c, http.StatusInternalServerError, err)
-			return
-		}
-		receiverUsername, err := h.userStore.GetUsernameByID(balance.ReceiverUserID.String())
-		if err != nil {
-			utils.WriteError(c, http.StatusInternalServerError, err)
-			return
-		}
 		res := types.BalanceRsp{
 			ID:               balance.ID,
 			SenderUserID:     balance.SenderUserID,
-			SenderUesrname:   senderUsername,
+			SenderUesrname:   usernames[balance.SenderUserID.String()],
 			ReceiverUserID:   balance.ReceiverUserID,
-			ReceiverUsername: receiverUsername,
+			ReceiverUsername: usernames[balance.ReceiverUserID.String()],
 			Balance:          balance.Share,
 		}
 

@@ -65,28 +65,13 @@ describe("GroupDetailProvider error handling", () => {
     beforeEach(() => {
         vi.clearAllMocks();
         apiFetchMock.mockImplementation((path: string) => {
-            if (path === "/group/group-1") {
+            if (path.startsWith("/group_overview/group-1/0?order=")) {
                 return Promise.resolve(
                     jsonResponse({
-                        groupName: "Group",
-                        description: "",
-                        currency: "CAD",
-                        members: [],
+                        group: { groupName: "Group", description: "", currency: "CAD", members: [] },
+                        balance: { currency: "CAD", currentUser: "user-1", balances: [] },
+                        expenses: { expenses: [], hasMore: false },
                     })
-                );
-            }
-            if (path === "/balance/group-1") {
-                return Promise.resolve(
-                    jsonResponse({
-                        currency: "CAD",
-                        currentUser: "user-1",
-                        balances: [],
-                    })
-                );
-            }
-            if (path.startsWith("/expense_list/group-1/0?order=")) {
-                return Promise.resolve(
-                    jsonResponse({ expenses: [], hasMore: false })
                 );
             }
             if (path === "/settle_expense/group-1") {
@@ -115,7 +100,7 @@ describe("GroupDetailProvider error handling", () => {
 
         expect(screen.getByTestId("expense-order")).toHaveTextContent("newest");
         expect(apiFetchMock).toHaveBeenCalledWith(
-            "/expense_list/group-1/0?order=newest&status=unsettled"
+            "/group_overview/group-1/0?order=newest&status=unsettled"
         );
 
         fireEvent.click(screen.getByRole("button", { name: "Settle" }));
@@ -131,14 +116,8 @@ describe("GroupDetailProvider error handling", () => {
 
     it("refreshes group data after a successful settlement without reloading the page", async () => {
         apiFetchMock.mockImplementation((path: string) => {
-            if (path === "/group/group-1") {
-                return Promise.resolve(jsonResponse({ groupName: "Group", description: "", currency: "CAD", members: [] }));
-            }
-            if (path === "/balance/group-1") {
-                return Promise.resolve(jsonResponse({ currency: "CAD", currentUser: "user-1", balances: [] }));
-            }
-            if (path.startsWith("/expense_list/group-1/0?order=")) {
-                return Promise.resolve(jsonResponse({ expenses: [], hasMore: false }));
+            if (path.startsWith("/group_overview/group-1/0?order=")) {
+                return Promise.resolve(jsonResponse({ group: { groupName: "Group", description: "", currency: "CAD", members: [] }, balance: { currency: "CAD", currentUser: "user-1", balances: [] }, expenses: { expenses: [], hasMore: false } }));
             }
             if (path === "/settle_expense/group-1") return Promise.resolve(jsonResponse({}));
             throw new Error(`Unexpected path: ${path}`);
@@ -158,9 +137,7 @@ describe("GroupDetailProvider error handling", () => {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
             });
-            expect(apiFetchMock).toHaveBeenCalledWith("/group/group-1");
-            expect(apiFetchMock).toHaveBeenCalledWith("/balance/group-1");
-            expect(apiFetchMock).toHaveBeenCalledWith("/expense_list/group-1/0?order=newest&status=unsettled");
+            expect(apiFetchMock).toHaveBeenCalledWith("/group_overview/group-1/0?order=newest&status=unsettled");
         });
     });
 
@@ -178,21 +155,15 @@ describe("GroupDetailProvider error handling", () => {
         await waitFor(() => {
             expect(screen.getByTestId("expense-order")).toHaveTextContent("oldest");
             expect(apiFetchMock).toHaveBeenCalledWith(
-                "/expense_list/group-1/0?order=oldest&status=unsettled"
+                "/group_overview/group-1/0?order=oldest&status=unsettled"
             );
         });
     });
 
     it("uses the server hasMore flag when loading another unsettled page", async () => {
         apiFetchMock.mockImplementation((path: string) => {
-            if (path === "/group/group-1") {
-                return Promise.resolve(jsonResponse({ groupName: "Group", description: "", currency: "CAD", members: [] }));
-            }
-            if (path === "/balance/group-1") {
-                return Promise.resolve(jsonResponse({ currency: "CAD", currentUser: "user-1", balances: [] }));
-            }
-            if (path === "/expense_list/group-1/0?order=newest&status=unsettled") {
-                return Promise.resolve(jsonResponse({ expenses: [{ expenseId: "expense-1" }], hasMore: true }));
+            if (path === "/group_overview/group-1/0?order=newest&status=unsettled") {
+                return Promise.resolve(jsonResponse({ group: { groupName: "Group", description: "", currency: "CAD", members: [] }, balance: { currency: "CAD", currentUser: "user-1", balances: [] }, expenses: { expenses: [{ expenseId: "expense-1" }], hasMore: true } }));
             }
             if (path === "/expense_list/group-1/1?order=newest&status=unsettled") {
                 return Promise.resolve(jsonResponse({ expenses: [{ expenseId: "expense-2" }], hasMore: false }));

@@ -143,12 +143,18 @@ const EditExpenseContent = () => {
                                                 groupId,
                                             }))
                                         }
-                                        options={groupList.map((group) => ({
-                                            value: group.id,
-                                            label: group.groupName,
-                                            description: group.description,
-                                            icon: getGroupTypePresentation(group.groupType).icon,
-                                        }))}
+                                        options={groupList.map((group) => {
+                                            const groupType = getGroupTypePresentation(
+                                                group.groupType
+                                            );
+                                            return {
+                                                value: group.id,
+                                                label: group.groupName,
+                                                description: group.description,
+                                                icon: groupType.icon,
+                                                iconClassName: groupType.iconClassName,
+                                            };
+                                        })}
                                     />
                                 </div>
                             </div>

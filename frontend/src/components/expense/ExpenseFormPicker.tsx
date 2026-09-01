@@ -7,6 +7,7 @@ export interface ExpenseFormPickerOption {
     label: string;
     description?: string;
     icon?: string;
+    iconClassName?: string;
 }
 
 interface ExpenseFormPickerProps {
@@ -15,6 +16,7 @@ interface ExpenseFormPickerProps {
     value: string;
     onChange: (value: string) => void;
     icon?: string;
+    iconClassName?: string;
     emptyLabel: string;
 }
 
@@ -24,12 +26,15 @@ export function ExpenseFormPicker({
     value,
     onChange,
     icon,
+    iconClassName,
     emptyLabel,
 }: ExpenseFormPickerProps) {
     const [open, setOpen] = useState(false);
     const pointerSelectionRef = useRef<string | null>(null);
     const selected = options.find((option) => option.value === value);
     const selectedIcon = selected?.icon ?? icon;
+    const selectedIconClassName =
+        selected?.iconClassName ?? iconClassName ?? "bg-primary/10 text-primary";
     const selectOption = useCallback(
         (nextValue: string) => {
             onChange(nextValue);
@@ -62,7 +67,7 @@ export function ExpenseFormPicker({
                 }}
             >
                 {selectedIcon && (
-                    <span className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                    <span className={`flex size-10 items-center justify-center rounded-xl ${selectedIconClassName}`}>
                         <Icon path={selectedIcon} size={1} />
                     </span>
                 )}
@@ -110,7 +115,9 @@ export function ExpenseFormPicker({
                                 }}
                             >
                                 {option.icon ?? icon ? (
-                                    <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                                    <span
+                                        className={`flex size-8 shrink-0 items-center justify-center rounded-lg ${option.iconClassName ?? iconClassName ?? "bg-primary/10 text-primary"}`}
+                                    >
                                         <Icon
                                             path={option.icon ?? icon ?? ""}
                                             size={0.8}

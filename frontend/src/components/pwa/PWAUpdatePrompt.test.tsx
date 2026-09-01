@@ -12,7 +12,8 @@ type RegisterOptions = {
     onRegisteredSW?: RegisterCallback;
 };
 
-const { updateServiceWorkerMock, useRegisterSWMock } = vi.hoisted(() => ({
+const { setNeedRefreshMock, updateServiceWorkerMock, useRegisterSWMock } = vi.hoisted(() => ({
+    setNeedRefreshMock: vi.fn(),
     updateServiceWorkerMock: vi.fn(),
     useRegisterSWMock: vi.fn(),
 }));
@@ -34,11 +35,12 @@ describe("PWAUpdatePrompt", () => {
             get: () => visibilityState,
         });
         registeredCallback = undefined;
+        setNeedRefreshMock.mockReset();
         updateServiceWorkerMock.mockReset();
         useRegisterSWMock.mockImplementation((options?: RegisterOptions) => {
             registeredCallback = options?.onRegisteredSW;
             return {
-                needRefresh: [true, vi.fn()],
+                needRefresh: [true, setNeedRefreshMock],
                 offlineReady: [false, vi.fn()],
                 updateServiceWorker: updateServiceWorkerMock,
             };
@@ -119,16 +121,45 @@ describe("PWAUpdatePrompt", () => {
         expect(update).toHaveBeenCalledTimes(1);
     });
 
-    it("lets the user explicitly apply a waiting update", async () => {
+    it("shows that an update is being applied", async () => {
         let resolveUpdate: (() => void) | undefined;
         updateServiceWorkerMock.mockImplementation(
-            () => new Promise<void>((resolve) => { resolveUpdate = resolve; })
+            () => new Promise<void>((resolve) => {
+                resolveUpdate = resolve;
+            })
         );
         render(<PWAUpdatePrompt />);
 
         fireEvent.click(screen.getByRole("button", { name: "Reload now" }));
-        expect(updateServiceWorkerMock).toHaveBeenCalledWith(true);
+
         expect(screen.getByRole("button", { name: "Reloading…" })).toBeDisabled();
         await act(async () => resolveUpdate?.());
+    });
+
+    it("clears the update prompt after a successful reload request", async () => {
+        updateServiceWorkerMock.mockResolvedValue(undefined);
+        render(<PWAUpdatePrompt />);
+
+        await act(async () => {
+            fireEvent.click(screen.getByRole("button", { name: "Reload now" }));
+        });
+
+        expect(updateServiceWorkerMock).toHaveBeenCalledWith(true);
+        expect(setNeedRefreshMock).toHaveBeenCalledWith(false);
+        expect(
+            screen.queryByText("A newer version is ready. Reload when you are ready to update.")
+        ).not.toBeInTheDocument();
+    });
+
+    it("keeps the update prompt available when the reload request fails", async () => {
+        updateServiceWorkerMock.mockRejectedValue(new Error("update failed"));
+        render(<PWAUpdatePrompt />);
+
+        await act(async () => {
+            fireEvent.click(screen.getByRole("button", { name: "Reload now" }));
+        });
+
+        expect(setNeedRefreshMock).not.toHaveBeenCalled();
+        expect(screen.getByRole("button", { name: "Reload now" })).toBeEnabled();
     });
 });

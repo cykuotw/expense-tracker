@@ -9,7 +9,7 @@ const PWAUpdatePrompt = () => {
     const [isUpdateDismissed, setIsUpdateDismissed] = useState(false);
     const [isReloading, setIsReloading] = useState(false);
     const {
-        needRefresh: [needRefresh],
+        needRefresh: [needRefresh, setNeedRefresh],
         offlineReady: [offlineReady, setOfflineReady],
         updateServiceWorker,
     } = useRegisterSW({
@@ -54,6 +54,8 @@ const PWAUpdatePrompt = () => {
         setIsReloading(true);
         try {
             await updateServiceWorker(true);
+            setNeedRefresh(false);
+            setIsUpdateDismissed(true);
         } catch {
             setIsReloading(false);
         }

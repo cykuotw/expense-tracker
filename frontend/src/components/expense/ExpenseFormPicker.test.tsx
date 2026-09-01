@@ -50,6 +50,41 @@ describe("ExpenseFormPicker", () => {
         expect(container.querySelector("button path")).toHaveAttribute("d", mdiAirplane);
     });
 
+    it("uses an option's semantic icon colour in the trigger and menu", () => {
+        render(
+            <ExpenseFormPicker
+                label="Group"
+                emptyLabel="Choose a group"
+                value="group-1"
+                onChange={vi.fn()}
+                options={[
+                    {
+                        value: "group-1",
+                        label: "Trip",
+                        icon: mdiAirplane,
+                        iconClassName: "bg-rose-100 text-rose-700",
+                    },
+                    {
+                        value: "group-2",
+                        label: "Home",
+                        icon: mdiAccountGroupOutline,
+                        iconClassName: "bg-amber-100 text-amber-700",
+                    },
+                ]}
+            />
+        );
+
+        const trigger = screen.getByRole("button", { name: "Group" });
+        expect(trigger.querySelector(".bg-rose-100")).toBeInTheDocument();
+
+        fireEvent.click(trigger);
+        expect(
+            screen
+                .getByRole("option", { name: "Home" })
+                .querySelector(".bg-amber-100")
+        ).toBeInTheDocument();
+    });
+
     it("closes when focus moves outside the picker", () => {
         render(
             <>

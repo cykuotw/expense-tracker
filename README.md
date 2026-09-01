@@ -35,7 +35,7 @@ make migrate-step n=1
 
 ### Frontend
 
-Requires Node 22.13.1 or a compatible Node 22 release, plus pnpm 10.23.0.
+Requires Node 22.23.2 or a compatible Node 22 release, plus pnpm 11.25.0.
 Both tool versions are declared in `frontend/package.json`; `.node-version` is
 provided for compatible local version managers.
 

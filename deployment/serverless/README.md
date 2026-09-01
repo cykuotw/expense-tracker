@@ -89,9 +89,9 @@ The machine that runs `make deploy` builds and tests the frontend locally before
 publication. It must provide the following commands on `PATH` before invoking
 the deployer:
 
-- Node `22.13.1` through Node `22.x`; `frontend/.node-version` identifies the
+- Node `22.23.2` through Node `22.x`; `frontend/.node-version` identifies the
   tested baseline and `frontend/package.json` enforces the supported range.
-- pnpm `10.23.0` through `10.x`; `frontend/package.json` identifies the tested baseline.
+- pnpm `11.25.0` through `11.x`; `frontend/package.json` identifies the tested baseline.
 
 pnpm requires Node, and the deployer intentionally does not download or install
 either tool. The serverless preflight checks that `node` and `pnpm` are

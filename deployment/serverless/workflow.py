@@ -56,13 +56,13 @@ def require_node_22() -> None:
     except ValueError as exc:
         raise CommandError(f"unable to parse Node version: {version!r}") from exc
 
-    if (major, minor, patch) < (22, 13, 1) or major >= 23:
+    if (major, minor, patch) < (22, 23, 2) or major >= 23:
         raise CommandError(
-            f"Node 22.13.1 through 22.x is required; found v{version}"
+            f"Node 22.23.2 through 22.x is required; found v{version}"
         )
 
 
-def require_pnpm_10() -> None:
+def require_pnpm_11() -> None:
     version = run(["pnpm", "--version"]).stdout.strip()
     normalized_version = version.removeprefix("v")
     try:
@@ -70,16 +70,16 @@ def require_pnpm_10() -> None:
     except ValueError as exc:
         raise CommandError(f"unable to parse pnpm version: {version!r}") from exc
 
-    if (major, minor, patch) < (10, 23, 0) or major >= 11:
+    if (major, minor, patch) < (11, 25, 0) or major >= 12:
         raise CommandError(
-            f"pnpm 10.23.0 through 10.x is required; found {version!r}"
+            f"pnpm 11.25.0 through 11.x is required; found {version!r}"
         )
 
 
 def preflight(context: Context, *, mutation: bool) -> None:
     require_tools(["aws", "terraform", "go", "node", "pnpm", "ssh", "scp", "ssh-keyscan"])
     require_node_22()
-    require_pnpm_10()
+    require_pnpm_11()
     identity = context.aws.identity()
     account = str(identity.get("Account", ""))
     print(f"AWS account={account} region={context.config.aws.region}")

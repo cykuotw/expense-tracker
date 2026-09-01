@@ -128,6 +128,12 @@ make deploy ACTION=destroy
 
 `SCOPE=backend` also publishes and invokes the bootstrap function first. This applies pending migrations and verifies first-administrator reconciliation before marker-dependent Worker code is published. Use `SCOPE=migrations` when only the migration/bootstrap step should run.
 
+`SCOPE=all` also creates and manages the database EC2 Instance Connect
+Endpoint. It uses a dedicated security group with SSH-only access to the
+database host; it does not create a public IP or an SSM interface endpoint.
+Remove any manually created endpoint first because AWS permits only one
+endpoint per VPC and subnet.
+
 Use `SCOPE=all` for the account-linking release so the local-password capability migration, Google-authorized API route, Worker code, and Account Settings UI are published together. The migration preserves password capability for existing local accounts and classifies existing Google-created accounts as Google-only.
 
 Use `SERVERLESS_AUTO_APPROVE=true` only in a controlled disposable test. `FORCE_DETACH_LAMBDA_ENI=true` permits the bounded owned-ENI force cleanup only after the normal 20-minute wait plus five additional minutes.

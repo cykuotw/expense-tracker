@@ -19,6 +19,9 @@ output "database_temporary_public_ipv4" {
 output "postgres_backup_bucket_name" {
   value = aws_s3_bucket.postgres_backup.bucket
 }
+output "postgres_backup_writer_instance_profile_name" {
+  value = aws_iam_instance_profile.postgres_backup_writer.name
+}
 output "restore_verification_temporary_public_ipv4" {
   value = try(aws_eip.restore_verification[0].public_ip, "")
 }
@@ -27,6 +30,12 @@ output "vpc_ipv4_cidr" {
 }
 output "database_security_group_id" {
   value = aws_security_group.postgres.id
+}
+output "database_operator_access_security_group_id" {
+  value = aws_security_group.operator_access.id
+}
+output "database_operator_access_eice_id" {
+  value = aws_ec2_instance_connect_endpoint.operator_access.id
 }
 output "worker_security_group_id" {
   value = aws_security_group.worker.id

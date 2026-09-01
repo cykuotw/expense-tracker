@@ -308,6 +308,10 @@ def _infrastructure_targets(scope: str) -> tuple[str, ...]:
         ))
     if scope == "all":
         targets.extend((
+            "aws_security_group.operator_access",
+            "aws_vpc_security_group_egress_rule.operator_access_to_postgres",
+            "aws_vpc_security_group_ingress_rule.operator_access_to_postgres",
+            "aws_ec2_instance_connect_endpoint.operator_access",
             "aws_s3_bucket.postgres_backup",
             "aws_s3_bucket_public_access_block.postgres_backup",
             "aws_s3_bucket_ownership_controls.postgres_backup",
@@ -321,7 +325,6 @@ def _infrastructure_targets(scope: str) -> tuple[str, ...]:
             "aws_iam_role.postgres_restore_verifier",
             "aws_iam_role_policy.postgres_restore_verifier",
             "aws_iam_instance_profile.postgres_restore_verifier",
-            "aws_instance.postgres",
         ))
     return tuple(targets)
 
@@ -349,14 +352,56 @@ def _backup_infrastructure_targets() -> tuple[str, ...]:
         "aws_iam_role.postgres_restore_verifier",
         "aws_iam_role_policy.postgres_restore_verifier",
         "aws_iam_instance_profile.postgres_restore_verifier",
-        "aws_instance.postgres",
     )
 
 
-def _apply_infrastructure_updates(context: Context, scope: str) -> None:
+def _ensure_postgres_backup_profile(context: Context, outputs: dict[str, Any]) -> None:
+    instance_id = str(outputs.get("database_instance_id", ""))
+    profile_name = str(outputs.get("postgres_backup_writer_instance_profile_name", ""))
+    if not instance_id or not profile_name:
+        raise CommandError("backup infrastructure did not expose the database instance profile association")
+
+    def association() -> dict[str, Any] | None:
+        associations = context.aws.json(
+            "ec2",
+            "describe-iam-instance-profile-associations",
+            "--filters",
+            f"Name=instance-id,Values={instance_id}",
+        ).get("IamInstanceProfileAssociations", [])
+        if len(associations) > 1:
+            raise CommandError("database instance has multiple IAM instance-profile associations")
+        return associations[0] if associations else None
+
+    current = association()
+    if current:
+        attached_arn = str(current.get("IamInstanceProfile", {}).get("Arn", ""))
+        if attached_arn.rsplit("/", 1)[-1] != profile_name:
+            raise CommandError("database instance already has an unexpected IAM instance profile")
+    else:
+        context.aws.call(
+            "ec2",
+            "associate-iam-instance-profile",
+            "--instance-id",
+            instance_id,
+            "--iam-instance-profile",
+            f"Name={profile_name}",
+        )
+
+    deadline = time.monotonic() + 60
+    while time.monotonic() < deadline:
+        current = association()
+        if current and current.get("State") == "associated":
+            attached_arn = str(current.get("IamInstanceProfile", {}).get("Arn", ""))
+            if attached_arn.rsplit("/", 1)[-1] == profile_name:
+                return
+        time.sleep(2)
+    raise CommandError("database backup IAM instance profile did not become associated")
+
+
+def _apply_infrastructure_updates(context: Context, scope: str) -> dict[str, Any] | None:
     targets = _infrastructure_targets(scope)
     if not targets:
-        return
+        return None
 
     step("infrastructure")
     with tempfile.TemporaryDirectory(prefix="expense-serverless-update-") as temporary, _terraform(context, False) as variables:
@@ -372,7 +417,9 @@ def _apply_infrastructure_updates(context: Context, scope: str) -> None:
         _print_plan(actions)
         if actions:
             terraform.apply(plan_path)
+        outputs = terraform.output() if scope == "all" else None
     step("infrastructure", "pass")
+    return outputs
 
 
 def update(context: Context, scope: str) -> None:
@@ -387,7 +434,9 @@ def update(context: Context, scope: str) -> None:
         step("migrations")
         runtime.update_bootstrap(context.aws, built["bootstrap"], context.config, outputs, context.terraform_root)
         step("migrations", "pass")
-    _apply_infrastructure_updates(context, scope)
+    infrastructure_outputs = _apply_infrastructure_updates(context, scope)
+    if scope == "all" and infrastructure_outputs is not None:
+        _ensure_postgres_backup_profile(context, infrastructure_outputs)
     if scope in {"backend", "all"}:
         step("backend")
         runtime.update_worker(context.aws, built["worker"], context.config, outputs, context.terraform_root)
@@ -456,7 +505,8 @@ def configure_backup(context: Context) -> None:
     _require_complete(context)
     # Terraform evaluates Lambda artifact hashes even for targeted plans.
     artifacts.build(context.repo_root, context.serverless_root / "build")
-    _apply_backup_infrastructure(context)
+    backup_outputs = _apply_backup_infrastructure(context)
+    _ensure_postgres_backup_profile(context, backup_outputs)
     step("database backup configuration")
     _configure_backup_with_temporary_access(context)
     step("database backup configuration", "pass")

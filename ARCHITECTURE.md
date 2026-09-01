@@ -41,7 +41,9 @@ Deployment workflow --> Bootstrap Lambda --> migrations and bootstrap work
   responsibility.
 - **Database:** PostgreSQL is stateful infrastructure on its own EC2 host.
   The Worker and Bootstrap functions connect through the VPC and security-group
-  boundary; it is not a public application API.
+  boundary; it is not a public application API. Operator host inspection uses
+  one Terraform-managed EC2 Instance Connect Endpoint with a dedicated,
+  SSH-only security-group path; it does not make the database public.
 - **Deployment owner:** `deployment/serverless/` owns the unified serverless
   implementation, its deployment sequencing, and its Terraform state.
 

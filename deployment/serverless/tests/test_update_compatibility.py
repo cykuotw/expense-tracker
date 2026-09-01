@@ -75,10 +75,64 @@ class UpdateCompatibilityTest(unittest.TestCase):
             targets,
         )
         self.assertIn("aws_cloudfront_distribution.frontend", targets)
+        self.assertIn("aws_ec2_instance_connect_endpoint.operator_access", targets)
+        self.assertIn("aws_security_group.operator_access", targets)
         self.assertIn("aws_s3_bucket.postgres_backup", targets)
         self.assertIn("aws_iam_instance_profile.postgres_backup_writer", targets)
-        self.assertIn("aws_instance.postgres", targets)
+        self.assertNotIn("aws_instance.postgres", targets)
         terraform.apply.assert_called_once_with(plan_path)
+
+    def test_backup_profile_is_attached_in_place_when_absent(self) -> None:
+        context = mock.MagicMock()
+        context.aws.json.side_effect = [
+            {"IamInstanceProfileAssociations": []},
+            {
+                "IamInstanceProfileAssociations": [
+                    {
+                        "State": "associated",
+                        "IamInstanceProfile": {
+                            "Arn": "arn:aws:iam::123456789012:instance-profile/backup-writer",
+                        },
+                    }
+                ]
+            },
+        ]
+        outputs = {
+            "database_instance_id": "i-database",
+            "postgres_backup_writer_instance_profile_name": "backup-writer",
+        }
+
+        workflow._ensure_postgres_backup_profile(context, outputs)
+
+        context.aws.call.assert_called_once_with(
+            "ec2",
+            "associate-iam-instance-profile",
+            "--instance-id",
+            "i-database",
+            "--iam-instance-profile",
+            "Name=backup-writer",
+        )
+
+    def test_backup_profile_does_not_replace_an_unexpected_profile(self) -> None:
+        context = mock.MagicMock()
+        context.aws.json.return_value = {
+            "IamInstanceProfileAssociations": [
+                {
+                    "State": "associated",
+                    "IamInstanceProfile": {
+                        "Arn": "arn:aws:iam::123456789012:instance-profile/other-profile",
+                    },
+                }
+            ]
+        }
+        outputs = {
+            "database_instance_id": "i-database",
+            "postgres_backup_writer_instance_profile_name": "backup-writer",
+        }
+
+        with self.assertRaisesRegex(workflow.CommandError, "unexpected IAM"):
+            workflow._ensure_postgres_backup_profile(context, outputs)
+        context.aws.call.assert_not_called()
 
     def test_infrastructure_update_skips_apply_when_plan_is_empty(self) -> None:
         context = mock.MagicMock()

@@ -86,6 +86,41 @@ resource "aws_security_group" "bootstrap" {
     create_before_destroy = true
   }
 }
+resource "aws_security_group" "operator_access" {
+  name_prefix = "${local.resource_prefix}-postgres-operator-access-"
+  description = "EC2 Instance Connect Endpoint for PostgreSQL host operations"
+  vpc_id      = var.vpc_id
+  tags = merge(local.common_tags, {
+    Name = "${local.resource_prefix}-postgres-operator-access", Component = "database-operator-access"
+  })
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+resource "aws_vpc_security_group_egress_rule" "operator_access_to_postgres" {
+  security_group_id            = aws_security_group.operator_access.id
+  referenced_security_group_id = aws_security_group.postgres.id
+  ip_protocol                  = "tcp"
+  from_port                    = 22
+  to_port                      = 22
+  description                  = "EC2 Instance Connect Endpoint to PostgreSQL host SSH"
+}
+resource "aws_vpc_security_group_ingress_rule" "operator_access_to_postgres" {
+  security_group_id            = aws_security_group.postgres.id
+  referenced_security_group_id = aws_security_group.operator_access.id
+  ip_protocol                  = "tcp"
+  from_port                    = 22
+  to_port                      = 22
+  description                  = "EC2 Instance Connect Endpoint to PostgreSQL host SSH"
+}
+resource "aws_ec2_instance_connect_endpoint" "operator_access" {
+  subnet_id          = var.subnet_id
+  security_group_ids = [aws_security_group.operator_access.id]
+  preserve_client_ip = false
+  tags = merge(local.common_tags, {
+    Name = "${local.resource_prefix}-postgres-operator-access", Component = "database-operator-access"
+  })
+}
 resource "aws_vpc_security_group_ingress_rule" "ssh" {
   count             = var.enable_temporary_public_access ? 1 : 0
   security_group_id = aws_security_group.postgres.id
@@ -148,10 +183,9 @@ resource "aws_launch_template" "postgres" {
   })
 }
 resource "aws_instance" "postgres" {
-  ami                  = local.database_ami_id
-  instance_type        = var.database_instance_type
-  key_name             = var.key_pair_name
-  iam_instance_profile = aws_iam_instance_profile.postgres_backup_writer.name
+  ami           = local.database_ami_id
+  instance_type = var.database_instance_type
+  key_name      = var.key_pair_name
   launch_template {
     id      = aws_launch_template.postgres.id
     version = aws_launch_template.postgres.latest_version

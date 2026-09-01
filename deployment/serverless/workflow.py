@@ -64,8 +64,16 @@ def require_node_22() -> None:
 
 def require_pnpm_10() -> None:
     version = run(["pnpm", "--version"]).stdout.strip()
-    if version != "10.23.0":
-        raise CommandError(f"pnpm 10.23.0 is required; found {version!r}")
+    normalized_version = version.removeprefix("v")
+    try:
+        major, minor, patch = (int(part) for part in normalized_version.split("."))
+    except ValueError as exc:
+        raise CommandError(f"unable to parse pnpm version: {version!r}") from exc
+
+    if (major, minor, patch) < (10, 23, 0) or major >= 11:
+        raise CommandError(
+            f"pnpm 10.23.0 through 10.x is required; found {version!r}"
+        )
 
 
 def preflight(context: Context, *, mutation: bool) -> None:

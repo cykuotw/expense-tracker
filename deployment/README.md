@@ -11,7 +11,7 @@ The unified serverless workflow is the only supported deployment path.
 
 - authenticated AWS CLI
 - Terraform 1.6 or newer
-- Go, Node 22.13.1 or a compatible Node 22 release, and pnpm 10.23.0
+- Go, Node 22.13.1 or a compatible Node 22 release, and pnpm 10.23.0 through 10.x
 - uv with Python 3.14 available
 - ssh, scp, and ssh-keyscan
 - an existing VPC, Internet-Gateway-backed subnet, EC2 key pair, and public Route 53 hosted zone

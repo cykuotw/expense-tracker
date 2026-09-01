@@ -45,9 +45,23 @@ class WorkflowTest(unittest.TestCase):
         with mock.patch.object(workflow, "run", return_value=mock.Mock(stdout="10.23.0\n")):
             workflow.require_pnpm_10()
 
-    def test_require_pnpm_10_rejects_an_unsupported_version(self) -> None:
+    def test_require_pnpm_10_accepts_a_newer_compatible_version(self) -> None:
+        with mock.patch.object(workflow, "run", return_value=mock.Mock(stdout="10.33.0\n")):
+            workflow.require_pnpm_10()
+
+    def test_require_pnpm_10_rejects_an_older_version(self) -> None:
+        with mock.patch.object(workflow, "run", return_value=mock.Mock(stdout="10.22.9\n")):
+            with self.assertRaisesRegex(workflow.CommandError, "pnpm 10.23.0 through 10.x"):
+                workflow.require_pnpm_10()
+
+    def test_require_pnpm_10_rejects_an_unsupported_major_version(self) -> None:
         with mock.patch.object(workflow, "run", return_value=mock.Mock(stdout="11.24.0\n")):
-            with self.assertRaisesRegex(workflow.CommandError, "pnpm 10.23.0 is required"):
+            with self.assertRaisesRegex(workflow.CommandError, "pnpm 10.23.0 through 10.x"):
+                workflow.require_pnpm_10()
+
+    def test_require_pnpm_10_rejects_an_unparseable_version(self) -> None:
+        with mock.patch.object(workflow, "run", return_value=mock.Mock(stdout="not-a-version\n")):
+            with self.assertRaisesRegex(workflow.CommandError, "unable to parse pnpm version"):
                 workflow.require_pnpm_10()
 
     def test_fresh_deploy_runs_component_order_and_raw_cutover_last(self) -> None:

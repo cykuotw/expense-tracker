@@ -35,6 +35,38 @@ const emptyData: expenseFormData = {
 const UPDATE_EXPENSE_FALLBACK = "Error updating expense";
 const LOAD_EXPENSE_FALLBACK = "Failed to load expense.";
 
+function cloneExpenseFormData(formData: expenseFormData): expenseFormData {
+    return {
+        ...formData,
+        ledgers: formData.ledgers.map((ledger) => ({ ...ledger })),
+    };
+}
+
+function isSameExpenseFormData(
+    left: expenseFormData,
+    right: expenseFormData
+): boolean {
+    return (
+        left.groupId === right.groupId &&
+        left.expenseType === right.expenseType &&
+        left.description === right.description &&
+        left.total === right.total &&
+        left.currency === right.currency &&
+        left.splitRule === right.splitRule &&
+        left.payerUserId === right.payerUserId &&
+        left.ledgers.length === right.ledgers.length &&
+        left.ledgers.every((ledger, index) => {
+            const compared = right.ledgers[index];
+            return (
+                compared !== undefined &&
+                ledger.id === compared.id &&
+                ledger.userId === compared.userId &&
+                ledger.share === compared.share
+            );
+        })
+    );
+}
+
 export const EditExpenseProvider = ({ children }: { children: ReactNode }) => {
     const navigate = useNavigate();
     const { id: expenseId = "" } = useParams();
@@ -43,9 +75,12 @@ export const EditExpenseProvider = ({ children }: { children: ReactNode }) => {
     const [indicatorShow, setIndicatorShow] = useState<boolean>(false);
 
     const [formData, setFormData] = useState<expenseFormData>(emptyData);
+    const [initialFormData, setInitialFormData] =
+        useState<expenseFormData | null>(null);
 
     const handleUpdateExpense = async (e: FormEvent) => {
         e.preventDefault();
+        if (!dataOk || !hasChanges) return;
 
         try {
             setIndicatorShow(true);
@@ -148,6 +183,8 @@ export const EditExpenseProvider = ({ children }: { children: ReactNode }) => {
     const [groupMembers, setGroupMembers] = useState<GroupMember[]>([]);
 
     useEffect(() => {
+        setInitialFormData(null);
+
         const fetchGroupList = async () => {
             const response = await apiFetch("/groups", {
                 method: "GET",
@@ -201,8 +238,7 @@ export const EditExpenseProvider = ({ children }: { children: ReactNode }) => {
                     ),
                 };
 
-                setFormData((prev) => ({
-                    ...prev,
+                const nextFormData: expenseFormData = {
                     groupId: data.groupId,
                     expenseType: data.expenseTypeId,
                     description: data.description,
@@ -215,7 +251,9 @@ export const EditExpenseProvider = ({ children }: { children: ReactNode }) => {
                         userId: ledger.borrowerUserId,
                         share: parseFloat(ledger.share),
                     })),
-                }));
+                };
+                setFormData(nextFormData);
+                setInitialFormData(cloneExpenseFormData(nextFormData));
 
                 const responseGroupMember = await apiFetch(
                     `/group_member/${data.groupId}`,
@@ -239,6 +277,10 @@ export const EditExpenseProvider = ({ children }: { children: ReactNode }) => {
         fetchExpeseTypes();
         fetchExpenseDetail();
     }, [expenseId]);
+
+    const hasChanges =
+        initialFormData !== null &&
+        !isSameExpenseFormData(formData, initialFormData);
 
     // handle form data update
     const handleFormDataChange = (
@@ -294,6 +336,7 @@ export const EditExpenseProvider = ({ children }: { children: ReactNode }) => {
                 groupMembers,
                 indicatorShow,
                 dataOk,
+                hasChanges,
                 ledgerShareOk,
                 ledgerShareMessage,
                 handleUpdateExpense,

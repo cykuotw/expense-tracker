@@ -2,7 +2,6 @@ import { Link } from "react-router-dom";
 
 import Icon from "@mdi/react";
 import {
-    mdiAccountGroupOutline,
     mdiAccountOutline,
     mdiCamera,
     mdiCheckBold,
@@ -18,6 +17,7 @@ import {
     ExpenseFormPickerOption,
 } from "../components/expense/ExpenseFormPicker";
 import MobilePageHeader from "../components/MobilePageHeader";
+import { getGroupTypePresentation } from "../lib/groupTypePresentation";
 
 const currencyOptions: ExpenseFormPickerOption[] = [
     { value: "CAD", label: "CAD" },
@@ -143,13 +143,13 @@ const CreateExpenseContent = () => {
                                     <ExpenseFormPicker
                                         label="Group"
                                         emptyLabel="Choose a group"
-                                        icon={mdiAccountGroupOutline}
                                         value={selectedGroupId ?? ""}
                                         onChange={setSelectedGroupId}
                                         options={groupList.map((group) => ({
                                             value: group.id,
                                             label: group.groupName,
                                             description: group.description,
+                                            icon: getGroupTypePresentation(group.groupType).icon,
                                         }))}
                                     />
                                 </div>

@@ -9,16 +9,26 @@ import MobilePageHeader from "../components/MobilePageHeader";
 import { AddMemberProvider } from "../contexts/AddMemberContext";
 import { apiFetch, getResponseErrorMessage } from "../lib/api";
 
+interface GroupForm {
+    groupName: string;
+    description: string;
+    currency: string;
+    groupType: string;
+}
+
+const EMPTY_GROUP_FORM: GroupForm = {
+    groupName: "",
+    description: "",
+    currency: "CAD",
+    groupType: "home",
+};
+
 export default function EditGroup() {
     const { id } = useParams();
     const { hash } = useLocation();
     const navigate = useNavigate();
-    const [form, setForm] = useState({
-        groupName: "",
-        description: "",
-        currency: "CAD",
-        groupType: "home",
-    });
+    const [form, setForm] = useState<GroupForm>(EMPTY_GROUP_FORM);
+    const [initialForm, setInitialForm] = useState<GroupForm | null>(null);
     const [saving, setSaving] = useState(false);
 
     useEffect(() => {
@@ -26,12 +36,14 @@ export default function EditGroup() {
         void apiFetch(`/group/${id}`).then(async (response) => {
             if (!response.ok) return;
             const data = await response.json();
-            setForm({
+            const nextForm: GroupForm = {
                 groupName: data.groupName ?? "",
                 description: data.description ?? "",
                 currency: data.currency ?? "CAD",
                 groupType: data.groupType ?? "home",
-            });
+            };
+            setForm(nextForm);
+            setInitialForm(nextForm);
         });
     }, [id]);
 
@@ -41,9 +53,16 @@ export default function EditGroup() {
         document.getElementById("members")?.scrollIntoView({ block: "start" });
     }, [hash]);
 
+    const isFormDirty =
+        initialForm !== null &&
+        (form.groupName !== initialForm.groupName ||
+            form.description !== initialForm.description ||
+            form.currency !== initialForm.currency ||
+            form.groupType !== initialForm.groupType);
+
     const save = async (event: React.FormEvent) => {
         event.preventDefault();
-        if (!id || !form.groupName.trim()) return;
+        if (!id || !form.groupName.trim() || !isFormDirty) return;
         setSaving(true);
         try {
             const response = await apiFetch(`/group/${id}`, {
@@ -84,7 +103,7 @@ export default function EditGroup() {
                                 form="edit-group-form"
                                 className="ui-button ui-button-primary min-h-12 min-w-12 px-3"
                                 aria-label="Save group"
-                                disabled={!form.groupName.trim()}
+                                disabled={saving || !form.groupName.trim() || !isFormDirty}
                             >
                                 <Icon path={mdiCheckBold} size={1} aria-hidden="true" />
                             </button>
@@ -150,7 +169,7 @@ export default function EditGroup() {
                     <div className="hidden flex-col gap-3 md:flex md:flex-row md:justify-between">
                         <button
                             className="ui-button ui-button-primary"
-                            disabled={saving || !form.groupName.trim()}
+                            disabled={saving || !form.groupName.trim() || !isFormDirty}
                         >
                             {saving ? "Saving…" : "Save group"}
                         </button>

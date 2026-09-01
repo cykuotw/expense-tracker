@@ -1,5 +1,5 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { mdiAccountGroupOutline } from "@mdi/js";
+import { mdiAccountGroupOutline, mdiAirplane } from "@mdi/js";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ExpenseFormPicker } from "./ExpenseFormPicker";
 
@@ -31,6 +31,23 @@ describe("ExpenseFormPicker", () => {
 
         expect(onChange).toHaveBeenCalledWith("group-2");
         expect(trigger).toHaveAttribute("aria-expanded", "false");
+    });
+
+    it("prefers an option icon over the fallback icon", () => {
+        const { container } = render(
+            <ExpenseFormPicker
+                label="Group"
+                emptyLabel="Choose a group"
+                icon={mdiAccountGroupOutline}
+                value="group-1"
+                onChange={vi.fn()}
+                options={[
+                    { value: "group-1", label: "Trip", icon: mdiAirplane },
+                ]}
+            />
+        );
+
+        expect(container.querySelector("button path")).toHaveAttribute("d", mdiAirplane);
     });
 
     it("closes when focus moves outside the picker", () => {

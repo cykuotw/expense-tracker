@@ -1,7 +1,6 @@
 import Icon from "@mdi/react";
 import { Link } from "react-router-dom";
 import {
-    mdiAccountGroupOutline,
     mdiAccountOutline,
     mdiCamera,
     mdiCheckBold,
@@ -17,6 +16,7 @@ import {
     ExpenseFormPickerOption,
 } from "../components/expense/ExpenseFormPicker";
 import MobilePageHeader from "../components/MobilePageHeader";
+import { getGroupTypePresentation } from "../lib/groupTypePresentation";
 
 const currencyOptions: ExpenseFormPickerOption[] = [
     { value: "CAD", label: "CAD" },
@@ -33,6 +33,7 @@ const EditExpenseContent = () => {
         groupMembers,
         indicatorShow,
         dataOk,
+        hasChanges,
         ledgerShareOk,
         ledgerShareMessage,
         handleUpdateExpense,
@@ -92,7 +93,7 @@ const EditExpenseContent = () => {
                                 form="edit-expense-form"
                                 className="ui-button ui-button-primary min-h-12 min-w-12 px-3"
                                 aria-label="Save changes"
-                                disabled={!dataOk}
+                                disabled={!dataOk || !hasChanges}
                             >
                                 <Icon path={mdiCheckBold} size={1} />
                             </button>
@@ -135,7 +136,6 @@ const EditExpenseContent = () => {
                                     <ExpenseFormPicker
                                         label="Group"
                                         emptyLabel="Choose a group"
-                                        icon={mdiAccountGroupOutline}
                                         value={formData.groupId}
                                         onChange={(groupId) =>
                                             setFormData((current) => ({
@@ -147,6 +147,7 @@ const EditExpenseContent = () => {
                                             value: group.id,
                                             label: group.groupName,
                                             description: group.description,
+                                            icon: getGroupTypePresentation(group.groupType).icon,
                                         }))}
                                     />
                                 </div>
@@ -383,7 +384,7 @@ const EditExpenseContent = () => {
                             <button
                                 type="submit"
                                 className="ui-button ui-button-primary w-full sm:w-auto"
-                                {...(dataOk ? {} : { disabled: true })}
+                                {...(dataOk && hasChanges ? {} : { disabled: true })}
                             >
                                 <Icon path={mdiCheckBold} size={1} />
                                 Save changes

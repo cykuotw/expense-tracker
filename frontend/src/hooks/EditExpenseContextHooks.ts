@@ -34,6 +34,7 @@ export interface EditExpenseContextType {
     groupMembers: GroupMember[];
     indicatorShow: boolean;
     dataOk: boolean;
+    hasChanges: boolean;
     ledgerShareOk: boolean;
     ledgerShareMessage: string;
     handleUpdateExpense: (e: FormEvent) => Promise<void>;

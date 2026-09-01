@@ -78,6 +78,31 @@ function EditExpenseHarness() {
             <output data-testid="indicator">
                 {context.indicatorShow ? "loading" : "idle"}
             </output>
+            <output data-testid="has-changes">
+                {context.hasChanges ? "changed" : "unchanged"}
+            </output>
+            <button
+                type="button"
+                onClick={() =>
+                    context.setFormData((current) => ({
+                        ...current,
+                        description: "Updated dinner",
+                    }))
+                }
+            >
+                Change description
+            </button>
+            <button
+                type="button"
+                onClick={() =>
+                    context.setFormData((current) => ({
+                        ...current,
+                        description: "Dinner",
+                    }))
+                }
+            >
+                Restore description
+            </button>
             <button type="submit">Update</button>
         </form>
     );
@@ -137,6 +162,8 @@ describe("EditExpenseProvider error handling", () => {
             expect(screen.getByTestId("currency")).toHaveTextContent("CAD");
         });
 
+        fireEvent.click(screen.getByRole("button", { name: "Change description" }));
+
         fireEvent.submit(screen.getByRole("form", { name: "edit form" }));
 
         await waitFor(() => {
@@ -145,6 +172,27 @@ describe("EditExpenseProvider error handling", () => {
         expect(screen.getByTestId("indicator")).toHaveTextContent("idle");
         expect(toastSuccessMock).not.toHaveBeenCalled();
         expect(navigateMock).not.toHaveBeenCalled();
+    });
+
+    it("tracks edits relative to the loaded expense", async () => {
+        render(
+            <EditExpenseProvider>
+                <EditExpenseHarness />
+            </EditExpenseProvider>
+        );
+
+        await waitFor(() => {
+            expect(screen.getByTestId("currency")).toHaveTextContent("CAD");
+        });
+        expect(screen.getByTestId("has-changes")).toHaveTextContent("unchanged");
+
+        fireEvent.click(screen.getByRole("button", { name: "Change description" }));
+
+        expect(screen.getByTestId("has-changes")).toHaveTextContent("changed");
+
+        fireEvent.click(screen.getByRole("button", { name: "Restore description" }));
+
+        expect(screen.getByTestId("has-changes")).toHaveTextContent("unchanged");
     });
 
     it("keeps the editor mounted when the expense payload is null", async () => {

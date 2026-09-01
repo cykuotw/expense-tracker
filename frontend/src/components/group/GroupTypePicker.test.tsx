@@ -26,52 +26,25 @@ describe("GroupTypePicker", () => {
         render(<GroupTypePicker value="home" onChange={onChange} />);
 
         fireEvent.click(screen.getByRole("button", { name: "Group type" }));
-        fireEvent.pointerDown(screen.getByRole("option", { name: "Trip" }));
+        const trip = screen.getByRole("option", { name: "Trip" });
+        fireEvent.pointerDown(trip, { clientY: 100 });
+        fireEvent.pointerUp(trip, { clientY: 100 });
 
         expect(onChange).toHaveBeenCalledWith("trip");
         expect(screen.queryByRole("listbox", { name: "Group type options" })).toBeNull();
     });
 
-    it("previews a mobile selection and only applies it after confirmation", () => {
-        vi.stubGlobal("matchMedia", vi.fn().mockReturnValue({
-            matches: true,
-            addEventListener: vi.fn(),
-            removeEventListener: vi.fn(),
-            addListener: vi.fn(),
-            removeListener: vi.fn(),
-        }));
+    it("keeps the first option visible and applies a selection in one step", () => {
         const onChange = vi.fn();
         render(<GroupTypePicker value="home" onChange={onChange} />);
 
         fireEvent.click(screen.getByRole("button", { name: "Group type" }));
-        fireEvent.click(screen.getByRole("radio", { name: "Trip" }));
+        const options = screen.getAllByRole("option");
+        expect(options[0]).toHaveTextContent("Trip");
 
-        expect(onChange).not.toHaveBeenCalled();
-        expect(screen.getByRole("button", { name: "Use Trip" })).toBeInTheDocument();
-
-        fireEvent.click(screen.getByRole("button", { name: "Use Trip" }));
+        fireEvent.click(options[0]);
 
         expect(onChange).toHaveBeenCalledWith("trip");
-        expect(screen.queryByRole("dialog")).toBeNull();
-    });
-
-    it("discards a mobile preview when cancelled", () => {
-        vi.stubGlobal("matchMedia", vi.fn().mockReturnValue({
-            matches: true,
-            addEventListener: vi.fn(),
-            removeEventListener: vi.fn(),
-            addListener: vi.fn(),
-            removeListener: vi.fn(),
-        }));
-        const onChange = vi.fn();
-        render(<GroupTypePicker value="home" onChange={onChange} />);
-
-        fireEvent.click(screen.getByRole("button", { name: "Group type" }));
-        fireEvent.click(screen.getByRole("radio", { name: "Trip" }));
-        fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
-
-        expect(onChange).not.toHaveBeenCalled();
-        expect(screen.getByRole("button", { name: "Group type" })).toHaveTextContent("Home");
-        expect(screen.queryByRole("dialog")).toBeNull();
+        expect(screen.queryByRole("listbox", { name: "Group type options" })).toBeNull();
     });
 });

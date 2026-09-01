@@ -16,6 +16,7 @@ import {
     ExpenseFormPicker,
     ExpenseFormPickerOption,
 } from "../components/expense/ExpenseFormPicker";
+import MobilePageHeader from "../components/MobilePageHeader";
 
 const currencyOptions: ExpenseFormPickerOption[] = [
     { value: "CAD", label: "CAD" },
@@ -76,17 +77,37 @@ const EditExpenseContent = () => {
     };
 
     return (
-        <div className="page-shell">
+        <div className="page-shell expense-form-page">
             <div className="page-container max-w-5xl">
-                <div className="page-header">
-                    <div className="page-header__copy">
+                <MobilePageHeader
+                    title="Edit expense"
+                    backTo={`/expense/${expenseId}`}
+                    backLabel="Back to expense"
+                    action={
+                        indicatorShow ? (
+                            <span className="ui-spinner ui-spinner-sm" role="status" aria-label="Saving changes" />
+                        ) : (
+                            <button
+                                type="submit"
+                                form="edit-expense-form"
+                                className="ui-button ui-button-primary min-h-12 min-w-12 px-3"
+                                aria-label="Save changes"
+                                disabled={!dataOk}
+                            >
+                                <Icon path={mdiCheckBold} size={1} />
+                            </button>
+                        )
+                    }
+                />
+                <div className="page-header desktop-page-header expense-form-header">
+                    <div className="page-header__copy expense-form-header__copy">
                         <div className="page-eyebrow">Expense</div>
                         <h1 className="page-title">Edit expense</h1>
                         <p className="page-copy">
                             Update details and adjust how this expense is split.
                         </p>
                     </div>
-                    <div className="page-actions w-full sm:w-auto">
+                    <div className="page-actions hidden w-full md:flex md:w-auto">
                         <Link
                             className="ui-button ui-button-ghost w-full sm:w-auto"
                             to={`/expense/${expenseId}`}
@@ -101,11 +122,12 @@ const EditExpenseContent = () => {
                 </div>
 
                 <form
-                    className="panel-card rounded-[2rem] p-6 md:p-8"
+                    id="edit-expense-form"
+                    className="panel-card expense-form-panel rounded-[2rem] p-4 sm:p-6 md:p-8"
                     onSubmit={handleUpdateExpense}
                 >
-                        <div className="grid gap-5 md:grid-cols-2">
-                            <div className="md:col-span-2">
+                        <div className="grid grid-cols-2 gap-3 md:gap-5">
+                            <div className="col-span-2">
                                 <label className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground/60">
                                     Group
                                 </label>
@@ -130,7 +152,7 @@ const EditExpenseContent = () => {
                                 </div>
                             </div>
 
-                            <div className="md:col-span-2">
+                            <div className="col-span-2">
                                 <label className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground/60">
                                     Expense type
                                 </label>
@@ -148,11 +170,11 @@ const EditExpenseContent = () => {
                                 </div>
                             </div>
 
-                            <div className="md:col-span-2">
+                            <div className="col-span-2">
                                 <label className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground/60">
                                     Description
                                 </label>
-                                <label className="mt-2 flex min-h-20 w-full items-center rounded-2xl border border-border bg-background px-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] transition hover:border-primary/60 focus-within:border-primary focus-within:outline-none focus-within:ring-2 focus-within:ring-primary">
+                                <label className="expense-form-input-shell mt-2 flex w-full items-center rounded-2xl border border-border bg-background px-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] transition hover:border-primary/60 focus-within:border-primary focus-within:outline-none focus-within:ring-2 focus-within:ring-primary">
                                     <input
                                         type="text"
                                         name="description"
@@ -187,7 +209,7 @@ const EditExpenseContent = () => {
                                 <label className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground/60">
                                     Amount
                                 </label>
-                                <label className="mt-2 flex min-h-20 w-full items-center rounded-2xl border border-border bg-background px-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] transition hover:border-primary/60 focus-within:border-primary focus-within:outline-none focus-within:ring-2 focus-within:ring-primary">
+                                <label className="expense-form-input-shell mt-2 flex w-full items-center rounded-2xl border border-border bg-background px-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] transition hover:border-primary/60 focus-within:border-primary focus-within:outline-none focus-within:ring-2 focus-within:ring-primary">
                                     <input
                                         type="number"
                                         name="total"
@@ -220,11 +242,11 @@ const EditExpenseContent = () => {
                             </label>
                         </div>
 
-                        <div className="mt-6">
+                        <div className="mt-4 md:mt-6">
                             <div className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground/60">
                                 Split rule
                             </div>
-                            <div className="mt-3">
+                            <div className="mt-2 md:mt-3">
                                 {groupMembers.length <= 1 ? (
                                     <></>
                                 ) : groupMembers.length === 2 ? (
@@ -257,7 +279,7 @@ const EditExpenseContent = () => {
                                         ]}
                                     />
                                 ) : (
-                                    <div className="grid gap-3 md:grid-cols-2">
+                                    <div className="grid gap-2 md:grid-cols-2 md:gap-3">
                                         <ExpenseFormPicker
                                             label="Paid by"
                                             emptyLabel="Choose a payer"
@@ -302,7 +324,7 @@ const EditExpenseContent = () => {
                                 formData.splitRule === Rule.Unequally
                                     ? ""
                                     : "hidden"
-                            } mt-6 space-y-3`}
+                            } mt-4 space-y-2 md:mt-6 md:space-y-3`}
                         >
                             {formData.ledgers.map((ledger, index) => (
                                 <div
@@ -357,7 +379,7 @@ const EditExpenseContent = () => {
                             </div>
                         </div>
 
-                        <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="mt-5 hidden flex-col gap-3 md:flex md:flex-row md:items-center md:justify-between">
                             <button
                                 type="submit"
                                 className="ui-button ui-button-primary w-full sm:w-auto"
@@ -367,7 +389,7 @@ const EditExpenseContent = () => {
                                 Save changes
                             </button>
                             {indicatorShow && (
-                                <span className="ui-spinner ui-spinner-sm"></span>
+                                <span className="ui-spinner ui-spinner-sm" role="status" aria-label="Saving changes"></span>
                             )}
                         </div>
                 </form>

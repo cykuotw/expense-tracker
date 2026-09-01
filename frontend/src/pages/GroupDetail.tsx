@@ -1,6 +1,13 @@
 import { Link } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
 import Icon from "@mdi/react";
+import {
+    mdiAccountMultipleOutline,
+    mdiChevronRight,
+    mdiHandshakeOutline,
+    mdiPencilOutline,
+    mdiPlus,
+} from "@mdi/js";
 import { ExpenseData } from "../types/expense";
 import ExpenseCard from "../components/expense/ExpenseCard";
 import {
@@ -16,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import { GroupDetailProvider } from "../contexts/GroupDetailContext";
 import { useGroupDetail } from "../hooks/GroupDetailContextHooks";
 import { getGroupTypePresentation } from "../lib/groupTypePresentation";
+import MobilePageHeader from "../components/MobilePageHeader";
 
 const GroupDetailContent = () => {
     const {
@@ -41,6 +49,7 @@ const GroupDetailContent = () => {
     const [settleOpen, setSettleOpen] = useState(false);
     const [showAllBalances, setShowAllBalances] = useState(false);
     const groupType = getGroupTypePresentation(groupinfo?.groupType);
+    const memberCount = groupinfo?.members?.length ?? 0;
     const loadedSettledExpensesRef = useRef<string | null>(null);
     const balanceEntries = balance
         ? balance.balances.flatMap((entry) => {
@@ -92,9 +101,35 @@ const GroupDetailContent = () => {
     }
 
     return (
-        <div className="page-shell">
+        <div className="page-shell compact-mobile-page group-detail-page">
             <div className="page-container">
-                <div className="page-header">
+                <MobilePageHeader
+                    title={groupinfo?.groupName || "Group"}
+                    backTo="/"
+                    backLabel="Back to groups"
+                    titleIcon={
+                        <span
+                            className={`flex size-8 shrink-0 items-center justify-center rounded-lg ${groupType.iconClassName}`}
+                            aria-hidden="true"
+                        >
+                            <Icon path={groupType.icon} size={0.8} />
+                        </span>
+                    }
+                    action={
+                        <Link
+                            to={`/group/${groupId}/edit`}
+                            className="ui-button ui-button-outline min-h-12 min-w-12 px-3"
+                            aria-label="Edit group"
+                        >
+                            <Icon
+                                path={mdiPencilOutline}
+                                size={1}
+                                aria-hidden="true"
+                            />
+                        </Link>
+                    }
+                />
+                <div className="page-header desktop-page-header">
                     <div className="page-header__copy">
                         <div className="page-eyebrow">Group</div>
                         <div className="mt-2 flex items-center gap-3"><span className={`flex size-11 items-center justify-center rounded-xl ${groupType.iconClassName}`} aria-hidden="true"><Icon path={groupType.icon} size={1.1} /></span><h1 className="page-title">{groupinfo?.groupName}</h1></div>
@@ -110,12 +145,6 @@ const GroupDetailContent = () => {
                             Add Expense
                         </Link>
                         <Link to={`/group/${groupId}/edit`} className="ui-button ui-button-outline w-full sm:w-40">Edit Group</Link>
-                        <Link
-                            to={`/add_member?g=${groupId}`}
-                            className="ui-button ui-button-outline w-full sm:w-40"
-                        >
-                            Add Members
-                        </Link>
                         <button
                             className="ui-button ui-button-destructive w-full sm:w-40"
                             onClick={() => setSettleOpen(true)}
@@ -125,7 +154,50 @@ const GroupDetailContent = () => {
                     </div>
                 </div>
 
-                <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(18rem,0.55fr)]">
+                <div className="mb-4 flex items-stretch gap-2 md:mb-6">
+                    <Link
+                        to={`/group/${groupId}/edit#members`}
+                        className="panel-card-soft group flex min-h-14 min-w-0 flex-1 items-center gap-3 rounded-2xl px-3 py-2 transition-colors hover:border-primary/30 hover:bg-primary/5 md:max-w-sm md:px-4"
+                        aria-label={`Manage ${memberCount} ${
+                            memberCount === 1 ? "member" : "members"
+                        }`}
+                    >
+                        <span
+                            className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"
+                            aria-hidden="true"
+                        >
+                            <Icon path={mdiAccountMultipleOutline} size={1} />
+                        </span>
+                        <span className="min-w-0 flex-1">
+                            <span className="block text-sm font-semibold text-foreground">
+                                {memberCount} {memberCount === 1 ? "member" : "members"}
+                            </span>
+                            <span className="block truncate text-xs text-foreground/60">
+                                View and manage
+                            </span>
+                        </span>
+                        <Icon
+                            className="shrink-0 text-foreground/45 transition-transform group-hover:translate-x-0.5"
+                            path={mdiChevronRight}
+                            size={0.8}
+                            aria-hidden="true"
+                        />
+                    </Link>
+                    <button
+                        type="button"
+                        className="ui-button ui-button-destructive min-h-14 shrink-0 gap-1.5 px-3 text-xs md:hidden"
+                        onClick={() => setSettleOpen(true)}
+                    >
+                        <Icon
+                            path={mdiHandshakeOutline}
+                            size={0.8}
+                            aria-hidden="true"
+                        />
+                        <span>Settle up</span>
+                    </button>
+                </div>
+
+                <div className="grid gap-4 md:gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(18rem,0.55fr)]">
                     <section className="panel-card order-1 self-start rounded-[1.5rem] p-4 sm:p-5 xl:order-2 xl:sticky xl:top-6 xl:rounded-[2rem] xl:p-6">
                         <div className="flex items-center justify-between gap-3">
                             <div>
@@ -318,6 +390,15 @@ const GroupDetailContent = () => {
                     </section>
                 </div>
             </div>
+
+            <Link
+                to={`/create_expense?g=${groupId}`}
+                className="ui-button ui-button-primary group-add-expense-fab"
+                aria-label="Add expense"
+            >
+                <Icon path={mdiPlus} size={1.05} aria-hidden="true" />
+                <span>Add expense</span>
+            </Link>
 
             <AlertDialog open={settleOpen} onOpenChange={setSettleOpen}>
                 <AlertDialogContent>

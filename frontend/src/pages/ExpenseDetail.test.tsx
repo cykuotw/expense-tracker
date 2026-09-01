@@ -61,20 +61,28 @@ describe("ExpenseDetail", () => {
             </MemoryRouter>
         );
 
-        expect(await screen.findByRole("heading", { name: "Dinner" })).toBeVisible();
+        const headings = await screen.findAllByRole("heading", { name: "Dinner" });
+        expect(headings).toHaveLength(2);
+        expect(headings[0]).toBeVisible();
         expect(screen.getByTestId("expense-category-icon").querySelector("svg")).toBeInTheDocument();
         expect(screen.getByText("No split details are available.")).toBeVisible();
 
-        const editExpense = screen.getByRole("link", {
+        const editExpense = screen.getAllByRole("link", {
             name: "Edit Expense",
         });
-        const backToGroup = screen.getByRole("link", {
+        const backToGroup = screen.getAllByRole("link", {
             name: "Back to Group",
         });
 
-        expect(editExpense).toHaveAttribute("href", "/expense/expense-1/edit");
-        expect(backToGroup).toHaveAttribute("href", "/group/group-1");
-        expect(editExpense.closest(".page-header")).toContainElement(editExpense);
-        expect(backToGroup.closest(".page-header")).toContainElement(backToGroup);
+        expect(editExpense).toHaveLength(2);
+        expect(backToGroup).toHaveLength(2);
+        editExpense.forEach((link) => {
+            expect(link).toHaveAttribute("href", "/expense/expense-1/edit");
+            expect(link.closest(".page-header")).toContainElement(link);
+        });
+        backToGroup.forEach((link) => {
+            expect(link).toHaveAttribute("href", "/group/group-1");
+            expect(link.closest(".page-header")).toContainElement(link);
+        });
     });
 });

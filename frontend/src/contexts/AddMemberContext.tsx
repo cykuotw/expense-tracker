@@ -19,10 +19,20 @@ const UPDATE_MEMBERS_FALLBACK = "Update failed";
 const CHECK_EMAIL_FALLBACK = "Unable to check email";
 const LOOKUP_USER_FALLBACK = "Unable to look up user";
 
-export const AddMemberProvider = ({ children }: { children: ReactNode }) => {
+interface AddMemberProviderProps {
+    children: ReactNode;
+    groupId?: string | null;
+    returnToGroupAfterSave?: boolean;
+}
+
+export const AddMemberProvider = ({
+    children,
+    groupId: providedGroupId,
+    returnToGroupAfterSave = true,
+}: AddMemberProviderProps) => {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
-    const groupId = searchParams.get("g");
+    const groupId = providedGroupId ?? searchParams.get("g");
 
     const [savingMembers, setSavingMembers] = useState(false);
     const [checkingEmail, setCheckingEmail] = useState(false);
@@ -47,6 +57,10 @@ export const AddMemberProvider = ({ children }: { children: ReactNode }) => {
 
     useEffect(() => {
         const fetchRelatedUsers = async () => {
+            if (!groupId) {
+                setRelatedUserList([]);
+                return;
+            }
             try {
                 const response = await apiFetch(`/related_member?g=${groupId}`, {
                     method: "GET",
@@ -92,7 +106,13 @@ export const AddMemberProvider = ({ children }: { children: ReactNode }) => {
             }
 
             toast.success("Update successful!", { duration: 1000 });
-            if (groupId) {
+            setRelatedUserList((currentUsers) =>
+                currentUsers.map((user) => ({
+                    ...user,
+                    existInGroup: selectedUserIds.has(user.userId),
+                }))
+            );
+            if (returnToGroupAfterSave && groupId) {
                 window.setTimeout(() => {
                     navigate(`/group/${groupId}`);
                 }, 1000);

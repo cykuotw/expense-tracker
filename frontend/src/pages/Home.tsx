@@ -1,6 +1,9 @@
 import { Link } from "react-router-dom";
 import { useState } from "react";
+import { mdiPlus } from "@mdi/js";
+import Icon from "@mdi/react";
 import GroupCard from "../components/group/GroupCard";
+import MobilePageHeader from "../components/MobilePageHeader";
 import { HomeProvider } from "../contexts/HomeContext";
 import { useHome } from "../contexts/HomeContextHooks";
 
@@ -72,9 +75,68 @@ const HomeContent = () => {
         : mobileBalanceDetails.slice(0, 2);
 
     return (
-        <div className="page-shell">
+        <div className="page-shell compact-mobile-page">
             <div className="page-container">
-                <div className="page-header">
+                <MobilePageHeader
+                    title="Home"
+                    action={
+                        <Link
+                            to="/create_group"
+                            className="ui-button ui-button-primary min-h-12 min-w-12 px-3"
+                            aria-label="Create Group"
+                        >
+                            <Icon path={mdiPlus} size={1} aria-hidden="true" />
+                        </Link>
+                    }
+                />
+                <div
+                    className="mb-4 rounded-2xl bg-background/70 px-3 py-2.5 text-sm text-foreground/70 md:hidden"
+                    data-testid="mobile-home-summary"
+                >
+                    {hasGroups ? (
+                        <>
+                            <div className="flex flex-wrap gap-x-2 gap-y-1 text-sm font-semibold">
+                                {visibleMobileBalanceDetails.length > 0 ? (
+                                    visibleMobileBalanceDetails.map((detail) => (
+                                        <span
+                                            key={detail.key}
+                                            className={`rounded-xl px-2.5 py-1 ${detail.tone} ${
+                                                detail.tone === "text-success"
+                                                    ? "bg-success/12"
+                                                    : "bg-destructive/12"
+                                            }`}
+                                        >
+                                            {detail.label}
+                                        </span>
+                                    ))
+                                ) : (
+                                    <span className="rounded-xl bg-success/12 px-2.5 py-1 text-success">
+                                        All settled
+                                    </span>
+                                )}
+                            </div>
+                            <div className="mt-2 text-xs text-foreground/60">
+                                {groupCards.length} active group
+                                {groupCards.length === 1 ? "" : "s"} · {groupsWithBalances} unsettled
+                            </div>
+                            {mobileBalanceDetails.length > 2 ? (
+                                <button
+                                    type="button"
+                                    className="mt-2 min-h-11 text-xs font-semibold text-primary underline-offset-4 hover:underline"
+                                    onClick={() => setShowAllMobileBalances((showAll) => !showAll)}
+                                    aria-expanded={showAllMobileBalances}
+                                >
+                                    {showAllMobileBalances
+                                        ? "Show fewer balances"
+                                        : `View all ${mobileBalanceDetails.length} balances`}
+                                </button>
+                            ) : null}
+                        </>
+                    ) : (
+                        <span className="text-xs text-foreground/60">No active groups yet</span>
+                    )}
+                </div>
+                <div className="page-header desktop-page-header">
                     <div className="page-header__copy">
                         <div className="page-eyebrow">Groups</div>
                         <h1 className="page-title">Keep expenses organized</h1>
@@ -86,61 +148,12 @@ const HomeContent = () => {
                     <div className="page-actions">
                         <div
                             className="rounded-3xl bg-background/70 px-4 py-3 text-sm text-foreground/70"
-                            data-testid="mobile-home-summary"
+                            data-testid="desktop-home-summary"
                         >
-                            <div className="hidden sm:block">
-                                <span className="font-semibold text-foreground stat-number">
-                                    {groupCards.length}
-                                </span>{" "}
-                                active group{groupCards.length === 1 ? "" : "s"}
-                            </div>
-                            {hasGroups && (
-                                <>
-                                <div className="flex flex-wrap gap-x-2 gap-y-1 text-base font-semibold sm:hidden">
-                                    {visibleMobileBalanceDetails.length > 0 ? (
-                                        visibleMobileBalanceDetails.map(
-                                            (detail) => (
-                                                <span
-                                                    key={detail.key}
-                                                    className={`rounded-xl px-2.5 py-1 ${detail.tone} ${
-                                                        detail.tone === "text-success"
-                                                            ? "bg-success/12"
-                                                            : "bg-destructive/12"
-                                                    }`}
-                                                >
-                                                    {detail.label}
-                                                </span>
-                                            ),
-                                        )
-                                    ) : (
-                                        <span className="rounded-xl bg-success/12 px-2.5 py-1 text-success">
-                                            All settled
-                                        </span>
-                                    )}
-                                </div>
-                                <div className="mt-2 text-xs text-foreground/60 sm:hidden">
-                                    {groupCards.length} active group
-                                    {groupCards.length === 1 ? "" : "s"} ·{" "}
-                                    {groupsWithBalances} unsettled
-                                </div>
-                                {mobileBalanceDetails.length > 2 && (
-                                    <button
-                                        type="button"
-                                        className="mt-2 text-xs font-semibold text-primary underline-offset-4 hover:underline sm:hidden"
-                                        onClick={() =>
-                                            setShowAllMobileBalances((showAll) =>
-                                                !showAll,
-                                            )
-                                        }
-                                        aria-expanded={showAllMobileBalances}
-                                    >
-                                        {showAllMobileBalances
-                                            ? "Show fewer balances"
-                                            : `View all ${mobileBalanceDetails.length} balances`}
-                                    </button>
-                                )}
-                                </>
-                            )}
+                            <span className="font-semibold text-foreground stat-number">
+                                {groupCards.length}
+                            </span>{" "}
+                            active group{groupCards.length === 1 ? "" : "s"}
                         </div>
                         <Link
                             to="/create_group"

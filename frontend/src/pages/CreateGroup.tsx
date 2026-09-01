@@ -1,6 +1,9 @@
+import { mdiCheckBold } from "@mdi/js";
+import Icon from "@mdi/react";
 import { CreateGroupProvider } from "../contexts/CreateGroupContext";
 import { useCreateGroup } from "../hooks/CreateGroupContextHooks";
 import { GroupTypePicker } from "../components/group/GroupTypePicker";
+import MobilePageHeader from "../components/MobilePageHeader";
 
 const CreateGroupContent = () => {
     const {
@@ -18,9 +21,29 @@ const CreateGroupContent = () => {
     } = useCreateGroup();
 
     return (
-        <div className="page-shell">
+        <div className="page-shell compact-mobile-page">
             <div className="page-container max-w-4xl">
-                <div className="page-header">
+                <MobilePageHeader
+                    title="Create group"
+                    backTo="/"
+                    backLabel="Back to groups"
+                    action={
+                        indicator ? (
+                            <span className="ui-spinner ui-spinner-sm" role="status" aria-label="Creating group" />
+                        ) : (
+                            <button
+                                type="submit"
+                                form="create-group-form"
+                                className="ui-button ui-button-primary min-h-12 min-w-12 px-3"
+                                aria-label="Create group"
+                                disabled={!dataOk}
+                            >
+                                <Icon path={mdiCheckBold} size={1} aria-hidden="true" />
+                            </button>
+                        )
+                    }
+                />
+                <div className="page-header desktop-page-header">
                     <div className="page-header__copy">
                         <div className="page-eyebrow">Groups</div>
                         <h1 className="page-title">Create a new group</h1>
@@ -31,10 +54,11 @@ const CreateGroupContent = () => {
                 </div>
 
                 <form
-                    className="panel-card rounded-[2rem] p-6 md:p-8"
+                    id="create-group-form"
+                    className="panel-card rounded-[2rem] p-4 md:p-8"
                     onSubmit={createGroup}
                 >
-                        <div className="grid gap-5">
+                        <div className="grid gap-3 md:gap-5">
                             <div>
                                 <div className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground/60">Group type</div>
                                 <div className="mt-2">
@@ -94,7 +118,7 @@ const CreateGroupContent = () => {
                             </div>
                         </div>
 
-                        <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="mt-8 hidden flex-col gap-3 md:flex md:flex-row md:items-center md:justify-between">
                             <button
                                 type="submit"
                                 className="ui-button ui-button-primary w-full sm:w-auto"
@@ -103,7 +127,7 @@ const CreateGroupContent = () => {
                                 Create Group
                             </button>
                             {indicator && (
-                                <span className="ui-spinner ui-spinner-sm"></span>
+                                <span className="ui-spinner ui-spinner-sm" role="status" aria-label="Creating group"></span>
                             )}
                         </div>
                 </form>

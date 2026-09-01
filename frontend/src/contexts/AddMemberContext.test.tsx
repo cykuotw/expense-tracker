@@ -93,9 +93,18 @@ function AddMemberHarness() {
     );
 }
 
-function renderProvider() {
+function renderProvider({
+    groupId,
+    returnToGroupAfterSave,
+}: {
+    groupId?: string | null;
+    returnToGroupAfterSave?: boolean;
+} = {}) {
     return render(
-        <AddMemberProvider>
+        <AddMemberProvider
+            groupId={groupId}
+            returnToGroupAfterSave={returnToGroupAfterSave}
+        >
             <AddMemberHarness />
         </AddMemberProvider>
     );
@@ -167,6 +176,51 @@ describe("AddMemberProvider error handling", () => {
             );
         });
         expect(screen.queryAllByRole("checkbox")).toHaveLength(0);
+    });
+
+    it("keeps the embedded editor open after a successful member update", async () => {
+        apiFetchMock.mockImplementation((path: string) => {
+            if (path === "/related_member?g=embedded-group") {
+                return Promise.resolve(
+                    jsonResponse([
+                        {
+                            userId: "user-1",
+                            username: "Friend",
+                            existInGroup: true,
+                        },
+                    ])
+                );
+            }
+            if (path === "/group_members") {
+                return Promise.resolve(jsonResponse({}));
+            }
+            throw new Error(`Unexpected path: ${path}`);
+        });
+
+        renderProvider({
+            groupId: "embedded-group",
+            returnToGroupAfterSave: false,
+        });
+        await waitFor(() => expect(screen.getAllByRole("checkbox")).toHaveLength(1));
+
+        fireEvent.submit(screen.getByRole("form", { name: "member form" }));
+
+        await waitFor(() => {
+            expect(toastSuccessMock).toHaveBeenCalledWith("Update successful!", {
+                duration: 1000,
+            });
+        });
+        expect(apiFetchMock).toHaveBeenCalledWith(
+            "/group_members",
+            expect.objectContaining({
+                method: "PUT",
+                body: JSON.stringify({
+                    groupId: "embedded-group",
+                    memberIds: ["user-1"],
+                }),
+            })
+        );
+        expect(navigateMock).not.toHaveBeenCalled();
     });
 
     it("does not run user lookup when the email check fails", async () => {

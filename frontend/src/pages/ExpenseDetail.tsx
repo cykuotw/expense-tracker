@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { Link } from "react-router-dom";
 
 import Icon from "@mdi/react";
-import { mdiSubdirectoryArrowLeft } from "@mdi/js";
+import { mdiPencilOutline, mdiSubdirectoryArrowLeft } from "@mdi/js";
 
 import Dropdown from "../components/Dropdown";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
@@ -21,6 +21,7 @@ import { ExpenseDetailData } from "../types/expense";
 import { getExpenseTypePresentation } from "../lib/expenseCategoryPresentation";
 import { ExpenseDetailProvider } from "../contexts/ExpenseDetailContext";
 import { useExpenseDetail } from "../hooks/ExpenseDetailContextHooks";
+import MobilePageHeader from "../components/MobilePageHeader";
 
 const ExpenseDetailContent = () => {
     const {
@@ -54,10 +55,32 @@ const ExpenseDetailContent = () => {
     );
 
     return (
-        <div className="page-shell">
+        <div className="page-shell compact-mobile-page">
             <div className="page-container max-w-4xl">
-                <div className="flex flex-col gap-6">
-                    <div className="page-header">
+                <div className="flex flex-col gap-0">
+                    <MobilePageHeader
+                        title={expenseDetail.description || expenseDetail.expenseType}
+                        backTo={`/group/${expenseDetail.groupId}`}
+                        backLabel="Back to Group"
+                        titleIcon={
+                            <span
+                                aria-hidden="true"
+                                className={`flex size-8 shrink-0 items-center justify-center rounded-lg ${categoryPresentation.iconClassName}`}
+                            >
+                                <Icon path={categoryPresentation.icon} size={0.8} />
+                            </span>
+                        }
+                        action={
+                            <Link
+                                to={`/expense/${expenseId}/edit`}
+                                className="ui-button ui-button-primary min-h-12 min-w-12 px-3"
+                                aria-label="Edit Expense"
+                            >
+                                <Icon path={mdiPencilOutline} size={1} aria-hidden="true" />
+                            </Link>
+                        }
+                    />
+                    <div className="page-header desktop-page-header">
                         <div className="page-header__copy min-w-0">
                             <div className="page-eyebrow">Expense</div>
                             <div className="mt-2 flex min-w-0 items-start gap-3 md:items-center md:gap-4">
@@ -98,7 +121,7 @@ const ExpenseDetailContent = () => {
                         </div>
                     </div>
 
-                    <div className="panel-card rounded-[2rem] p-6 md:p-8">
+                    <div className="panel-card rounded-[2rem] p-4 md:p-8">
                         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                             <div>
                                 <div className="section-label">

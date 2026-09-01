@@ -4,6 +4,7 @@ import { toast } from "react-hot-toast";
 import GoogleSignInButton from "../components/auth/GoogleSignInButton";
 import { GOOGLE_OAUTH_ENABLED } from "../configs/config";
 import { apiFetch, getResponseErrorMessage } from "../lib/api";
+import MobilePageHeader from "../components/MobilePageHeader";
 import { AccountSettingsData } from "../types/account";
 
 const EMPTY_PROFILE = { firstname: "", lastname: "", nickname: "" };
@@ -468,9 +469,10 @@ export default function AccountSettings() {
     const inputClass = "ui-input mt-2 min-h-11 w-full bg-background";
 
     return (
-        <div className="page-shell">
+        <div className="page-shell compact-mobile-page">
             <div className="page-container max-w-5xl">
-                <div className="page-header">
+                <MobilePageHeader title="Settings" />
+                <div className="page-header desktop-page-header">
                     <div className="page-header__copy">
                         <div className="page-eyebrow">Account</div>
                         <h1 className="page-title">Settings</h1>
@@ -480,8 +482,8 @@ export default function AccountSettings() {
                     </div>
                 </div>
 
-                <div className="grid gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(20rem,0.9fr)]">
-                    <section className="panel-card rounded-[2rem] p-5 sm:p-7" aria-labelledby="profile-heading">
+                <div className="grid gap-4 md:gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(20rem,0.9fr)]">
+                    <section className="panel-card rounded-[2rem] p-4 sm:p-7" aria-labelledby="profile-heading">
                         <div>
                             <div className="section-label">Personal information</div>
                             <h2 id="profile-heading" className="mt-2 text-xl font-semibold">Profile</h2>
@@ -550,7 +552,7 @@ export default function AccountSettings() {
                         </form>
                     </section>
 
-                    <section className="panel-card rounded-[2rem] p-5 sm:p-7" aria-labelledby="security-heading">
+                    <section className="panel-card rounded-[2rem] p-4 sm:p-7" aria-labelledby="security-heading">
                         <div className="section-label">Sign-in security</div>
                         <h2 id="security-heading" className="mt-2 text-xl font-semibold">Password</h2>
                         {account.passwordChangeAllowed ? (

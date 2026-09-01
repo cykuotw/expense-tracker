@@ -4,6 +4,7 @@ import Icon from "@mdi/react";
 import { mdiChevronDown } from "@mdi/js";
 
 import ConfirmationDialog from "../components/ConfirmationDialog";
+import MobilePageHeader from "../components/MobilePageHeader";
 import { useAuth } from "../hooks/AuthContextHooks";
 import { apiFetch, asArray, getResponseError, getResponseErrorMessage } from "../lib/api";
 import {
@@ -661,9 +662,14 @@ export default function AdminUsers() {
     };
 
     return (
-        <div className="page-shell">
+        <div className="page-shell compact-mobile-page">
             <div className="page-container">
-                <div className="page-header">
+                <MobilePageHeader
+                    title="User management"
+                    backTo="/account"
+                    backLabel="Back to account"
+                />
+                <div className="page-header desktop-page-header">
                     <div className="page-header__copy">
                         <div className="page-eyebrow">Administration</div>
                         <h1 className="page-title">User management</h1>
@@ -685,7 +691,7 @@ export default function AdminUsers() {
                         </button>
                     </div>
                 ) : (
-                    <div className="space-y-8">
+                    <div className="space-y-5 md:space-y-8">
                         <UserSection
                             id="administrators-heading"
                             title="Administrators"

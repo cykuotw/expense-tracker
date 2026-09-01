@@ -35,6 +35,55 @@ afterEach(() => {
 });
 
 describe("GroupDetail mobile balance summary", () => {
+    it("prioritizes mobile expense creation and links member management to edit group", () => {
+        groupDetailMock.mockReturnValue({
+            groupinfo: {
+                groupName: "Trip",
+                description: "",
+                currency: "CAD",
+                groupType: "trip",
+                members: [
+                    { userId: "user-1", username: "Alex" },
+                    { userId: "user-2", username: "Blair" },
+                ],
+            },
+            balance: null,
+            unsettledExpenses: [],
+            unsettledLoading: false,
+            unsettledHasMore: false,
+            expenseOrder: "newest",
+            expenseListRefreshVersion: 0,
+            setExpenseOrder: vi.fn(),
+            settledExpenses: [],
+            settledLoading: false,
+            settledHasMore: false,
+            loading: false,
+            groupId: "group-1",
+            handleSettle: vi.fn(),
+            loadMoreUnsettledExpenses: vi.fn(),
+            loadSettledExpenses: vi.fn(),
+            loadMoreSettledExpenses: vi.fn(),
+        });
+
+        renderGroupDetail();
+
+        expect(screen.getByLabelText("Edit group")).toHaveAttribute(
+            "href",
+            "/group/group-1/edit"
+        );
+        expect(screen.getByRole("link", { name: "Manage 2 members" })).toHaveAttribute(
+            "href",
+            "/group/group-1/edit#members"
+        );
+        expect(screen.getByRole("link", { name: "Add expense" })).toHaveClass(
+            "group-add-expense-fab"
+        );
+        expect(screen.getByRole("link", { name: "Add expense" })).toHaveAttribute(
+            "href",
+            "/create_expense?g=group-1"
+        );
+    });
+
     it("shows two balances initially and expands the compact mobile summary", () => {
         const setExpenseOrder = vi.fn();
         groupDetailMock.mockReturnValue({

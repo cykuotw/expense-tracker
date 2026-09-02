@@ -83,6 +83,7 @@ type Expense struct {
 	CreateTime     time.Time
 	UpdateTime     time.Time
 	ExpenseTime    time.Time
+	OccurredOn     string
 	ProviderName   string
 	IsSettled      bool
 	SettleTime     time.Time
@@ -116,6 +117,7 @@ type ExpensePayload struct {
 	Currency       string          `json:"currency"`
 	InvoicePicUrl  string          `json:"invoiceUrl"`
 	SplitRule      string          `json:"splitRule"`
+	OccurredOn     *string         `json:"occurredOn"`
 	Items          []ItemPayload   `json:"items"`
 	Ledgers        []LedgerPayload `json:"ledgers"`
 }
@@ -132,6 +134,7 @@ type ExpenseUpdatePayload struct {
 	Currency      string                `json:"currency"`
 	InvoicePicUrl string                `json:"invoiceUrl"`
 	SplitRule     string                `json:"splitRule"`
+	OccurredOn    *string               `json:"occurredOn"`
 	Items         []ItemUpdatePayload   `json:"items"`
 	Ledgers       []LedgerUpdatePayload `json:"ledgers"`
 }
@@ -141,6 +144,7 @@ type ExpenseResponseBrief struct {
 	Description     string          `json:"description"`
 	Total           decimal.Decimal `json:"total"`
 	ExpenseTime     time.Time       `json:"expenseTime"`
+	OccurredOn      string          `json:"occurredOn"`
 	CurrentUser     string          `json:"currentUser"`
 	Currency        string          `json:"currency"`
 	IsSettled       bool            `json:"isSettled"`
@@ -177,6 +181,7 @@ type ExpenseResponse struct {
 	Total             decimal.Decimal  `json:"total"`
 	Currency          string           `json:"currency"`
 	ExpenseTime       time.Time        `json:"expenseTime"`
+	OccurredOn        string           `json:"occurredOn"`
 	InvoicePicUrl     string           `json:"invoiceUrl"`
 	CurrentUser       string           `json:"currentUser"`
 	GroupId           string           `json:"groupId"`

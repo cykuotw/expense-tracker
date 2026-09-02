@@ -53,6 +53,12 @@ function CreateExpenseHarness() {
             />
             <output data-testid="total">{context.total}</output>
             <output data-testid="members">{context.ledgers.length}</output>
+            <input
+                aria-label="expense date"
+                type="date"
+                value={context.occurredOn}
+                onChange={(event) => context.setOccurredOn(event.target.value)}
+            />
             <output data-testid="indicator">
                 {context.indicatorShow ? "loading" : "idle"}
             </output>
@@ -98,6 +104,9 @@ describe("CreateExpenseProvider error handling", () => {
         await waitFor(() => {
             expect(screen.getByTestId("members")).toHaveTextContent("1");
         });
+		fireEvent.change(screen.getByLabelText("expense date"), {
+			target: { value: "2026-08-31" },
+		});
 
         fireEvent.submit(screen.getByRole("form", { name: "expense form" }));
 
@@ -107,6 +116,12 @@ describe("CreateExpenseProvider error handling", () => {
             );
         });
         expect(screen.getByTestId("indicator")).toHaveTextContent("idle");
+		const createRequest = apiFetchMock.mock.calls.find(
+			([path]) => path === "/create_expense"
+		)?.[1] as RequestInit;
+		expect(JSON.parse(createRequest.body as string)).toMatchObject({
+			occurredOn: "2026-08-31",
+		});
         expect(toastSuccessMock).not.toHaveBeenCalled();
         expect(navigateMock).not.toHaveBeenCalled();
     });

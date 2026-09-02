@@ -13,6 +13,7 @@ describe("ExpenseCard", () => {
                     total="25.50"
                     currency="CAD"
                     expenseTime="2026-08-29T23:33:02Z"
+                    occurredOn="2026-08-29"
                     currentUser="user-1"
                     isSettled={false}
                     payerUserIds={["user-1"]}
@@ -35,5 +36,6 @@ describe("ExpenseCard", () => {
         expect(card).toHaveTextContent("29");
         expect(card).not.toHaveTextContent("日");
         expect(card).not.toHaveTextContent("2026-08-29T23:33:02Z");
+		expect(card.querySelector("time")).toHaveAttribute("datetime", "2026-08-29");
     });
 });

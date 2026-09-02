@@ -94,6 +94,7 @@ func (h *Handler) handleGetExpenseDetail(c *gin.Context) {
 		Total:             expense.Total,
 		Currency:          expense.Currency,
 		ExpenseTime:       expense.ExpenseTime,
+		OccurredOn:        expense.OccurredOn,
 		CurrentUser:       userID,
 		InvoicePicUrl:     expense.InvoicePicUrl,
 		GroupId:           expense.GroupID.String(),

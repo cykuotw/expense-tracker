@@ -21,6 +21,7 @@ func newTestExpense(expenseID uuid.UUID) types.Expense {
 		Total:          decimal.NewFromInt(1),
 		Currency:       "CAD",
 		SplitRule:      "Equally",
+		OccurredOn:     "2026-08-31",
 	}
 }
 

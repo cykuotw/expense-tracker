@@ -336,6 +336,7 @@ func TestHandleCreateExpensePropagatesTransactionStageErrors(t *testing.T) {
 }
 
 func validCreateExpensePayload() types.ExpensePayload {
+	occurredOn := "2026-08-31"
 	return types.ExpensePayload{
 		Description:    "test desc",
 		GroupID:        mockGroupID.String(),
@@ -347,6 +348,7 @@ func validCreateExpensePayload() types.ExpensePayload {
 		TaxFeeTip:      decimal.NewFromFloat(2.1),
 		Total:          decimal.NewFromFloat(22.2),
 		Currency:       "CAD",
+		OccurredOn:     &occurredOn,
 		Items: []types.ItemPayload{
 			{
 				ItemName:  "test item",
@@ -363,6 +365,32 @@ func validCreateExpensePayload() types.ExpensePayload {
 			},
 		},
 	}
+}
+
+func TestHandleCreateExpensePersistsOccurredOn(t *testing.T) {
+	store := createExpenseStoreMock()
+	var created types.Expense
+	store.CreateExpenseFn = func(expense types.Expense) error {
+		created = expense
+		return nil
+	}
+
+	response := runCreateExpenseHandler(t, store, validCreateExpensePayload())
+
+	assert.Equal(t, http.StatusCreated, response.Code)
+	assert.Equal(t, "2026-08-31", created.OccurredOn)
+}
+
+func TestHandleCreateExpenseRejectsMalformedOccurredOn(t *testing.T) {
+	store := createExpenseStoreMock()
+	payload := validCreateExpensePayload()
+	invalid := "2026-02-29"
+	payload.OccurredOn = &invalid
+
+	response := runCreateExpenseHandler(t, store, payload)
+
+	assert.Equal(t, http.StatusBadRequest, response.Code)
+	assert.Contains(t, response.Body.String(), `"code":"invalid_occurred_on"`)
 }
 
 func runCreateExpenseHandler(t *testing.T, store *mockExpenseStore, payload types.ExpensePayload) *httptest.ResponseRecorder {

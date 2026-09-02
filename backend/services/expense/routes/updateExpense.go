@@ -27,6 +27,14 @@ func (h *Handler) handleUpdateExpense(c *gin.Context) {
 		utils.WriteError(c, http.StatusNotFound, types.ErrExpenseNotExist)
 		return
 	}
+	if payload.OccurredOn != nil {
+		occurredOn, err := validateOccurredOn(*payload.OccurredOn)
+		if err != nil {
+			utils.WriteError(c, http.StatusBadRequest, err)
+			return
+		}
+		expense.OccurredOn = occurredOn
+	}
 
 	payerID, err := uuid.Parse(payload.PayByUserId)
 	if err != nil {
@@ -101,6 +109,7 @@ func (h *Handler) handleUpdateExpense(c *gin.Context) {
 	updatedExpense.Currency = payload.Currency
 	updatedExpense.InvoicePicUrl = payload.InvoicePicUrl
 	updatedExpense.SplitRule = payload.SplitRule
+	updatedExpense.OccurredOn = expense.OccurredOn
 
 	err = h.store.RunInTransaction(func(store types.ExpenseStore) error {
 		for index, item := range items {

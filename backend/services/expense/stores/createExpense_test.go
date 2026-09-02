@@ -43,6 +43,7 @@ func TestCreateExpense(t *testing.T) {
 				Currency:       "CAD",
 				InvoicePicUrl:  "http://mockpic.url.com",
 				SplitRule:      "Unequally",
+				OccurredOn:     "2026-08-31",
 			},
 			expectFail:  false,
 			expectError: nil,
@@ -52,10 +53,23 @@ func TestCreateExpense(t *testing.T) {
 	for _, test := range subtests {
 		t.Run(test.name, func(t *testing.T) {
 			assert.NoError(t, ensureExpenseParents(db, test.mockExpense))
+			startedAt := time.Now().UTC().Add(-time.Second)
 			err := store.CreateExpense(test.mockExpense)
+			finishedAt := time.Now().UTC().Add(time.Second)
 			defer deleteExpense(db, test.mockExpense.ID)
 
 			assert.Equal(t, test.expectError, err)
+			created := selectExpenseByID(db, test.mockExpense.ID)
+			for _, instant := range []time.Time{
+				created.CreateTime,
+				created.UpdateTime,
+				created.ExpenseTime,
+			} {
+				assert.False(t, instant.IsZero())
+				assert.False(t, instant.Before(startedAt))
+				assert.False(t, instant.After(finishedAt))
+			}
+			assert.Equal(t, test.mockExpense.OccurredOn, created.OccurredOn)
 		})
 	}
 }

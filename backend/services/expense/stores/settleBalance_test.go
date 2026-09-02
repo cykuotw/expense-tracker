@@ -90,7 +90,9 @@ func TestSettleBalanceByBalanceId(t *testing.T) {
 				defer deleteBalances(db, []*types.Balance{&balance})
 			}
 
+			startedAt := time.Now().UTC().Add(-time.Second)
 			err := store.SettleBalanceByBalanceId(mockGroupID.String(), test.mockBalanceId)
+			finishedAt := time.Now().UTC().Add(time.Second)
 
 			updateBalanced := selectBalance(db, uuid.MustParse(test.mockBalanceId))
 
@@ -101,9 +103,10 @@ func TestSettleBalanceByBalanceId(t *testing.T) {
 				assert.Nil(t, err)
 				assert.Equal(t, test.mockBalanceId, updateBalanced.ID.String())
 				assert.True(t, updateBalanced.IsSettled)
-				assert.LessOrEqual(t,
-					time.Until(updateBalanced.UpdateTime).Seconds(),
-					time.Duration(1*time.Second).Seconds())
+				assert.False(t, updateBalanced.UpdateTime.IsZero())
+				assert.False(t, updateBalanced.UpdateTime.Before(startedAt))
+				assert.False(t, updateBalanced.UpdateTime.After(finishedAt))
+				assert.True(t, updateBalanced.UpdateTime.Equal(updateBalanced.SettledTime))
 			}
 		})
 	}

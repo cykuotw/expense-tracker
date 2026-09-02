@@ -8,7 +8,7 @@ import (
 )
 
 func (s *Store) GetExpenseByID(expenseID string) (*types.Expense, error) {
-	query := "SELECT * FROM expense WHERE id = $1;"
+	query := "SELECT " + expenseSelectColumns + " FROM expense WHERE id = $1;"
 	rows, err := s.db.Query(query, expenseID)
 	if err != nil {
 		return nil, err
@@ -37,26 +37,26 @@ func (s *Store) GetExpenseList(groupID string, page int64, order types.ExpenseLi
 	offset := page * config.Envs.ExpensesPerPage
 	limit := config.Envs.ExpensesPerPage
 
-	query := "SELECT * FROM expense " +
+	query := "SELECT " + expenseSelectColumns + " FROM expense " +
 		"WHERE group_id = $1 AND is_deleted = False " +
-		"ORDER BY expense_time_utc DESC, id DESC " +
+		"ORDER BY COALESCE(occurred_on, (expense_time_utc AT TIME ZONE 'UTC')::date) DESC, expense_time_utc DESC, id DESC " +
 		"OFFSET $2 LIMIT $3;"
 	if order == types.ExpenseListOrderOldest {
-		query = "SELECT * FROM expense " +
+		query = "SELECT " + expenseSelectColumns + " FROM expense " +
 			"WHERE group_id = $1 AND is_deleted = False " +
-			"ORDER BY expense_time_utc ASC, id ASC " +
+			"ORDER BY COALESCE(occurred_on, (expense_time_utc AT TIME ZONE 'UTC')::date) ASC, expense_time_utc ASC, id ASC " +
 			"OFFSET $2 LIMIT $3;"
 	}
 	if status == types.ExpenseListStatusUnsettled || status == types.ExpenseListStatusSettled {
 		settled := status == types.ExpenseListStatusSettled
-		query = "SELECT * FROM expense " +
+		query = "SELECT " + expenseSelectColumns + " FROM expense " +
 			"WHERE group_id = $1 AND is_deleted = False AND is_settled = $2 " +
-			"ORDER BY expense_time_utc DESC, id DESC " +
+			"ORDER BY COALESCE(occurred_on, (expense_time_utc AT TIME ZONE 'UTC')::date) DESC, expense_time_utc DESC, id DESC " +
 			"OFFSET $3 LIMIT $4;"
 		if order == types.ExpenseListOrderOldest {
-			query = "SELECT * FROM expense " +
+			query = "SELECT " + expenseSelectColumns + " FROM expense " +
 				"WHERE group_id = $1 AND is_deleted = False AND is_settled = $2 " +
-				"ORDER BY expense_time_utc ASC, id ASC " +
+				"ORDER BY COALESCE(occurred_on, (expense_time_utc AT TIME ZONE 'UTC')::date) ASC, expense_time_utc ASC, id ASC " +
 				"OFFSET $3 LIMIT $4;"
 		}
 

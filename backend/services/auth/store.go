@@ -3,6 +3,7 @@ package auth
 import (
 	"database/sql"
 	"expense-tracker/backend/types"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -21,7 +22,7 @@ func (s *RefreshStore) CreateRefreshToken(token types.RefreshToken) error {
 		") VALUES ($1, $2, $3, $4, $5, $6);"
 	_, err := s.db.Exec(query,
 		token.ID, token.UserID, token.TokenHash,
-		token.ExpiresAt, token.RevokedAt, token.CreatedAt)
+		token.ExpiresAt.UTC(), utcTimePointer(token.RevokedAt), token.CreatedAt.UTC())
 	return err
 }
 
@@ -47,8 +48,19 @@ func (s *RefreshStore) GetRefreshTokenByID(id string) (*types.RefreshToken, erro
 	if token.ID == uuid.Nil {
 		return nil, types.ErrInvalidToken
 	}
+	token.ExpiresAt = token.ExpiresAt.UTC()
+	token.CreatedAt = token.CreatedAt.UTC()
+	token.RevokedAt = utcTimePointer(token.RevokedAt)
 
 	return token, nil
+}
+
+func utcTimePointer(value *time.Time) *time.Time {
+	if value == nil {
+		return nil
+	}
+	utc := value.UTC()
+	return &utc
 }
 
 func (s *RefreshStore) RevokeRefreshToken(id string) error {

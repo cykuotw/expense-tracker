@@ -238,6 +238,9 @@ func normalizeError(status int, err error) APIErrorResponse {
 	if errors.Is(err, types.ErrIdempotencyKeyConflict) {
 		return APIErrorResponse{Error: err.Error(), Code: "idempotency_key_conflict"}
 	}
+	if errors.Is(err, types.ErrInvalidOccurredOn) {
+		return APIErrorResponse{Error: err.Error(), Code: "invalid_occurred_on"}
+	}
 	if errors.Is(err, types.ErrBalanceNotExist) {
 		return APIErrorResponse{Error: err.Error(), Code: "balance_not_exist"}
 	}

@@ -44,5 +44,11 @@ func (s *Store) ExchangeInvitation(token string, registrationSession string) (*t
 	if err != nil {
 		return nil, err
 	}
+	invitation.ExpiresAt = invitation.ExpiresAt.UTC()
+	invitation.CreatedAt = invitation.CreatedAt.UTC()
+	if invitation.UsedAt != nil {
+		usedAt := invitation.UsedAt.UTC()
+		invitation.UsedAt = &usedAt
+	}
 	return invitation, nil
 }

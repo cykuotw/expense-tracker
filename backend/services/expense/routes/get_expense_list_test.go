@@ -181,6 +181,7 @@ func TestRouteGetExpenseList(t *testing.T) {
 						assert.Equal(t, mockExpenseTypeID, r.ExpenseTypeID)
 						assert.Equal(t, "Groceries", r.ExpenseType)
 						assert.Equal(t, "Food and Drink", r.ExpenseCategory)
+						assert.Equal(t, test.expectResponse[i].OccurredOn, r.OccurredOn)
 					}
 				}
 			}
@@ -194,12 +195,12 @@ var mockExpenseIDs = []uuid.UUID{
 }
 var mockGetExpenseListRsp = []types.ExpenseResponseBrief{
 	{
-		ExpenseID: mockExpenseIDs[0],
+		ExpenseID: mockExpenseIDs[0], OccurredOn: "2026-08-31",
 	},
 	{
-		ExpenseID: mockExpenseIDs[1],
+		ExpenseID: mockExpenseIDs[1], OccurredOn: "2026-08-30",
 	},
 	{
-		ExpenseID: mockExpenseIDs[2],
+		ExpenseID: mockExpenseIDs[2], OccurredOn: "2026-08-29",
 	},
 }

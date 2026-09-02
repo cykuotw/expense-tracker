@@ -2,20 +2,10 @@ import { Link } from "react-router-dom";
 import Icon from "@mdi/react";
 import { ExpenseData } from "../../types/expense";
 import { getExpenseTypePresentation } from "../../lib/expenseCategoryPresentation";
+import { formatDateOnlyBrief, isDateOnly } from "../../lib/dateOnly";
 
 export default function ExpenseCard(expense: ExpenseData) {
-    const parsedDate = new Date(expense.expenseTime);
-    const validDate = !Number.isNaN(parsedDate.getTime());
-    const dateMonth = validDate
-        ? new Intl.DateTimeFormat("en-US", { month: "short" }).format(
-              parsedDate
-          )
-        : "";
-    const dateDay = validDate
-        ? new Intl.DateTimeFormat("en-US", { day: "numeric" }).format(
-              parsedDate
-          )
-        : expense.expenseTime;
+    const { month: dateMonth, day: dateDay } = formatDateOnlyBrief(expense.occurredOn);
     const presentation = getExpenseTypePresentation(
         expense.expenseCategory,
         expense.expenseType
@@ -28,7 +18,7 @@ export default function ExpenseCard(expense: ExpenseData) {
             className="group grid grid-cols-[2.25rem_2.75rem_minmax(0,1fr)] items-center gap-x-2.5 gap-y-2 rounded-[1.5rem] border border-border bg-background p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/60 hover:bg-primary/[0.04] hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 active:scale-[0.99] md:grid-cols-[2.75rem_3.25rem_minmax(0,1fr)_auto] md:gap-x-3 md:p-5"
         >
             <time
-                dateTime={validDate ? parsedDate.toISOString() : undefined}
+                dateTime={isDateOnly(expense.occurredOn) ? expense.occurredOn : undefined}
                 className="row-span-2 flex flex-col text-center leading-none text-foreground/60"
             >
                 {dateMonth && (

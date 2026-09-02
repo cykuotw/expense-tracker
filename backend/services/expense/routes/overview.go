@@ -139,7 +139,7 @@ func (h *Handler) expenseListResponse(groupID string, page int64, order types.Ex
 				payerNames = append(payerNames, names[id])
 			}
 		}
-		response := types.ExpenseResponseBrief{ExpenseID: item.ID, Description: item.Description, Total: item.Total, ExpenseTime: item.ExpenseTime, CurrentUser: userID, Currency: currency, IsSettled: item.IsSettled, PayerUserIDs: payerIDs, PayerUsernames: payerNames, ExpenseTypeID: item.ExpenseTypeID}
+		response := types.ExpenseResponseBrief{ExpenseID: item.ID, Description: item.Description, Total: item.Total, ExpenseTime: item.ExpenseTime, OccurredOn: item.OccurredOn, CurrentUser: userID, Currency: currency, IsSettled: item.IsSettled, PayerUserIDs: payerIDs, PayerUsernames: payerNames, ExpenseTypeID: item.ExpenseTypeID}
 		if expenseType := typesByID[item.ExpenseTypeID]; expenseType != nil {
 			response.ExpenseType = expenseType.Name
 			response.ExpenseCategory = expenseType.Category

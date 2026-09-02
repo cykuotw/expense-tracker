@@ -61,6 +61,7 @@ var (
 	ErrGroupParticipantNotAllowed = errors.New("expense participants must belong to the group")
 	ErrInvalidIdempotencyKey      = errors.New("a valid idempotency key is required")
 	ErrIdempotencyKeyConflict     = errors.New("this submission key was already used for different expense details")
+	ErrInvalidOccurredOn          = errors.New("occurredOn must be a valid date in YYYY-MM-DD format")
 
 	// balance
 	ErrBalanceNotExist = errors.New("balacne not exist")

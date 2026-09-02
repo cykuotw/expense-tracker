@@ -480,9 +480,9 @@ func getExpenseListStoreMock() *mockExpenseStore {
 		}
 		return &types.ExpenseListPage{
 			Expenses: []*types.Expense{
-				{ID: mockExpenseIDs[0], ExpenseTypeID: mockExpenseTypeID},
-				{ID: mockExpenseIDs[1], ExpenseTypeID: mockExpenseTypeID},
-				{ID: mockExpenseIDs[2], ExpenseTypeID: mockExpenseTypeID},
+				{ID: mockExpenseIDs[0], ExpenseTypeID: mockExpenseTypeID, OccurredOn: "2026-08-31"},
+				{ID: mockExpenseIDs[1], ExpenseTypeID: mockExpenseTypeID, OccurredOn: "2026-08-30"},
+				{ID: mockExpenseIDs[2], ExpenseTypeID: mockExpenseTypeID, OccurredOn: "2026-08-29"},
 			},
 			HasMore: page < int64(mockTotalPage),
 		}, nil
@@ -570,7 +570,7 @@ func getUnsettledBalanceControllerMock() *mockController {
 func getExpenseDetailStoreMock() *mockExpenseStore {
 	store := expenseStoreMock()
 	store.GetExpenseByIDFn = func(expenseID string) (*types.Expense, error) {
-		return &types.Expense{ID: mockExpenseID, GroupID: mockGroupID}, nil
+		return &types.Expense{ID: mockExpenseID, GroupID: mockGroupID, OccurredOn: "2026-08-31"}, nil
 	}
 	store.GetItemsByExpenseIDFn = func(expenseID string) ([]*types.Item, error) {
 		return mockItems, nil

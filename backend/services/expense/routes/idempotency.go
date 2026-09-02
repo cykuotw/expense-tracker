@@ -20,6 +20,7 @@ type canonicalExpenseCreate struct {
 	Currency      string                   `json:"currency"`
 	InvoiceURL    string                   `json:"invoiceUrl"`
 	SplitRule     string                   `json:"splitRule"`
+	OccurredOn    string                   `json:"occurredOn,omitempty"`
 	Items         []canonicalExpenseItem   `json:"items"`
 	Ledgers       []canonicalExpenseLedger `json:"ledgers"`
 }
@@ -37,12 +38,16 @@ type canonicalExpenseLedger struct {
 	Share      string `json:"share"`
 }
 
-func expenseCreateFingerprint(expense types.Expense, items []types.Item, ledgers []types.Ledger) ([]byte, error) {
+func expenseCreateFingerprint(expense types.Expense, items []types.Item, ledgers []types.Ledger, requestedOccurredOn *string) ([]byte, error) {
+	occurredOn := ""
+	if requestedOccurredOn != nil {
+		occurredOn = expense.OccurredOn
+	}
 	canonical := canonicalExpenseCreate{
 		Description: expense.Description, GroupID: expense.GroupID.String(), PayerID: expense.PayByUserId.String(),
 		ExpenseTypeID: expense.ExpenseTypeID.String(), ProviderName: expense.ProviderName,
 		SubTotal: expense.SubTotal.String(), TaxFeeTip: expense.TaxFeeTip.String(), Total: expense.Total.String(),
-		Currency: expense.Currency, InvoiceURL: expense.InvoicePicUrl, SplitRule: expense.SplitRule,
+		Currency: expense.Currency, InvoiceURL: expense.InvoicePicUrl, SplitRule: expense.SplitRule, OccurredOn: occurredOn,
 		Items: make([]canonicalExpenseItem, 0, len(items)), Ledgers: make([]canonicalExpenseLedger, 0, len(ledgers)),
 	}
 	for _, item := range items {

@@ -103,3 +103,42 @@ func TestRouteUpdateExpenseDetail(t *testing.T) {
 		})
 	}
 }
+
+func TestHandleUpdateExpenseOccurredOnSemantics(t *testing.T) {
+	tests := []struct {
+		name           string
+		requested      *string
+		expected       string
+		expectedStatus int
+	}{
+		{name: "omission preserves current date", expected: "2026-08-30", expectedStatus: http.StatusCreated},
+		{name: "explicit date replaces current date", requested: stringPointer("2026-08-31"), expected: "2026-08-31", expectedStatus: http.StatusCreated},
+		{name: "invalid date is rejected", requested: stringPointer("2026-02-29"), expectedStatus: http.StatusBadRequest},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			store := updateExpenseDetailStoreMock()
+			var updated types.Expense
+			store.UpdateExpenseFn = func(expense types.Expense) error {
+				updated = expense
+				return nil
+			}
+			response := httptest.NewRecorder()
+			context, _ := gin.CreateTestContext(response)
+			context.Set("expense", &types.Expense{ID: mockExpenseID, GroupID: mockGroupID, OccurredOn: "2026-08-30"})
+			context.Set("expensePayload", types.ExpenseUpdatePayload{
+				GroupID: mockGroupID, PayByUserId: mockCreatorID.String(), ExpenseTypeID: mockExpenseTypeID, OccurredOn: test.requested,
+			})
+
+			NewHandler(store, nil, updateExpenseDetailGroupStoreMock(), expenseControllerMock()).handleUpdateExpense(context)
+
+			assert.Equal(t, test.expectedStatus, response.Code)
+			if test.expectedStatus == http.StatusCreated {
+				assert.Equal(t, test.expected, updated.OccurredOn)
+			}
+		})
+	}
+}
+
+func stringPointer(value string) *string { return &value }

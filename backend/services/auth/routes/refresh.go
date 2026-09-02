@@ -87,7 +87,7 @@ func (h *Handler) handleRefresh(c *gin.Context) error {
 		UserID:    userID,
 		TokenHash: auth.HashToken(newRefreshToken),
 		ExpiresAt: newRefreshExp,
-		CreatedAt: time.Now(),
+		CreatedAt: time.Now().UTC(),
 	}); err != nil {
 		utils.WriteError(c, http.StatusInternalServerError, err)
 		return err

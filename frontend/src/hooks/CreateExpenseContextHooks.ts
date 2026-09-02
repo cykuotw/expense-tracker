@@ -20,6 +20,8 @@ export interface CreateExpenseContextType {
     setTotalInput: Dispatch<SetStateAction<string>>;
     description: string;
     setDescription: Dispatch<SetStateAction<string>>;
+    occurredOn: string;
+    setOccurredOn: Dispatch<SetStateAction<string>>;
     currency: string;
     setCurrency: Dispatch<SetStateAction<string>>;
     payer: string;

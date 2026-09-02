@@ -52,6 +52,7 @@ const expenseDetail = {
     total: "10.00",
     currency: "CAD",
     expenseTime: "2026-01-01T00:00:00Z",
+    occurredOn: "2026-01-01",
     invoiceUrl: "",
     currentUser: "user-1",
     groupId: "group-1",
@@ -169,6 +170,13 @@ describe("EditExpenseProvider error handling", () => {
         await waitFor(() => {
             expect(toastErrorMock).toHaveBeenCalledWith("user not permitted");
         });
+		const updateRequest = apiFetchMock.mock.calls.find(
+			([path, init]) =>
+				path === "/expense/expense-1" && init?.method === "PUT"
+		)?.[1] as RequestInit;
+		expect(JSON.parse(updateRequest.body as string)).toMatchObject({
+			occurredOn: "2026-01-01",
+		});
         expect(screen.getByTestId("indicator")).toHaveTextContent("idle");
         expect(toastSuccessMock).not.toHaveBeenCalled();
         expect(navigateMock).not.toHaveBeenCalled();

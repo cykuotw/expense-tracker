@@ -149,6 +149,18 @@ by the API contract rather than duplicated here.
   consistency of split amounts and derived balances.
 - Soft deletion removes an expense from normal balance and list calculations;
   it is not the same as a permanent purge.
+- An expense occurrence is a calendar day, stored as `expense.occurred_on
+  DATE` and exchanged as `occurredOn` in strict `YYYY-MM-DD` form. Browser
+  code must retain and format its numeric components directly rather than
+  parsing it as a JavaScript `Date` or treating it as midnight in a time zone.
+- Audit, expiry, and revocation values are instants. Non-user temporal columns
+  use PostgreSQL `TIMESTAMPTZ`; backend writes and API values are normalized
+  to UTC. The users table retains its existing timestamp contract.
+- During the occurrence-date compatibility window, expense responses retain
+  legacy `expenseTime`, and legacy null `occurred_on` rows derive a read
+  fallback from the UTC day of that value. New clients use `occurredOn` as the
+  sole occurrence-date source; legacy fields are removed only in a later
+  contract cleanup.
 - Dates and timestamps, exact monetary representation, mutation atomicity,
   idempotency, and audit history are cross-cutting correctness boundaries.
   They must be changed deliberately with schema, API, and frontend behavior

@@ -6,6 +6,7 @@ export interface ExpenseData {
     description: string;
     total: string;
     expenseTime: string;
+    occurredOn: string;
     currentUser: string;
     currency: string;
     isSettled: boolean;
@@ -29,6 +30,7 @@ export interface ExpenseDetailData {
     total: string;
     currency: string;
     expenseTime: string;
+    occurredOn: string;
     invoiceUrl: string;
     currentUser: string;
     groupId: string;
@@ -51,6 +53,7 @@ export interface ExpenseCreateData {
     total: string;
     currency: string;
     splitRule: string;
+    occurredOn: string;
     ledgers: LedgerCreateData[];
 
     createByUserId?: string;

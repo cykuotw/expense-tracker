@@ -7,6 +7,7 @@ import { GroupListItem, GroupMember } from "../types/group";
 import { LedgerCreateData } from "../types/ledger";
 import { Rule } from "../types/splitRule";
 import { CreateExpenseContext } from "../hooks/CreateExpenseContextHooks";
+import { isDateOnly, todayDateOnly } from "../lib/dateOnly";
 
 const CREATE_EXPENSE_FALLBACK = "Failed to create expense.";
 
@@ -32,6 +33,7 @@ export const CreateExpenseProvider = ({
     const [totalInput, setTotalInput] = useState("");
     const total = Number(totalInput);
     const [description, setDescription] = useState<string>("");
+    const [occurredOn, setOccurredOn] = useState(todayDateOnly);
     const [currency, setCurrency] = useState<string>("CAD");
     const [payer, setPayer] = useState<string>("");
     const [selectedRule, setSelectedRule] = useState<Rule>(Rule.Equally);
@@ -101,6 +103,7 @@ export const CreateExpenseProvider = ({
                 total: total.toFixed(precision),
                 currency: currency,
                 splitRule: selectedRule,
+                occurredOn,
                 ledgers: submissionLedgers.map(
                     (ledger) =>
                         ({
@@ -218,9 +221,10 @@ export const CreateExpenseProvider = ({
     useEffect(() => {
         const totalOk = Number.isFinite(total) && total > 0;
         const descriptionOk = description.length > 0;
+        const occurredOnOk = isDateOnly(occurredOn);
 
         if (selectedRule !== Rule.Unequally) {
-            setDataOk(totalOk && descriptionOk);
+            setDataOk(totalOk && descriptionOk && occurredOnOk);
             return;
         }
 
@@ -232,14 +236,14 @@ export const CreateExpenseProvider = ({
             ledgerTotal === total &&
             ledgers.every((ledger) => ledger.share >= 0);
 
-        setDataOk(totalOk && descriptionOk && ledgerOk);
+        setDataOk(totalOk && descriptionOk && occurredOnOk && ledgerOk);
         setLedgerShareOk(ledgerOk);
         setLedgerShareMessage(
             ledgerOk
                 ? `Total $0 ${currency} left.`
                 : `Total $${(total - ledgerTotal).toFixed(2)} ${currency} left.`
         );
-    }, [total, description, ledgers, selectedRule, currency]);
+    }, [total, description, occurredOn, ledgers, selectedRule, currency]);
 
     return (
         <CreateExpenseContext.Provider
@@ -254,6 +258,8 @@ export const CreateExpenseProvider = ({
                 setTotalInput,
                 description,
                 setDescription,
+                occurredOn,
+                setOccurredOn,
                 currency,
                 setCurrency,
                 payer,

@@ -30,7 +30,7 @@ func (h *Handler) issueAuthSession(c *gin.Context, user *types.User) error {
 		UserID:    user.ID,
 		TokenHash: auth.HashToken(refreshToken),
 		ExpiresAt: refreshExp,
-		CreatedAt: time.Now(),
+		CreatedAt: time.Now().UTC(),
 	}); err != nil {
 		return err
 	}

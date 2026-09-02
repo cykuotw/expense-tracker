@@ -45,6 +45,7 @@ const expenseDetail = {
     total: "10.00",
     currency: "CAD",
     expenseTime: "2026-01-01T00:00:00Z",
+    occurredOn: "2026-01-01",
     invoiceUrl: "",
     currentUser: "user-1",
     groupId: "group-1",

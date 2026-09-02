@@ -20,11 +20,13 @@ import {
     EditExpenseContext,
     expenseFormData,
 } from "../hooks/EditExpenseContextHooks";
+import { isDateOnly } from "../lib/dateOnly";
 
 const emptyData: expenseFormData = {
     groupId: "",
     expenseType: "",
     description: "",
+    occurredOn: "",
     total: 0,
     currency: "",
     splitRule: Rule.Equally,
@@ -50,6 +52,7 @@ function isSameExpenseFormData(
         left.groupId === right.groupId &&
         left.expenseType === right.expenseType &&
         left.description === right.description &&
+        left.occurredOn === right.occurredOn &&
         left.total === right.total &&
         left.currency === right.currency &&
         left.splitRule === right.splitRule &&
@@ -134,6 +137,7 @@ export const EditExpenseProvider = ({ children }: { children: ReactNode }) => {
 
             const payload: ExpenseUpdateData = {
                 description: formData.description,
+                occurredOn: formData.occurredOn,
                 groupId: formData.groupId,
                 payByUserId: formData.payerUserId,
                 expTypeId: formData.expenseType,
@@ -242,6 +246,7 @@ export const EditExpenseProvider = ({ children }: { children: ReactNode }) => {
                     groupId: data.groupId,
                     expenseType: data.expenseTypeId,
                     description: data.description,
+                    occurredOn: data.occurredOn,
                     total: parseFloat(data.total),
                     currency: data.currency,
                     splitRule: data.splitRule as Rule,
@@ -301,9 +306,10 @@ export const EditExpenseProvider = ({ children }: { children: ReactNode }) => {
     useEffect(() => {
         const totalOk = formData.total > 0;
         const descriptionOk = formData.description.length > 0;
+        const occurredOnOk = isDateOnly(formData.occurredOn);
 
         if (formData.splitRule !== Rule.Unequally) {
-            setDataOk(totalOk && descriptionOk);
+            setDataOk(totalOk && descriptionOk && occurredOnOk);
             return;
         }
 
@@ -315,7 +321,7 @@ export const EditExpenseProvider = ({ children }: { children: ReactNode }) => {
             ledgerTotal === formData.total &&
             formData.ledgers.every((ledger) => ledger.share >= 0);
 
-        setDataOk(totalOk && descriptionOk && ledgerOk);
+        setDataOk(totalOk && descriptionOk && occurredOnOk && ledgerOk);
         setLedgerShareOk(ledgerOk);
         setLedgerShareMessage(
             ledgerOk

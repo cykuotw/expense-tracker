@@ -49,16 +49,19 @@ func TestDeleteExpense(t *testing.T) {
 			insertExpense(db, test.mockExpense)
 			defer deleteExpense(db, test.mockExpense.ID)
 
+			startedAt := time.Now().UTC().Add(-time.Second)
 			err := store.DeleteExpense(test.mockExpense)
+			finishedAt := time.Now().UTC().Add(time.Second)
 
 			deletedExpense := selectExpense(db, test.mockExpense.GroupID)[0]
 
 			if !test.expectFail {
 				assert.Nil(t, err)
 				assert.True(t, deletedExpense.IsDeleted)
-				assert.LessOrEqual(t,
-					time.Until(deletedExpense.DeleteTime).Seconds(),
-					time.Duration(1*time.Second).Seconds())
+				assert.False(t, deletedExpense.DeleteTime.IsZero())
+				assert.False(t, deletedExpense.DeleteTime.Before(startedAt))
+				assert.False(t, deletedExpense.DeleteTime.After(finishedAt))
+				assert.True(t, deletedExpense.UpdateTime.Equal(deletedExpense.DeleteTime))
 			}
 		})
 	}

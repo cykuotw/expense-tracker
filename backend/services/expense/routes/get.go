@@ -122,6 +122,7 @@ func (h *Handler) handleGetExpenseList(c *gin.Context) {
 			Description:    expense.Description,
 			Total:          expense.Total,
 			ExpenseTime:    expense.ExpenseTime,
+			OccurredOn:     expense.OccurredOn,
 			CurrentUser:    userID,
 			Currency:       currency,
 			IsSettled:      expense.IsSettled,

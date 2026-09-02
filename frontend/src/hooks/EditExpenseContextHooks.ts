@@ -14,6 +14,7 @@ export interface expenseFormData {
     groupId: string;
     expenseType: string;
     description: string;
+    occurredOn: string;
     currency: string;
     total: number;
     splitRule: Rule;

@@ -4,6 +4,7 @@ import { toast } from "react-hot-toast";
 import { apiFetch, asArray, getResponseErrorMessage } from "../lib/api";
 import { ExpenseDetailData } from "../types/expense";
 import { ExpenseDetailContext } from "../hooks/ExpenseDetailContextHooks";
+import { formatDateOnlyLong } from "../lib/dateOnly";
 
 const DELETE_EXPENSE_FALLBACK = "Failed to delete expense.";
 const LOAD_EXPENSE_FALLBACK = "Unable to load this expense.";
@@ -20,13 +21,9 @@ export const ExpenseDetailProvider = ({
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
     const formattedDate = useMemo(() => {
-        if (!expenseDetail?.expenseTime) return "";
-        return new Date(expenseDetail.expenseTime).toLocaleDateString("en-US", {
-            year: "numeric",
-            month: "short",
-            day: "numeric",
-        });
-    }, [expenseDetail?.expenseTime]);
+        if (!expenseDetail?.occurredOn) return "";
+        return formatDateOnlyLong(expenseDetail.occurredOn);
+    }, [expenseDetail?.occurredOn]);
 
     useEffect(() => {
         if (!expenseId) {

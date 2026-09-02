@@ -18,6 +18,7 @@ import {
 } from "../components/expense/ExpenseFormPicker";
 import MobilePageHeader from "../components/MobilePageHeader";
 import { getGroupTypePresentation } from "../lib/groupTypePresentation";
+import { Input } from "../components/ui/input";
 
 const currencyOptions: ExpenseFormPickerOption[] = [
     { value: "CAD", label: "CAD" },
@@ -36,6 +37,8 @@ const CreateExpenseContent = () => {
         setTotalInput,
         description,
         setDescription,
+        occurredOn,
+        setOccurredOn,
         currency,
         setCurrency,
         payer,
@@ -159,6 +162,25 @@ const CreateExpenseContent = () => {
                                         })}
                                     />
                                 </div>
+                            </div>
+
+                            <div className="col-span-2">
+                                <label
+                                    htmlFor="occurredOn"
+                                    className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground/60"
+                                >
+                                    Expense date
+                                </label>
+                                <Input
+                                    id="occurredOn"
+                                    name="occurredOn"
+                                    type="date"
+                                    variant="expense"
+                                    className="mt-2"
+                                    value={occurredOn}
+                                    onChange={(event) => setOccurredOn(event.target.value)}
+                                    required
+                                />
                             </div>
 
                             <div className="col-span-2">

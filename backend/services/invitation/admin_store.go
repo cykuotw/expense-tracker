@@ -28,6 +28,12 @@ func (s *Store) GetAdminInvitations() ([]types.AdminInvitationResponse, error) {
 		); err != nil {
 			return nil, err
 		}
+		invitation.ExpiresAt = invitation.ExpiresAt.UTC()
+		invitation.CreatedAt = invitation.CreatedAt.UTC()
+		if invitation.UsedAt != nil {
+			usedAt := invitation.UsedAt.UTC()
+			invitation.UsedAt = &usedAt
+		}
 		switch {
 		case invitation.UsedAt != nil:
 			invitation.Status = "used"
@@ -57,7 +63,7 @@ func (s *Store) RotateInvitationTokenByID(id string) (string, error) {
 	).Scan(&expiresAt, &usedAt); err != nil {
 		return "", err
 	}
-	if usedAt.Valid || time.Now().After(expiresAt) {
+	if usedAt.Valid || time.Now().UTC().After(expiresAt.UTC()) {
 		return "", types.ErrInvalidAction
 	}
 	result, err := s.db.Exec(`

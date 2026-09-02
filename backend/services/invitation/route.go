@@ -58,7 +58,7 @@ func (h *Handler) handleCreateInvitation(c *gin.Context) {
 		utils.WriteError(c, http.StatusInternalServerError, err)
 		return
 	}
-	now := time.Now()
+	now := time.Now().UTC()
 	expiresAt := now.Add(24 * time.Hour) // 1 days
 
 	invitation := types.Invitation{

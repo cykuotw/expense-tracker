@@ -7,6 +7,7 @@ import (
 	"expense-tracker/backend/types"
 	"expense-tracker/backend/utils"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -22,6 +23,11 @@ func (h *Handler) handleCreateExpense(c *gin.Context) {
 	key, err := uuid.Parse(c.GetHeader("Idempotency-Key"))
 	if err != nil {
 		utils.WriteError(c, http.StatusBadRequest, types.ErrInvalidIdempotencyKey)
+		return
+	}
+	occurredOn, err := resolveCreateOccurredOn(payload.OccurredOn, time.Now())
+	if err != nil {
+		utils.WriteError(c, http.StatusBadRequest, err)
 		return
 	}
 
@@ -66,6 +72,7 @@ func (h *Handler) handleCreateExpense(c *gin.Context) {
 		Currency:       payload.Currency,
 		InvoicePicUrl:  payload.InvoicePicUrl,
 		SplitRule:      payload.SplitRule,
+		OccurredOn:     occurredOn,
 	}
 
 	items := make([]types.Item, 0, len(payload.Items))
@@ -104,7 +111,7 @@ func (h *Handler) handleCreateExpense(c *gin.Context) {
 			Share:          ledgerPayload.Share,
 		})
 	}
-	fingerprint, err := expenseCreateFingerprint(expense, items, ledgers)
+	fingerprint, err := expenseCreateFingerprint(expense, items, ledgers, payload.OccurredOn)
 	if err != nil {
 		utils.WriteError(c, http.StatusInternalServerError, err)
 		return

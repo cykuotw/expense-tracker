@@ -37,11 +37,12 @@ func (s *Store) GetBalanceByGroupId(groupId string) ([]types.Balance, error) {
 			return nil, err
 		}
 		if updateTime != nil && !updateTime.IsZero() {
-			bal.UpdateTime = *updateTime
+			bal.UpdateTime = updateTime.UTC()
 		}
 		if settledTime != nil && !settledTime.IsZero() {
-			bal.SettledTime = *settledTime
+			bal.SettledTime = settledTime.UTC()
 		}
+		bal.CreateTime = bal.CreateTime.UTC()
 
 		balances = append(balances, bal)
 	}

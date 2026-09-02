@@ -62,7 +62,7 @@ func (c *Controller) DebtSimplify(ledgers []*types.Ledger) []*types.Balance {
 	})
 
 	// 4) Greedy match
-	now := time.Now()
+	now := time.Now().UTC()
 	out := make([]*types.Balance, 0, len(debtors)+len(creditors))
 
 	i, j := 0, 0

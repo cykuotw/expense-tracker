@@ -77,7 +77,9 @@ func TestSettleExpenseByGroupId(t *testing.T) {
 				defer deleteExpense(db, exp.ID)
 			}
 
+			startedAt := time.Now().UTC().Add(-time.Second)
 			err := store.SettleExpenseByGroupId(test.mockGroupId)
+			finishedAt := time.Now().UTC().Add(time.Second)
 
 			expenses := selectExpense(db, uuid.MustParse(test.mockGroupId))
 			if test.expectFail {
@@ -86,9 +88,10 @@ func TestSettleExpenseByGroupId(t *testing.T) {
 				assert.Nil(t, err)
 				for _, exp := range expenses {
 					assert.True(t, exp.IsSettled)
-					assert.LessOrEqual(t,
-						time.Until(exp.SettleTime).Seconds(),
-						time.Duration(1*time.Second).Seconds())
+					assert.False(t, exp.SettleTime.IsZero())
+					assert.False(t, exp.SettleTime.Before(startedAt))
+					assert.False(t, exp.SettleTime.After(finishedAt))
+					assert.True(t, exp.UpdateTime.Equal(exp.SettleTime))
 				}
 			}
 		})

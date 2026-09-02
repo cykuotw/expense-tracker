@@ -17,7 +17,7 @@ import {
 } from "../components/expense/ExpenseFormPicker";
 import MobilePageHeader from "../components/MobilePageHeader";
 import { getGroupTypePresentation } from "../lib/groupTypePresentation";
-import { Input } from "../components/ui/input";
+import { ExpenseDateInput } from "../components/expense/ExpenseDateInput";
 
 const currencyOptions: ExpenseFormPickerOption[] = [
     { value: "CAD", label: "CAD" },
@@ -167,11 +167,9 @@ const EditExpenseContent = () => {
                                 >
                                     Expense date
                                 </label>
-                                <Input
+                                <ExpenseDateInput
                                     id="occurredOn"
                                     name="occurredOn"
-                                    type="date"
-                                    variant="expense"
                                     className="mt-2"
                                     value={formData.occurredOn}
                                     onChange={handleFormDataChange}

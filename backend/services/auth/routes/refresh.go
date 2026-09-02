@@ -1,6 +1,7 @@
 package route
 
 import (
+	"errors"
 	"expense-tracker/backend/config"
 	"expense-tracker/backend/services/auth"
 	"expense-tracker/backend/types"
@@ -30,16 +31,8 @@ func (h *Handler) handleRefresh(c *gin.Context) error {
 		return fmt.Errorf("missing refresh token id")
 	}
 
-	stored, err := h.refreshStore.GetRefreshTokenByID(claims.ID)
+	userID, err := uuid.Parse(claims.UserID)
 	if err != nil {
-		utils.WriteError(c, http.StatusUnauthorized, types.ErrInvalidJWTToken)
-		return err
-	}
-	if stored.RevokedAt != nil || time.Now().After(stored.ExpiresAt) {
-		utils.WriteError(c, http.StatusUnauthorized, types.ErrInvalidJWTToken)
-		return types.ErrInvalidToken
-	}
-	if stored.TokenHash != auth.HashToken(refreshToken) {
 		utils.WriteError(c, http.StatusUnauthorized, types.ErrInvalidJWTToken)
 		return types.ErrInvalidToken
 	}
@@ -49,23 +42,12 @@ func (h *Handler) handleRefresh(c *gin.Context) error {
 		return err
 	}
 	if !user.IsActive {
-		if revokeErr := h.refreshStore.RevokeRefreshToken(claims.ID); revokeErr != nil {
+		if revokeErr := h.refreshStore.RevokeRefreshTokenFamily(claims.ID); revokeErr != nil {
 			utils.WriteError(c, http.StatusInternalServerError, revokeErr)
 			return revokeErr
 		}
 		utils.WriteError(c, http.StatusForbidden, types.ErrAccountInactive)
 		return types.ErrAccountInactive
-	}
-
-	if err := h.refreshStore.RevokeRefreshToken(claims.ID); err != nil {
-		utils.WriteError(c, http.StatusInternalServerError, err)
-		return err
-	}
-
-	userID, err := uuid.Parse(claims.UserID)
-	if err != nil {
-		utils.WriteError(c, http.StatusUnauthorized, types.ErrInvalidJWTToken)
-		return err
 	}
 
 	accessToken, err := auth.CreateJWT([]byte(config.Envs.JWTSecret), userID)
@@ -82,13 +64,17 @@ func (h *Handler) handleRefresh(c *gin.Context) error {
 		return err
 	}
 
-	if err := h.refreshStore.CreateRefreshToken(types.RefreshToken{
+	if err := h.refreshStore.RotateRefreshToken(claims.ID, auth.HashToken(refreshToken), types.RefreshToken{
 		ID:        uuid.MustParse(newRefreshID),
 		UserID:    userID,
 		TokenHash: auth.HashToken(newRefreshToken),
 		ExpiresAt: newRefreshExp,
 		CreatedAt: time.Now().UTC(),
 	}); err != nil {
+		if errors.Is(err, types.ErrInvalidToken) {
+			utils.WriteError(c, http.StatusUnauthorized, types.ErrInvalidJWTToken)
+			return err
+		}
 		utils.WriteError(c, http.StatusInternalServerError, err)
 		return err
 	}

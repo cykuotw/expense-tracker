@@ -25,8 +25,10 @@ func (h *Handler) issueAuthSession(c *gin.Context, user *types.User) error {
 		return err
 	}
 
+	refreshUUID := uuid.MustParse(refreshID)
 	if err := h.refreshStore.CreateRefreshToken(types.RefreshToken{
-		ID:        uuid.MustParse(refreshID),
+		ID:        refreshUUID,
+		FamilyID:  refreshUUID,
 		UserID:    user.ID,
 		TokenHash: auth.HashToken(refreshToken),
 		ExpiresAt: refreshExp,

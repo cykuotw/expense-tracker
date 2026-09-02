@@ -120,6 +120,9 @@ layout as applicable.
   and refresh tokens. Browser clients use cookie-based authentication; the
   backend also supports bearer-token extraction where required by its request
   boundary.
+- PostgreSQL stores only refresh-token hashes. Rotation atomically consumes a
+  predecessor and creates one successor in the same token family; verified
+  reuse revokes that family, while unrelated sessions remain active.
 - Invitation links carry an opaque one-time secret only in their URL fragment.
   The browser exchanges it in a CSRF-protected request for a short-lived,
   HttpOnly registration-session cookie; PostgreSQL retains hashes of both the

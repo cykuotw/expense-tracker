@@ -3,6 +3,7 @@ package auth
 import (
 	"crypto/rand"
 	"crypto/sha256"
+	"crypto/subtle"
 	"encoding/base64"
 	"encoding/hex"
 	"expense-tracker/backend/config"
@@ -111,6 +112,10 @@ func ExtractJWTClaim(c *gin.Context, key string) (string, error) {
 func HashToken(token string) string {
 	hash := sha256.Sum256([]byte(token))
 	return hex.EncodeToString(hash[:])
+}
+
+func tokenHashesEqual(storedHash string, presentedHash string) bool {
+	return subtle.ConstantTimeCompare([]byte(storedHash), []byte(presentedHash)) == 1
 }
 
 func GenerateOpaqueToken() (string, error) {

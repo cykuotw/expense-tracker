@@ -8,6 +8,7 @@ import (
 
 type RefreshToken struct {
 	ID        uuid.UUID
+	FamilyID  uuid.UUID
 	UserID    uuid.UUID
 	TokenHash string
 	ExpiresAt time.Time
@@ -18,5 +19,6 @@ type RefreshToken struct {
 type RefreshTokenStore interface {
 	CreateRefreshToken(token RefreshToken) error
 	GetRefreshTokenByID(id string) (*RefreshToken, error)
-	RevokeRefreshToken(id string) error
+	RotateRefreshToken(id string, tokenHash string, successor RefreshToken) error
+	RevokeRefreshTokenFamily(id string) error
 }

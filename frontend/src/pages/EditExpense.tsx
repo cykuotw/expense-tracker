@@ -278,6 +278,7 @@ const EditExpenseContent = () => {
                                     <ExpenseFormPicker
                                         label="Split rule"
                                         emptyLabel="Choose a split rule"
+                                        mobileMenuPlacement="above"
                                         value={formData.splitRule}
                                         onChange={handleTwoPersonRuleChange}
                                         options={[
@@ -373,7 +374,7 @@ const EditExpenseContent = () => {
                                             className="grow"
                                             step="0.001"
                                             placeholder="0.00"
-                                            value={ledger.share}
+                                            value={ledger.share === 0 ? "" : ledger.share}
                                             onChange={(e) => {
                                                 const updated = [
                                                     ...formData.ledgers,

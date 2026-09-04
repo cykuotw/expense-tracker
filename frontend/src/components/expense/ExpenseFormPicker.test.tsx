@@ -110,7 +110,7 @@ describe("ExpenseFormPicker", () => {
         expect(screen.queryByRole("listbox", { name: "Currency options" })).toBeNull();
     });
 
-    it("commits a pointer selection before a browser focus change can close it", () => {
+    it("commits a pointer selection when the pointer is released", () => {
         const onChange = vi.fn();
 
         render(
@@ -127,9 +127,47 @@ describe("ExpenseFormPicker", () => {
         );
 
         fireEvent.click(screen.getByRole("button", { name: "Currency" }));
-        fireEvent.pointerDown(screen.getByRole("option", { name: "USD" }));
+        const option = screen.getByRole("option", { name: "USD" });
+        fireEvent.pointerDown(option, { clientY: 100 });
+        fireEvent.pointerUp(option, { clientY: 100 });
 
         expect(onChange).toHaveBeenCalledWith("USD");
         expect(screen.queryByRole("listbox", { name: "Currency options" })).toBeNull();
+    });
+
+    it("does not select an option while the option list is being scrolled", () => {
+        const onChange = vi.fn();
+
+        render(
+            <ExpenseFormPicker
+                label="Split rule"
+                emptyLabel="Choose a split rule"
+                mobileMenuPlacement="above"
+                value="Equally"
+                onChange={onChange}
+                options={[
+                    { value: "Equally", label: "Equally" },
+                    { value: "Unequally", label: "Unequally" },
+                ]}
+            />
+        );
+
+        fireEvent.click(screen.getByRole("button", { name: "Split rule" }));
+        expect(screen.getByRole("listbox", { name: "Split rule options" })).toHaveClass(
+            "z-[60]",
+            "max-h-40",
+            "md:max-h-80",
+            "overflow-y-auto",
+            "bottom-full",
+            "md:top-full"
+        );
+        expect(screen.getByRole("option", { name: "Unequally" })).toHaveClass("min-h-12");
+        const option = screen.getByRole("option", { name: "Unequally" });
+        fireEvent.pointerDown(option, { clientY: 100 });
+        fireEvent.pointerMove(option, { clientY: 120 });
+        fireEvent.pointerUp(option, { clientY: 120 });
+
+        expect(onChange).not.toHaveBeenCalled();
+        expect(screen.getByRole("listbox", { name: "Split rule options" })).toBeVisible();
     });
 });

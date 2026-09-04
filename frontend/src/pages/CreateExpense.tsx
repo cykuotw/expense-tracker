@@ -278,6 +278,7 @@ const CreateExpenseContent = () => {
                                     <ExpenseFormPicker
                                         label="Split rule"
                                         emptyLabel="Choose a split rule"
+                                        mobileMenuPlacement="above"
                                         value={selectedRule}
                                         onChange={handleTwoPersonRuleChange}
                                         options={[
@@ -363,7 +364,7 @@ const CreateExpenseContent = () => {
                                             className="grow"
                                             step="0.001"
                                             placeholder="0.00"
-                                            value={ledger.share}
+                                            value={ledger.share === 0 ? "" : ledger.share}
                                             onChange={(e) => {
                                                 const updated = [...ledgers];
                                                 updated[index].share =

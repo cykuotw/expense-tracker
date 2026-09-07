@@ -31,7 +31,7 @@ Browser
 Deployment workflow --> Bootstrap Lambda --> migrations and bootstrap work
 ```
 
-- **Frontend:** React, TypeScript, Vite, Tailwind CSS, and DaisyUI produce the
+- **Frontend:** React, TypeScript, Vite, Tailwind CSS, and shadcn/Radix components produce the
   static application published through the frontend distribution.
 - **Worker Lambda:** runs the Go/Gin HTTP application. API Gateway is the
   public API entry point; the Worker is activated only after deployment
@@ -114,6 +114,8 @@ that the page renders: opening and dismissal, selection and submission,
 keyboard and touch operation, navigation, state updates, and responsive
 layout as applicable.
 
+Automated WebKit coverage does not replace the required manual Safari check.
+
 ## Authentication and Authorization
 
 - Local password and Google sign-in create application sessions using access
@@ -136,8 +138,11 @@ layout as applicable.
   trusted-origin policy.
 
 See the auth and middleware packages under `backend/services/` for the
-implemented request flow. API route and response details should be documented
-by the API contract rather than duplicated here.
+implemented request flow. A generated OpenAPI contract is not yet the maintained
+source of truth. For current HTTP behavior, inspect route assembly in
+`backend/internal/tracker`, domain handlers and tests in `backend/services/`,
+shared types in `backend/types`, and their consumers in `frontend/src/types`
+and `frontend/src/lib/api.ts`. Do not duplicate endpoint details here.
 
 ## Expense Domain Model and Invariants
 
@@ -170,17 +175,16 @@ by the API contract rather than duplicated here.
   kept compatible.
 
 This is an ownership map, not an API specification. When a change alters a
-domain rule, update its domain tests and API contract as well as this document
-when the architectural boundary changes.
+domain rule, update its domain tests and affected request/response types and
+consumers together. Once a maintained API specification is introduced, update
+it in the same change. Update this document when the architectural boundary
+changes; establishing a contract-generation system is a separate change.
 
 ## Configuration, Secrets, and Operations
 
 - Human-edited deployment configuration and credentials stay outside version
   control. The serverless deployer creates protected temporary projections
   rather than storing runtime secrets in Terraform state or repository files.
-- Deployment and repository Python tooling must run through `uv` (for example,
-  `uv run python ...`); the system `python3` version is not a supported
-  execution environment.
 - Runtime configuration, database credentials, signing keys, invitation
   secrets, cookies, and external-provider credentials must never be added to
   source code, public documentation, logs, or client-side storage.

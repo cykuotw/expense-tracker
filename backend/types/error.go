@@ -63,6 +63,11 @@ var (
 	ErrIdempotencyKeyConflict     = errors.New("this submission key was already used for different expense details")
 	ErrInvalidOccurredOn          = errors.New("occurredOn must be a valid date in YYYY-MM-DD format")
 
+	// notifications
+	ErrWebPushUnavailable         = errors.New("web push notifications are unavailable")
+	ErrInvalidWebPushSubscription = errors.New("invalid push subscription")
+	ErrWebPushSubscriptionLimit   = errors.New("too many push subscriptions")
+
 	// balance
 	ErrBalanceNotExist = errors.New("balacne not exist")
 )

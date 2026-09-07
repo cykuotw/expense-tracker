@@ -11,6 +11,9 @@ export default defineConfig({
         ...(process.env.VITEST ? [] : [react()]),
         tsconfigPaths(),
         VitePWA({
+			strategies: "injectManifest",
+			srcDir: "src",
+			filename: "service-worker.ts",
             registerType: "prompt",
             injectRegister: false,
             manifest: {
@@ -47,24 +50,8 @@ export default defineConfig({
                     },
                 ],
             },
-            workbox: {
+            injectManifest: {
                 globIgnores: ["pwa-icon-source.png", "runtime-config.js"],
-                navigateFallback: "index.html",
-                navigateFallbackDenylist: [/^\/api\//, /^\/auth\//],
-                runtimeCaching: [
-                    {
-                        urlPattern: /\/runtime-config\.js$/,
-                        handler: "NetworkFirst",
-                        options: {
-                            cacheName: "runtime-config",
-                            networkTimeoutSeconds: 3,
-                            expiration: {
-                                maxEntries: 1,
-                                maxAgeSeconds: 60 * 60 * 24,
-                            },
-                        },
-                    },
-                ],
             },
         }),
     ],

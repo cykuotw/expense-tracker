@@ -145,6 +145,9 @@ func (h *Handler) handleCreateExpense(c *gin.Context) {
 				return err
 			}
 		}
+		if err := store.QueueExpenseCreatedNotifications(expense); err != nil {
+			return err
+		}
 
 		return h.updateBalanceWithStore(store, payload.GroupID)
 	})

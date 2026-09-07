@@ -5,6 +5,7 @@ import GoogleSignInButton from "../components/auth/GoogleSignInButton";
 import { GOOGLE_OAUTH_ENABLED } from "../configs/config";
 import { apiFetch, getResponseErrorMessage } from "../lib/api";
 import MobilePageHeader from "../components/MobilePageHeader";
+import NotificationSettings from "../components/pwa/NotificationSettings";
 import { AccountSettingsData } from "../types/account";
 
 const EMPTY_PROFILE = { firstname: "", lastname: "", nickname: "" };
@@ -807,6 +808,7 @@ export default function AccountSettings() {
                             )}
                         </div>
                     </section>
+                    <NotificationSettings />
                 </div>
             </div>
         </div>

@@ -34,6 +34,7 @@ type ExpenseStore interface {
 	CreateItem(item Item) error
 	CreateLedger(ledger Ledger) error
 	ClaimExpenseCreateIdempotency(record ExpenseCreateIdempotency) (existing ExpenseCreateIdempotency, claimed bool, err error)
+	QueueExpenseCreatedNotifications(expense Expense) error
 
 	CheckExpenseExistByID(id string) (bool, error)
 

@@ -39,7 +39,8 @@ type Config struct {
 	GoogleClientId     string
 	GoogleExchangeMode GoogleExchangeMode
 
-	ExpensesPerPage int64
+	ExpensesPerPage       int64
+	WebPushVAPIDPublicKey string
 
 	CORSAllowedOrigins   []string
 	CORSAllowCredentials bool
@@ -95,7 +96,8 @@ func initConfig() Config {
 		GoogleClientId:     getEnv("GOOGLE_CLIENT_ID", ""),
 		GoogleExchangeMode: normalizeGoogleExchangeMode(getEnv("GOOGLE_EXCHANGE_MODE", string(GoogleExchangeInProcess))),
 
-		ExpensesPerPage: getEnvInt("EXPENSES_PER_PAGE", 25),
+		ExpensesPerPage:       getEnvInt("EXPENSES_PER_PAGE", 25),
+		WebPushVAPIDPublicKey: strings.TrimSpace(getEnv("WEB_PUSH_VAPID_PUBLIC_KEY", "")),
 
 		CORSAllowedOrigins: parseOrigins(
 			getEnv("CORS_ALLOWED_ORIGINS", "http://localhost:5173"),

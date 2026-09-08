@@ -14,6 +14,7 @@
     --card-shadow: 0 20px 45px rgba(38, 48, 53, 0.08);
     --card-shadow-soft: 0 10px 24px rgba(38, 48, 53, 0.05);
     --ring-color: rgba(31, 77, 71, 0.18);
+    --mobile-page-header-bg: rgba(247, 243, 235, 0.94);
     --background: #fffdf8;
     --foreground: #1f2937;
     --card: #fffdf8;
@@ -284,7 +285,7 @@ textarea {
     top: 0;
     z-index: 45;
     border-bottom: 1px solid rgba(36, 52, 58, 0.08);
-    background: rgba(255, 253, 248, 0.92);
+    background: var(--mobile-page-header-bg);
     -webkit-backdrop-filter: blur(16px);
     backdrop-filter: blur(16px);
     box-shadow: 0 8px 24px rgba(38, 48, 53, 0.06);
@@ -766,6 +767,7 @@ textarea {
 }
 
 .dark {
+    --mobile-page-header-bg: rgba(23, 34, 31, 0.94);
     --background: #17221f;
     --foreground: #f3f6f4;
     --card: #20312d;

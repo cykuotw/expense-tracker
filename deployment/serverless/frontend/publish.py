@@ -13,10 +13,11 @@ from config import Config
 
 IMMUTABLE_CACHE_CONTROL = "public, max-age=31536000, immutable"
 NO_CACHE = "no-cache"
+SERVICE_WORKER_FILE = "service-worker.js"
 MUTABLE_FRONTEND_FILES = {
     "index.html": "text/html; charset=utf-8",
     "runtime-config.js": "application/javascript; charset=utf-8",
-    "sw.js": "application/javascript; charset=utf-8",
+    SERVICE_WORKER_FILE: "application/javascript; charset=utf-8",
     "manifest.webmanifest": "application/manifest+json",
 }
 
@@ -52,6 +53,8 @@ def build(repo_root: Path, config: Config) -> Path:
     dist = frontend_root / "dist"
     if not (dist / "index.html").is_file():
         raise CommandError("frontend build did not create dist/index.html")
+    if not (dist / SERVICE_WORKER_FILE).is_file():
+        raise CommandError(f"frontend build did not create dist/{SERVICE_WORKER_FILE}")
     (dist / "runtime-config.js").write_text(runtime_config(config, frontend_version(dist)))
     return dist
 

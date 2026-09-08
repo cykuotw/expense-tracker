@@ -66,7 +66,7 @@ class ComponentTest(unittest.TestCase):
             for filename in (
                 "index.html",
                 "runtime-config.js",
-                "sw.js",
+                "service-worker.js",
                 "manifest.webmanifest",
                 "workbox-example.js",
                 "assets/index-123.js",
@@ -90,7 +90,7 @@ class ComponentTest(unittest.TestCase):
         for filename in (
             "index.html",
             "runtime-config.js",
-            "sw.js",
+            "service-worker.js",
             "manifest.webmanifest",
             "workbox-example.js",
         ):
@@ -108,7 +108,7 @@ class ComponentTest(unittest.TestCase):
             {
                 "index.html",
                 "runtime-config.js",
-                "sw.js",
+                "service-worker.js",
                 "manifest.webmanifest",
                 "workbox-example.js",
             },

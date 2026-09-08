@@ -19,7 +19,7 @@ export default function MobilePageHeader({
     action,
 }: MobilePageHeaderProps) {
     return (
-        <header className="page-header mobile-page-header md:hidden">
+        <header className="page-header mobile-page-header mobile-page-header--sticky md:hidden">
             {backTo ? (
                 <Link
                     className="ui-button ui-button-outline mobile-page-header__back min-h-12 min-w-12 px-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"

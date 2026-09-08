@@ -2,7 +2,7 @@ import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "react-hot-toast";
 
 import GoogleSignInButton from "../components/auth/GoogleSignInButton";
-import { GOOGLE_OAUTH_ENABLED } from "../configs/config";
+import { FRONTEND_VERSION, GOOGLE_OAUTH_ENABLED } from "../configs/config";
 import { apiFetch, getResponseErrorMessage } from "../lib/api";
 import MobilePageHeader from "../components/MobilePageHeader";
 import NotificationSettings from "../components/pwa/NotificationSettings";
@@ -809,6 +809,9 @@ export default function AccountSettings() {
                         </div>
                     </section>
                     <NotificationSettings />
+                    <p className="lg:col-span-2 px-1 text-xs text-foreground/55">
+                        App version <span className="whitespace-nowrap font-mono">{FRONTEND_VERSION}</span>
+                    </p>
                 </div>
             </div>
         </div>

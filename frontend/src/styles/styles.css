@@ -275,7 +275,36 @@ textarea {
     grid-template-columns: 3rem minmax(0, 1fr) 3rem;
     align-items: center;
     gap: 0.5rem;
-    margin-bottom: 1rem;
+    margin: 0 -1rem 1rem;
+    padding: 0.5rem 1rem;
+}
+
+.mobile-page-header--sticky {
+    position: sticky;
+    top: 0;
+    z-index: 45;
+    border-bottom: 1px solid rgba(36, 52, 58, 0.08);
+    background: rgba(255, 253, 248, 0.92);
+    -webkit-backdrop-filter: blur(16px);
+    backdrop-filter: blur(16px);
+    box-shadow: 0 8px 24px rgba(38, 48, 53, 0.06);
+}
+
+@supports (top: env(safe-area-inset-top)) {
+    .mobile-page-header--sticky {
+        margin-top: calc(-0.75rem - env(safe-area-inset-top));
+        padding-top: calc(0.5rem + env(safe-area-inset-top));
+    }
+}
+
+@media (max-width: 767px) {
+    html {
+        scroll-padding-top: calc(5rem + env(safe-area-inset-top));
+    }
+
+    :is(input, select, textarea, button, [tabindex]):focus {
+        scroll-margin-top: calc(5rem + env(safe-area-inset-top));
+    }
 }
 
 .mobile-page-header__title-wrap {

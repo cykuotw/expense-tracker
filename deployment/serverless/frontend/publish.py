@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import hashlib
 import json
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -19,12 +21,25 @@ MUTABLE_FRONTEND_FILES = {
 }
 
 
-def runtime_config(config: Config) -> str:
+def frontend_version(dist: Path, *, now: datetime | None = None) -> str:
+    digest = hashlib.sha256()
+    for path in sorted(dist.rglob("*")):
+        if not path.is_file() or path.relative_to(dist).as_posix() == "runtime-config.js":
+            continue
+        digest.update(path.relative_to(dist).as_posix().encode())
+        digest.update(b"\0")
+        digest.update(path.read_bytes())
+    deployed_at = (now or datetime.now(UTC)).strftime("%Y%m%d")
+    return f"v-{deployed_at}-{digest.hexdigest()[:8]}"
+
+
+def runtime_config(config: Config, version: str) -> str:
     value = {
         "apiOrigin": config.api_origin,
         "apiPath": "/api/v0",
         "googleOAuthEnabled": True,
         "googleClientId": config.backend.google_client_id,
+        "frontendVersion": version,
     }
     return f"window.__APP_CONFIG__ = Object.freeze({json.dumps(value, indent=4)});\n"
 
@@ -37,7 +52,7 @@ def build(repo_root: Path, config: Config) -> Path:
     dist = frontend_root / "dist"
     if not (dist / "index.html").is_file():
         raise CommandError("frontend build did not create dist/index.html")
-    (dist / "runtime-config.js").write_text(runtime_config(config))
+    (dist / "runtime-config.js").write_text(runtime_config(config, frontend_version(dist)))
     return dist
 
 

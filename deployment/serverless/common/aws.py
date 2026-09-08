@@ -57,15 +57,36 @@ class AWSClient:
 
     def activate_worker(self, function_name: str) -> None:
         current = self.concurrency(function_name)
-        if current not in (0, 3):
+        if current not in (0, 2, 3):
             raise CommandError(f"unexpected worker reserved concurrency: {current}")
         limits = self.json("lambda", "get-account-settings")["AccountLimit"]
-        if int(limits["ConcurrentExecutions"]) < 4:
-            raise CommandError("Lambda account concurrency must be at least 4")
+        if int(limits["ConcurrentExecutions"]) < 5:
+            raise CommandError("Lambda account concurrency must be at least 5")
+        if current != 2:
+            self.call("lambda", "put-function-concurrency", "--function-name", function_name, "--reserved-concurrent-executions", "2")
+        if self.concurrency(function_name) != 2:
+            raise CommandError("worker activation did not reach reserved concurrency 2")
+
+    def activate_notification_function(self, function_name: str) -> None:
+        current = self.concurrency(function_name)
+        if current not in (0, 1):
+            raise CommandError(f"unexpected notification function reserved concurrency: {current}")
+        limits = self.json("lambda", "get-account-settings")["AccountLimit"]
+        if int(limits["ConcurrentExecutions"]) < 5:
+            raise CommandError("Lambda account concurrency must be at least 5")
         if current == 0:
-            self.call("lambda", "put-function-concurrency", "--function-name", function_name, "--reserved-concurrent-executions", "3")
-        if self.concurrency(function_name) != 3:
-            raise CommandError("worker activation did not reach reserved concurrency 3")
+            self.call("lambda", "put-function-concurrency", "--function-name", function_name, "--reserved-concurrent-executions", "1")
+        if self.concurrency(function_name) != 1:
+            raise CommandError("notification function activation did not reach reserved concurrency 1")
+
+    def pause_sender(self, function_name: str) -> None:
+        if not self.function_exists(function_name) or self.concurrency(function_name) == 0:
+            return
+        self.call("lambda", "put-function-concurrency", "--function-name", function_name, "--reserved-concurrent-executions", "0")
+        # Existing invocations are not stopped by reserved concurrency. Both
+        # supported sender versions have a maximum 60-second execution time.
+        print("Waiting 60 seconds for in-flight push delivery before updating", flush=True)
+        time.sleep(60)
 
     def invoke_bootstrap(self, function_name: str, response_path: Path) -> dict[str, Any]:
         metadata = self.json("lambda", "invoke", "--function-name", function_name, "--cli-binary-format", "raw-in-base64-out", "--payload", '{"operation":"all"}', str(response_path))

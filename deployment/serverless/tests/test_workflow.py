@@ -14,6 +14,22 @@ import workflow
 
 class WorkflowTest(unittest.TestCase):
 
+    def test_preflight_does_not_require_nat(self) -> None:
+        context = mock.MagicMock()
+        context.config.deployment.account_id = "123"
+        context.config.aws.hosted_zone_name = "example.com"
+        context.aws.identity.return_value = {"Account": "123"}
+        context.aws.json.side_effect = [
+            {"HostedZones": [{"Name": "example.com."}]},
+            {"AccountLimit": {"ConcurrentExecutions": 5}},
+        ]
+        with mock.patch.object(workflow, "require_tools"), \
+             mock.patch.object(workflow, "require_node_22"), \
+             mock.patch.object(workflow, "require_pnpm_11"):
+            workflow.preflight(context, mutation=True)
+        for call in context.aws.json.call_args_list:
+            self.assertNotIn("describe-route-tables", call.args)
+
     def test_backup_status_reports_latest_backup_and_restore_marker(self) -> None:
         context = mock.MagicMock()
         context.terraform_root = Path("/repo/deployment/serverless/infrastructure/tf")
@@ -80,6 +96,7 @@ class WorkflowTest(unittest.TestCase):
             "database_host": "10.0.0.5",
             "worker_function_name": "worker",
             "bootstrap_function_name": "bootstrap",
+            "sender_function_name": "sender",
             "api_id": "api",
             "raw_api_endpoint": "https://raw.example",
             "frontend_bucket_name": "bucket",
@@ -113,6 +130,7 @@ class WorkflowTest(unittest.TestCase):
              mock.patch.object(workflow, "setup_database", side_effect=lambda *args: events.append("database")), \
              mock.patch.object(workflow.runtime, "configure_bootstrap", side_effect=lambda *args: events.append("bootstrap")), \
              mock.patch.object(workflow.runtime, "configure_worker", side_effect=lambda *args: events.append("worker")), \
+             mock.patch.object(workflow.runtime, "configure_notifications", side_effect=lambda *args: events.append("sender")), \
              mock.patch.object(workflow, "verify_api", side_effect=lambda *args, **kwargs: events.append("api-verify")), \
              mock.patch.object(workflow, "publish_frontend", side_effect=lambda *args: events.append("frontend")), \
              mock.patch.object(workflow, "verify_frontend"), \
@@ -122,6 +140,7 @@ class WorkflowTest(unittest.TestCase):
             workflow.deploy(context)
         self.assertLess(events.index("database"), events.index("bootstrap"))
         self.assertLess(events.index("bootstrap"), events.index("worker"))
+        self.assertLess(events.index("worker"), events.index("sender"))
         self.assertLess(events.index("worker"), events.index("frontend"))
         self.assertEqual(events[-2:], ["raw-cutover", "api-verify"])
 
@@ -132,20 +151,21 @@ class WorkflowTest(unittest.TestCase):
         context.terraform_root = context.serverless_root / "infrastructure/tf"
         context.config = mock.MagicMock()
         context.aws = mock.MagicMock()
-        outputs = {"worker_function_name": "worker"}
+        outputs = {"worker_function_name": "worker", "sender_function_name": "sender"}
         events: list[str] = []
         with mock.patch.object(workflow, "preflight"), \
              mock.patch.object(workflow.runtime, "repair_secret_boundary", side_effect=lambda *args: events.append("state-repair")), \
              mock.patch.object(workflow, "_require_complete", return_value=outputs), \
-             mock.patch.object(workflow.artifacts, "build", return_value={"bootstrap": Path("bootstrap.zip"), "worker": Path("worker.zip")}), \
+             mock.patch.object(workflow.artifacts, "build", return_value={"bootstrap": Path("bootstrap.zip"), "worker": Path("worker.zip"), "sender": Path("sender.zip"), "delivery": Path("delivery.zip")}), \
              mock.patch.object(workflow.runtime, "update_bootstrap", side_effect=lambda *args: events.append("migrations")), \
              mock.patch.object(workflow, "_apply_infrastructure_updates", side_effect=lambda *args: events.append("infrastructure")), \
              mock.patch.object(workflow.runtime, "update_worker", side_effect=lambda *args: events.append("backend")), \
+             mock.patch.object(workflow.runtime, "update_notifications", side_effect=lambda *args: events.append("sender")), \
              mock.patch.object(workflow, "verify_api"), \
              mock.patch.object(workflow, "publish_frontend", side_effect=lambda *args: events.append("frontend")), \
              mock.patch.object(workflow, "verify_frontend"):
             workflow.update(context, "all")
-        self.assertEqual(events, ["state-repair", "migrations", "infrastructure", "backend", "frontend"])
+        self.assertEqual(events, ["state-repair", "migrations", "infrastructure", "backend", "sender", "frontend"])
 
     def test_backend_scope_does_not_publish_frontend(self) -> None:
         context = mock.MagicMock()
@@ -156,12 +176,13 @@ class WorkflowTest(unittest.TestCase):
         with mock.patch.object(workflow, "preflight"), \
              mock.patch.object(workflow.runtime, "repair_secret_boundary", return_value=0), \
              mock.patch.object(workflow, "_require_complete", return_value={}), \
-             mock.patch.object(workflow.artifacts, "build", return_value={"bootstrap": Path("b"), "worker": Path("w")}), \
+             mock.patch.object(workflow.artifacts, "build", return_value={"bootstrap": Path("b"), "worker": Path("w"), "sender": Path("s"), "delivery": Path("d")}), \
              mock.patch.object(workflow, "_apply_infrastructure_updates"), \
              mock.patch.object(workflow.runtime, "update_bootstrap", side_effect=lambda *args: events.append("migrations")), \
              mock.patch.object(workflow.runtime, "update_worker", side_effect=lambda *args: events.append("backend")), \
+             mock.patch.object(workflow.runtime, "update_notifications", side_effect=lambda *args: events.append("sender")), \
              mock.patch.object(workflow, "verify_api"), \
              mock.patch.object(workflow, "publish_frontend") as publish:
             workflow.update(context, "backend")
         publish.assert_not_called()
-        self.assertEqual(events, ["migrations", "backend"])
+        self.assertEqual(events, ["migrations", "backend", "sender"])

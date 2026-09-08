@@ -3,6 +3,7 @@ type AppConfig = {
     apiPath: string;
     googleOAuthEnabled: boolean;
     googleClientId: string;
+    frontendVersion: string;
 };
 
 const getAppConfig = (): AppConfig => {
@@ -14,6 +15,7 @@ const getAppConfig = (): AppConfig => {
               apiPath: import.meta.env.VITE_API_PATH,
               googleOAuthEnabled: import.meta.env.VITE_GOOGLE_OAUTH_ENABLED,
               googleClientId: import.meta.env.VITE_GOOGLE_CLIENT_ID,
+              frontendVersion: import.meta.env.VITE_FRONTEND_VERSION,
           }
         : (() => {
               if (typeof window === "undefined") {
@@ -25,6 +27,7 @@ const getAppConfig = (): AppConfig => {
                   apiPath: window.__APP_CONFIG__?.apiPath,
                   googleOAuthEnabled: window.__APP_CONFIG__?.googleOAuthEnabled,
                   googleClientId: window.__APP_CONFIG__?.googleClientId,
+                  frontendVersion: window.__APP_CONFIG__?.frontendVersion,
               };
           })();
 
@@ -76,6 +79,7 @@ const getAppConfig = (): AppConfig => {
             `${source} googleOAuthEnabled`,
         ),
         googleClientId: rawConfig.googleClientId?.trim() ?? "",
+        frontendVersion: rawConfig.frontendVersion?.trim() || (import.meta.env.DEV ? "v-development" : "v-unavailable"),
     };
 
     if (config.googleOAuthEnabled && !config.googleClientId) {
@@ -107,3 +111,4 @@ export const APP_CONFIG = getAppConfig();
 export const API_URL = `${normalizeOrigin(APP_CONFIG.apiOrigin)}${APP_CONFIG.apiPath}`;
 export const GOOGLE_OAUTH_ENABLED = APP_CONFIG.googleOAuthEnabled;
 export const GOOGLE_CLIENT_ID = APP_CONFIG.googleClientId;
+export const FRONTEND_VERSION = APP_CONFIG.frontendVersion;

@@ -22,6 +22,9 @@ def _protected_values(config: Config) -> tuple[bytes, ...]:
         config.database.admin_password, config.database.migration_password,
         config.database.runtime_password, config.backend.jwt_secret,
         config.backend.refresh_jwt_secret,
+        config.backend.web_push_vapid_public_key,
+        config.backend.web_push_vapid_private_key,
+        config.backend.web_push_vapid_subject,
     ]
     if config.first_admin:
         values.append(config.first_admin.password)
@@ -86,7 +89,7 @@ def repair_secret_boundary(terraform_root: Path, config: Config) -> int:
             if (
                 resource.get("mode", "managed") != "managed"
                 or resource.get("type") != "aws_lambda_function"
-                or resource.get("name") not in {"worker", "bootstrap"}
+                or resource.get("name") not in {"worker", "bootstrap", "sender", "delivery"}
             ):
                 continue
             for instance in resource.get("instances", []):
@@ -144,6 +147,19 @@ def configure_worker(client: AWSClient, config: Config, outputs: dict[str, Any],
         raise CommandError("Terraform state changed while publishing worker runtime")
 
 
+def configure_notifications(client: AWSClient, config: Config, outputs: dict[str, Any], terraform_root: Path) -> None:
+    before = _state_digest(terraform_root)
+    with protected_json(config.delivery_environment(str(outputs["database_host"])), prefix="expense-delivery-env-") as path:
+        client.publish_environment(str(outputs["delivery_function_name"]), path)
+    client.activate_notification_function(str(outputs["delivery_function_name"]))
+    with protected_json(config.sender_environment(str(outputs["delivery_function_name"])), prefix="expense-sender-env-") as path:
+        client.publish_environment(str(outputs["sender_function_name"]), path)
+    client.activate_notification_function(str(outputs["sender_function_name"]))
+    assert_secret_boundary(terraform_root, config)
+    if _state_digest(terraform_root) != before:
+        raise CommandError("Terraform state changed while publishing notification runtimes")
+
+
 def update_bootstrap(client: AWSClient, artifact: Path, config: Config, outputs: dict[str, Any], terraform_root: Path) -> dict[str, Any]:
     client.publish_code(str(outputs["bootstrap_function_name"]), artifact)
     return configure_bootstrap(client, config, outputs, terraform_root)
@@ -151,6 +167,10 @@ def update_bootstrap(client: AWSClient, artifact: Path, config: Config, outputs:
 
 def update_worker(client: AWSClient, artifact: Path, config: Config, outputs: dict[str, Any], terraform_root: Path) -> None:
     client.publish_code(str(outputs["worker_function_name"]), artifact)
-    if client.concurrency(str(outputs["worker_function_name"])) != 3:
-        raise CommandError("backend update requires worker reserved concurrency 3")
-    assert_secret_boundary(terraform_root, config)
+    configure_worker(client, config, outputs, terraform_root)
+
+
+def update_notifications(client: AWSClient, artifact: Path, delivery_artifact: Path, config: Config, outputs: dict[str, Any], terraform_root: Path) -> None:
+    client.publish_code(str(outputs["delivery_function_name"]), delivery_artifact)
+    client.publish_code(str(outputs["sender_function_name"]), artifact)
+    configure_notifications(client, config, outputs, terraform_root)

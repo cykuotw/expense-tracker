@@ -6,6 +6,7 @@ interface ImportMetaEnv {
     readonly VITE_API_PATH?: string;
     readonly VITE_GOOGLE_OAUTH_ENABLED?: string;
     readonly VITE_GOOGLE_CLIENT_ID?: string;
+    readonly VITE_FRONTEND_VERSION?: string;
 }
 
 interface ImportMeta {
@@ -18,5 +19,6 @@ interface Window {
         apiPath?: string;
         googleOAuthEnabled?: boolean | string;
         googleClientId?: string;
+        frontendVersion?: string;
     };
 }

@@ -13,6 +13,7 @@ import (
 	"time"
 
 	webpush "github.com/SherClockHolmes/webpush-go"
+	"github.com/google/uuid"
 )
 
 const (
@@ -21,8 +22,13 @@ const (
 	maxAttempts     = 3
 )
 
+type DeliveryStore interface {
+	ClaimDeliveries(context.Context) (DeliveryBatch, error)
+	AcknowledgeDeliveries(context.Context, uuid.UUID, []DeliveryResult) error
+}
+
 type Sender struct {
-	store      *Store
+	store      DeliveryStore
 	publicKey  string
 	privateKey string
 	subscriber string
@@ -30,7 +36,7 @@ type Sender struct {
 	clock      func() time.Time
 }
 
-func NewSender(store *Store, publicKey, privateKey, subscriber string) (*Sender, error) {
+func NewSender(store DeliveryStore, publicKey, privateKey, subscriber string) (*Sender, error) {
 	if strings.TrimSpace(publicKey) == "" || strings.TrimSpace(privateKey) == "" || !strings.HasPrefix(subscriber, "mailto:") {
 		return nil, errors.New("WEB_PUSH_VAPID_PUBLIC_KEY, WEB_PUSH_VAPID_PRIVATE_KEY, and WEB_PUSH_VAPID_SUBJECT are required")
 	}
@@ -57,28 +63,42 @@ func NewSender(store *Store, publicKey, privateKey, subscriber string) (*Sender,
 }
 
 func (s *Sender) RunOnce(ctx context.Context) error {
-	if err := s.store.Cleanup(ctx); err != nil {
-		return fmt.Errorf("cleanup: %w", err)
-	}
-	deliveries, err := s.store.GetPendingDeliveries(ctx, senderBatchSize)
+	// Reserve time to acknowledge completed sends before the Lambda timeout.
+	sendCtx, cancel := context.WithTimeout(ctx, 45*time.Second)
+	defer cancel()
+	batch, err := s.store.ClaimDeliveries(sendCtx)
 	if err != nil {
-		return fmt.Errorf("load pending deliveries: %w", err)
+		return fmt.Errorf("claim deliveries: %w", err)
 	}
-	for _, delivery := range deliveries {
-		if err := s.send(ctx, delivery); err != nil {
-			return err
+	var sendErr error
+	results := make([]DeliveryResult, 0, len(batch.Deliveries))
+	for _, delivery := range batch.Deliveries {
+		if sendErr = sendCtx.Err(); sendErr != nil {
+			break
 		}
+		var result DeliveryResult
+		result, sendErr = s.send(sendCtx, delivery)
+		if sendErr != nil {
+			break
+		}
+		results = append(results, result)
 	}
-	return nil
+	if len(results) == 0 {
+		return sendErr
+	}
+	ackCtx, ackCancel := context.WithTimeout(ctx, 10*time.Second)
+	defer ackCancel()
+	return errors.Join(sendErr, s.store.AcknowledgeDeliveries(ackCtx, batch.Token, results))
 }
 
-func (s *Sender) send(ctx context.Context, delivery types.WebPushDelivery) error {
+func (s *Sender) send(ctx context.Context, delivery types.WebPushDelivery) (DeliveryResult, error) {
+	result := DeliveryResult{ID: delivery.ID}
 	payload, err := notificationPayload(delivery)
 	if err != nil {
-		return fmt.Errorf("marshal notification payload: %w", err)
+		return result, fmt.Errorf("marshal notification payload: %w", err)
 	}
 	ttl := max(1, int(time.Until(delivery.ExpiresAt).Seconds()))
-	response, sendErr := webpush.SendNotification(payload, &webpush.Subscription{
+	response, sendErr := webpush.SendNotificationWithContext(ctx, payload, &webpush.Subscription{
 		Endpoint: delivery.Subscription.Endpoint,
 		Keys:     webpush.Keys{Auth: delivery.Subscription.Auth, P256dh: delivery.Subscription.P256DH},
 	}, &webpush.Options{
@@ -93,27 +113,30 @@ func (s *Sender) send(ctx context.Context, delivery types.WebPushDelivery) error
 		defer response.Body.Close()
 	}
 	if sendErr == nil && response != nil && response.StatusCode >= http.StatusOK && response.StatusCode < http.StatusMultipleChoices {
-		return s.store.CompleteDelivery(ctx, delivery.ID, "delivered")
+		result.Status = "delivered"
+		return result, nil
 	}
 	if response != nil && (response.StatusCode == http.StatusNotFound || response.StatusCode == http.StatusGone) {
-		return s.store.RetireSubscription(ctx, delivery.Subscription.ID)
+		result.Status = "retired"
+		return result, nil
 	}
 	if response != nil && response.StatusCode >= http.StatusBadRequest && response.StatusCode < http.StatusInternalServerError && response.StatusCode != http.StatusTooManyRequests {
-		return s.store.CompleteDelivery(ctx, delivery.ID, "provider_rejected")
+		result.Status = "provider_rejected"
+		return result, nil
 	}
 
 	attempts := delivery.Attempts + 1
 	next := s.clock().UTC().Add(retryDelay(response))
 	if attempts >= maxAttempts || !next.Before(delivery.ExpiresAt) {
-		return s.store.CompleteDelivery(ctx, delivery.ID, "failed")
+		result.Status = "failed"
+		return result, nil
 	}
-	if err := s.store.RetryDelivery(ctx, delivery.ID, next, attempts); err != nil {
-		return fmt.Errorf("schedule delivery retry: %w", err)
-	}
+
 	if sendErr != nil {
 		slog.Warn("web push delivery deferred", "attempt", attempts)
 	}
-	return nil
+	result.Status, result.RetryAt = "retry", next
+	return result, nil
 }
 
 func notificationPayload(delivery types.WebPushDelivery) ([]byte, error) {

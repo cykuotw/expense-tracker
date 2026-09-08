@@ -62,7 +62,10 @@ Complete example—replace every `REPLACE` value before deployment:
         "refresh_jwt_exp": 604800,
         "expenses_per_page": 25,
         "db_conn_max_lifetime_seconds": 300,
-        "db_conn_max_idle_time_seconds": 60
+        "db_conn_max_idle_time_seconds": 60,
+        "web_push_vapid_public_key": "REPLACE_WITH_VAPID_PUBLIC_KEY",
+        "web_push_vapid_private_key": "REPLACE_WITH_VAPID_PRIVATE_KEY",
+        "web_push_vapid_subject": "mailto:ops@example.com"
     },
     "frontend": {
         "hostname": "expense.example.com"
@@ -128,6 +131,38 @@ make deploy ACTION=destroy
 
 `SCOPE=backend` also publishes and invokes the bootstrap function first. This applies pending migrations and verifies first-administrator reconciliation before marker-dependent Worker code is published. Use `SCOPE=migrations` when only the migration/bootstrap step should run.
 
+Web Push uses two small Lambdas. The scheduled Sender runs outside the VPC and
+contacts public Push providers. It invokes the VPC-connected Delivery function
+through the IAM-authorized Lambda API to claim pending work and acknowledge a
+batch of results. Delivery connects only to PostgreSQL; it does not call the
+public Lambda API. No NAT Gateway, paid VPC endpoint, or permanent public IPv4
+is required for notifications. Costs are usage-based Lambda execution, logs, and
+data transfer, with no additional fixed network charge.
+
+Generate one VAPID key pair, keep the private key in the protected deployment
+configuration, and set `web_push_vapid_subject` to an operator contact such as
+`mailto:ops@example.com`. Existing VAPID configuration and mobile subscriptions
+remain valid. The deployer derives the Delivery function name automatically.
+Only Sender receives VAPID signing credentials; only Delivery receives database
+credentials. The API Worker receives the public VAPID key.
+
+Use `ACTION=update SCOPE=all` to publish migrations, both notification functions,
+and the frontend. Updates pause an existing Sender and wait up to its 60-second
+execution limit before replacing notification code. Delivery is configured and
+activated before Sender. If an update fails, rerun the same command; notifications
+may remain paused until it completes. The obsolete notification HTTPS security
+group rule is the only notification resource explicitly allowed to be deleted
+during this migration.
+
+The schedule runs every minute, claims up to 10 deliveries, and acknowledges
+results in one batch. An empty poll makes one Delivery invocation; a nonempty
+poll normally makes two. Leases expire after two minutes, transient failures
+are retried up to three reported attempts within the delivery expiry, and
+404/410 responses retire subscriptions. A push accepted before a lost
+acknowledgement can be sent again; exactly-once delivery is not promised.
+Concurrency is Worker `2`, Sender `1`, Delivery `1`, and Bootstrap `1` (five
+reserved executions in total, subject to the account's reservation quota).
+
 `SCOPE=all` also creates and manages the database EC2 Instance Connect
 Endpoint. It uses a dedicated security group with SSH-only access to the
 database host; it does not create a public IP or an SSM interface endpoint.
@@ -189,9 +224,9 @@ is not configured for forced deletion.
 ## Safety boundary
 
 - Terraform never receives database/JWT/first-admin secrets and never manages Lambda environments.
-- The Worker begins at reserved concurrency `0`; Python publishes runtime configuration and activates it at `3`.
+- The Worker begins at reserved concurrency `0`; Python publishes runtime configuration and activates it at `2`.
 - The raw execute-api endpoint is disabled only after custom-domain and frontend checks pass.
-- Normal updates use narrowly targeted, non-destructive Terraform plans only for explicitly supported API and CloudFront infrastructure changes; Lambda code and runtime environments remain owned by the deployment runtime after initial creation. The invitation-security release has a precise allowlist for retiring its two obsolete token-bearing routes; this is not a general permission to delete infrastructure.
-- Before an update, the deployer removes only unmanaged Worker/Bootstrap runtime environments if an AWS provider response persisted them into local state, then verifies that no configured protected value remains anywhere in Terraform artifacts.
+- Normal updates use narrowly targeted Terraform plans for supported API, CloudFront, notification, and database-support infrastructure changes; Lambda code and runtime environments remain owned by the deployment runtime after initial creation. Deletions are limited to the two retired invitation routes and the obsolete notification HTTPS egress rule; replacements and unrelated deletions are rejected.
+- Before an update, the deployer removes only unmanaged Worker/Bootstrap/Sender/Delivery runtime environments if an AWS provider response persisted them into local state, then verifies that no configured protected value remains anywhere in Terraform artifacts.
 - Destroy deletes Lambdas first, waits for their owned ENIs, then runs `terraform destroy -refresh=false`.
 - A deployment failure keeps persistent resources for an explicit resume; it never performs automatic rollback or destroy.

@@ -12,12 +12,13 @@ describe("config", () => {
         vi.stubEnv("VITE_GOOGLE_OAUTH_ENABLED", "false");
         vi.stubEnv("VITE_GOOGLE_CLIENT_ID", "");
 
-        const { GOOGLE_OAUTH_ENABLED, GOOGLE_CLIENT_ID } = await import(
+        const { FRONTEND_VERSION, GOOGLE_OAUTH_ENABLED, GOOGLE_CLIENT_ID } = await import(
             "./config"
         );
 
         expect(GOOGLE_OAUTH_ENABLED).toBe(false);
         expect(GOOGLE_CLIENT_ID).toBe("");
+        expect(FRONTEND_VERSION).toBe("v-development");
     });
 
     it("fails fast when Google OAuth is enabled without a client id", async () => {

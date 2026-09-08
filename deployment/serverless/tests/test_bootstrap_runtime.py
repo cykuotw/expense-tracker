@@ -24,6 +24,9 @@ def runtime_config() -> SimpleNamespace:
         backend=SimpleNamespace(
             jwt_secret="jwt-secret",
             refresh_jwt_secret="refresh-secret",
+            web_push_vapid_public_key="vapid-public-key",
+            web_push_vapid_private_key="vapid-private-key",
+            web_push_vapid_subject="mailto:ops@example.com",
         ),
         first_admin=None,
         bootstrap_environment=lambda _host: {"SAFE": "value"},
@@ -31,6 +34,34 @@ def runtime_config() -> SimpleNamespace:
 
 
 class BootstrapRuntimeTest(unittest.TestCase):
+    def test_delivery_is_configured_before_sender_and_failure_stops_activation(self) -> None:
+        config = runtime_config()
+        config.delivery_environment = lambda _host: {"Variables": {"DB_PUBLIC_HOST": "private"}}
+        config.sender_environment = lambda function: {"Variables": {"PUSH_DELIVERY_FUNCTION_NAME": function}}
+        outputs = {"database_host": "private", "delivery_function_name": "delivery", "sender_function_name": "sender"}
+        client = mock.MagicMock()
+        with tempfile.TemporaryDirectory() as temporary:
+            runtime.configure_notifications(client, config, outputs, Path(temporary))
+        calls = [(call[0], call.args[0]) for call in client.mock_calls]
+        self.assertEqual(calls, [
+            ("publish_environment", "delivery"), ("activate_notification_function", "delivery"),
+            ("publish_environment", "sender"), ("activate_notification_function", "sender"),
+        ])
+        client.reset_mock()
+        client.publish_environment.side_effect = CommandError("configuration failed")
+        with tempfile.TemporaryDirectory() as temporary:
+            with self.assertRaises(CommandError):
+                runtime.configure_notifications(client, config, outputs, Path(temporary))
+        client.activate_notification_function.assert_not_called()
+
+    def test_update_publishes_both_notification_artifacts_before_configuration(self) -> None:
+        client = mock.MagicMock()
+        outputs = {"delivery_function_name": "delivery", "sender_function_name": "sender"}
+        with mock.patch.object(runtime, "configure_notifications") as configure:
+            runtime.update_notifications(client, Path("sender.zip"), Path("delivery.zip"), mock.sentinel.config, outputs, Path("/tmp"))
+        self.assertEqual(client.publish_code.call_args_list, [mock.call("delivery", Path("delivery.zip")), mock.call("sender", Path("sender.zip"))])
+        configure.assert_called_once()
+
     def test_reconciled_first_invocation_is_idempotent(self) -> None:
         client = mock.MagicMock()
         client.invoke_bootstrap.side_effect = [

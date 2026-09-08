@@ -49,6 +49,15 @@ output "worker_function_name" {
 output "bootstrap_function_name" {
   value = aws_lambda_function.bootstrap.function_name
 }
+output "sender_function_name" {
+  value = aws_lambda_function.sender.function_name
+}
+output "delivery_function_name" {
+  value = aws_lambda_function.delivery.function_name
+}
+output "delivery_security_group_id" {
+  value = aws_security_group.sender.id
+}
 output "worker_role_name" {
   value = aws_iam_role.worker.name
 }

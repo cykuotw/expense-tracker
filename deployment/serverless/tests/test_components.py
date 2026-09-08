@@ -4,6 +4,7 @@ import hashlib
 import sys
 import tempfile
 import unittest
+from datetime import UTC, datetime
 from pathlib import Path
 from unittest import mock
 
@@ -13,7 +14,7 @@ sys.path.insert(0, str(ROOT))
 
 from backend.artifacts import build
 from database import backup
-from frontend.publish import publish, runtime_config
+from frontend.publish import frontend_version, publish, runtime_config
 from tests.test_config import ConfigTest
 
 
@@ -25,6 +26,7 @@ class ComponentTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary, mock.patch("backend.artifacts._go_build", side_effect=fake_build):
             output = Path(temporary)
             first = build(REPO, output)
+            self.assertEqual(set(first), {"worker", "bootstrap", "sender", "delivery"})
             hashes = {name: hashlib.sha256(path.read_bytes()).hexdigest() for name, path in first.items()}
             second = build(REPO, output)
             self.assertEqual(hashes, {name: hashlib.sha256(path.read_bytes()).hexdigest() for name, path in second.items()})
@@ -36,12 +38,27 @@ class ComponentTest(unittest.TestCase):
             case.write()
             from config import load
             config = load(case.path, Path("/unrelated/repository"))
-            rendered = runtime_config(config)
+            rendered = runtime_config(config, "v-20260907-deadbeef")
             self.assertIn('"apiOrigin": "https://api.example.com"', rendered)
             self.assertIn('"apiPath": "/api/v0"', rendered)
             self.assertIn('"googleOAuthEnabled": true', rendered)
+            self.assertIn('"frontendVersion": "v-20260907-deadbeef"', rendered)
         finally:
             case.tearDown()
+
+    def test_frontend_version_is_content_based_and_excludes_runtime_config(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            dist = Path(temporary)
+            (dist / "assets").mkdir()
+            (dist / "index.html").write_text("index")
+            (dist / "assets/app.js").write_text("app")
+            (dist / "runtime-config.js").write_text("first runtime config")
+            now = datetime(2026, 9, 7, tzinfo=UTC)
+            first = frontend_version(dist, now=now)
+            (dist / "runtime-config.js").write_text("second runtime config")
+            self.assertEqual(first, frontend_version(dist, now=now))
+            (dist / "assets/app.js").write_text("changed app")
+            self.assertNotEqual(first, frontend_version(dist, now=now))
 
     def test_frontend_publish_uses_safe_cache_headers_for_pwa_entrypoints(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -176,9 +193,23 @@ class ComponentTest(unittest.TestCase):
 
     def test_terraform_does_not_manage_lambda_runtime_updates(self) -> None:
         source = (ROOT / "infrastructure/tf/backend.tf").read_text()
+        source += (ROOT / "infrastructure/tf/notifications.tf").read_text()
 
-        self.assertEqual(source.count("source_code_hash,"), 2)
-        self.assertEqual(source.count("filename,"), 2)
+        self.assertEqual(source.count("source_code_hash,"), 4)
+        self.assertEqual(source.count("filename,"), 4)
+
+    def test_notification_network_and_iam_boundaries(self) -> None:
+        source = (ROOT / "infrastructure/tf/notifications.tf").read_text()
+        sender = source.split('resource "aws_lambda_function" "sender" {')[1].split("\n}", 1)[0]
+        delivery = source.split('resource "aws_lambda_function" "delivery" {')[1].split("\n}", 1)[0]
+        policy = source.split('resource "aws_iam_role_policy" "sender" {')[1].split("\n}", 1)[0]
+        self.assertNotIn("vpc_config", sender)
+        self.assertIn("vpc_config", delivery)
+        self.assertIn('Action = ["lambda:InvokeFunction"], Resource = aws_lambda_function.delivery.arn', policy)
+        self.assertNotIn("lambda_network_actions", policy)
+        self.assertNotIn("aws_nat_gateway", source)
+        self.assertNotIn("aws_vpc_endpoint", source)
+        self.assertNotIn("sender_to_push_providers", source)
 
     def test_api_route_throttling_covers_anonymous_and_authenticated_mutations(self) -> None:
         source = (ROOT / "infrastructure/tf/api.tf").read_text()

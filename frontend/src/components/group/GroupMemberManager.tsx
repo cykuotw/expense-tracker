@@ -14,6 +14,7 @@ export function GroupMemberManager() {
     return (
         <div className="grid gap-4 lg:grid-cols-5 lg:gap-6">
             <form
+                id="member-selection-form"
                 className="panel-card rounded-[2rem] p-4 md:p-6 lg:col-span-3"
                 onSubmit={handleSubmitRelatedUsers}
             >

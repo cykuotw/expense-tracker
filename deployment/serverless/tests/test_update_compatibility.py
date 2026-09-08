@@ -75,6 +75,10 @@ class UpdateCompatibilityTest(unittest.TestCase):
             targets,
         )
         self.assertIn("aws_cloudfront_distribution.frontend", targets)
+        self.assertIn("aws_lambda_function.sender", targets)
+        self.assertIn("aws_lambda_function.delivery", targets)
+        self.assertIn("aws_iam_role_policy.delivery", targets)
+        self.assertIn("aws_cloudwatch_event_rule.sender", targets)
         self.assertIn("aws_ec2_instance_connect_endpoint.operator_access", targets)
         self.assertIn("aws_security_group.operator_access", targets)
         self.assertIn("aws_s3_bucket.postgres_backup", targets)

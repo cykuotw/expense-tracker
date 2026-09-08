@@ -29,6 +29,10 @@ Browser
                                       PostgreSQL on EC2
 
 Deployment workflow --> Bootstrap Lambda --> migrations and bootstrap work
+
+EventBridge --> Push Sender Lambda (outside VPC) --> public Web Push providers
+                    |
+                    +-- IAM Invoke --> Delivery Lambda (VPC) --> PostgreSQL
 ```
 
 - **Frontend:** React, TypeScript, Vite, Tailwind CSS, and shadcn/Radix components produce the
@@ -39,6 +43,14 @@ Deployment workflow --> Bootstrap Lambda --> migrations and bootstrap work
 - **Bootstrap Lambda:** performs explicit migration and bootstrap work before
   Worker releases that depend on it. Migrations are never a request-time
   responsibility.
+- **Notifications:** a scheduled Sender outside the VPC invokes the private
+  Delivery Lambda to claim work and acknowledge results. Delivery owns database
+  access; Sender owns Web Push transport and VAPID signing. Neither a NAT Gateway
+  nor a paid VPC endpoint is required. IAM permits Sender to invoke only Delivery;
+  neither function exposes an HTTP endpoint. PostgreSQL leases prevent concurrent
+  claims, and expired leases permit recovery after interrupted sends. Delivery is
+  at-least-once: a provider may accept a push before its acknowledgement is lost.
+  See [notification component](backend/services/notification/README.md).
 - **Database:** PostgreSQL is stateful infrastructure on its own EC2 host.
   The Worker and Bootstrap functions connect through the VPC and security-group
   boundary; it is not a public application API. Operator host inspection uses

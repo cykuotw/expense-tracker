@@ -93,8 +93,8 @@ def preflight(context: Context, *, mutation: bool) -> None:
         if not zones.get("HostedZones") or zones["HostedZones"][0]["Name"].rstrip(".") != context.config.aws.hosted_zone_name:
             raise CommandError("public Route 53 hosted zone was not found")
         limit = int(context.aws.json("lambda", "get-account-settings")["AccountLimit"]["ConcurrentExecutions"])
-        if limit < 4:
-            raise CommandError("Lambda account concurrency must be at least 4")
+        if limit < 5:
+            raise CommandError("Lambda account concurrency must be at least 5")
 
 
 def _terraform(context: Context, temporary: bool, *, restore_verification: bool = False):
@@ -125,10 +125,10 @@ def _print_plan(actions: dict[str, list[str]]) -> None:
 
 def _assert_no_conflicts(context: Context) -> None:
     prefix = f"{context.config.deployment.name_prefix}-{context.config.deployment.environment}"
-    for function in (f"{prefix}-worker", f"{prefix}-bootstrap"):
+    for function in (f"{prefix}-worker", f"{prefix}-bootstrap", f"{prefix}-sender", f"{prefix}-delivery"):
         if context.aws.function_exists(function):
             raise CommandError(f"unexpected existing Lambda conflicts with fresh deployment: {function}")
-    for role in (f"{prefix}-worker-role", f"{prefix}-bootstrap-role"):
+    for role in (f"{prefix}-worker-role", f"{prefix}-bootstrap-role", f"{prefix}-sender-role", f"{prefix}-delivery-role"):
         if context.aws.resource_exists("iam", "get-role", "--role-name", role, missing=("NoSuchEntity",)):
             raise CommandError(f"unexpected existing IAM role conflicts with fresh deployment: {role}")
     bucket = f"{prefix}-frontend-{context.config.deployment.account_id}"
@@ -179,7 +179,7 @@ def _state(context: Context, terraform: Terraform) -> tuple[str, dict[str, Any]]
         api = context.aws.json("apigatewayv2", "get-api", "--api-id", str(outputs["api_id"]))
     except Exception:
         return "infra_ready_private", outputs
-    if concurrency == 3 and bool(api.get("DisableExecuteApiEndpoint")):
+    if concurrency in (2, 3) and bool(api.get("DisableExecuteApiEndpoint")):
         return "complete", outputs
     return "infra_ready_private", outputs
 
@@ -259,6 +259,8 @@ def deploy(context: Context) -> None:
         runtime.configure_bootstrap(context.aws, context.config, outputs, context.terraform_root)
         step("worker runtime and activation")
         runtime.configure_worker(context.aws, context.config, outputs, context.terraform_root)
+        step("push sender runtime and activation")
+        runtime.configure_notifications(context.aws, context.config, outputs, context.terraform_root)
         step("pre-cutover API verification")
         live_api = context.aws.json("apigatewayv2", "get-api", "--api-id", str(outputs["api_id"]))
         raw_already_disabled = bool(live_api.get("DisableExecuteApiEndpoint"))
@@ -292,7 +294,7 @@ def _require_complete(context: Context) -> dict[str, Any]:
             require_google_register_authorizer=False,
             require_google_link_authorizer=False,
         )
-        verify_frontend(context.config)
+        verify_frontend(context.config, require_frontend_version=False)
     except CommandError as error:
         raise CommandError(f"updates require a healthy complete deployment: {error}") from error
     return outputs
@@ -309,6 +311,25 @@ def _infrastructure_targets(scope: str) -> tuple[str, ...]:
             'aws_apigatewayv2_route.authenticated_mutation["expire_invitation"]'
         )
         targets.append("aws_apigatewayv2_stage.default")
+        targets.extend((
+            "aws_security_group.sender",
+            "aws_vpc_security_group_ingress_rule.postgres_from_sender",
+            "aws_vpc_security_group_egress_rule.sender_to_postgres",
+            "aws_vpc_security_group_egress_rule.sender_to_push_providers",
+            "aws_vpc_security_group_egress_rule.sender_to_vpc_dns_udp",
+            "aws_vpc_security_group_egress_rule.sender_to_vpc_dns_tcp",
+            "aws_iam_role.sender",
+            "aws_iam_role_policy.sender",
+            "aws_cloudwatch_log_group.sender",
+            "aws_lambda_function.sender",
+            "aws_iam_role.delivery",
+            "aws_iam_role_policy.delivery",
+            "aws_cloudwatch_log_group.delivery",
+            "aws_lambda_function.delivery",
+            "aws_cloudwatch_event_rule.sender",
+            "aws_cloudwatch_event_target.sender",
+            "aws_lambda_permission.sender_eventbridge",
+        ))
     if scope in {"frontend", "all"}:
         targets.extend((
             "aws_cloudfront_response_headers_policy.frontend_security",
@@ -420,12 +441,12 @@ def _apply_infrastructure_updates(context: Context, scope: str) -> dict[str, Any
         terraform.plan(plan_path, targets=targets)
         actions = require_non_destructive_update(
             terraform.show_plan(plan_path),
-            allowed_deletes=RETIRED_INVITATION_ROUTE_ADDRESSES,
+            allowed_deletes=RETIRED_INVITATION_ROUTE_ADDRESSES | frozenset({"aws_vpc_security_group_egress_rule.sender_to_push_providers"}),
         )
         _print_plan(actions)
         if actions:
             terraform.apply(plan_path)
-        outputs = terraform.output() if scope == "all" else None
+        outputs = terraform.output()
     step("infrastructure", "pass")
     return outputs
 
@@ -438,16 +459,21 @@ def update(context: Context, scope: str) -> None:
     outputs = _require_complete(context)
     # Terraform evaluates Lambda artifact hashes even for targeted infrastructure plans.
     built = artifacts.build(context.repo_root, context.serverless_root / "build")
+    if scope in {"backend", "all"} and outputs.get("sender_function_name"):
+        context.aws.pause_sender(str(outputs["sender_function_name"]))
     if scope in {"migrations", "backend", "all"}:
         step("migrations")
         runtime.update_bootstrap(context.aws, built["bootstrap"], context.config, outputs, context.terraform_root)
         step("migrations", "pass")
     infrastructure_outputs = _apply_infrastructure_updates(context, scope)
+    if infrastructure_outputs is not None:
+        outputs = infrastructure_outputs
     if scope == "all" and infrastructure_outputs is not None:
         _ensure_postgres_backup_profile(context, infrastructure_outputs)
     if scope in {"backend", "all"}:
         step("backend")
         runtime.update_worker(context.aws, built["worker"], context.config, outputs, context.terraform_root)
+        runtime.update_notifications(context.aws, built["sender"], built["delivery"], context.config, outputs, context.terraform_root)
         verify_api(context.config)
         step("backend", "pass")
     if scope in {"frontend", "all"}:
@@ -737,9 +763,12 @@ def destroy(context: Context) -> None:
         _confirm("Delete all resources owned by the unified serverless deployment?", expected)
         context.aws.delete_function(str(outputs["worker_function_name"]))
         context.aws.delete_function(str(outputs["bootstrap_function_name"]))
-        _wait_enis(context, [str(outputs["worker_security_group_id"]), str(outputs["bootstrap_security_group_id"])])
+        for key in ("sender_function_name", "delivery_function_name"):
+            if outputs.get(key):
+                context.aws.delete_function(str(outputs[key]))
+        _wait_enis(context, [str(outputs[key]) for key in ("worker_security_group_id", "bootstrap_security_group_id", "delivery_security_group_id") if outputs.get(key)])
         terraform.destroy()
-    for function in (str(outputs["worker_function_name"]), str(outputs["bootstrap_function_name"])):
+    for function in (str(outputs[key]) for key in ("worker_function_name", "bootstrap_function_name", "sender_function_name", "delivery_function_name") if outputs.get(key)):
         if context.aws.function_exists(function):
             raise CommandError(f"owned Lambda still exists after destroy: {function}")
     _audit_absent(context, outputs)

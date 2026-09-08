@@ -33,6 +33,9 @@ class ConfigTest(unittest.TestCase):
             "google_client_id": "client.apps.googleusercontent.com",
             "jwt_secret": "j" * 32,
             "refresh_jwt_secret": "r" * 32,
+            "web_push_vapid_public_key": "p" * 43,
+            "web_push_vapid_private_key": "k" * 43,
+            "web_push_vapid_subject": "mailto:ops@example.com",
         })
         self.value["local_credentials"]["ssh_private_key_file"] = str(self.key)
 
@@ -49,11 +52,34 @@ class ConfigTest(unittest.TestCase):
         self.assertEqual(config.api_origin, "https://api.example.com")
         variables = config.terraform_variables(temporary_access=True)
         self.assertNotIn("runtime_password", variables)
+        self.assertNotIn("web_push_vapid_public_key", variables)
+        self.assertNotIn("web_push_vapid_private_key", variables)
+        self.assertNotIn("web_push_vapid_subject", variables)
         self.assertTrue(variables["enable_temporary_public_access"])
         self.assertFalse(variables["enable_restore_verification"])
         self.assertEqual(config.backup.time, "03:17:00")
         self.assertEqual(config.backup.timezone, "UTC")
         self.assertEqual(config.worker_environment("10.0.0.2")["Variables"]["AUTH_COOKIE_SAME_SITE"], "lax")
+        self.assertEqual(config.worker_environment("10.0.0.2")["Variables"]["WEB_PUSH_VAPID_PUBLIC_KEY"], "p" * 43)
+        sender = config.sender_environment("delivery-function")["Variables"]
+        delivery = config.delivery_environment("10.0.0.2")["Variables"]
+        self.assertEqual(sender["WEB_PUSH_VAPID_PRIVATE_KEY"], "k" * 43)
+        self.assertEqual(sender["PUSH_DELIVERY_FUNCTION_NAME"], "delivery-function")
+        self.assertFalse(any(key.startswith("DB_") for key in sender))
+        self.assertEqual(delivery["DB_PUBLIC_HOST"], "10.0.0.2")
+        self.assertFalse(any(key.startswith("WEB_PUSH_") for key in delivery))
+        self.assertNotIn("WEB_PUSH_VAPID_PRIVATE_KEY", config.worker_environment("10.0.0.2")["Variables"])
+
+    def test_rejects_invalid_vapid_configuration(self) -> None:
+        self.value["backend"]["web_push_vapid_private_key"] = "short"
+        self.write()
+        with self.assertRaisesRegex(ConfigError, "web_push_vapid_private_key"):
+            load(self.path, Path("/unrelated/repository"))
+        self.value["backend"]["web_push_vapid_private_key"] = "k" * 43
+        self.value["backend"]["web_push_vapid_subject"] = "ops@example.com"
+        self.write()
+        with self.assertRaisesRegex(ConfigError, "web_push_vapid_subject"):
+            load(self.path, Path("/unrelated/repository"))
 
     def test_accepts_configured_backup_time_and_iana_timezone(self) -> None:
         self.value["backup"] = {"time": "01:17:00", "timezone": "America/Toronto"}

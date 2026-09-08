@@ -16,6 +16,7 @@ const {
 }));
 
 vi.mock("../configs/config", () => ({
+    FRONTEND_VERSION: "v-20260907-deadbeef",
     get GOOGLE_OAUTH_ENABLED() {
         return googleConfigState.enabled;
     },
@@ -88,6 +89,12 @@ describe("AccountSettings", () => {
     });
 
     afterEach(cleanup);
+
+    it("shows the deployed frontend version", async () => {
+        render(<AccountSettings />);
+
+        expect(await screen.findByText("v-20260907-deadbeef")).toBeInTheDocument();
+    });
 
     it("updates editable profile fields while keeping email read-only", async () => {
         render(<AccountSettings />);

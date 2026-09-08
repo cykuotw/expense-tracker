@@ -23,6 +23,8 @@ variable "database_ami_id" {
 }
 variable "worker_artifact_path" { type = string }
 variable "bootstrap_artifact_path" { type = string }
+variable "sender_artifact_path" { type = string }
+variable "delivery_artifact_path" { type = string }
 variable "api_hostname" { type = string }
 variable "frontend_hostname" { type = string }
 variable "google_client_id" { type = string }

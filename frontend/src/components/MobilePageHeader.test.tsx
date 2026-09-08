@@ -19,6 +19,7 @@ describe("MobilePageHeader", () => {
         const back = screen.getByRole("link", { name: "Back to group" });
         expect(back).toHaveAttribute("href", "/group/group-1");
         expect(back).toHaveClass("ui-button-outline", "mobile-page-header__back");
+        expect(screen.getByRole("banner")).toHaveClass("mobile-page-header--sticky");
         expect(screen.getByRole("heading", { name: "Edit group" })).toBeVisible();
         expect(screen.getByRole("button", { name: "Save group" })).toBeVisible();
     });

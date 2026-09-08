@@ -26,6 +26,9 @@ def config() -> SimpleNamespace:
         backend=SimpleNamespace(
             jwt_secret="jwt-secret",
             refresh_jwt_secret="refresh-secret",
+            web_push_vapid_public_key="vapid-public-key",
+            web_push_vapid_private_key="vapid-private-key",
+            web_push_vapid_subject="mailto:ops@example.com",
         ),
         first_admin=None,
     )

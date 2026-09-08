@@ -99,7 +99,12 @@ PostgreSQL
   authentication, CSRF, and other credential-bearing requests remain
   network-only; offline mode never exposes cached expense or account data.
   The serverless publisher serves versioned assets as immutable and entry-point
-  files (including the worker and runtime configuration) with `no-cache`.
+  files with `no-cache`. In particular, the generated `service-worker.js` must
+  remain in the publisher's mutable-file set; serving it with immutable caching
+  can leave installed clients on a stale application shell and prevent the reload
+  prompt from discovering new releases. Any change to the generated worker
+  filename must update the publisher and its cache-header regression test in the
+  same change.
 - `backend/internal/tracker` assembles the Gin application and its public,
   authenticated, and administrator route groups.
 - `backend/services/` is organized by domain, including auth, users, groups,

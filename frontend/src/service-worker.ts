@@ -10,6 +10,17 @@ declare const self: ServiceWorkerGlobalScope & typeof globalThis & {
 
 cleanupOutdatedCaches();
 precacheAndRoute(self.__WB_MANIFEST);
+
+// vite-plugin-pwa's prompt registration sends this message when the user
+// chooses “Reload now”. injectManifest workers must handle it themselves;
+// without it, the downloaded worker remains waiting and the current shell
+// continues to serve the previous application version.
+self.addEventListener("message", (event) => {
+    if (event.data?.type === "SKIP_WAITING") {
+        event.waitUntil(self.skipWaiting());
+    }
+});
+
 registerRoute(new NavigationRoute(createHandlerBoundToURL("index.html"), { denylist: [/^\/api\//, /^\/auth\//] }));
 registerRoute(({ url }) => url.pathname.endsWith("/runtime-config.js"), new NetworkFirst({ cacheName: "runtime-config", networkTimeoutSeconds: 3, plugins: [new ExpirationPlugin({ maxEntries: 1, maxAgeSeconds: 60 * 60 * 24 })] }));
 self.addEventListener("push", (event) => {

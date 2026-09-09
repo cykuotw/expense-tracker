@@ -56,33 +56,34 @@ func TestNormalizeGoogleExchangeMode(t *testing.T) {
 
 func TestValidateGoogleOAuthConfig(t *testing.T) {
 	t.Run("accepts configured inprocess mode", func(t *testing.T) {
-		validateGoogleOAuthConfig(Config{
+		if err := validateGoogleOAuthConfig(Config{
 			GoogleOAuthEnabled: true,
 			GoogleClientId:     "client-id",
 			GoogleExchangeMode: GoogleExchangeInProcess,
-		})
+		}); err != nil {
+			t.Fatal(err)
+		}
 	})
 
 	t.Run("rejects invalid mode", func(t *testing.T) {
-		defer func() {
-			if recover() == nil {
-				t.Fatal("expected panic for invalid google exchange mode")
-			}
-		}()
-
-		validateGoogleOAuthConfig(Config{
+		err := validateGoogleOAuthConfig(Config{
 			GoogleOAuthEnabled: true,
 			GoogleClientId:     "client-id",
 			GoogleExchangeMode: GoogleExchangeMode("bogus"),
 		})
+		if err == nil {
+			t.Fatal("expected invalid google exchange mode error")
+		}
 	})
 
 	t.Run("allows missing google oauth config when exchange mode is unset or defaulted", func(t *testing.T) {
-		validateGoogleOAuthConfig(Config{
+		if err := validateGoogleOAuthConfig(Config{
 			GoogleOAuthEnabled: false,
 			GoogleClientId:     "",
 			GoogleExchangeMode: GoogleExchangeInProcess,
-		})
+		}); err != nil {
+			t.Fatal(err)
+		}
 	})
 }
 

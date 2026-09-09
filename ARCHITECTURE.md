@@ -205,6 +205,10 @@ changes; establishing a contract-generation system is a separate change.
 - Runtime configuration, database credentials, signing keys, invitation
   secrets, cookies, and external-provider credentials must never be added to
   source code, public documentation, logs, or client-side storage.
+- Request-serving release binaries validate their complete security-relevant
+  configuration before constructing a database connection. The serverless
+  Worker is compiled with an authoritative release marker; deployment-time
+  checks remain defense in depth rather than the application security boundary.
 - PostgreSQL is durable state. The supported deployment uses daily encrypted
   logical PostgreSQL dumps in a private S3 bucket with bounded retention and a
   separate, on-demand isolated restore verification. This is backup and

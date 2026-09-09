@@ -86,6 +86,16 @@ Complete example—replace every `REPLACE` value before deployment:
 
 Set `"first_admin": null` when no initial administrator should be created. `nickname` may be an empty string. The application generates the administrator's user ID; no ID belongs in this file.
 
+The access-token lifetime must be between 60 and 86,400 seconds. The refresh
+lifetime must be between 300 and 31,536,000 seconds and greater than the access
+lifetime. The two JWT secrets must be different and at least 32 bytes;
+length is a minimum safeguard, not proof of entropy. `expenses_per_page` is
+limited to 1–1,000. Database connection lifetime and idle-time values are
+limited to 0–86,400 seconds, where `0` disables the corresponding expiration.
+The deployed Worker retains the stricter two-connection application pool budget.
+The request-server runtime permits at most 100 open database connections, with
+idle connections between zero and that configured open-connection limit.
+
 ## Local build-tool provisioning
 
 The machine that runs `make deploy` builds and tests the frontend locally before

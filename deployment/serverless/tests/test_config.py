@@ -84,6 +84,46 @@ class ConfigTest(unittest.TestCase):
         with self.assertRaisesRegex(ConfigError, "web_push_vapid_subject"):
             load(self.path, Path("/unrelated/repository"))
 
+    def test_rejects_insecure_token_and_numeric_boundaries(self) -> None:
+        cases = (
+            ("jwt_secret", "s" * 32, "jwt_secret and backend.refresh_jwt_secret"),
+            ("jwt_exp", 59, "backend.jwt_exp"),
+            ("jwt_exp", 86_401, "backend.jwt_exp"),
+            ("refresh_jwt_exp", 300, "greater than backend.jwt_exp"),
+            ("refresh_jwt_exp", 31_536_001, "backend.refresh_jwt_exp"),
+            ("expenses_per_page", 1_001, "backend.expenses_per_page"),
+            ("db_conn_max_lifetime_seconds", -1, "backend.db_conn_max_lifetime_seconds"),
+            ("db_conn_max_idle_time_seconds", 86_401, "backend.db_conn_max_idle_time_seconds"),
+        )
+        for key, value, message in cases:
+            with self.subTest(key=key, value=value):
+                original = self.value["backend"][key]
+                if key == "jwt_secret":
+                    self.value["backend"]["refresh_jwt_secret"] = value
+                self.value["backend"][key] = value
+                self.write()
+                with self.assertRaisesRegex(ConfigError, message):
+                    load(self.path, Path("/unrelated/repository"))
+                self.value["backend"][key] = original
+                self.value["backend"]["refresh_jwt_secret"] = "r" * 32
+
+    def test_accepts_disabled_database_connection_durations(self) -> None:
+        self.value["backend"]["db_conn_max_lifetime_seconds"] = 0
+        self.value["backend"]["db_conn_max_idle_time_seconds"] = 0
+        self.write()
+        config = load(self.path, Path("/unrelated/repository"))
+        self.assertEqual(config.backend.db_conn_max_lifetime_seconds, 0)
+        self.assertEqual(config.backend.db_conn_max_idle_time_seconds, 0)
+
+    def test_validation_errors_do_not_expose_secret_values(self) -> None:
+        supplied = "private-value-that-is-too-short"
+        self.value["backend"]["jwt_secret"] = supplied
+        self.write()
+        with self.assertRaises(ConfigError) as raised:
+            load(self.path, Path("/unrelated/repository"))
+        self.assertIn("backend.jwt_secret", str(raised.exception))
+        self.assertNotIn(supplied, str(raised.exception))
+
     def test_accepts_configured_backup_time_and_iana_timezone(self) -> None:
         self.value["backup"] = {"time": "01:17:00", "timezone": "America/Toronto"}
         self.write()

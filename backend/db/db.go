@@ -39,17 +39,21 @@ func configureConnectionPool(db *sql.DB, cfg poolConfig) {
 
 func poolConfigFromConfig(cfg config.Config) poolConfig {
 	pool := defaultPoolConfig()
+	if cfg.DBMaxOpenConns == 0 && cfg.DBMaxIdleConns == 0 &&
+		cfg.DBConnMaxLifetimeSeconds == 0 && cfg.DBConnMaxIdleTimeSeconds == 0 {
+		return pool
+	}
 
 	if cfg.DBMaxOpenConns > 0 {
 		pool.maxOpenConns = cfg.DBMaxOpenConns
 	}
-	if cfg.DBMaxIdleConns > 0 {
+	if cfg.DBMaxIdleConns >= 0 {
 		pool.maxIdleConns = cfg.DBMaxIdleConns
 	}
-	if cfg.DBConnMaxLifetimeSeconds > 0 {
+	if cfg.DBConnMaxLifetimeSeconds >= 0 {
 		pool.connMaxLifetime = time.Duration(cfg.DBConnMaxLifetimeSeconds) * time.Second
 	}
-	if cfg.DBConnMaxIdleTimeSeconds > 0 {
+	if cfg.DBConnMaxIdleTimeSeconds >= 0 {
 		pool.connMaxIdleTime = time.Duration(cfg.DBConnMaxIdleTimeSeconds) * time.Second
 	}
 

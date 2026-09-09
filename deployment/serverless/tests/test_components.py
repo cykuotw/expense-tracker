@@ -20,7 +20,10 @@ from tests.test_config import ConfigTest
 
 class ComponentTest(unittest.TestCase):
     def test_artifacts_are_deterministic_and_component_owned(self) -> None:
-        def fake_build(_repo: Path, package: str, destination: Path) -> None:
+        flags = {}
+
+        def fake_build(_repo: Path, package: str, destination: Path, ldflags: str = "-s -w") -> None:
+            flags[package] = ldflags
             destination.write_bytes((package + " binary").encode())
 
         with tempfile.TemporaryDirectory() as temporary, mock.patch("backend.artifacts._go_build", side_effect=fake_build):
@@ -30,6 +33,13 @@ class ComponentTest(unittest.TestCase):
             hashes = {name: hashlib.sha256(path.read_bytes()).hexdigest() for name, path in first.items()}
             second = build(REPO, output)
             self.assertEqual(hashes, {name: hashlib.sha256(path.read_bytes()).hexdigest() for name, path in second.items()})
+            self.assertIn("config.BuildMode=release", flags["./backend/cmd/tracker-serverless"])
+            for package in (
+                "./backend/cmd/bootstrap-serverless",
+                "./backend/cmd/push-sender-serverless",
+                "./backend/cmd/push-delivery-serverless",
+            ):
+                self.assertEqual(flags[package], "-s -w")
 
     def test_frontend_runtime_contract(self) -> None:
         case = ConfigTest()

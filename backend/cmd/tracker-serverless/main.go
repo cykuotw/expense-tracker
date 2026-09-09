@@ -4,6 +4,7 @@ import (
 	"context"
 	"expense-tracker/backend/config"
 	dbstore "expense-tracker/backend/db"
+	"expense-tracker/backend/internal/requestserver"
 	"expense-tracker/backend/internal/serverless"
 	trackerapp "expense-tracker/backend/internal/tracker"
 	"log"
@@ -20,20 +21,19 @@ func closeDBPool(storage interface{ Close() error }) {
 }
 
 func main() {
-	cfg := config.Envs
+	cfg, err := config.Load()
+	if err != nil {
+		log.Fatal(err)
+	}
 
-	storage, err := dbstore.NewPostgreSQLStorage(cfg)
+	storage, err := requestserver.OpenDatabase(cfg, config.RequestServerServerless, dbstore.NewPostgreSQLStorage)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer closeDBPool(storage)
 
-	if err := storage.Ping(); err != nil {
-		log.Fatal(err)
-	}
-
 	handler := trackerapp.NewHandler(storage)
-	if config.Envs.GoogleExchangeModeIs(config.GoogleExchangeUpstreamVerified) {
+	if cfg.GoogleExchangeModeIs(config.GoogleExchangeUpstreamVerified) {
 		handler = serverless.WrapWithGoogleAuthorizerClaims(handler)
 	}
 

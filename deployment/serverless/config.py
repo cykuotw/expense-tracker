@@ -14,6 +14,14 @@ class ConfigError(ValueError):
     pass
 
 
+MIN_ACCESS_TOKEN_LIFETIME_SECONDS = 60
+MAX_ACCESS_TOKEN_LIFETIME_SECONDS = 86_400
+MIN_REFRESH_TOKEN_LIFETIME_SECONDS = 300
+MAX_REFRESH_TOKEN_LIFETIME_SECONDS = 31_536_000
+MAX_DB_CONNECTION_DURATION_SECONDS = 86_400
+MAX_EXPENSES_PER_PAGE = 1_000
+
+
 def _object(value: Any, name: str) -> dict[str, Any]:
     if not isinstance(value, dict):
         raise ConfigError(f"{name} must be an object")
@@ -35,9 +43,15 @@ def _string(value: Any, name: str, *, allow_empty: bool = False) -> str:
     return value.strip() if not allow_empty else value
 
 
-def _integer(value: Any, name: str, *, minimum: int = 1) -> int:
-    if isinstance(value, bool) or not isinstance(value, int) or value < minimum:
-        raise ConfigError(f"{name} must be an integer >= {minimum}")
+def _integer(value: Any, name: str, *, minimum: int = 1, maximum: int | None = None) -> int:
+    if (
+        isinstance(value, bool)
+        or not isinstance(value, int)
+        or value < minimum
+        or (maximum is not None and value > maximum)
+    ):
+        bound = f" between {minimum} and {maximum}" if maximum is not None else f" >= {minimum}"
+        raise ConfigError(f"{name} must be an integer{bound}")
     return value
 
 
@@ -50,8 +64,8 @@ def _hostname(value: Any, name: str) -> str:
 
 def _secret(value: Any, name: str, *, minimum: int = 16) -> str:
     result = _string(value, name)
-    if len(result) < minimum or result.upper().startswith(("REPLACE", "CHANGE", "EXAMPLE")):
-        raise ConfigError(f"{name} must be a non-placeholder secret of at least {minimum} characters")
+    if len(result.encode("utf-8")) < minimum or result.upper().startswith(("REPLACE", "CHANGE", "EXAMPLE")):
+        raise ConfigError(f"{name} must be a non-placeholder secret of at least {minimum} bytes")
     return result
 
 
@@ -351,7 +365,45 @@ def load(path: Path, repo_root: Path) -> Config:
     google_client_id = _string(backend_raw["google_client_id"], "backend.google_client_id")
     if google_client_id.upper().startswith(("REPLACE", "EXAMPLE")):
         raise ConfigError("backend.google_client_id must not be a placeholder")
-    backend = Backend(_hostname(backend_raw["api_hostname"], "backend.api_hostname"), google_client_id, _secret(backend_raw["jwt_secret"], "backend.jwt_secret", minimum=32), _integer(backend_raw["jwt_exp"], "backend.jwt_exp"), _secret(backend_raw["refresh_jwt_secret"], "backend.refresh_jwt_secret", minimum=32), _integer(backend_raw["refresh_jwt_exp"], "backend.refresh_jwt_exp"), _integer(backend_raw["expenses_per_page"], "backend.expenses_per_page"), _integer(backend_raw["db_conn_max_lifetime_seconds"], "backend.db_conn_max_lifetime_seconds"), _integer(backend_raw["db_conn_max_idle_time_seconds"], "backend.db_conn_max_idle_time_seconds"), _vapid_key(backend_raw["web_push_vapid_public_key"], "backend.web_push_vapid_public_key"), _vapid_key(backend_raw["web_push_vapid_private_key"], "backend.web_push_vapid_private_key"), _vapid_subject(backend_raw["web_push_vapid_subject"], "backend.web_push_vapid_subject"))
+    backend = Backend(
+        _hostname(backend_raw["api_hostname"], "backend.api_hostname"),
+        google_client_id,
+        _secret(backend_raw["jwt_secret"], "backend.jwt_secret", minimum=32),
+        _integer(
+            backend_raw["jwt_exp"], "backend.jwt_exp",
+            minimum=MIN_ACCESS_TOKEN_LIFETIME_SECONDS,
+            maximum=MAX_ACCESS_TOKEN_LIFETIME_SECONDS,
+        ),
+        _secret(backend_raw["refresh_jwt_secret"], "backend.refresh_jwt_secret", minimum=32),
+        _integer(
+            backend_raw["refresh_jwt_exp"], "backend.refresh_jwt_exp",
+            minimum=MIN_REFRESH_TOKEN_LIFETIME_SECONDS,
+            maximum=MAX_REFRESH_TOKEN_LIFETIME_SECONDS,
+        ),
+        _integer(
+            backend_raw["expenses_per_page"], "backend.expenses_per_page",
+            maximum=MAX_EXPENSES_PER_PAGE,
+        ),
+        _integer(
+            backend_raw["db_conn_max_lifetime_seconds"],
+            "backend.db_conn_max_lifetime_seconds",
+            minimum=0,
+            maximum=MAX_DB_CONNECTION_DURATION_SECONDS,
+        ),
+        _integer(
+            backend_raw["db_conn_max_idle_time_seconds"],
+            "backend.db_conn_max_idle_time_seconds",
+            minimum=0,
+            maximum=MAX_DB_CONNECTION_DURATION_SECONDS,
+        ),
+        _vapid_key(backend_raw["web_push_vapid_public_key"], "backend.web_push_vapid_public_key"),
+        _vapid_key(backend_raw["web_push_vapid_private_key"], "backend.web_push_vapid_private_key"),
+        _vapid_subject(backend_raw["web_push_vapid_subject"], "backend.web_push_vapid_subject"),
+    )
+    if backend.jwt_secret == backend.refresh_jwt_secret:
+        raise ConfigError("backend.jwt_secret and backend.refresh_jwt_secret must be different")
+    if backend.refresh_jwt_exp <= backend.jwt_exp:
+        raise ConfigError("backend.refresh_jwt_exp must be greater than backend.jwt_exp")
 
     frontend_raw = _object(raw["frontend"], "frontend")
     _keys(frontend_raw, "frontend", {"hostname"})

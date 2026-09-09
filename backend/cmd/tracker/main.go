@@ -4,6 +4,7 @@ import (
 	"context"
 	"expense-tracker/backend/config"
 	dbstore "expense-tracker/backend/db"
+	"expense-tracker/backend/internal/requestserver"
 	trackerapp "expense-tracker/backend/internal/tracker"
 	"log"
 	"net/http"
@@ -19,15 +20,13 @@ func closeDBPool(storage interface{ Close() error }) {
 }
 
 func main() {
-	cfg := config.Envs
-
-	storage, err := dbstore.NewPostgreSQLStorage(cfg)
+	cfg, err := config.Load()
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	if err := storage.Ping(); err != nil {
-		closeDBPool(storage)
+	storage, err := requestserver.OpenDatabase(cfg, config.RequestServerStandalone, dbstore.NewPostgreSQLStorage)
+	if err != nil {
 		log.Fatal(err)
 	}
 

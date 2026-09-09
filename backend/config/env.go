@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"net/http"
 	"os"
 	"strconv"
@@ -48,6 +49,8 @@ type Config struct {
 	AuthCookieDomain   string
 	AuthCookieSecure   bool
 	AuthCookieSameSite http.SameSite
+
+	provided map[string]bool
 }
 
 var Envs = initConfig()
@@ -62,11 +65,14 @@ var BuildMode string
 
 func initConfig() Config {
 	loadLocalEnv()
-
-	mode := getEnv("MODE", "debug")
-	if BuildMode != "" {
-		mode = BuildMode
+	if cfg, err := loadFromLookup(os.LookupEnv); err == nil {
+		return cfg
 	}
+	return legacyConfig()
+}
+
+func legacyConfig() Config {
+	mode := effectiveMode(getEnv("MODE", "debug"))
 
 	cfg := Config{
 		Mode: mode,
@@ -109,8 +115,14 @@ func initConfig() Config {
 		AuthCookieSameSite: getEnvSameSite("AUTH_COOKIE_SAME_SITE", http.SameSiteLaxMode),
 	}
 
-	validateGoogleOAuthConfig(cfg)
 	return cfg
+}
+
+func effectiveMode(runtimeMode string) string {
+	if BuildMode != "" {
+		return BuildMode
+	}
+	return runtimeMode
 }
 
 func loadLocalEnv() {
@@ -212,20 +224,17 @@ func normalizeGoogleExchangeMode(value string) GoogleExchangeMode {
 	return GoogleExchangeMode(normalized)
 }
 
-func validateGoogleOAuthConfig(cfg Config) {
+func validateGoogleOAuthConfig(cfg Config) error {
 	if cfg.GoogleOAuthEnabled && strings.TrimSpace(cfg.GoogleClientId) == "" {
-		panic("invalid Google OAuth config: GOOGLE_OAUTH_ENABLED=true requires GOOGLE_CLIENT_ID")
+		return fmt.Errorf("GOOGLE_OAUTH_ENABLED=true requires GOOGLE_CLIENT_ID")
 	}
 
 	switch cfg.GoogleExchangeMode {
 	case GoogleExchangeInProcess, GoogleExchangeUpstreamVerified:
 	default:
-		panic("invalid Google OAuth config: GOOGLE_EXCHANGE_MODE must be one of inprocess or upstream_verified")
+		return fmt.Errorf("GOOGLE_EXCHANGE_MODE must be one of inprocess or upstream_verified")
 	}
-
-	if !cfg.GoogleOAuthConfigured() {
-		return
-	}
+	return nil
 }
 
 func (c Config) GoogleOAuthConfigured() bool {

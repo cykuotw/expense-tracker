@@ -32,6 +32,15 @@ func TestPoolConfigFromConfigUsesOverrides(t *testing.T) {
 	assert.Equal(t, 15*time.Second, cfg.connMaxIdleTime)
 }
 
+func TestPoolConfigFromConfigTreatsConfiguredZeroDurationsAsDisabled(t *testing.T) {
+	cfg := poolConfigFromConfig(config.Config{DBMaxOpenConns: 2})
+
+	assert.Equal(t, 2, cfg.maxOpenConns)
+	assert.Zero(t, cfg.maxIdleConns)
+	assert.Zero(t, cfg.connMaxLifetime)
+	assert.Zero(t, cfg.connMaxIdleTime)
+}
+
 func TestNewPostgreSQLStorageConfiguresConnectionPool(t *testing.T) {
 	storage, err := NewPostgreSQLStorage(config.Config{
 		DBUser:       "tracker",

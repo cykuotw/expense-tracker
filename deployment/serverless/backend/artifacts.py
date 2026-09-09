@@ -19,9 +19,9 @@ def _entry(name: str, data: bytes, mode: int) -> zipfile.ZipInfo:
     return info
 
 
-def _go_build(repo_root: Path, package: str, destination: Path) -> None:
+def _go_build(repo_root: Path, package: str, destination: Path, ldflags: str = "-s -w") -> None:
     run(
-        ["go", "build", "-trimpath", "-ldflags=-s -w", "-o", str(destination), package],
+        ["go", "build", "-trimpath", f"-ldflags={ldflags}", "-o", str(destination), package],
         cwd=repo_root,
         env={"GOOS": "linux", "GOARCH": "arm64", "CGO_ENABLED": "0"},
         capture=False,
@@ -36,7 +36,12 @@ def build(repo_root: Path, output_dir: Path) -> dict[str, Path]:
         bootstrap_binary = staging / "admin-bootstrap"
         sender_binary = staging / "push-sender"
         delivery_binary = staging / "push-delivery"
-        _go_build(repo_root, "./backend/cmd/tracker-serverless", worker_binary)
+        _go_build(
+            repo_root,
+            "./backend/cmd/tracker-serverless",
+            worker_binary,
+            "-s -w -X expense-tracker/backend/config.BuildMode=release",
+        )
         _go_build(repo_root, "./backend/cmd/bootstrap-serverless", bootstrap_binary)
         _go_build(repo_root, "./backend/cmd/push-sender-serverless", sender_binary)
         _go_build(repo_root, "./backend/cmd/push-delivery-serverless", delivery_binary)

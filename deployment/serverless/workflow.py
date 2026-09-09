@@ -179,7 +179,7 @@ def _state(context: Context, terraform: Terraform) -> tuple[str, dict[str, Any]]
         api = context.aws.json("apigatewayv2", "get-api", "--api-id", str(outputs["api_id"]))
     except Exception:
         return "infra_ready_private", outputs
-    if concurrency in (2, 3) and bool(api.get("DisableExecuteApiEndpoint")):
+    if concurrency in (2, 3, 5) and bool(api.get("DisableExecuteApiEndpoint")):
         return "complete", outputs
     return "infra_ready_private", outputs
 

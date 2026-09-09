@@ -14,6 +14,48 @@ import workflow
 
 class WorkflowTest(unittest.TestCase):
 
+    def test_state_accepts_current_worker_concurrency_after_api_cutover(self) -> None:
+        context = mock.MagicMock()
+        terraform = mock.MagicMock()
+        outputs = {
+            "database_host": "10.0.0.5",
+            "worker_function_name": "worker",
+            "bootstrap_function_name": "bootstrap",
+            "api_id": "api",
+            "raw_api_endpoint": "https://raw.example",
+            "frontend_bucket_name": "bucket",
+            "cloudfront_distribution_id": "distribution",
+        }
+        terraform.has_state.return_value = True
+        terraform.output.return_value = outputs
+        context.aws.concurrency.return_value = 5
+        context.aws.json.return_value = {"DisableExecuteApiEndpoint": True}
+
+        state, detected_outputs = workflow._state(context, terraform)
+
+        self.assertEqual(state, "complete")
+        self.assertEqual(detected_outputs, outputs)
+
+    def test_state_requires_api_cutover_at_current_worker_concurrency(self) -> None:
+        context = mock.MagicMock()
+        terraform = mock.MagicMock()
+        terraform.has_state.return_value = True
+        terraform.output.return_value = {
+            "database_host": "10.0.0.5",
+            "worker_function_name": "worker",
+            "bootstrap_function_name": "bootstrap",
+            "api_id": "api",
+            "raw_api_endpoint": "https://raw.example",
+            "frontend_bucket_name": "bucket",
+            "cloudfront_distribution_id": "distribution",
+        }
+        context.aws.concurrency.return_value = 5
+        context.aws.json.return_value = {"DisableExecuteApiEndpoint": False}
+
+        state, _ = workflow._state(context, terraform)
+
+        self.assertEqual(state, "infra_ready_private")
+
     def test_preflight_does_not_require_nat(self) -> None:
         context = mock.MagicMock()
         context.config.deployment.account_id = "123"

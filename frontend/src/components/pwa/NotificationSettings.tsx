@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 
+import { Checkbox } from "@/components/ui/checkbox";
+
 import { apiFetch, asArray, getResponseErrorMessage } from "../../lib/api";
 import { GroupListItem } from "../../types/group";
 
@@ -136,10 +138,26 @@ export default function NotificationSettings() {
         <p className="mt-2 max-w-2xl text-sm leading-6 text-foreground/65">Notifications are off by default. When enabled, this device receives a generic alert when another member adds an expense. Details stay hidden unless you choose otherwise.</p>
         {!available ? <p className="mt-4 text-sm leading-6 text-foreground/65">This browser or deployment does not support web push. On iPhone and iPad, add Expense Tracker to the Home Screen from Safari first, then open the installed app to enable notifications.</p> : null}
         {error ? <p className="mt-4 text-sm text-destructive" role="alert">{error}</p> : null}
-        {loading ? <div className="mt-5"><span className="ui-spinner ui-spinner-sm" aria-label="Loading notification settings" /></div> : <div className="mt-5 space-y-5">
+        {loading ? <div className="mt-5"><span className="ui-spinner ui-spinner-sm" aria-label="Loading notification settings" /></div> : <div className="mt-5 flex flex-col gap-5">
             <button type="button" className="ui-button ui-button-primary min-h-11" disabled={!available || saving} onClick={() => void (settings.enabled ? disable() : requestEnable())}>{saving ? "Saving…" : settings.enabled ? "Disable notifications" : "Enable notifications"}</button>
             {settings.enabled ? <label className="flex items-start gap-3 text-sm leading-6"><input className="mt-1 size-5" type="checkbox" checked={settings.showDetails} disabled={saving} onChange={(event) => void setDetails(event.target.checked)} /><span><span className="font-medium text-foreground">Show notification details on this device</span><span className="block text-foreground/65">This may reveal the group name, currency, and amount on your lock screen. Disabling it hides future unsent notifications.</span></span></label> : null}
-            {groups.length > 0 ? <fieldset disabled={saving}><legend className="text-sm font-medium text-foreground">Mute a group</legend><p className="mt-1 text-sm leading-6 text-foreground/65">Muted groups do not send activity notifications to this device.</p><div className="mt-3 grid gap-2 sm:grid-cols-2">{groups.map((group) => <label key={group.id} className="flex min-h-11 items-center gap-3 rounded-xl border border-border px-3 text-sm"><input className="size-5" type="checkbox" checked={!muted.has(group.id)} onChange={(event) => void setMute(group.id, !event.target.checked)} /><span>{group.groupName}</span></label>)}</div></fieldset> : null}
+            {groups.length > 0 ? <fieldset disabled={saving}>
+                <legend className="text-sm font-medium text-foreground">Group notifications</legend>
+                <p className="mt-1 text-sm leading-6 text-foreground/65">Choose which groups can send activity notifications to this device.</p>
+                <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                    {groups.map((group) => {
+                        const enabled = !muted.has(group.id);
+                        const checkboxID = `group-notifications-${group.id}`;
+                        return <label key={group.id} htmlFor={checkboxID} className="flex min-h-11 items-center gap-3 rounded-xl border border-border px-3 py-2 text-sm">
+                            <Checkbox id={checkboxID} checked={enabled} onCheckedChange={(checked) => void setMute(group.id, checked !== true)} />
+                            <span className="min-w-0">
+                                <span className="block font-medium text-foreground">{group.groupName}</span>
+                                <span className="block text-foreground/65">Notifications {enabled ? "on" : "off"}</span>
+                            </span>
+                        </label>;
+                    })}
+                </div>
+            </fieldset> : null}
         </div>}
     </section>;
 }

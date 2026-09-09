@@ -1,6 +1,8 @@
 BUILD_DIR ?= bin
 GOOS ?= linux
 GOARCH ?= amd64
+CI_ENV_FILE ?= backend/.env.ci
+GOVULNCHECK_VERSION ?= v1.1.4
 .PHONY: \
 	all \
 	app \
@@ -9,6 +11,14 @@ GOARCH ?= amd64
 	build-deploy-backend \
 	build-frontend \
 	build-prod \
+	check \
+	check-backend \
+	check-components \
+	check-db \
+	check-frontend \
+	check-go-static \
+	check-python \
+	check-terraform \
 	deploy \
 	deploy-serverful \
 	destroy \
@@ -39,6 +49,39 @@ build-prod:
 
 test:
 	@go test -v ./...
+
+check:
+	@CI_ENV_FILE="$(CI_ENV_FILE)" ./deployment/ci/ci-db.sh run make --no-print-directory check-components
+
+check-components: check-backend check-python check-terraform check-frontend
+
+check-db:
+	@CI_ENV_FILE="$(CI_ENV_FILE)" ./deployment/ci/ci-db.sh prepare
+
+check-go-static:
+	@files="$$(gofmt -l $$(git ls-files '*.go'))"; test -z "$$files" || { printf 'Go files need formatting:\n%s\n' "$$files" >&2; exit 1; }
+	@go mod tidy -diff
+	@go vet ./...
+	@go run golang.org/x/vuln/cmd/govulncheck@$(GOVULNCHECK_VERSION) ./...
+
+check-backend: check-db check-go-static
+	@CI_ENV_FILE="$(CI_ENV_FILE)" ./deployment/ci/ci-db.sh test ./...
+
+check-python:
+	@uv run --python 3.14 python -m unittest discover -s deployment/serverless/tests -p 'test_*.py'
+
+check-terraform:
+	@terraform -chdir=deployment/serverless/infrastructure/tf fmt -check -recursive
+	@terraform -chdir=deployment/serverless/infrastructure/tf init -backend=false -input=false
+	@terraform -chdir=deployment/serverless/infrastructure/tf validate
+
+check-frontend:
+	@test "$$(node --version)" = "v$$(cat frontend/.node-version)" || { echo "Node must match frontend/.node-version" >&2; exit 1; }
+	@expected="$$(node -p "require('./frontend/package.json').packageManager.replace(/^pnpm@/, '')")"; test "$$(pnpm --version)" = "$$expected" || { echo "pnpm must match frontend/package.json" >&2; exit 1; }
+	@pnpm --dir frontend install --frozen-lockfile
+	@pnpm --dir frontend run lint
+	@pnpm --dir frontend run test:run
+	@pnpm --dir frontend run build
 
 run: build
 	@./$(BUILD_DIR)/tracker

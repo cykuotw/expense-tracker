@@ -52,6 +52,32 @@ cd frontend
 pnpm run build
 ```
 
+## Local Checks
+
+`make check` runs backend formatting, module, vet, vulnerability, and uncached
+tests; serverless Python and Terraform checks; and frontend lint, tests, and
+build. It does not call AWS, provision containers, or interact with the
+development database.
+
+Prerequisites are Docker Desktop with a user-managed PostgreSQL 16 container,
+`psql`, Go 1.25.13 or a newer Go 1.25 patch release, uv with Python 3.14, Node
+22.23.2, pnpm 11.25.0, and Terraform. The CI container must expose the dedicated
+database on `127.0.0.1:55432`. Keep its CI-only connection values in the ignored
+`backend/.env.ci` file with permissions `600`. The file must define `CI_DB_HOST`,
+`CI_DB_PORT`, `CI_DB_NAME`, `CI_DB_USER`, and `CI_DB_PASSWORD`; the host, port,
+and database name must be `127.0.0.1`, `55432`, and `expense_tracker_ci`.
+The existing CI container must be named `expense-tracker-ci-postgres-1`.
+
+```bash
+make check
+```
+
+The command refuses any other host, port, or database name, then drops and
+recreates only the dedicated database's `public` schema before applying all
+migrations. It starts the existing CI container before checking and stops it
+afterward, including when a check fails. Provision or remove the container
+manually through Docker Desktop.
+
 ## Config
 
 See the example environment files for the supported configuration:

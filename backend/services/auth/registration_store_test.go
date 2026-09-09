@@ -55,12 +55,10 @@ func TestRegistrationStoreConsumesInvitationExactlyOnce(t *testing.T) {
 	results := make(chan error, len(users))
 	var wg sync.WaitGroup
 	for _, user := range users {
-		wg.Add(1)
-		go func(candidate types.User) {
-			defer wg.Done()
+		wg.Go(func() {
 			<-start
-			results <- store.CreateInvitedUser(t.Context(), registrationSession, candidate)
-		}(user)
+			results <- store.CreateInvitedUser(t.Context(), registrationSession, user)
+		})
 	}
 	close(start)
 	wg.Wait()
@@ -129,12 +127,10 @@ func TestRegistrationStoreNormalizedEmailUniqueAcrossInvitations(t *testing.T) {
 	results := make(chan error, 2)
 	var wg sync.WaitGroup
 	for index := range users {
-		wg.Add(1)
-		go func(candidate types.User, registrationSession string) {
-			defer wg.Done()
+		wg.Go(func() {
 			<-start
-			results <- store.CreateInvitedUser(t.Context(), registrationSession, candidate)
-		}(users[index], sessions[index])
+			results <- store.CreateInvitedUser(t.Context(), sessions[index], users[index])
+		})
 	}
 	close(start)
 	wg.Wait()
@@ -171,7 +167,7 @@ func insertRegistrationUser(t *testing.T, conn *sql.DB, email string) uuid.UUID 
 func newRegistrationUser(email string) types.User {
 	id := uuid.New()
 	return types.User{
-		ID: id, Username: "registration-" + id.String(), Nickname: "Registration",
+		ID: id, Username: "registration-" + id.String()[:8], Nickname: "Registration",
 		Firstname: "Test", Lastname: "User", Email: email, PasswordHashed: "hash",
 		HasLocalPassword: true, CreateTime: time.Now().UTC(), IsActive: true, Role: "user",
 	}

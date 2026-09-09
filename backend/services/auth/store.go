@@ -102,11 +102,15 @@ func (s *RefreshStore) RotateRefreshToken(id string, tokenHash string, successor
 		return err
 	}
 
-	// A request that observed the predecessor as active competes for the
-	// conditional update below. Only a request that observed it as already
-	// revoked is treated as reuse, so overlapping refreshes cannot create two
-	// successors or revoke the winner merely because they raced.
+	// Successors are created before rotation begins. If this attempt predates
+	// the predecessor's revocation, it overlapped the winning rotation and must
+	// not revoke that winner. A successor created afterward is evidence of reuse.
 	if revokedAt != nil {
+		// A successor created before the predecessor was revoked belongs to an
+		// overlapping rotation attempt. Reject it without revoking the winner.
+		if !successor.CreatedAt.IsZero() && successor.CreatedAt.Before(*revokedAt) {
+			return types.ErrInvalidToken
+		}
 		if err := revokeRefreshTokenFamily(tx, familyID, userID); err != nil {
 			return err
 		}

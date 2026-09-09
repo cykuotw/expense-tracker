@@ -111,14 +111,28 @@ func (h *Handler) handleCreateExpense(c *gin.Context) {
 			Share:          ledgerPayload.Share,
 		})
 	}
-	fingerprint, err := expenseCreateFingerprint(expense, items, ledgers, payload.OccurredOn)
-	if err != nil {
-		utils.WriteError(c, http.StatusInternalServerError, err)
-		return
-	}
 	resultExpenseID := expenseID
 
 	err = h.store.RunInTransaction(func(store types.ExpenseStore) error {
+		groupCurrency, err := store.LockGroupCurrency(payload.GroupID)
+		if err != nil {
+			return err
+		}
+		if payload.Currency != "" && payload.Currency != groupCurrency {
+			return types.ErrCurrencyMismatch
+		}
+		expense.Currency = groupCurrency
+		if err := store.CheckGroupParticipants(payload.GroupID, expenseParticipantIDs(creatorID, expense, ledgers)); err != nil {
+			return err
+		}
+		if err := validateExpenseMoney(store, expense, items, ledgers, creatorID); err != nil {
+			return err
+		}
+
+		fingerprint, err := expenseCreateFingerprint(expense, items, ledgers, payload.OccurredOn)
+		if err != nil {
+			return err
+		}
 		existing, claimed, err := store.ClaimExpenseCreateIdempotency(types.ExpenseCreateIdempotency{
 			CreatorUserID: creatorID, Key: key, RequestFingerprint: fingerprint, ExpenseID: expenseID,
 		})
@@ -154,6 +168,14 @@ func (h *Handler) handleCreateExpense(c *gin.Context) {
 	if err != nil {
 		if errors.Is(err, types.ErrIdempotencyKeyConflict) {
 			utils.WriteError(c, http.StatusConflict, err)
+			return
+		}
+		if errors.Is(err, types.ErrCurrencyMismatch) {
+			utils.WriteError(c, http.StatusBadRequest, err)
+			return
+		}
+		if errors.Is(err, types.ErrInvalidMoney) || errors.Is(err, types.ErrInvalidAction) || errors.Is(err, types.ErrUnsupportedCurrency) || errors.Is(err, types.ErrGroupParticipantNotAllowed) {
+			utils.WriteError(c, http.StatusBadRequest, err)
 			return
 		}
 		utils.WriteError(c, http.StatusInternalServerError, err)

@@ -1,7 +1,6 @@
 package expense
 
 import (
-	"expense-tracker/backend/types"
 	"expense-tracker/backend/utils"
 	"net/http"
 
@@ -15,15 +14,5 @@ func (h *Handler) handleGetExpenseType(c *gin.Context) {
 		return
 	}
 
-	response := make([]types.ExpenseTypeResponse, 0, len(expenseTypes))
-	for _, expexpenseType := range expenseTypes {
-		res := types.ExpenseTypeResponse{
-			ID:       expexpenseType.ID.String(),
-			Category: expexpenseType.Category,
-			Name:     expexpenseType.Name,
-		}
-		response = append(response, res)
-	}
-
-	utils.WriteJSON(c, http.StatusOK, response)
+	utils.WriteJSON(c, http.StatusOK, expenseTypeResponses(expenseTypes))
 }

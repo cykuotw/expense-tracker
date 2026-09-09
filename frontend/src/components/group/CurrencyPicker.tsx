@@ -1,23 +1,31 @@
-import { useCallback, useRef, useState } from "react";
+import { Fragment, useCallback, useRef, useState } from "react";
 import { mdiCheck, mdiChevronDown } from "@mdi/js";
 import Icon from "@mdi/react";
-import {
-    getGroupTypePresentation,
-    groupTypeOptions,
-} from "../../lib/groupTypePresentation";
+import { CurrencyMetadata } from "../../lib/money";
 
-interface GroupTypePickerProps {
+interface CurrencyPickerProps {
     value: string;
+    currencies: CurrencyMetadata[];
     onChange: (value: string) => void;
     disabled?: boolean;
 }
 
-export function GroupTypePicker({ value, onChange, disabled = false }: GroupTypePickerProps) {
+const mainCurrencyCodes = new Set(["CAD", "TWD", "USD"]);
+
+export function CurrencyPicker({
+    value,
+    currencies,
+    onChange,
+    disabled = false,
+}: CurrencyPickerProps) {
     const [open, setOpen] = useState(false);
     const pointerSelectionRef = useRef<string | null>(null);
     const pointerStartYRef = useRef<number | null>(null);
     const pointerMovedRef = useRef(false);
-    const selected = getGroupTypePresentation(value);
+    const otherCurrenciesStart = currencies.findIndex(
+        (currency) => !mainCurrencyCodes.has(currency.code)
+    );
+    const selected = currencies.find((currency) => currency.code === value);
     const selectOption = useCallback(
         (nextValue: string) => {
             onChange(nextValue);
@@ -38,7 +46,7 @@ export function GroupTypePicker({ value, onChange, disabled = false }: GroupType
         >
             <button
                 type="button"
-                aria-label="Group type"
+                aria-label="Currency"
                 aria-expanded={open}
                 aria-haspopup="listbox"
                 disabled={disabled}
@@ -48,59 +56,63 @@ export function GroupTypePicker({ value, onChange, disabled = false }: GroupType
                     setOpen((current) => !current);
                 }}
             >
-                <span className={`flex size-9 items-center justify-center rounded-xl md:size-10 ${selected.iconClassName}`}>
-                    <Icon path={selected.icon} size={0.9} aria-hidden="true" />
-                </span>
                 <span className="min-w-0 flex-1">
-                    <span className="block truncate font-semibold">{selected.label}</span>
+                    <span className="block truncate font-semibold">
+                        {selected ? `${selected.code} — ${selected.displayName}` : "Select currency"}
+                    </span>
                 </span>
                 <Icon path={mdiChevronDown} size={0.9} aria-hidden="true" />
             </button>
             {open && (
                 <div
                     role="listbox"
-                    aria-label="Group type options"
+                    aria-label="Currency options"
                     className="absolute z-[60] mt-2 max-h-48 w-full touch-pan-y overflow-y-auto overscroll-contain rounded-2xl border border-border bg-background p-2 shadow-xl md:max-h-80"
                 >
-                    {groupTypeOptions.map((option) => (
-                        <button
-                            key={option.value}
+                    {currencies.map((currency, index) => (
+                        <Fragment key={currency.code}>
+                            {index === otherCurrenciesStart && index > 0 ? (
+                                <div
+                                    role="separator"
+                                    aria-label="Other currencies"
+                                    className="mx-3 my-1.5 border-t border-border pt-2 text-xs font-semibold uppercase tracking-[0.16em] text-foreground/50"
+                                >
+                                    Other currencies
+                                </div>
+                            ) : null}
+                            <button
                             type="button"
                             role="option"
-                            aria-selected={option.value === value}
-                            className={`flex min-h-12 w-full touch-manipulation items-center gap-3 rounded-xl px-3 py-2.5 text-left hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${option.value === value ? "bg-primary/10" : ""}`}
+                            aria-selected={currency.code === value}
+                            className={`flex min-h-12 w-full touch-manipulation items-center gap-3 rounded-xl px-3 py-2.5 text-left hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${currency.code === value ? "bg-primary/10" : ""}`}
                             onPointerDown={(event) => {
                                 pointerStartYRef.current = event.clientY;
                                 pointerMovedRef.current = false;
                             }}
                             onPointerMove={(event) => {
-                                if (
-                                    pointerStartYRef.current !== null &&
-                                    Math.abs(event.clientY - pointerStartYRef.current) > 8
-                                ) {
+                                if (pointerStartYRef.current !== null && Math.abs(event.clientY - pointerStartYRef.current) > 8) {
                                     pointerMovedRef.current = true;
                                 }
                             }}
                             onPointerUp={() => {
                                 pointerStartYRef.current = null;
-                                pointerSelectionRef.current = option.value;
-                                if (pointerMovedRef.current) return;
-                                selectOption(option.value);
+                                pointerSelectionRef.current = currency.code;
+                                if (!pointerMovedRef.current) selectOption(currency.code);
                             }}
                             onClick={() => {
                                 if (pointerSelectionRef.current !== null) {
                                     pointerSelectionRef.current = null;
                                     return;
                                 }
-                                selectOption(option.value);
+                                selectOption(currency.code);
                             }}
                         >
-                            <span className={`flex size-8 shrink-0 items-center justify-center rounded-lg ${option.iconClassName}`}>
-                                <Icon path={option.icon} size={0.8} aria-hidden="true" />
+                            <span className="min-w-0 flex-1 truncate font-medium">
+                                {currency.code} — {currency.displayName}
                             </span>
-                            <span className="min-w-0 flex-1 truncate font-medium">{option.label}</span>
-                            {option.value === value && <Icon path={mdiCheck} size={0.8} aria-label="Selected" />}
-                        </button>
+                            {currency.code === value && <Icon path={mdiCheck} size={0.8} aria-label="Selected" />}
+                            </button>
+                        </Fragment>
                     ))}
                 </div>
             )}

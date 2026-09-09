@@ -53,6 +53,21 @@ function CreateExpenseHarness() {
             />
             <output data-testid="total">{context.total}</output>
             <output data-testid="members">{context.ledgers.length}</output>
+            <output data-testid="member-load-status">
+                {context.groupMembersLoadStatus}
+            </output>
+            <output data-testid="selected-group">
+                {context.selectedGroupId}
+            </output>
+            <button
+                type="button"
+                onClick={() => context.setSelectedGroupId("group-2")}
+            >
+                Select second group
+            </button>
+            <button type="button" onClick={context.reloadGroupMembers}>
+                Retry members
+            </button>
             <input
                 aria-label="expense date"
                 type="date"
@@ -71,17 +86,56 @@ describe("CreateExpenseProvider error handling", () => {
     beforeEach(() => {
         vi.clearAllMocks();
         apiFetchMock.mockImplementation((path: string) => {
-            if (path === "/groups") return Promise.resolve(jsonResponse([]));
-            if (path === "/expense_types") {
+            if (path === "/expense_create_options?groupId=group-1") {
                 return Promise.resolve(
-                    jsonResponse([
-                        { id: "type-1", category: "Other", name: "General" },
-                    ])
+                    jsonResponse({
+                        groups: [
+                            {
+                                id: "group-1",
+                                groupName: "Group",
+                                description: "",
+                                currency: "CAD",
+                            },
+                            {
+                                id: "group-2",
+                                groupName: "Other group",
+                                description: "",
+                                currency: "USD",
+                            },
+                        ],
+                        expenseTypes: [
+                            { id: "type-1", category: "Other", name: "General" },
+                        ],
+                        currencies: [
+                            { code: "CAD", displayName: "Canadian Dollar", minorUnitDigits: 2, amountDigits: 2 },
+                            { code: "USD", displayName: "US Dollar", minorUnitDigits: 2, amountDigits: 2 },
+                        ],
+                        group: {
+                            currency: "CAD",
+                            members: [
+                                { userId: "user-1", username: "Current" },
+                            ],
+                        },
+                    })
                 );
             }
-            if (path === "/group_member/group-1") {
+            if (path === "/expense_create_options?groupId=group-2") {
                 return Promise.resolve(
-                    jsonResponse([{ userId: "user-1", username: "Current" }])
+                    jsonResponse({
+                        groups: [],
+                        expenseTypes: [],
+                        currencies: [
+                            { code: "CAD", displayName: "Canadian Dollar", minorUnitDigits: 2, amountDigits: 2 },
+                            { code: "USD", displayName: "US Dollar", minorUnitDigits: 2, amountDigits: 2 },
+                        ],
+                        group: {
+                            currency: "USD",
+                            members: [
+                                { userId: "user-2", username: "Other" },
+                                { userId: "user-1", username: "Current" },
+                            ],
+                        },
+                    })
                 );
             }
             if (path === "/create_expense") {
@@ -95,6 +149,27 @@ describe("CreateExpenseProvider error handling", () => {
         cleanup();
     });
 
+    it("loads all initial form options with one page request", async () => {
+        render(
+            <CreateExpenseProvider>
+                <CreateExpenseHarness />
+            </CreateExpenseProvider>
+        );
+
+        await waitFor(() => {
+            expect(screen.getByTestId("member-load-status")).toHaveTextContent(
+                "ready"
+            );
+        });
+        const initialReads = apiFetchMock.mock.calls.filter(
+            ([path]) => path !== "/create_expense"
+        );
+        expect(initialReads).toHaveLength(1);
+        expect(initialReads[0][0]).toBe(
+            "/expense_create_options?groupId=group-1"
+        );
+    });
+
     it("uses the fallback and clears the indicator after a request rejection", async () => {
         render(
             <CreateExpenseProvider>
@@ -104,9 +179,10 @@ describe("CreateExpenseProvider error handling", () => {
         await waitFor(() => {
             expect(screen.getByTestId("members")).toHaveTextContent("1");
         });
-		fireEvent.change(screen.getByLabelText("expense date"), {
+        fireEvent.change(screen.getByLabelText("expense date"), {
 			target: { value: "2026-08-31" },
 		});
+        fireEvent.change(screen.getByLabelText("amount"), { target: { value: "10" } });
 
         fireEvent.submit(screen.getByRole("form", { name: "expense form" }));
 
@@ -126,6 +202,58 @@ describe("CreateExpenseProvider error handling", () => {
         expect(navigateMock).not.toHaveBeenCalled();
     });
 
+    it("reloads members after choosing a different group", async () => {
+        render(
+            <CreateExpenseProvider>
+                <CreateExpenseHarness />
+            </CreateExpenseProvider>
+        );
+
+        await waitFor(() => {
+            expect(screen.getByTestId("members")).toHaveTextContent("1");
+        });
+
+        fireEvent.click(
+            screen.getByRole("button", { name: "Select second group" })
+        );
+
+        await waitFor(() => {
+            expect(screen.getByTestId("selected-group")).toHaveTextContent(
+                "group-2"
+            );
+            expect(screen.getByTestId("members")).toHaveTextContent("2");
+        });
+        expect(apiFetchMock).toHaveBeenCalledWith(
+            "/expense_create_options?groupId=group-2",
+            expect.objectContaining({ method: "GET" })
+        );
+    });
+
+    it("aborts the split-options request after leaving the form", async () => {
+        let groupSignal: AbortSignal | undefined;
+        apiFetchMock.mockImplementation(
+            (path: string, init: RequestInit = {}) => {
+                if (path === "/expense_create_options?groupId=group-1") {
+                    groupSignal = init.signal as AbortSignal;
+                    return new Promise(() => undefined);
+                }
+                throw new Error(`Unexpected path: ${path}`);
+            }
+        );
+
+        const view = render(
+            <CreateExpenseProvider>
+                <CreateExpenseHarness />
+            </CreateExpenseProvider>
+        );
+        await waitFor(() => expect(groupSignal).toBeDefined());
+
+        view.unmount();
+
+        expect(groupSignal?.aborted).toBe(true);
+        expect(screen.queryByTestId("member-load-status")).toBeNull();
+    });
+
     it("uses one idempotency key for an in-flight submit and an unchanged retry", async () => {
         render(
             <CreateExpenseProvider>
@@ -137,6 +265,7 @@ describe("CreateExpenseProvider error handling", () => {
         });
 
         const form = screen.getByRole("form", { name: "expense form" });
+        fireEvent.change(screen.getByLabelText("amount"), { target: { value: "10" } });
         fireEvent.submit(form);
         fireEvent.submit(form);
 
@@ -175,10 +304,10 @@ describe("CreateExpenseProvider error handling", () => {
         const amountInput = screen.getByLabelText("amount");
         fireEvent.change(amountInput, { target: { value: "12.50" } });
         expect(amountInput).toHaveValue(12.5);
-        expect(screen.getByTestId("total")).toHaveTextContent("12.5");
+        expect(screen.getByTestId("total")).toHaveTextContent("12.50");
 
         fireEvent.change(amountInput, { target: { value: "" } });
         expect(amountInput).toHaveValue(null);
-        expect(screen.getByTestId("total")).toHaveTextContent("0");
+        expect(screen.getByTestId("total")).toHaveTextContent("");
     });
 });

@@ -49,7 +49,9 @@ func TestRouteCreateExpense(t *testing.T) {
 				Total:          decimal.NewFromFloat(22.2),
 				Currency:       "CAD",
 				Items:          nil,
-				Ledgers:        nil,
+				Ledgers: []types.LedgerPayload{{
+					LenderUserID: mockPayerID.String(), BorrowerUesrID: mockCreatorID.String(), Share: decimal.NewFromFloat(22.2),
+				}},
 			},
 			expectFail:       false,
 			expectStatusCode: http.StatusCreated,
@@ -216,6 +218,29 @@ func TestHandleCreateExpenseRejectsInvalidLedgerBeforeTransaction(t *testing.T) 
 
 	assert.Equal(t, http.StatusBadRequest, response.Code)
 	assert.Zero(t, transactionCalls)
+}
+
+func TestHandleCreateExpenseRechecksParticipantsInsideTransaction(t *testing.T) {
+	rootStore := createExpenseStoreMock()
+	transactionStore := createExpenseStoreMock()
+	rootStore.RunInTransactionFn = func(callback func(types.ExpenseStore) error) error {
+		return callback(transactionStore)
+	}
+	transactionStore.CheckGroupParticipantsFn = func(groupID string, userIDs []uuid.UUID) error {
+		assert.Equal(t, mockGroupID.String(), groupID)
+		assert.ElementsMatch(t, []uuid.UUID{mockCreatorID, mockPayerID}, userIDs)
+		return types.ErrGroupParticipantNotAllowed
+	}
+	created := false
+	transactionStore.CreateExpenseFn = func(types.Expense) error {
+		created = true
+		return nil
+	}
+
+	response := runCreateExpenseHandler(t, rootStore, validCreateExpensePayload())
+
+	assert.Equal(t, http.StatusBadRequest, response.Code)
+	assert.False(t, created)
 }
 
 func TestHandleCreateExpenseRequiresIdempotencyKey(t *testing.T) {

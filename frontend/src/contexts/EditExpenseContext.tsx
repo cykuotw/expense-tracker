@@ -1,19 +1,30 @@
 import {
+    useCallback,
     useState,
     useEffect,
+    useRef,
     ReactNode,
     FormEvent,
     ChangeEvent,
 } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "react-hot-toast";
-import { apiFetch, asArray, getResponseErrorMessage } from "../lib/api";
+import {
+    apiFetch,
+    asArray,
+    getResponseErrorMessage,
+} from "../lib/api";
 import {
     ExpenseDetailData,
+    EditExpenseOptionsData,
     ExpenseTypeItem,
     ExpenseUpdateData,
 } from "../types/expense";
-import { GroupListItem, GroupMember } from "../types/group";
+import {
+    GroupListItem,
+    GroupMember,
+    GroupMembersLoadStatus,
+} from "../types/group";
 import { LedgerUpdateData } from "../types/ledger";
 import { Rule } from "../types/splitRule";
 import {
@@ -21,13 +32,21 @@ import {
     expenseFormData,
 } from "../hooks/EditExpenseContextHooks";
 import { isDateOnly } from "../lib/dateOnly";
+import { orientTwoPersonRuleForViewer } from "../lib/expenseSplitRule";
+import {
+    CurrencyMetadata,
+    currencyAmountDigits,
+    decimalToUnits,
+    splitEqually,
+    unitsToDecimal,
+} from "../lib/money";
 
 const emptyData: expenseFormData = {
     groupId: "",
     expenseType: "",
     description: "",
     occurredOn: "",
-    total: 0,
+    total: "",
     currency: "",
     splitRule: Rule.Equally,
     payerUserId: "",
@@ -78,6 +97,8 @@ export const EditExpenseProvider = ({ children }: { children: ReactNode }) => {
     const [indicatorShow, setIndicatorShow] = useState<boolean>(false);
 
     const [formData, setFormData] = useState<expenseFormData>(emptyData);
+    const [currencies, setCurrencies] = useState<CurrencyMetadata[]>([]);
+    const amountDigits = currencyAmountDigits(currencies, formData.currency);
     const [initialFormData, setInitialFormData] =
         useState<expenseFormData | null>(null);
 
@@ -89,46 +110,35 @@ export const EditExpenseProvider = ({ children }: { children: ReactNode }) => {
             setIndicatorShow(true);
 
             // set up ledgers in defult split rules
-            const currencyPrecision: Record<"CAD" | "USD" | "NTD", number> = {
-                CAD: 2,
-                USD: 2,
-                NTD: 0,
-            };
-            const precision: number =
-                currencyPrecision[
-                    formData.currency as keyof typeof currencyPrecision
-                ];
+            const precision = amountDigits;
+            if (precision === null) {
+                toast.error("Currency metadata is unavailable. Try loading the expense again.");
+                return;
+            }
+            const totalUnits = decimalToUnits(formData.total, precision);
+            if (totalUnits === null || totalUnits <= 0n) return;
+            const submissionLedgers = formData.ledgers.map((ledger) => ({ ...ledger }));
 
             switch (formData.splitRule) {
                 case Rule.Equally:
                 case Rule.YouHalf:
                 case Rule.OtherHalf: {
-                    const peopleCount: number = formData.ledgers.length;
-
-                    const split: number =
-                        Math.floor(
-                            (formData.total / peopleCount) * 10 ** precision
-                        ) /
-                        10 ** precision;
-                    const remaining: number =
-                        formData.total - split * (peopleCount - 1);
-
-                    const randIndex = Math.floor(Math.random() * peopleCount);
-                    for (let i = 0; i < peopleCount; i++) {
-                        formData.ledgers[i].share =
-                            i === randIndex ? remaining : split;
-                    }
+                    const split = splitEqually(totalUnits, submissionLedgers.map((ledger) => ledger.userId));
+                    if (!split) return;
+                    submissionLedgers.forEach((ledger) => {
+                        ledger.share = unitsToDecimal(split.get(ledger.userId)!, precision);
+                    });
                     break;
                 }
 
                 case Rule.YouFull:
-                    formData.ledgers[0].share = 0;
-                    formData.ledgers[1].share = formData.total;
+                    submissionLedgers[0].share = "0";
+                    submissionLedgers[1].share = unitsToDecimal(totalUnits, precision);
                     break;
 
                 case Rule.OtherFull:
-                    formData.ledgers[0].share = formData.total;
-                    formData.ledgers[1].share = 0;
+                    submissionLedgers[0].share = unitsToDecimal(totalUnits, precision);
+                    submissionLedgers[1].share = "0";
                     break;
 
                 default:
@@ -141,16 +151,16 @@ export const EditExpenseProvider = ({ children }: { children: ReactNode }) => {
                 groupId: formData.groupId,
                 payByUserId: formData.payerUserId,
                 expTypeId: formData.expenseType,
-                total: formData.total.toFixed(precision),
+                total: unitsToDecimal(totalUnits, precision),
                 currency: formData.currency,
                 splitRule: formData.splitRule,
-                ledgers: formData.ledgers.map(
+                ledgers: submissionLedgers.map(
                     (ledger) =>
                         ({
                             ledgerId: ledger.id,
                             borrowerUserId: ledger.userId,
                             lenderUserId: formData.payerUserId,
-                            share: ledger.share.toFixed(precision),
+                            share: unitsToDecimal(decimalToUnits(ledger.share, precision) ?? 0n, precision),
                         } as LedgerUpdateData)
                 ),
             };
@@ -185,41 +195,46 @@ export const EditExpenseProvider = ({ children }: { children: ReactNode }) => {
     const [groupList, setGroupList] = useState<GroupListItem[]>([]);
     const [expenseTypes, setExpenseTypes] = useState<ExpenseTypeItem[]>([]);
     const [groupMembers, setGroupMembers] = useState<GroupMember[]>([]);
+    const [groupMembersLoadStatus, setGroupMembersLoadStatus] =
+        useState<GroupMembersLoadStatus>("idle");
+    const initialLoadCompleteRef = useRef(false);
+    const skipNextGroupLoadRef = useRef("");
+    const [optionsReloadVersion, setOptionsReloadVersion] = useState(0);
+    const [groupMembersReloadVersion, setGroupMembersReloadVersion] =
+        useState(0);
+    const reloadGroupMembers = useCallback(() => {
+        if (initialLoadCompleteRef.current) {
+            setGroupMembersReloadVersion((version) => version + 1);
+        } else {
+            setOptionsReloadVersion((version) => version + 1);
+        }
+    }, []);
 
     useEffect(() => {
+        const abortController = new AbortController();
+        let active = true;
+        initialLoadCompleteRef.current = false;
         setInitialFormData(null);
-
-        const fetchGroupList = async () => {
-            const response = await apiFetch("/groups", {
-                method: "GET",
-            });
-            if (!response.ok) return;
-
-            const data = asArray<GroupListItem>(await response.json());
-
-            setGroupList(data);
-            setFormData((prev) => ({
-                ...prev,
-                groupId: data[0]?.id ?? prev.groupId,
-            }));
-        };
-
-        const fetchExpeseTypes = async () => {
-            const response = await apiFetch("/expense_types", {
-                method: "GET",
-            });
-            if (!response.ok) return;
-
-            const data = asArray<ExpenseTypeItem>(await response.json());
-            setExpenseTypes(data);
-        };
+        setGroupMembers([]);
+        setGroupMembersLoadStatus("loading");
 
         const fetchExpenseDetail = async () => {
             try {
-                const response = await apiFetch(`/expense/${expenseId}`, {
-                    method: "GET",
-                });
-                if (!response.ok) return;
+                const response = await apiFetch(
+                    `/expense/${expenseId}/edit-options`,
+                    {
+                        method: "GET",
+                        signal: abortController.signal,
+                    }
+                );
+                if (!response.ok) {
+                    const message = await getResponseErrorMessage(
+                        response,
+                        LOAD_EXPENSE_FALLBACK
+                    );
+                    if (active) toast.error(message);
+                    return;
+                }
 
                 const responseData: unknown = await response.json();
                 if (
@@ -227,11 +242,23 @@ export const EditExpenseProvider = ({ children }: { children: ReactNode }) => {
                     responseData === null ||
                     Array.isArray(responseData)
                 ) {
-                    toast.error(LOAD_EXPENSE_FALLBACK);
+                    if (active) toast.error(LOAD_EXPENSE_FALLBACK);
                     return;
                 }
 
-                const expenseDetail = responseData as ExpenseDetailData;
+                const options = responseData as Partial<EditExpenseOptionsData>;
+                if (!options.expense || !options.group) {
+                    if (active) toast.error(LOAD_EXPENSE_FALLBACK);
+                    return;
+                }
+                const expenseDetail = options.expense;
+                const currencyOptions = asArray<CurrencyMetadata>(options.currencies);
+                if (
+                    !expenseDetail.currency ||
+                    currencyAmountDigits(currencyOptions, expenseDetail.currency) === null
+                ) {
+                    throw new Error("expense currency metadata is unavailable");
+                }
                 const data = {
                     ...expenseDetail,
                     items: asArray<ExpenseDetailData["items"][number]>(
@@ -241,47 +268,128 @@ export const EditExpenseProvider = ({ children }: { children: ReactNode }) => {
                         expenseDetail.ledgers
                     ),
                 };
+                const members = asArray<GroupMember>(options.group.members);
+                if (members.length === 0) {
+                    throw new Error("expense options group has no members");
+                }
 
+                const payerUserId = data.ledgers[0]?.lenderUserId ?? "";
                 const nextFormData: expenseFormData = {
                     groupId: data.groupId,
                     expenseType: data.expenseTypeId,
                     description: data.description,
                     occurredOn: data.occurredOn,
-                    total: parseFloat(data.total),
+                    total: data.total,
                     currency: data.currency,
-                    splitRule: data.splitRule as Rule,
-                    payerUserId: data.ledgers[0]?.lenderUserId ?? "",
+                    splitRule: orientTwoPersonRuleForViewer(
+                        data.splitRule as Rule,
+                        payerUserId,
+                        data.currentUser
+                    ),
+                    payerUserId,
                     ledgers: data.ledgers.map((ledger) => ({
                         id: ledger.id,
                         userId: ledger.borrowerUserId,
-                        share: parseFloat(ledger.share),
+                        share: ledger.share,
                     })),
                 };
-                setFormData(nextFormData);
-                setInitialFormData(cloneExpenseFormData(nextFormData));
+                if (active) {
+                    skipNextGroupLoadRef.current = nextFormData.groupId;
+                    initialLoadCompleteRef.current = true;
+                    setGroupList(asArray<GroupListItem>(options.groups));
+                    setExpenseTypes(asArray<ExpenseTypeItem>(options.expenseTypes));
+                    setCurrencies(currencyOptions);
+                    setGroupMembers(members);
+                    setGroupMembersLoadStatus("ready");
+                    setFormData(nextFormData);
+                    setInitialFormData(cloneExpenseFormData(nextFormData));
+                }
 
-                const responseGroupMember = await apiFetch(
-                    `/group_member/${data.groupId}`,
-                    {
-                        method: "GET",
-                    }
-                );
-                if (!responseGroupMember.ok) return;
-
-                const groupMember = asArray<GroupMember>(
-                    await responseGroupMember.json()
-                );
-
-                setGroupMembers(groupMember);
             } catch {
-                toast.error(LOAD_EXPENSE_FALLBACK);
+                if (active) {
+                    setGroupMembersLoadStatus("error");
+                    toast.error(LOAD_EXPENSE_FALLBACK);
+                }
             }
         };
 
-        fetchGroupList();
-        fetchExpeseTypes();
-        fetchExpenseDetail();
-    }, [expenseId]);
+        void fetchExpenseDetail();
+
+        return () => {
+            active = false;
+            abortController.abort();
+        };
+    }, [expenseId, optionsReloadVersion]);
+
+    useEffect(() => {
+        if (!formData.groupId) {
+            setGroupMembers([]);
+            setGroupMembersLoadStatus("idle");
+            return;
+        }
+
+        if (!initialLoadCompleteRef.current) return;
+
+        if (skipNextGroupLoadRef.current === formData.groupId) {
+            skipNextGroupLoadRef.current = "";
+            return;
+        }
+
+        setGroupMembers([]);
+        setGroupMembersLoadStatus("loading");
+
+        const abortController = new AbortController();
+        let active = true;
+
+        const fetchGroupMembers = async () => {
+            try {
+                const response = await apiFetch(
+                    `/expense/${expenseId}/edit-options?groupId=${encodeURIComponent(formData.groupId)}`,
+                    {
+                        method: "GET",
+                        signal: abortController.signal,
+                    }
+                );
+                if (!response.ok) throw new Error("expense options request failed");
+
+                const responseData: unknown = await response.json();
+                if (
+                    typeof responseData !== "object" ||
+                    responseData === null ||
+                    Array.isArray(responseData)
+                ) {
+                    throw new Error("invalid group detail response");
+                }
+
+                const options = responseData as Partial<EditExpenseOptionsData>;
+                const data = asArray<GroupMember>(options.group?.members);
+                const currencyOptions = asArray<CurrencyMetadata>(options.currencies);
+                if (data.length === 0) {
+                    throw new Error("group detail has no members");
+                }
+                if (
+                    !options.group?.currency ||
+                    currencyAmountDigits(currencyOptions, options.group.currency) === null
+                ) {
+                    throw new Error("group currency metadata is unavailable");
+                }
+                if (!active) return;
+
+                setGroupMembers(data);
+                setCurrencies(currencyOptions);
+                setGroupMembersLoadStatus("ready");
+            } catch {
+                if (active) setGroupMembersLoadStatus("error");
+            }
+        };
+
+        void fetchGroupMembers();
+
+        return () => {
+            active = false;
+            abortController.abort();
+        };
+    }, [expenseId, formData.groupId, groupMembersReloadVersion]);
 
     const hasChanges =
         initialFormData !== null &&
@@ -304,42 +412,61 @@ export const EditExpenseProvider = ({ children }: { children: ReactNode }) => {
     const [dataOk, setDataOk] = useState<boolean>(false);
 
     useEffect(() => {
-        const totalOk = formData.total > 0;
+        const precision = amountDigits;
+        if (precision === null) {
+            setDataOk(false);
+            setLedgerShareOk(false);
+            setLedgerShareMessage("Currency metadata is unavailable.");
+            return;
+        }
+        const totalUnits = decimalToUnits(formData.total, precision);
+        const totalOk = totalUnits !== null && totalUnits > 0n;
         const descriptionOk = formData.description.length > 0;
         const occurredOnOk = isDateOnly(formData.occurredOn);
 
         if (formData.splitRule !== Rule.Unequally) {
-            setDataOk(totalOk && descriptionOk && occurredOnOk);
+            setDataOk(
+                totalOk &&
+                    descriptionOk &&
+                    occurredOnOk &&
+                    groupMembersLoadStatus === "ready" &&
+                    Boolean(formData.payerUserId && formData.expenseType)
+            );
             return;
         }
 
-        const ledgerTotal = formData.ledgers.reduce(
-            (acc, ledger) => acc + ledger.share,
-            0
-        );
+        const ledgerUnits = formData.ledgers.map((ledger) => decimalToUnits(ledger.share || "0", precision));
+        const ledgerTotal = ledgerUnits.reduce<bigint>((sum, value) => sum + (value ?? 0n), 0n);
         const ledgerOk =
-            ledgerTotal === formData.total &&
-            formData.ledgers.every((ledger) => ledger.share >= 0);
+            totalUnits !== null && ledgerTotal === totalUnits && ledgerUnits.every((value) => value !== null && value >= 0n);
 
-        setDataOk(totalOk && descriptionOk && occurredOnOk && ledgerOk);
+        setDataOk(
+            totalOk &&
+                descriptionOk &&
+                occurredOnOk &&
+                ledgerOk &&
+                groupMembersLoadStatus === "ready" &&
+                Boolean(formData.payerUserId && formData.expenseType)
+        );
         setLedgerShareOk(ledgerOk);
         setLedgerShareMessage(
             ledgerOk
-                ? `Total $0 ${formData.currency} left.`
-                : `Total $${(formData.total - ledgerTotal).toFixed(2)} ${
-                      formData.currency
-                  } left.`
+                ? `Total 0 ${formData.currency} left.`
+                : `Total ${unitsToDecimal((totalUnits ?? 0n) - ledgerTotal, precision)} ${formData.currency} left.`
         );
-    }, [formData]);
+    }, [amountDigits, formData, groupMembersLoadStatus]);
 
     return (
         <EditExpenseContext.Provider
             value={{
                 formData,
+                amountDigits,
                 setFormData,
                 groupList,
                 expenseTypes,
                 groupMembers,
+                groupMembersLoadStatus,
+                reloadGroupMembers,
                 indicatorShow,
                 dataOk,
                 hasChanges,

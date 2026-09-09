@@ -50,7 +50,7 @@ export default function ExpenseCard(expense: ExpenseData) {
                     Total
                 </span>
                 <div className="text-xl font-semibold tabular-nums text-foreground transition-colors group-hover:text-primary md:mt-1 md:text-2xl">
-                    ${expense.total} {expense.currency}
+                    {expense.total} {expense.currency}
                 </div>
             </div>
         </Link>

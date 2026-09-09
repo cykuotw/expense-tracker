@@ -37,13 +37,20 @@ func (h *Handler) handleGetGroup(c *gin.Context) {
 		utils.WriteError(c, http.StatusInternalServerError, err)
 		return
 	}
+	currencyEditable, err := h.store.CanEditGroupCurrency(groupId, userID)
+	if err != nil {
+		utils.WriteError(c, http.StatusInternalServerError, err)
+		return
+	}
 
 	response := types.GetGroupResponse{
-		GroupName:   group.GroupName,
-		Description: group.Description,
-		Currency:    group.Currency,
-		GroupType:   group.GroupType,
-		Members:     groupMembersForUser(users, userID),
+		GroupName:        group.GroupName,
+		Description:      group.Description,
+		Currency:         group.Currency,
+		CurrencyEditable: currencyEditable,
+		DetailsEditable:  group.CreateByUser.String() == userID,
+		GroupType:        group.GroupType,
+		Members:          groupMembersForUser(users, userID),
 	}
 
 	utils.WriteJSON(c, http.StatusOK, response)

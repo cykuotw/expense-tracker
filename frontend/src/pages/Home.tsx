@@ -6,9 +6,17 @@ import GroupCard from "../components/group/GroupCard";
 import MobilePageHeader from "../components/MobilePageHeader";
 import { HomeProvider } from "../contexts/HomeContext";
 import { useHome } from "../contexts/HomeContextHooks";
+import { decimalToUnits, unitsToDecimal } from "../lib/money";
+import { useCurrencies } from "../hooks/useCurrencies";
 
 const HomeContent = () => {
     const { groupCards, loading } = useHome();
+    const {
+        currencies,
+        loading: currenciesLoading,
+        error: currenciesError,
+        reload: reloadCurrencies,
+    } = useCurrencies();
     const [showAllMobileBalances, setShowAllMobileBalances] = useState(false);
 
     if (loading) {
@@ -24,15 +32,20 @@ const HomeContent = () => {
         (group) => group.balanceStatus !== "settled",
     );
     const groupsWithBalances = unsettledGroups.length;
+    const currencyByCode = new Map(currencies.map((currency) => [currency.code, currency]));
+    const missingCurrencyMetadata = unsettledGroups.some(
+        (group) => !currencyByCode.has(group.currency)
+    );
     const unsettledTotals = unsettledGroups.reduce<
-        Record<string, { owed: number; owing: number }>
+        Record<string, { owed: bigint; owing: bigint; amountDigits: number }>
     >((totals, group) => {
-        const amount = Number(group.balanceAmount);
-        if (Number.isNaN(amount)) {
+        const metadata = currencyByCode.get(group.currency);
+        const amount = metadata ? decimalToUnits(group.balanceAmount, metadata.amountDigits) : null;
+        if (amount === null || metadata === undefined) {
             return totals;
         }
 
-        const currentTotals = totals[group.currency] ?? { owed: 0, owing: 0 };
+        const currentTotals = totals[group.currency] ?? { owed: 0n, owing: 0n, amountDigits: metadata.amountDigits };
         if (group.balanceStatus === "owed") {
             currentTotals.owed += amount;
         } else if (group.balanceStatus === "owing") {
@@ -47,22 +60,23 @@ const HomeContent = () => {
     );
     const mobileBalanceDetails = unsettledTotalEntries.flatMap(
         ([currency, totals]) => {
-            const precision = currency === "NTD" ? 0 : 2;
+            const owed = unitsToDecimal(totals.owed, totals.amountDigits);
+            const owing = unitsToDecimal(totals.owing, totals.amountDigits);
             return [
-                ...(totals.owed > 0
+                ...(totals.owed > 0n
                     ? [
                           {
                               key: `${currency}-owed`,
-                              label: `You are owed ${totals.owed.toFixed(precision)} ${currency}`,
+                              label: `You are owed ${owed} ${currency}`,
                               tone: "text-success",
                           },
                       ]
                     : []),
-                ...(totals.owing > 0
+                ...(totals.owing > 0n
                     ? [
                           {
                               key: `${currency}-owing`,
-                              label: `You owe ${totals.owing.toFixed(precision)} ${currency}`,
+                              label: `You owe ${owing} ${currency}`,
                               tone: "text-destructive",
                           },
                       ]
@@ -96,7 +110,18 @@ const HomeContent = () => {
                     {hasGroups ? (
                         <>
                             <div className="flex flex-wrap gap-x-2 gap-y-1 text-sm font-semibold">
-                                {visibleMobileBalanceDetails.length > 0 ? (
+                                {currenciesLoading && unsettledGroups.length > 0 ? (
+                                    <span className="rounded-xl bg-muted px-2.5 py-1 text-foreground/60">
+                                        Loading balance totals…
+                                    </span>
+                                ) : currenciesError || missingCurrencyMetadata ? (
+                                    <span className="rounded-xl bg-destructive/10 px-2.5 py-1 text-destructive">
+                                        Balance totals unavailable.{" "}
+                                        <button className="underline" type="button" onClick={() => void reloadCurrencies()}>
+                                            Try again
+                                        </button>
+                                    </span>
+                                ) : visibleMobileBalanceDetails.length > 0 ? (
                                     visibleMobileBalanceDetails.map((detail) => (
                                         <span
                                             key={detail.key}
@@ -193,7 +218,18 @@ const HomeContent = () => {
                                     <div className="text-sm text-foreground/60">
                                         Total open balances
                                     </div>
-                                    {unsettledTotalEntries.length > 0 ? (
+                                    {currenciesLoading && unsettledGroups.length > 0 ? (
+                                        <div className="mt-4 rounded-2xl bg-background/80 px-4 py-3 text-sm text-foreground/60">
+                                            Loading balance totals…
+                                        </div>
+                                    ) : currenciesError || missingCurrencyMetadata ? (
+                                        <div className="mt-4 rounded-2xl bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                                            Balance totals could not be calculated.{" "}
+                                            <button className="font-semibold underline" type="button" onClick={() => void reloadCurrencies()}>
+                                                Try again
+                                            </button>
+                                        </div>
+                                    ) : unsettledTotalEntries.length > 0 ? (
                                         <div className="mt-4 grid gap-2 sm:grid-cols-2">
                                             {unsettledTotalEntries.map(
                                                 ([currency, totals]) => (
@@ -205,34 +241,24 @@ const HomeContent = () => {
                                                             {currency}
                                                         </div>
                                                         <div className="mt-3 space-y-2">
-                                                            {totals.owed > 0 ? (
+                                                            {totals.owed > 0n ? (
                                                                 <div className="rounded-xl bg-success/12 px-3 py-2 text-success">
                                                                     <div className="text-xs font-semibold uppercase tracking-[0.14em]">
                                                                         You are owed
                                                                     </div>
                                                                     <div className="mt-1 text-base font-semibold">
-                                                                        {totals.owed.toFixed(
-                                                                            currency ===
-                                                                                "NTD"
-                                                                                ? 0
-                                                                                : 2,
-                                                                        )}{" "}
+                                                                        {unitsToDecimal(totals.owed, totals.amountDigits)}{" "}
                                                                         {currency}
                                                                     </div>
                                                                 </div>
                                                             ) : null}
-                                                            {totals.owing > 0 ? (
+                                                            {totals.owing > 0n ? (
                                                                 <div className="rounded-xl bg-destructive/12 px-3 py-2 text-destructive">
                                                                     <div className="text-xs font-semibold uppercase tracking-[0.14em]">
                                                                         You owe
                                                                     </div>
                                                                     <div className="mt-1 text-base font-semibold">
-                                                                        {totals.owing.toFixed(
-                                                                            currency ===
-                                                                                "NTD"
-                                                                                ? 0
-                                                                                : 2,
-                                                                        )}{" "}
+                                                                        {unitsToDecimal(totals.owing, totals.amountDigits)}{" "}
                                                                         {currency}
                                                                     </div>
                                                                 </div>

@@ -451,7 +451,7 @@ const BalanceEntry = ({
                 compact ? "text-base" : "mt-1 text-lg"
             } ${tone}`}
         >
-            ${amount} {currency}
+            {amount} {currency}
         </div>
     </div>
 );

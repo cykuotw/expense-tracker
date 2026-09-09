@@ -7,7 +7,11 @@ import {
     SetStateAction,
 } from "react";
 import { Rule } from "../types/splitRule";
-import { GroupListItem, GroupMember } from "../types/group";
+import {
+    GroupListItem,
+    GroupMember,
+    GroupMembersLoadStatus,
+} from "../types/group";
 import { ExpenseTypeItem } from "../types/expense";
 
 export interface expenseFormData {
@@ -16,23 +20,26 @@ export interface expenseFormData {
     description: string;
     occurredOn: string;
     currency: string;
-    total: number;
+    total: string;
     splitRule: Rule;
 
     payerUserId: string;
     ledgers: {
         id: string;
         userId: string;
-        share: number;
+        share: string;
     }[];
 }
 
 export interface EditExpenseContextType {
     formData: expenseFormData;
+    amountDigits: number | null;
     setFormData: Dispatch<SetStateAction<expenseFormData>>;
     groupList: GroupListItem[];
     expenseTypes: ExpenseTypeItem[];
     groupMembers: GroupMember[];
+    groupMembersLoadStatus: GroupMembersLoadStatus;
+    reloadGroupMembers: () => void;
     indicatorShow: boolean;
     dataOk: boolean;
     hasChanges: boolean;

@@ -9,6 +9,10 @@ import (
 
 type GroupStore interface {
 	CreateGroup(group Group) error
+	ListCurrencies() ([]Currency, error)
+	IsSupportedCurrency(code string) (bool, error)
+	CanEditGroupCurrency(groupID string, userID string) (bool, error)
+	UpdateGroupCurrency(groupID string, userID string, currency string) error
 
 	GetGroupByID(id string) (*Group, error)
 	GetGroupListByUser(userid string) ([]GetGroupListResponse, error)
@@ -23,6 +27,13 @@ type GroupStore interface {
 
 	CheckGroupExistById(id string) (bool, error)
 	CheckGroupUserPairExist(groupId string, userId string) (bool, error)
+}
+
+type Currency struct {
+	Code            string `json:"code"`
+	DisplayName     string `json:"displayName"`
+	MinorUnitDigits int16  `json:"minorUnitDigits"`
+	AmountDigits    int16  `json:"amountDigits"`
 }
 
 type Group struct {
@@ -46,8 +57,11 @@ type CreateGroupPayload struct {
 type UpdateGroupPayload struct {
 	GroupName   string `json:"groupName"`
 	Description string `json:"description"`
-	Currency    string `json:"currency"`
 	GroupType   string `json:"groupType"`
+}
+
+type UpdateGroupCurrencyPayload struct {
+	Currency string `json:"currency"`
 }
 
 type UpdateGroupMemberPayload struct {
@@ -64,11 +78,13 @@ type ReplaceGroupMembersPayload struct {
 }
 
 type GetGroupResponse struct {
-	GroupName   string        `json:"groupName"`
-	Description string        `json:"description"`
-	Currency    string        `json:"currency"`
-	GroupType   string        `json:"groupType"`
-	Members     []GroupMember `json:"members"`
+	GroupName        string        `json:"groupName"`
+	Description      string        `json:"description"`
+	Currency         string        `json:"currency"`
+	CurrencyEditable bool          `json:"currencyEditable"`
+	DetailsEditable  bool          `json:"detailsEditable"`
+	GroupType        string        `json:"groupType"`
+	Members          []GroupMember `json:"members"`
 }
 
 type GroupMember struct {

@@ -51,6 +51,8 @@ var (
 	ErrInvalidAction        = errors.New("invalid actions")
 	ErrUserNotPermitted     = errors.New("user has no permission")
 	ErrProtectedGroupMember = errors.New("group creator and final member cannot be removed")
+	ErrUnsupportedCurrency  = errors.New("unsupported currency")
+	ErrGroupCurrencyLocked  = errors.New("group currency is locked after the first expense")
 
 	// expense
 	ErrExpenseNotExist            = errors.New("expense not exist")
@@ -62,6 +64,8 @@ var (
 	ErrInvalidIdempotencyKey      = errors.New("a valid idempotency key is required")
 	ErrIdempotencyKeyConflict     = errors.New("this submission key was already used for different expense details")
 	ErrInvalidOccurredOn          = errors.New("occurredOn must be a valid date in YYYY-MM-DD format")
+	ErrCurrencyMismatch           = errors.New("expense currency must match the group currency")
+	ErrInvalidMoney               = errors.New("invalid monetary value")
 
 	// notifications
 	ErrWebPushUnavailable         = errors.New("web push notifications are unavailable")

@@ -20,8 +20,10 @@ func NewHandler(store types.GroupStore, userStore types.UserStore) *Handler {
 
 func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 	router.POST("/create_group", h.handleCreateGroup)
+	router.GET("/currencies", h.handleListCurrencies)
 	router.GET("/group/:groupid", h.handleGetGroup)
 	router.PUT("/group/:groupid", h.handleUpdateGroup)
+	router.PUT("/group/:groupid/currency", h.handleUpdateGroupCurrency)
 	router.GET("/groups", h.handleGetGroupList)
 	router.GET("/group_member/:groupid", h.handleGetGroupMember)
 	router.PUT("/group_member", h.handleUpdateGroupMember)

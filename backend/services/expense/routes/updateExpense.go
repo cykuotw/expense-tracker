@@ -12,6 +12,12 @@ import (
 )
 
 func (h *Handler) handleUpdateExpense(c *gin.Context) {
+	actorID, err := uuid.Parse(c.GetString("userID"))
+	if err != nil {
+		utils.WriteError(c, http.StatusInternalServerError, err)
+		return
+	}
+
 	expense, err := extractors.GetExpenseFromStore(c)
 	if err != nil {
 		utils.WriteError(c, http.StatusInternalServerError, err)
@@ -21,6 +27,10 @@ func (h *Handler) handleUpdateExpense(c *gin.Context) {
 	payload, err := extractors.GetExpenseUpdatePayload(c)
 	if err != nil {
 		utils.WriteError(c, http.StatusBadRequest, err)
+		return
+	}
+	if payload.Currency != "" && payload.Currency != expense.Currency {
+		utils.WriteError(c, http.StatusBadRequest, types.ErrCurrencyMismatch)
 		return
 	}
 	if payload.GroupID != expense.GroupID {
@@ -106,12 +116,25 @@ func (h *Handler) handleUpdateExpense(c *gin.Context) {
 	updatedExpense.SubTotal = payload.SubTotal
 	updatedExpense.TaxFeeTip = payload.TaxFeeTip
 	updatedExpense.Total = payload.Total
-	updatedExpense.Currency = payload.Currency
+	updatedExpense.Currency = expense.Currency
 	updatedExpense.InvoicePicUrl = payload.InvoicePicUrl
 	updatedExpense.SplitRule = payload.SplitRule
 	updatedExpense.OccurredOn = expense.OccurredOn
 
 	err = h.store.RunInTransaction(func(store types.ExpenseStore) error {
+		groupCurrency, err := store.LockGroupCurrency(expense.GroupID.String())
+		if err != nil {
+			return err
+		}
+		if groupCurrency != expense.Currency {
+			return types.ErrCurrencyMismatch
+		}
+		if err := store.CheckGroupParticipants(expense.GroupID.String(), expenseParticipantIDs(actorID, updatedExpense, ledgers)); err != nil {
+			return err
+		}
+		if err := validateExpenseMoney(store, updatedExpense, items, ledgers, actorID); err != nil {
+			return err
+		}
 		for index, item := range items {
 			if payload.Items[index].ID == uuid.Nil {
 				if err := store.CreateItem(item); err != nil {
@@ -144,6 +167,10 @@ func (h *Handler) handleUpdateExpense(c *gin.Context) {
 	if err != nil {
 		if errors.Is(err, types.ErrItemNotExist) || errors.Is(err, types.ErrLedgerNotExist) {
 			utils.WriteError(c, http.StatusNotFound, err)
+			return
+		}
+		if errors.Is(err, types.ErrInvalidMoney) || errors.Is(err, types.ErrInvalidAction) || errors.Is(err, types.ErrUnsupportedCurrency) || errors.Is(err, types.ErrCurrencyMismatch) || errors.Is(err, types.ErrGroupParticipantNotAllowed) {
+			utils.WriteError(c, http.StatusBadRequest, err)
 			return
 		}
 		utils.WriteError(c, http.StatusInternalServerError, err)

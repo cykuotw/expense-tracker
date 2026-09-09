@@ -15,10 +15,14 @@ export interface GroupMember {
     username: string;
 }
 
+export type GroupMembersLoadStatus = "idle" | "loading" | "ready" | "error";
+
 export interface GroupInfo {
     groupName: string;
     description: string;
     currency: string;
+    currencyEditable: boolean;
+    detailsEditable: boolean;
     groupType: string;
     members: GroupMember[];
 }

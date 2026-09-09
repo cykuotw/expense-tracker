@@ -18,20 +18,18 @@ import {
 import MobilePageHeader from "../components/MobilePageHeader";
 import { getGroupTypePresentation } from "../lib/groupTypePresentation";
 import { ExpenseDateInput } from "../components/expense/ExpenseDateInput";
-
-const currencyOptions: ExpenseFormPickerOption[] = [
-    { value: "CAD", label: "CAD" },
-    { value: "NTD", label: "NTD" },
-    { value: "USD", label: "USD" },
-];
+import { moneyInputPlaceholder, moneyInputStep } from "../lib/money";
 
 const EditExpenseContent = () => {
     const {
         formData,
+        amountDigits,
         setFormData,
         groupList,
         expenseTypes,
         groupMembers,
+        groupMembersLoadStatus,
+        reloadGroupMembers,
         indicatorShow,
         dataOk,
         hasChanges,
@@ -215,20 +213,9 @@ const EditExpenseContent = () => {
                                 <label className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground/60">
                                     Currency
                                 </label>
-                                <div className="mt-2">
-                                    <ExpenseFormPicker
-                                        label="Currency"
-                                        emptyLabel="Choose currency"
-                                        value={formData.currency}
-                                        onChange={(currency) =>
-                                            setFormData((current) => ({
-                                                ...current,
-                                                currency,
-                                            }))
-                                        }
-                                        options={currencyOptions}
-                                    />
-                                </div>
+                                <output className="ui-input-shell mt-2 flex min-h-12 items-center bg-background px-4 text-foreground/70">
+                                    {formData.currency}
+                                </output>
                             </div>
                             <div>
                                 <label className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground/60">
@@ -239,12 +226,13 @@ const EditExpenseContent = () => {
                                         type="number"
                                         name="total"
                                         className="min-w-0 grow border-0 bg-transparent outline-none"
-                                        step="0.001"
-                                        placeholder="0.00"
+                                        step={amountDigits === null ? undefined : moneyInputStep(amountDigits)}
+                                        placeholder={amountDigits === null ? "Unavailable" : moneyInputPlaceholder(amountDigits)}
                                         value={formData.total}
                                         onChange={handleFormDataChange}
                                         required
                                         min={0}
+                                        disabled={amountDigits === null}
                                     />
                                 </label>
                             </div>
@@ -272,8 +260,47 @@ const EditExpenseContent = () => {
                                 Split rule
                             </div>
                             <div className="mt-2 md:mt-3">
-                                {groupMembers.length <= 1 ? (
-                                    <></>
+                                {groupMembersLoadStatus === "error" ? (
+                                    <div className="flex min-h-14 items-center justify-between gap-3 rounded-2xl border border-destructive/30 bg-destructive/5 px-4 py-2 md:min-h-20">
+                                        <p className="text-sm text-destructive">
+                                            Split options could not be loaded.
+                                        </p>
+                                        <button
+                                            type="button"
+                                            className="ui-button ui-button-ghost min-h-11 shrink-0 px-3"
+                                            onClick={reloadGroupMembers}
+                                        >
+                                            Try again
+                                        </button>
+                                    </div>
+                                ) : groupMembers.length === 0 ? (
+                                    <p
+                                        role="status"
+                                        className="flex min-h-14 items-center rounded-2xl border border-border bg-muted/40 px-4 text-sm text-foreground/60 md:min-h-20"
+                                    >
+                                        {groupMembersLoadStatus === "loading"
+                                            ? "Loading split options…"
+                                            : "Waiting for expense details…"}
+                                    </p>
+                                ) : groupMembers.length === 1 ? (
+                                    <ExpenseFormPicker
+                                        label="Split rule"
+                                        emptyLabel="Split equally"
+                                        value={Rule.Equally}
+                                        onChange={() =>
+                                            setFormData((current) => ({
+                                                ...current,
+                                                splitRule: Rule.Equally,
+                                            }))
+                                        }
+                                        options={[
+                                            {
+                                                value: Rule.Equally,
+                                                label: "Split equally",
+                                                description: "Only you are in this group",
+                                            },
+                                        ]}
+                                    />
                                 ) : groupMembers.length === 2 ? (
                                     <ExpenseFormPicker
                                         label="Split rule"
@@ -372,17 +399,15 @@ const EditExpenseContent = () => {
                                         <input
                                             type="number"
                                             className="grow"
-                                            step="0.001"
-                                            placeholder="0.00"
-                                            value={ledger.share === 0 ? "" : ledger.share}
+                                            step={amountDigits === null ? undefined : moneyInputStep(amountDigits)}
+                                            placeholder={amountDigits === null ? "Unavailable" : moneyInputPlaceholder(amountDigits)}
+                                            value={ledger.share}
+                                            disabled={amountDigits === null}
                                             onChange={(e) => {
                                                 const updated = [
                                                     ...formData.ledgers,
                                                 ];
-                                                updated[index].share =
-                                                    parseFloat(
-                                                        e.target.value
-                                                    ) || 0;
+                                                updated[index].share = e.target.value;
                                                 setFormData((prev) => ({
                                                     ...prev,
                                                     ledgers: updated,

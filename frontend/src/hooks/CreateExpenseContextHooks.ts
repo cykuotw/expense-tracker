@@ -6,7 +6,11 @@ import {
     SetStateAction,
 } from "react";
 import { Rule } from "../types/splitRule";
-import { GroupListItem, GroupMember } from "../types/group";
+import {
+    GroupListItem,
+    GroupMember,
+    GroupMembersLoadStatus,
+} from "../types/group";
 import { ExpenseTypeItem } from "../types/expense";
 
 export interface CreateExpenseContextType {
@@ -15,7 +19,7 @@ export interface CreateExpenseContextType {
     setSelectedGroupId: Dispatch<SetStateAction<string | null>>;
     selectedExpenseTypeId: string;
     setSelectedExpenseTypeId: Dispatch<SetStateAction<string>>;
-    total: number;
+    total: string;
     totalInput: string;
     setTotalInput: Dispatch<SetStateAction<string>>;
     description: string;
@@ -23,13 +27,14 @@ export interface CreateExpenseContextType {
     occurredOn: string;
     setOccurredOn: Dispatch<SetStateAction<string>>;
     currency: string;
+    amountDigits: number | null;
     setCurrency: Dispatch<SetStateAction<string>>;
     payer: string;
     setPayer: Dispatch<SetStateAction<string>>;
     selectedRule: Rule;
     setSelectedRule: Dispatch<SetStateAction<Rule>>;
-    ledgers: { userId: string; share: number }[];
-    setLedgers: Dispatch<SetStateAction<{ userId: string; share: number }[]>>;
+    ledgers: { userId: string; share: string }[];
+    setLedgers: Dispatch<SetStateAction<{ userId: string; share: string }[]>>;
 
     indicatorShow: boolean;
     dataOk: boolean;
@@ -39,6 +44,8 @@ export interface CreateExpenseContextType {
     groupList: GroupListItem[];
     expenseTypes: ExpenseTypeItem[];
     groupMembers: GroupMember[];
+    groupMembersLoadStatus: GroupMembersLoadStatus;
+    reloadGroupMembers: () => void;
 
     handleCreateExpense: (e: FormEvent) => Promise<void>;
 }

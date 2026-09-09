@@ -28,7 +28,7 @@ describe("ExpenseCard", () => {
         const card = screen.getByRole("link", { name: "Open expense: Dinner" });
         expect(card).toHaveAttribute("href", "/expense/expense-1");
         expect(card).toHaveClass("hover:-translate-y-0.5", "hover:shadow-lg");
-        expect(card).toHaveTextContent("$25.50 CAD");
+        expect(card).toHaveTextContent("25.50 CAD");
         expect(card).toHaveTextContent("Dinner");
         expect(card).toHaveTextContent("Paid by Current");
         expect(card).toHaveTextContent("Total");

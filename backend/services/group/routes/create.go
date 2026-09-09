@@ -43,6 +43,15 @@ func (h *Handler) handleCreateGroup(c *gin.Context) {
 		utils.WriteError(c, http.StatusBadRequest, types.ErrInvalidAction)
 		return
 	}
+	supported, err := h.store.IsSupportedCurrency(payload.Currency)
+	if err != nil {
+		utils.WriteError(c, http.StatusInternalServerError, err)
+		return
+	}
+	if !supported {
+		utils.WriteError(c, http.StatusBadRequest, types.ErrUnsupportedCurrency)
+		return
+	}
 
 	group := types.Group{
 		ID:           uuid.New(),

@@ -30,6 +30,9 @@ var mockItems = []*types.Item{
 
 type mockExpenseStore struct {
 	RunInTransactionFn                 func(callback func(types.ExpenseStore) error) error
+	LockGroupCurrencyFn                func(groupID string) (string, error)
+	CheckGroupParticipantsFn           func(groupID string, userIDs []uuid.UUID) error
+	GetCurrencyAmountDigitsFn          func(currency string) (int32, error)
 	CreateExpenseFn                    func(expense types.Expense) error
 	CreateItemFn                       func(item types.Item) error
 	CreateLedgerFn                     func(ledger types.Ledger) error
@@ -56,6 +59,27 @@ type mockExpenseStore struct {
 	CheckBalanceExistByIDFn            func(id string) (bool, error)
 	SettleBalanceByBalanceIdFn         func(groupID string, balanceID string) error
 	CheckGroupBallanceAllSettledFn     func(groupId string) (bool, error)
+}
+
+func (s *mockExpenseStore) LockGroupCurrency(groupID string) (string, error) {
+	if s.LockGroupCurrencyFn != nil {
+		return s.LockGroupCurrencyFn(groupID)
+	}
+	return "CAD", nil
+}
+
+func (s *mockExpenseStore) CheckGroupParticipants(groupID string, userIDs []uuid.UUID) error {
+	if s.CheckGroupParticipantsFn != nil {
+		return s.CheckGroupParticipantsFn(groupID, userIDs)
+	}
+	return nil
+}
+
+func (s *mockExpenseStore) GetCurrencyAmountDigits(currency string) (int32, error) {
+	if s.GetCurrencyAmountDigitsFn != nil {
+		return s.GetCurrencyAmountDigitsFn(currency)
+	}
+	return 2, nil
 }
 
 func (s *mockExpenseStore) RunInTransaction(callback func(types.ExpenseStore) error) error {
@@ -225,6 +249,10 @@ func (s *mockExpenseStore) CheckGroupBallanceAllSettled(groupId string) (bool, e
 // group store base mock
 
 type mockGroupStore struct {
+	ListCurrenciesFn          func() ([]types.Currency, error)
+	IsSupportedCurrencyFn     func(code string) (bool, error)
+	CanEditGroupCurrencyFn    func(groupID string, userID string) (bool, error)
+	UpdateGroupCurrencyFn     func(groupID string, userID string, currency string) error
 	CreateGroupFn             func(group types.Group) error
 	GetGroupByIDFn            func(id string) (*types.Group, error)
 	GetGroupByIDAndUserFn     func(groupID string, userID string) (*types.Group, error)
@@ -237,6 +265,34 @@ type mockGroupStore struct {
 	GetRelatedUserFn          func(currentUser string, groupId string) ([]*types.RelatedMember, error)
 	CheckGroupExistByIdFn     func(id string) (bool, error)
 	CheckGroupUserPairExistFn func(groupId string, userId string) (bool, error)
+}
+
+func (m *mockGroupStore) ListCurrencies() ([]types.Currency, error) {
+	if m.ListCurrenciesFn != nil {
+		return m.ListCurrenciesFn()
+	}
+	return nil, nil
+}
+
+func (m *mockGroupStore) IsSupportedCurrency(code string) (bool, error) {
+	if m.IsSupportedCurrencyFn != nil {
+		return m.IsSupportedCurrencyFn(code)
+	}
+	return true, nil
+}
+
+func (m *mockGroupStore) CanEditGroupCurrency(groupID string, userID string) (bool, error) {
+	if m.CanEditGroupCurrencyFn != nil {
+		return m.CanEditGroupCurrencyFn(groupID, userID)
+	}
+	return true, nil
+}
+
+func (m *mockGroupStore) UpdateGroupCurrency(groupID string, userID string, currency string) error {
+	if m.UpdateGroupCurrencyFn != nil {
+		return m.UpdateGroupCurrencyFn(groupID, userID, currency)
+	}
+	return nil
 }
 
 func (m *mockGroupStore) CreateGroup(group types.Group) error {
@@ -445,7 +501,7 @@ func updateExpenseDetailStoreMock() *mockExpenseStore {
 		if expenseID != mockExpenseID.String() {
 			return nil, types.ErrExpenseNotExist
 		}
-		return &types.Expense{ID: mockExpenseID, GroupID: mockGroupID}, nil
+		return &types.Expense{ID: mockExpenseID, GroupID: mockGroupID, Currency: "CAD"}, nil
 	}
 	store.CheckExpenseExistByIDFn = func(id string) (bool, error) {
 		return id == mockExpenseID.String(), nil

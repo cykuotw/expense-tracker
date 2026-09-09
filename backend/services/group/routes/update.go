@@ -38,7 +38,7 @@ func (h *Handler) handleUpdateGroup(c *gin.Context) {
 		utils.WriteError(c, http.StatusNotFound, types.ErrGroupNotExist)
 		return
 	}
-	group.GroupName, group.Description, group.Currency, group.GroupType = payload.GroupName, payload.Description, payload.Currency, payload.GroupType
+	group.GroupName, group.Description, group.GroupType = payload.GroupName, payload.Description, payload.GroupType
 	if err := h.store.UpdateGroup(*group); err != nil {
 		utils.WriteError(c, http.StatusInternalServerError, err)
 		return

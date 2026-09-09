@@ -223,6 +223,12 @@ func normalizeError(status int, err error) APIErrorResponse {
 	if errors.Is(err, types.ErrUserNotPermitted) {
 		return APIErrorResponse{Error: err.Error(), Code: "user_not_permitted"}
 	}
+	if errors.Is(err, types.ErrUnsupportedCurrency) {
+		return APIErrorResponse{Error: err.Error(), Code: "UNSUPPORTED_CURRENCY"}
+	}
+	if errors.Is(err, types.ErrGroupCurrencyLocked) {
+		return APIErrorResponse{Error: err.Error(), Code: "GROUP_CURRENCY_LOCKED"}
+	}
 	if errors.Is(err, types.ErrExpenseNotExist) {
 		return APIErrorResponse{Error: err.Error(), Code: "expense_not_exist"}
 	}
@@ -240,6 +246,12 @@ func normalizeError(status int, err error) APIErrorResponse {
 	}
 	if errors.Is(err, types.ErrInvalidOccurredOn) {
 		return APIErrorResponse{Error: err.Error(), Code: "invalid_occurred_on"}
+	}
+	if errors.Is(err, types.ErrCurrencyMismatch) {
+		return APIErrorResponse{Error: err.Error(), Code: "currency_mismatch"}
+	}
+	if errors.Is(err, types.ErrInvalidMoney) {
+		return APIErrorResponse{Error: err.Error(), Code: "invalid_money"}
 	}
 	if errors.Is(err, types.ErrBalanceNotExist) {
 		return APIErrorResponse{Error: err.Error(), Code: "balance_not_exist"}

@@ -29,6 +29,9 @@ type ExpenseListPage struct {
 
 type ExpenseStore interface {
 	RunInTransaction(func(ExpenseStore) error) error
+	LockGroupCurrency(groupID string) (string, error)
+	CheckGroupParticipants(groupID string, userIDs []uuid.UUID) error
+	GetCurrencyAmountDigits(currency string) (int32, error)
 
 	CreateExpense(expense Expense) error
 	CreateItem(item Item) error
@@ -195,4 +198,23 @@ type ExpenseTypeResponse struct {
 	ID       string `json:"id"`
 	Category string `json:"category"`
 	Name     string `json:"name"`
+}
+
+// CreateExpenseOptionsResponse is the bounded initial read model for the
+// Create Expense page. Group is nil when the page is opened without a group.
+type CreateExpenseOptionsResponse struct {
+	Groups       []GetGroupListResponse `json:"groups"`
+	ExpenseTypes []ExpenseTypeResponse  `json:"expenseTypes"`
+	Currencies   []Currency             `json:"currencies"`
+	Group        *GetGroupResponse      `json:"group"`
+}
+
+// EditExpenseOptionsResponse is the bounded initial read model for the Edit
+// Expense page.
+type EditExpenseOptionsResponse struct {
+	Expense      ExpenseResponse        `json:"expense"`
+	Groups       []GetGroupListResponse `json:"groups"`
+	ExpenseTypes []ExpenseTypeResponse  `json:"expenseTypes"`
+	Currencies   []Currency             `json:"currencies"`
+	Group        GetGroupResponse       `json:"group"`
 }

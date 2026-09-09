@@ -10,6 +10,16 @@ import (
 )
 
 func (h *Handler) handleGetExpenseDetail(c *gin.Context) {
+	response, err := h.expenseDetailResponse(c, nil)
+	if err != nil {
+		utils.WriteError(c, http.StatusInternalServerError, err)
+		return
+	}
+
+	utils.WriteJSON(c, http.StatusOK, response)
+}
+
+func (h *Handler) expenseDetailResponse(c *gin.Context, expenseTypes []*types.ExpenseType) (types.ExpenseResponse, error) {
 	// get expense id from param
 	// check expense id exist and get group id
 	expenseID := c.Param("expenseId")
@@ -17,19 +27,16 @@ func (h *Handler) handleGetExpenseDetail(c *gin.Context) {
 
 	expense, err := extractors.GetExpenseFromStore(c)
 	if err != nil {
-		utils.WriteError(c, http.StatusInternalServerError, err)
-		return
+		return types.ExpenseResponse{}, err
 	}
 
 	user, err := h.userStore.GetUserByID(expense.CreateByUserID.String())
 	if err != nil {
-		utils.WriteError(c, http.StatusInternalServerError, err)
-		return
+		return types.ExpenseResponse{}, err
 	}
 	items, err := h.store.GetItemsByExpenseID(expenseID)
 	if err != nil {
-		utils.WriteError(c, http.StatusInternalServerError, err)
-		return
+		return types.ExpenseResponse{}, err
 	}
 	itemRsp := make([]types.ItemResponse, 0, len(items))
 	for _, it := range items {
@@ -42,8 +49,7 @@ func (h *Handler) handleGetExpenseDetail(c *gin.Context) {
 	}
 	ledgers, err := h.store.GetLedgersByExpenseID(expenseID)
 	if err != nil {
-		utils.WriteError(c, http.StatusInternalServerError, err)
-		return
+		return types.ExpenseResponse{}, err
 	}
 	userIDs := make([]string, 0, len(ledgers)*2)
 	for _, ledger := range ledgers {
@@ -51,8 +57,7 @@ func (h *Handler) handleGetExpenseDetail(c *gin.Context) {
 	}
 	usernames, err := usernamesByIDs(h.userStore, userIDs)
 	if err != nil {
-		utils.WriteError(c, http.StatusInternalServerError, err)
-		return
+		return types.ExpenseResponse{}, err
 	}
 	ledgerRsp := make([]types.LedgerResponse, 0, len(ledgers))
 	for _, led := range ledgers {
@@ -66,10 +71,11 @@ func (h *Handler) handleGetExpenseDetail(c *gin.Context) {
 		}
 		ledgerRsp = append(ledgerRsp, ledger)
 	}
-	expenseTypes, err := h.store.GetExpenseType()
-	if err != nil {
-		utils.WriteError(c, http.StatusInternalServerError, err)
-		return
+	if expenseTypes == nil {
+		expenseTypes, err = h.store.GetExpenseType()
+		if err != nil {
+			return types.ExpenseResponse{}, err
+		}
 	}
 	expenseType := ""
 	expenseCategory := ""
@@ -81,7 +87,7 @@ func (h *Handler) handleGetExpenseDetail(c *gin.Context) {
 		expenseCategory = item.Category
 		break
 	}
-	response := types.ExpenseResponse{
+	return types.ExpenseResponse{
 		ID:                expense.ID,
 		Description:       expense.Description,
 		CreatedByUserID:   expense.CreateByUserID,
@@ -101,7 +107,5 @@ func (h *Handler) handleGetExpenseDetail(c *gin.Context) {
 		Items:             itemRsp,
 		Ledgers:           ledgerRsp,
 		SplitRule:         expense.SplitRule,
-	}
-
-	utils.WriteJSON(c, http.StatusOK, response)
+	}, nil
 }

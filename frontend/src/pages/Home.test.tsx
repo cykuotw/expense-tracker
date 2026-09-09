@@ -4,8 +4,9 @@ import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 import Home from "./Home";
 
-const { homeMock } = vi.hoisted(() => ({
+const { homeMock, currenciesMock } = vi.hoisted(() => ({
     homeMock: vi.fn(),
+    currenciesMock: vi.fn(),
 }));
 
 vi.mock("../contexts/HomeContextHooks", async (importOriginal) => {
@@ -22,7 +23,22 @@ vi.mock("../contexts/HomeContext", () => ({
     HomeProvider: ({ children }: { children: ReactNode }) => children,
 }));
 
+vi.mock("../hooks/useCurrencies", () => ({
+    useCurrencies: () => currenciesMock(),
+}));
+
 describe("Home mobile summary", () => {
+    currenciesMock.mockReturnValue({
+        currencies: [
+            { code: "CAD", amountDigits: 2 },
+            { code: "USD", amountDigits: 2 },
+            { code: "TWD", amountDigits: 0 },
+        ],
+        loading: false,
+        error: false,
+        reload: vi.fn(),
+    });
+
     it("keeps the summary compact above the group cards and expands extra balances", () => {
         homeMock.mockReturnValue({
             loading: false,
@@ -47,7 +63,7 @@ describe("Home mobile summary", () => {
                     id: "group-3",
                     groupName: "Dinner",
                     description: "",
-                    currency: "NTD",
+                    currency: "TWD",
                     balanceStatus: "owed",
                     balanceAmount: "30",
                 },
@@ -67,7 +83,7 @@ describe("Home mobile summary", () => {
             within(mobileSummary).getByText("You are owed 10.00 CAD")
         ).toBeVisible();
         expect(
-            within(mobileSummary).getByText("You are owed 30 NTD")
+            within(mobileSummary).getByText("You are owed 30 TWD")
         ).toBeVisible();
         expect(
             within(mobileSummary).queryByText("You owe 20.00 USD")
@@ -86,5 +102,30 @@ describe("Home mobile summary", () => {
         expect(
             screen.getByRole("button", { name: "Show fewer balances" })
         ).toHaveAttribute("aria-expanded", "true");
+    });
+
+    it("does not report all settled when currency metadata is unavailable", () => {
+        currenciesMock.mockReturnValue({
+            currencies: [],
+            loading: false,
+            error: true,
+            reload: vi.fn(),
+        });
+        homeMock.mockReturnValue({
+            loading: false,
+            groupCards: [{
+                id: "group-1",
+                groupName: "Trip",
+                description: "",
+                currency: "CAD",
+                balanceStatus: "settled",
+                balanceAmount: "0",
+            }],
+        });
+
+        render(<MemoryRouter><Home /></MemoryRouter>);
+
+        expect(screen.getByText(/Balance totals unavailable/)).toBeVisible();
+        expect(screen.queryByText("All settled")).toBeNull();
     });
 });

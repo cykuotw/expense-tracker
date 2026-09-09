@@ -43,6 +43,11 @@ func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 		validation.ValidateGroupUserPairExist(h.groupStore),
 		h.handleGetGroupOverview)
 	router.GET("/expense_types", h.handleGetExpenseType)
+	router.GET("/expense_create_options", h.handleGetCreateExpenseOptions)
+	router.GET("/expense/:expenseId/edit-options",
+		extractors.ExtractExpenseFromStore(h.store),
+		validation.ValidateGroupUserPairExist(h.groupStore),
+		h.handleGetEditExpenseOptions)
 	router.GET("/expense/:expenseId",
 		extractors.ExtractExpenseFromStore(h.store),
 		validation.ValidateGroupUserPairExist(h.groupStore),

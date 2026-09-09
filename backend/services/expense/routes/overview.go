@@ -42,7 +42,7 @@ func (h *Handler) handleGetGroupOverview(c *gin.Context) {
 		utils.WriteError(c, http.StatusInternalServerError, err)
 		return
 	}
-	expenses, err := h.expenseListResponse(groupID, page, order, status, userID, group.Currency)
+	expenses, err := h.expenseListResponse(groupID, page, order, status, userID)
 	if err != nil {
 		if errors.Is(err, types.ErrNoRemainingExpenses) {
 			expenses = types.ExpenseResponsePage{Expenses: []types.ExpenseResponseBrief{}}
@@ -91,7 +91,7 @@ func (h *Handler) balanceResponse(groupID, userID, currency string) (types.Balan
 	return types.BalanceResponse{Currency: currency, CurrentUser: userID, Balances: balances}, nil
 }
 
-func (h *Handler) expenseListResponse(groupID string, page int64, order types.ExpenseListOrder, status types.ExpenseListStatus, userID, currency string) (types.ExpenseResponsePage, error) {
+func (h *Handler) expenseListResponse(groupID string, page int64, order types.ExpenseListOrder, status types.ExpenseListStatus, userID string) (types.ExpenseResponsePage, error) {
 	pageData, err := h.store.GetExpenseList(groupID, page, order, status)
 	if err != nil {
 		return types.ExpenseResponsePage{}, err
@@ -139,7 +139,7 @@ func (h *Handler) expenseListResponse(groupID string, page int64, order types.Ex
 				payerNames = append(payerNames, names[id])
 			}
 		}
-		response := types.ExpenseResponseBrief{ExpenseID: item.ID, Description: item.Description, Total: item.Total, ExpenseTime: item.ExpenseTime, OccurredOn: item.OccurredOn, CurrentUser: userID, Currency: currency, IsSettled: item.IsSettled, PayerUserIDs: payerIDs, PayerUsernames: payerNames, ExpenseTypeID: item.ExpenseTypeID}
+		response := types.ExpenseResponseBrief{ExpenseID: item.ID, Description: item.Description, Total: item.Total, ExpenseTime: item.ExpenseTime, OccurredOn: item.OccurredOn, CurrentUser: userID, Currency: item.Currency, IsSettled: item.IsSettled, PayerUserIDs: payerIDs, PayerUsernames: payerNames, ExpenseTypeID: item.ExpenseTypeID}
 		if expenseType := typesByID[item.ExpenseTypeID]; expenseType != nil {
 			response.ExpenseType = expenseType.Name
 			response.ExpenseCategory = expenseType.Category

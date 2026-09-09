@@ -10,6 +10,10 @@ import (
 
 type mockGroupStore struct {
 	CreateGroupFn             func(group types.Group) error
+	ListCurrenciesFn          func() ([]types.Currency, error)
+	IsSupportedCurrencyFn     func(code string) (bool, error)
+	CanEditGroupCurrencyFn    func(groupID string, userID string) (bool, error)
+	UpdateGroupCurrencyFn     func(groupID string, userID string, currency string) error
 	GetGroupByIDFn            func(id string) (*types.Group, error)
 	GetGroupByIDAndUserFn     func(groupID string, userID string) (*types.Group, error)
 	GetGroupListByUserFn      func(userid string) ([]types.GetGroupListResponse, error)
@@ -26,6 +30,30 @@ type mockGroupStore struct {
 func (m *mockGroupStore) CreateGroup(group types.Group) error {
 	if m.CreateGroupFn != nil {
 		return m.CreateGroupFn(group)
+	}
+	return nil
+}
+func (m *mockGroupStore) ListCurrencies() ([]types.Currency, error) {
+	if m.ListCurrenciesFn != nil {
+		return m.ListCurrenciesFn()
+	}
+	return nil, nil
+}
+func (m *mockGroupStore) IsSupportedCurrency(code string) (bool, error) {
+	if m.IsSupportedCurrencyFn != nil {
+		return m.IsSupportedCurrencyFn(code)
+	}
+	return true, nil
+}
+func (m *mockGroupStore) CanEditGroupCurrency(groupID string, userID string) (bool, error) {
+	if m.CanEditGroupCurrencyFn != nil {
+		return m.CanEditGroupCurrencyFn(groupID, userID)
+	}
+	return true, nil
+}
+func (m *mockGroupStore) UpdateGroupCurrency(groupID string, userID string, currency string) error {
+	if m.UpdateGroupCurrencyFn != nil {
+		return m.UpdateGroupCurrencyFn(groupID, userID, currency)
 	}
 	return nil
 }

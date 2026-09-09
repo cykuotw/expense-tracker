@@ -38,20 +38,20 @@ describe("EditGroup member anchor", () => {
             configurable: true,
             value: scrollIntoViewMock,
         });
-        apiFetchMock.mockResolvedValue(
-            new Response(
-                JSON.stringify({
-                    groupName: "Trip",
-                    description: "",
-                    currency: "CAD",
-                    groupType: "trip",
-                }),
-                {
-                    status: 200,
-                    headers: { "Content-Type": "application/json" },
-                }
-            )
-        );
+        apiFetchMock.mockImplementation((path: string) => Promise.resolve(new Response(
+            JSON.stringify(path === "/currencies" ? [
+                { code: "CAD", displayName: "Canadian Dollar", minorUnitDigits: 2, amountDigits: 2 },
+                { code: "USD", displayName: "US Dollar", minorUnitDigits: 2, amountDigits: 2 },
+            ] : {
+                groupName: "Trip",
+                description: "",
+                currency: "CAD",
+                groupType: "trip",
+                currencyEditable: false,
+                detailsEditable: true,
+            }),
+            { status: 200, headers: { "Content-Type": "application/json" } },
+        )));
     });
 
     afterEach(cleanup);
@@ -93,5 +93,43 @@ describe("EditGroup member anchor", () => {
             target: { value: "Trip" },
         });
         saveButtons.forEach((button) => expect(button).toBeDisabled());
+    });
+
+    it("saves currency through the dedicated endpoint", async () => {
+        apiFetchMock.mockImplementation((path: string) => Promise.resolve(new Response(
+            JSON.stringify(path === "/currencies" ? [
+                { code: "CAD", displayName: "Canadian Dollar", minorUnitDigits: 2, amountDigits: 2 },
+                { code: "USD", displayName: "US Dollar", minorUnitDigits: 2, amountDigits: 2 },
+            ] : path === "/group/group-1" ? {
+                groupName: "Trip",
+                description: "",
+                currency: "CAD",
+                groupType: "trip",
+                currencyEditable: true,
+                detailsEditable: true,
+            } : {}),
+            { status: 200, headers: { "Content-Type": "application/json" } },
+        )));
+        render(
+            <MemoryRouter initialEntries={["/group/group-1/edit"]}>
+                <Routes>
+                    <Route path="/group/:id/edit" element={<EditGroup />} />
+                </Routes>
+            </MemoryRouter>
+        );
+
+        await waitFor(() => expect(screen.getByRole("button", { name: "Save currency" })).toBeDisabled());
+        fireEvent.click(screen.getByRole("button", { name: "Currency" }));
+        fireEvent.click(screen.getByRole("option", { name: /USD — US Dollar/ }));
+        fireEvent.click(screen.getByRole("button", { name: "Save currency" }));
+
+        await waitFor(() => expect(apiFetchMock).toHaveBeenCalledWith(
+            "/group/group-1/currency",
+            expect.objectContaining({ method: "PUT", body: JSON.stringify({ currency: "USD" }) }),
+        ));
+        expect(apiFetchMock).not.toHaveBeenCalledWith(
+            "/group/group-1",
+            expect.objectContaining({ method: "PUT" }),
+        );
     });
 });

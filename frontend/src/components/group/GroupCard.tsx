@@ -10,8 +10,8 @@ export default function GroupCard(groupData: GroupCardData) {
         groupData.balanceStatus === "settled"
             ? "Settled"
             : groupData.balanceStatus === "owed"
-              ? `You are owed $${groupData.balanceAmount} ${groupData.currency}`
-              : `You owe $${groupData.balanceAmount} ${groupData.currency}`;
+              ? `You are owed ${groupData.balanceAmount} ${groupData.currency}`
+              : `You owe ${groupData.balanceAmount} ${groupData.currency}`;
 
     const balanceClass =
         groupData.balanceStatus === "settled"

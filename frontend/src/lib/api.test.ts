@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { asArray, getResponseError, getResponseErrorMessage } from "./api";
+import {
+    asArray,
+    getResponseError,
+    getResponseErrorMessage,
+} from "./api";
 
 const fallback = "Fallback message";
 

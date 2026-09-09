@@ -1,5 +1,7 @@
 import { ItemCreateData, ItemData } from "./item";
 import { LedgerCreateData, LedgerData, LedgerUpdateData } from "./ledger";
+import { GroupInfo, GroupListItem } from "./group";
+import { CurrencyMetadata } from "../lib/money";
 
 export interface ExpenseData {
     expenseId: string;
@@ -68,4 +70,19 @@ export interface ExpenseCreateData {
 export interface ExpenseUpdateData
     extends Omit<ExpenseCreateData, "createByUserId" | "ledgers"> {
     ledgers: LedgerUpdateData[];
+}
+
+export interface CreateExpenseOptionsData {
+    groups: GroupListItem[];
+    expenseTypes: ExpenseTypeItem[];
+    currencies: CurrencyMetadata[];
+    group: GroupInfo | null;
+}
+
+export interface EditExpenseOptionsData {
+    expense: ExpenseDetailData;
+    groups: GroupListItem[];
+    expenseTypes: ExpenseTypeItem[];
+    currencies: CurrencyMetadata[];
+    group: GroupInfo;
 }

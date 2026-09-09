@@ -22,9 +22,9 @@ class AWSClientTest(unittest.TestCase):
         call.assert_called_once_with("lambda", "put-function-concurrency", "--function-name", "sender", "--reserved-concurrent-executions", "0")
         sleep.assert_called_once_with(60)
 
-    def test_worker_activation_reduces_legacy_concurrency_to_two(self) -> None:
+    def test_worker_activation_raises_legacy_concurrency_to_five(self) -> None:
         client = AWSClient("ca-central-1")
-        with mock.patch.object(client, "concurrency", side_effect=[3, 2]), mock.patch.object(
+        with mock.patch.object(client, "concurrency", side_effect=[2, 5]), mock.patch.object(
             client,
             "json",
             return_value={"AccountLimit": {"ConcurrentExecutions": 5}},
@@ -37,7 +37,7 @@ class AWSClientTest(unittest.TestCase):
             "--function-name",
             "worker",
             "--reserved-concurrent-executions",
-            "2",
+            "5",
         )
 
     def test_sender_activation_keeps_single_concurrency(self) -> None:

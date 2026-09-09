@@ -59,8 +59,11 @@ class ConfigTest(unittest.TestCase):
         self.assertFalse(variables["enable_restore_verification"])
         self.assertEqual(config.backup.time, "03:17:00")
         self.assertEqual(config.backup.timezone, "UTC")
-        self.assertEqual(config.worker_environment("10.0.0.2")["Variables"]["AUTH_COOKIE_SAME_SITE"], "lax")
-        self.assertEqual(config.worker_environment("10.0.0.2")["Variables"]["WEB_PUSH_VAPID_PUBLIC_KEY"], "p" * 43)
+        worker = config.worker_environment("10.0.0.2")["Variables"]
+        self.assertEqual(worker["AUTH_COOKIE_SAME_SITE"], "lax")
+        self.assertEqual(worker["WEB_PUSH_VAPID_PUBLIC_KEY"], "p" * 43)
+        self.assertEqual(worker["DB_MAX_OPEN_CONNS"], "2")
+        self.assertEqual(worker["DB_MAX_IDLE_CONNS"], "1")
         sender = config.sender_environment("delivery-function")["Variables"]
         delivery = config.delivery_environment("10.0.0.2")["Variables"]
         self.assertEqual(sender["WEB_PUSH_VAPID_PRIVATE_KEY"], "k" * 43)

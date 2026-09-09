@@ -57,15 +57,15 @@ class AWSClient:
 
     def activate_worker(self, function_name: str) -> None:
         current = self.concurrency(function_name)
-        if current not in (0, 2, 3):
+        if current not in (0, 2, 3, 5):
             raise CommandError(f"unexpected worker reserved concurrency: {current}")
         limits = self.json("lambda", "get-account-settings")["AccountLimit"]
         if int(limits["ConcurrentExecutions"]) < 5:
             raise CommandError("Lambda account concurrency must be at least 5")
-        if current != 2:
-            self.call("lambda", "put-function-concurrency", "--function-name", function_name, "--reserved-concurrent-executions", "2")
-        if self.concurrency(function_name) != 2:
-            raise CommandError("worker activation did not reach reserved concurrency 2")
+        if current != 5:
+            self.call("lambda", "put-function-concurrency", "--function-name", function_name, "--reserved-concurrent-executions", "5")
+        if self.concurrency(function_name) != 5:
+            raise CommandError("worker activation did not reach reserved concurrency 5")
 
     def activate_notification_function(self, function_name: str) -> None:
         current = self.concurrency(function_name)

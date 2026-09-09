@@ -224,7 +224,7 @@ is not configured for forced deletion.
 ## Safety boundary
 
 - Terraform never receives database/JWT/first-admin secrets and never manages Lambda environments.
-- The Worker begins at reserved concurrency `0`; Python publishes runtime configuration and activates it at `2`.
+- The Worker begins at reserved concurrency `0`; Python publishes runtime configuration and activates it at `5`. With the deployed `DB_MAX_OPEN_CONNS=2`, the Worker has a maximum application-side database pool budget of 10 connections.
 - The raw execute-api endpoint is disabled only after custom-domain and frontend checks pass.
 - Normal updates use narrowly targeted Terraform plans for supported API, CloudFront, notification, and database-support infrastructure changes; Lambda code and runtime environments remain owned by the deployment runtime after initial creation. Deletions are limited to the two retired invitation routes and the obsolete notification HTTPS egress rule; replacements and unrelated deletions are rejected.
 - Before an update, the deployer removes only unmanaged Worker/Bootstrap/Sender/Delivery runtime environments if an AWS provider response persisted them into local state, then verifies that no configured protected value remains anywhere in Terraform artifacts.

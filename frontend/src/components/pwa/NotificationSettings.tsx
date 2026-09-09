@@ -131,7 +131,7 @@ export default function NotificationSettings() {
     const muted = new Set(settings.mutedGroups.map((group) => group.groupId));
     const available = supportsPush() && Boolean(settings.vapidPublicKey);
 
-    return <section className="panel-card rounded-[2rem] p-4 sm:p-7 lg:col-span-2" aria-labelledby="notifications-heading">
+    return <section className="panel-card rounded-[2rem] p-4 sm:p-7 md:hidden" aria-labelledby="notifications-heading">
         <div className="section-label">This device</div><h2 id="notifications-heading" className="mt-2 text-xl font-semibold">Activity notifications</h2>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-foreground/65">Notifications are off by default. When enabled, this device receives a generic alert when another member adds an expense. Details stay hidden unless you choose otherwise.</p>
         {!available ? <p className="mt-4 text-sm leading-6 text-foreground/65">This browser or deployment does not support web push. On iPhone and iPad, add Expense Tracker to the Home Screen from Safari first, then open the installed app to enable notifications.</p> : null}

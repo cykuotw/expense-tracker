@@ -104,7 +104,7 @@ the deployer:
 
 - Node `22.23.2` through Node `22.x`; `frontend/.node-version` identifies the
   tested baseline and `frontend/package.json` enforces the supported range.
-- pnpm `11.25.0` through `11.x`; `frontend/package.json` identifies the tested baseline.
+- pnpm `11.25.0` through `12.x`; `frontend/package.json` pins the tested `12.3.4` version.
 
 pnpm requires Node, and the deployer intentionally does not download or install
 either tool. The serverless preflight checks that `node` and `pnpm` are

@@ -1,7 +1,9 @@
 package types
 
 import (
+	"cmp"
 	"context"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -39,6 +41,15 @@ type User struct {
 	CreateTime       time.Time `json:"createTime"`
 	IsActive         bool      `json:"isActive"`
 	Role             string    `json:"role"`
+}
+
+// DisplayName returns the current profile name used in user-facing responses.
+func (u User) DisplayName() string {
+	return cmp.Or(
+		strings.TrimSpace(u.Nickname),
+		strings.TrimSpace(u.Firstname+" "+u.Lastname),
+		strings.TrimSpace(u.Username),
+	)
 }
 
 // UserLookupResponse is the minimum identity data required to add a member to a group.

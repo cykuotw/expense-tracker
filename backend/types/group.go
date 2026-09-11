@@ -90,12 +90,12 @@ type GetGroupResponse struct {
 
 type GroupMember struct {
 	UserID   string `json:"userId"`
-	Username string `json:"username"` // username or email
+	Username string `json:"username"` // current profile display name; field name retained for API compatibility
 }
 
 type RelatedMember struct {
 	UserID       string `json:"userId"`
-	Username     string `json:"username"` // username or email
+	Username     string `json:"username"` // current profile display name; field name retained for API compatibility
 	ExistInGroup bool   `json:"existInGroup"`
 }
 

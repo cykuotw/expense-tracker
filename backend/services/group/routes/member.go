@@ -57,7 +57,7 @@ func groupMembersForUser(users []*types.User, currentUserID string) []types.Grou
 	for _, user := range users {
 		member := types.GroupMember{
 			UserID:   user.ID.String(),
-			Username: user.Username,
+			Username: user.DisplayName(),
 		}
 		if member.UserID == currentUserID {
 			currentUser = &member

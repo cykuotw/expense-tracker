@@ -519,7 +519,13 @@ func TestGetRelatedUser(t *testing.T) {
 	db := openTestDB(t)
 	mockCurrentUserID := uuid.New()
 	mockCurrentUser := types.User{
-		ID: mockCurrentUserID,
+		ID:             mockCurrentUserID,
+		Username:       "current-account",
+		Nickname:       "Current member",
+		Email:          "current-member@example.test",
+		PasswordHashed: "not-used",
+		CreateTime:     time.Now(),
+		IsActive:       true,
 	}
 
 	mockGroupID := uuid.New()
@@ -533,11 +539,24 @@ func TestGetRelatedUser(t *testing.T) {
 
 	mockUserID := uuid.New()
 	mockUser := types.User{
-		ID: mockUserID,
+		ID:             mockUserID,
+		Username:       "first-account",
+		Nickname:       "First member",
+		Email:          "first-member@example.test",
+		PasswordHashed: "not-used",
+		CreateTime:     time.Now(),
+		IsActive:       true,
 	}
 	mockUserID2 := uuid.New()
 	mockUser2 := types.User{
-		ID: mockUserID2,
+		ID:             mockUserID2,
+		Username:       "second-account",
+		Firstname:      "Second",
+		Lastname:       "Member",
+		Email:          "second-member@example.test",
+		PasswordHashed: "not-used",
+		CreateTime:     time.Now(),
+		IsActive:       true,
 	}
 
 	insertUser(db, mockCurrentUser)
@@ -574,10 +593,12 @@ func TestGetRelatedUser(t *testing.T) {
 			expectGroupMembers: []*types.RelatedMember{
 				{
 					UserID:       mockUserID.String(),
+					Username:     "First member",
 					ExistInGroup: true,
 				},
 				{
 					UserID:       mockUserID2.String(),
+					Username:     "Second Member",
 					ExistInGroup: false,
 				},
 			},
@@ -608,6 +629,7 @@ func TestGetRelatedUser(t *testing.T) {
 					for _, tm := range test.expectGroupMembers {
 						if tm.UserID == m.UserID {
 							exist = true
+							assert.Equal(t, tm.Username, m.Username)
 							break
 						}
 					}
@@ -956,12 +978,12 @@ func insertUser(db *sql.DB, user types.User) error {
 	createTime := user.CreateTime.UTC().Format("2006-01-02 15:04:05-0700")
 	query := fmt.Sprintf(
 		"INSERT INTO users ("+
-			"id, username, firstname, lastname, "+
+			"id, username, firstname, lastname, nickname, "+
 			"email, password_hash, "+
 			"external_type, external_id, "+
 			"create_time_utc, is_active"+
-			") VALUES ('%s','%s','%s','%s','%s','%s',%s,%s,'%s',%t);",
-		user.ID, user.Username, user.Firstname, user.Lastname,
+			") VALUES ('%s','%s','%s','%s','%s','%s','%s',%s,%s,'%s',%t);",
+		user.ID, user.Username, user.Firstname, user.Lastname, user.Nickname,
 		user.Email, user.PasswordHashed,
 		sqlStringOrNull(user.ExternalType), sqlStringOrNull(user.ExternalID),
 		createTime, user.IsActive,

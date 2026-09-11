@@ -15,7 +15,11 @@ func (s *Store) GetRelatedUser(currentUser string, groupId string) ([]*types.Rel
 
 		SELECT DISTINCT
 			u.id, 
-			u.username,
+			COALESCE(
+				NULLIF(BTRIM(u.nickname), ''),
+				NULLIF(BTRIM(CONCAT_WS(' ', u.firstname, u.lastname)), ''),
+				u.username
+			) AS display_name,
 			CASE
 				WHEN EXISTS (
 					SELECT 1 
@@ -29,7 +33,7 @@ func (s *Store) GetRelatedUser(currentUser string, groupId string) ([]*types.Rel
 		JOIN former_member AS fm
 		ON u.id = fm.user_id
 		WHERE u.id <> $3
-		ORDER BY u.username;`
+		ORDER BY display_name;`
 	rows, err := s.db.Query(query, currentUser, groupId, currentUser)
 	if err != nil {
 		return nil, err

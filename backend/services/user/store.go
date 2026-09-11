@@ -101,7 +101,11 @@ func (s *Store) GetUserByID(id string) (*types.User, error) {
 }
 
 func (s *Store) GetUsernameByID(userid string) (string, error) {
-	query := "SELECT username FROM users WHERE id = $1;"
+	query := `SELECT COALESCE(
+		NULLIF(BTRIM(nickname), ''),
+		NULLIF(BTRIM(CONCAT_WS(' ', firstname, lastname)), ''),
+		username
+	) FROM users WHERE id = $1;`
 	rows, err := s.db.Query(query, userid)
 	if err != nil {
 		return "", err

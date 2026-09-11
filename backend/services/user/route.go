@@ -63,7 +63,7 @@ func (h *Handler) handleGetUserInfoByEmail(c *gin.Context) error {
 
 	utils.WriteJSON(c, http.StatusOK, types.UserLookupResponse{
 		ID:       user.ID,
-		Username: user.Username,
+		Username: user.DisplayName(),
 	})
 
 	return nil

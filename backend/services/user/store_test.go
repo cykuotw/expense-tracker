@@ -210,7 +210,7 @@ func TestGetUsernameByID(t *testing.T) {
 	mockUser := types.User{
 		ID:               mockID,
 		Username:         mockUsername,
-		Nickname:         mockUsername,
+		Nickname:         "Current profile name",
 		Firstname:        "testfirstname",
 		Lastname:         "testlastname",
 		Email:            "a@test.com",
@@ -238,7 +238,7 @@ func TestGetUsernameByID(t *testing.T) {
 			name:         "valid",
 			mockID:       mockID,
 			expectFail:   false,
-			expectResult: mockUsername,
+			expectResult: "Current profile name",
 			expectError:  nil,
 		},
 		{

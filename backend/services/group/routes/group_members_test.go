@@ -18,7 +18,7 @@ func TestGroupMembersForUserSerializesAnEmptyStoreResultAsArray(t *testing.T) {
 }
 
 func TestGroupMembersForUserDoesNotAppendAnEmptyCurrentUser(t *testing.T) {
-	users := []*types.User{{Username: "Other"}}
+	users := []*types.User{{Username: "other-account", Nickname: "Other"}}
 
 	members := groupMembersForUser(users, "current-user")
 

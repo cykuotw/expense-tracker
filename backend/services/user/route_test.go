@@ -48,7 +48,8 @@ func TestHandleGetUserInfoByEmailReturnsOnlyPublicIdentity(t *testing.T) {
 	userID := uuid.New()
 	handler := NewHandler(userLookupStore{user: &types.User{
 		ID:             userID,
-		Username:       "member",
+		Username:       "member-account",
+		Nickname:       "Member",
 		Email:          "member@example.com",
 		PasswordHashed: "must-not-be-returned",
 		ExternalID:     "private-identity",
@@ -64,7 +65,7 @@ func TestHandleGetUserInfoByEmailReturnsOnlyPublicIdentity(t *testing.T) {
 	require.NoError(t, json.NewDecoder(recorder.Body).Decode(&response))
 	require.Len(t, response, 2)
 	require.JSONEq(t, `"`+userID.String()+`"`, string(response["id"]))
-	require.JSONEq(t, `"member"`, string(response["username"]))
+	require.JSONEq(t, `"Member"`, string(response["username"]))
 	_, hasPasswordHash := response["passwordHashed"]
 	_, hasExternalID := response["externalId"]
 	require.False(t, hasPasswordHash)

@@ -12,6 +12,10 @@ type ledgerBatchStore interface {
 	GetLedgersByExpenseIDs(expenseIDs []string) (map[string][]*types.Ledger, error)
 }
 
+type ledgerReader interface {
+	GetLedgersByExpenseID(expenseID string) ([]*types.Ledger, error)
+}
+
 func usernamesByIDs(store types.UserStore, userIDs []string) (map[string]string, error) {
 	if batchStore, ok := store.(usernameBatchStore); ok {
 		return batchStore.GetUsernamesByIDs(userIDs)
@@ -31,7 +35,7 @@ func usernamesByIDs(store types.UserStore, userIDs []string) (map[string]string,
 	return usernames, nil
 }
 
-func ledgersByExpenseIDs(store types.ExpenseStore, expenseIDs []string) (map[string][]*types.Ledger, error) {
+func ledgersByExpenseIDs(store ledgerReader, expenseIDs []string) (map[string][]*types.Ledger, error) {
 	if batchStore, ok := store.(ledgerBatchStore); ok {
 		return batchStore.GetLedgersByExpenseIDs(expenseIDs)
 	}

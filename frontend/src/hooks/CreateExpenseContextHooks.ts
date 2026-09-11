@@ -5,7 +5,8 @@ import {
     Dispatch,
     SetStateAction,
 } from "react";
-import { Rule } from "../types/splitRule";
+import { ExpenseAllocation } from "../types/allocation";
+import { AllocationCalculation } from "../lib/expenseAllocation";
 import {
     GroupListItem,
     GroupMember,
@@ -28,22 +29,21 @@ export interface CreateExpenseContextType {
     setOccurredOn: Dispatch<SetStateAction<string>>;
     currency: string;
     amountDigits: number | null;
-    setCurrency: Dispatch<SetStateAction<string>>;
     payer: string;
     setPayer: Dispatch<SetStateAction<string>>;
-    selectedRule: Rule;
-    setSelectedRule: Dispatch<SetStateAction<Rule>>;
-    ledgers: { userId: string; share: string }[];
-    setLedgers: Dispatch<SetStateAction<{ userId: string; share: string }[]>>;
+    allocation: ExpenseAllocation;
+    setAllocation: Dispatch<SetStateAction<ExpenseAllocation>>;
+    allocationCalculation: AllocationCalculation;
+    mainFormVisited: boolean;
+    markMainFormVisited: () => void;
 
     indicatorShow: boolean;
     dataOk: boolean;
-    ledgerShareOk: boolean;
-    ledgerShareMessage: string;
 
     groupList: GroupListItem[];
     expenseTypes: ExpenseTypeItem[];
     groupMembers: GroupMember[];
+    currentUserId: string;
     groupMembersLoadStatus: GroupMembersLoadStatus;
     reloadGroupMembers: () => void;
 

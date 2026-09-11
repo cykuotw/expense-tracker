@@ -44,6 +44,12 @@ func TestRouteGetExpenseDetail(t *testing.T) {
 			expectResponse: types.ExpenseResponse{
 				ID:         mockExpenseID,
 				OccurredOn: "2026-08-31",
+				Allocation: types.ExpenseAllocationPayload{
+					Mode: types.ExpenseAllocationEqual,
+					Participants: []types.ExpenseAllocationParticipantPayload{{
+						UserID: mockUserID.String(),
+					}},
+				},
 				Items: []types.ItemResponse{
 					{
 						ItemID: mockItemIDs[0],
@@ -105,6 +111,7 @@ func TestRouteGetExpenseDetail(t *testing.T) {
 			assert.Equal(t, test.expectStatusCode, rr.Code)
 			assert.Equal(t, test.expectResponse.ID, rsp.ID)
 			assert.Equal(t, test.expectResponse.OccurredOn, rsp.OccurredOn)
+			assert.Equal(t, test.expectResponse.Allocation, rsp.Allocation)
 			if assert.Equal(t, len(test.expectResponse.Items), len(rsp.Items)) {
 				for i, it := range rsp.Items {
 					assert.Equal(t, test.expectResponse.Items[i].ItemID, it.ItemID)

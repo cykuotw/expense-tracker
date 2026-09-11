@@ -43,10 +43,7 @@ func TestRouteUpdateExpenseDetail(t *testing.T) {
 				ExpenseTypeID: mockExpenseTypeID,
 				Total:         decimal.NewFromInt(1),
 				Currency:      "CAD",
-				SplitRule:     "Unequally",
-				Ledgers: []types.LedgerUpdatePayload{{LedgerPayload: types.LedgerPayload{
-					LenderUserID: mockCreatorID.String(), BorrowerUesrID: mockUserID.String(), Share: decimal.NewFromInt(1),
-				}}},
+				Allocation:    exactAllocation(mockUserID, "1"),
 			},
 			expenseID:        mockExpenseID.String(),
 			expectFail:       false,
@@ -60,10 +57,7 @@ func TestRouteUpdateExpenseDetail(t *testing.T) {
 				ExpenseTypeID: mockExpenseTypeID,
 				Total:         decimal.NewFromInt(1),
 				Currency:      "CAD",
-				SplitRule:     "Unequally",
-				Ledgers: []types.LedgerUpdatePayload{{LedgerPayload: types.LedgerPayload{
-					LenderUserID: mockCreatorID.String(), BorrowerUesrID: mockUserID.String(), Share: decimal.NewFromInt(1),
-				}}},
+				Allocation:    exactAllocation(mockUserID, "1"),
 			},
 			expenseID:        uuid.NewString(),
 			expectFail:       true,
@@ -77,10 +71,7 @@ func TestRouteUpdateExpenseDetail(t *testing.T) {
 				ExpenseTypeID: mockExpenseTypeID,
 				Total:         decimal.NewFromInt(1),
 				Currency:      "CAD",
-				SplitRule:     "Unequally",
-				Ledgers: []types.LedgerUpdatePayload{{LedgerPayload: types.LedgerPayload{
-					LenderUserID: mockCreatorID.String(), BorrowerUesrID: mockUserID.String(), Share: decimal.NewFromInt(1),
-				}}},
+				Allocation:    exactAllocation(mockUserID, "1"),
 			},
 			expenseID:        mockExpenseID.String(),
 			expectFail:       true,
@@ -149,10 +140,7 @@ func TestHandleUpdateExpenseOccurredOnSemantics(t *testing.T) {
 			context.Set("expense", &types.Expense{ID: mockExpenseID, GroupID: mockGroupID, OccurredOn: "2026-08-30", Currency: "CAD"})
 			context.Set("expensePayload", types.ExpenseUpdatePayload{
 				GroupID: mockGroupID, PayByUserId: mockCreatorID.String(), ExpenseTypeID: mockExpenseTypeID, OccurredOn: test.requested,
-				Total: decimal.NewFromInt(1), Currency: "CAD", SplitRule: "Unequally",
-				Ledgers: []types.LedgerUpdatePayload{{LedgerPayload: types.LedgerPayload{
-					LenderUserID: mockCreatorID.String(), BorrowerUesrID: mockUserID.String(), Share: decimal.NewFromInt(1),
-				}}},
+				Total: decimal.NewFromInt(1), Currency: "CAD", Allocation: exactAllocation(mockUserID, "1"),
 			})
 
 			NewHandler(store, nil, updateExpenseDetailGroupStoreMock(), expenseControllerMock()).handleUpdateExpense(context)

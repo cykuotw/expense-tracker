@@ -17,7 +17,7 @@ func newIdempotencyExpense() types.Expense {
 	return types.Expense{
 		ID: uuid.New(), Description: "idempotency test", GroupID: uuid.New(), CreateByUserID: uuid.New(),
 		PayByUserId: uuid.New(), ExpenseTypeID: uuid.New(), SubTotal: decimal.NewFromInt(10),
-		TaxFeeTip: decimal.Zero, Total: decimal.NewFromInt(10), Currency: "CAD", SplitRule: "Equally",
+		TaxFeeTip: decimal.Zero, Total: decimal.NewFromInt(10), Currency: "CAD", AllocationMode: "equal",
 	}
 }
 
@@ -28,7 +28,7 @@ func TestExpenseCreateIdempotencyClaimReplaysOneCommittedExpense(t *testing.T) {
 	created := types.Expense{
 		ID: createdID, Description: "idempotency replay", GroupID: uuid.New(), CreateByUserID: uuid.New(),
 		PayByUserId: uuid.New(), ExpenseTypeID: uuid.New(), SubTotal: decimal.NewFromInt(10),
-		TaxFeeTip: decimal.Zero, Total: decimal.NewFromInt(10), Currency: "CAD", SplitRule: "Equally",
+		TaxFeeTip: decimal.Zero, Total: decimal.NewFromInt(10), Currency: "CAD", AllocationMode: "equal",
 	}
 	record := types.ExpenseCreateIdempotency{
 		CreatorUserID: created.CreateByUserID, Key: uuid.New(), RequestFingerprint: []byte("fingerprint"), ExpenseID: createdID,
@@ -39,7 +39,7 @@ func TestExpenseCreateIdempotencyClaimReplaysOneCommittedExpense(t *testing.T) {
 		deleteExpense(db, createdID)
 	})
 
-	require.NoError(t, store.RunInTransaction(func(tx types.ExpenseStore) error {
+	require.NoError(t, store.RunInTransaction(func(tx types.ExpenseTransactionStore) error {
 		_, claimed, err := tx.ClaimExpenseCreateIdempotency(record)
 		if err != nil || !claimed {
 			return err
@@ -48,7 +48,7 @@ func TestExpenseCreateIdempotencyClaimReplaysOneCommittedExpense(t *testing.T) {
 	}))
 
 	replayID := uuid.Nil
-	require.NoError(t, store.RunInTransaction(func(tx types.ExpenseStore) error {
+	require.NoError(t, store.RunInTransaction(func(tx types.ExpenseTransactionStore) error {
 		existing, claimed, err := tx.ClaimExpenseCreateIdempotency(record)
 		if err != nil {
 			return err
@@ -75,7 +75,7 @@ func TestExpenseCreateIdempotencyRollbackAllowsRetry(t *testing.T) {
 		deleteExpense(db, created.ID)
 	})
 
-	require.Error(t, store.RunInTransaction(func(tx types.ExpenseStore) error {
+	require.Error(t, store.RunInTransaction(func(tx types.ExpenseTransactionStore) error {
 		_, claimed, err := tx.ClaimExpenseCreateIdempotency(record)
 		if err != nil {
 			return err
@@ -85,7 +85,7 @@ func TestExpenseCreateIdempotencyRollbackAllowsRetry(t *testing.T) {
 		}
 		return errors.New("force rollback")
 	}))
-	require.NoError(t, store.RunInTransaction(func(tx types.ExpenseStore) error {
+	require.NoError(t, store.RunInTransaction(func(tx types.ExpenseTransactionStore) error {
 		_, claimed, err := tx.ClaimExpenseCreateIdempotency(record)
 		if err != nil {
 			return err
@@ -112,7 +112,7 @@ func TestExpenseCreateIdempotencyAllowsSameKeyForDifferentUsers(t *testing.T) {
 	})
 	for _, created := range []types.Expense{first, second} {
 		record := types.ExpenseCreateIdempotency{CreatorUserID: created.CreateByUserID, Key: key, RequestFingerprint: []byte("same-key"), ExpenseID: created.ID}
-		require.NoError(t, store.RunInTransaction(func(tx types.ExpenseStore) error {
+		require.NoError(t, store.RunInTransaction(func(tx types.ExpenseTransactionStore) error {
 			_, claimed, err := tx.ClaimExpenseCreateIdempotency(record)
 			if err != nil {
 				return err
@@ -139,7 +139,7 @@ func TestExpenseCreateIdempotencyConcurrentClaimsCreateOnceAndSurviveSoftDelete(
 	errs := make(chan error, 2)
 	for range 2 {
 		wg.Go(func() {
-			errs <- store.RunInTransaction(func(tx types.ExpenseStore) error {
+			errs <- store.RunInTransaction(func(tx types.ExpenseTransactionStore) error {
 				_, claimed, err := tx.ClaimExpenseCreateIdempotency(record)
 				if err != nil {
 					return err
@@ -161,7 +161,7 @@ func TestExpenseCreateIdempotencyConcurrentClaimsCreateOnceAndSurviveSoftDelete(
 	assert.Equal(t, 1, count)
 	_, err := db.Exec("UPDATE expense SET is_deleted = TRUE WHERE id = $1", created.ID)
 	require.NoError(t, err)
-	require.NoError(t, store.RunInTransaction(func(tx types.ExpenseStore) error {
+	require.NoError(t, store.RunInTransaction(func(tx types.ExpenseTransactionStore) error {
 		existing, claimed, err := tx.ClaimExpenseCreateIdempotency(record)
 		if err != nil {
 			return err

@@ -52,13 +52,26 @@ function CreateExpenseHarness() {
                 onChange={(event) => context.setTotalInput(event.target.value)}
             />
             <output data-testid="total">{context.total}</output>
-            <output data-testid="members">{context.ledgers.length}</output>
+            <output data-testid="members">
+                {context.allocation.participants.length}
+            </output>
+            <output data-testid="participant-ids">
+                {context.allocation.participants.map(({ userId }) => userId).join(",")}
+            </output>
+            <output data-testid="payer">{context.payer}</output>
             <output data-testid="member-load-status">
                 {context.groupMembersLoadStatus}
             </output>
             <output data-testid="selected-group">
                 {context.selectedGroupId}
             </output>
+            <input
+                aria-label="description"
+                value={context.description}
+                onChange={(event) =>
+                    context.setDescription(event.target.value)
+                }
+            />
             <button
                 type="button"
                 onClick={() => context.setSelectedGroupId("group-2")}
@@ -111,6 +124,7 @@ describe("CreateExpenseProvider error handling", () => {
                             { code: "USD", displayName: "US Dollar", minorUnitDigits: 2, amountDigits: 2 },
                         ],
                         group: {
+                            currentUserId: "user-1",
                             currency: "CAD",
                             members: [
                                 { userId: "user-1", username: "Current" },
@@ -129,6 +143,7 @@ describe("CreateExpenseProvider error handling", () => {
                             { code: "USD", displayName: "US Dollar", minorUnitDigits: 2, amountDigits: 2 },
                         ],
                         group: {
+                            currentUserId: "user-1",
                             currency: "USD",
                             members: [
                                 { userId: "user-2", username: "Other" },
@@ -183,6 +198,9 @@ describe("CreateExpenseProvider error handling", () => {
 			target: { value: "2026-08-31" },
 		});
         fireEvent.change(screen.getByLabelText("amount"), { target: { value: "10" } });
+        fireEvent.change(screen.getByLabelText("description"), {
+            target: { value: "Dinner" },
+        });
 
         fireEvent.submit(screen.getByRole("form", { name: "expense form" }));
 
@@ -229,6 +247,56 @@ describe("CreateExpenseProvider error handling", () => {
         );
     });
 
+    it("keeps the current payer and split until new group options load successfully", async () => {
+        let rejectSecondGroup: ((error: Error) => void) | undefined;
+        apiFetchMock.mockImplementation((path: string) => {
+            if (path === "/expense_create_options?groupId=group-1") {
+                return Promise.resolve(
+                    jsonResponse({
+                        groups: [],
+                        expenseTypes: [
+                            { id: "type-1", category: "Other", name: "General" },
+                        ],
+                        currencies: [
+                            { code: "CAD", displayName: "Canadian Dollar", minorUnitDigits: 2, amountDigits: 2 },
+                        ],
+                        group: {
+                            currentUserId: "user-1",
+                            currency: "CAD",
+                            members: [{ userId: "user-1", username: "Current" }],
+                        },
+                    })
+                );
+            }
+            if (path === "/expense_create_options?groupId=group-2") {
+                return new Promise((_, reject) => {
+                    rejectSecondGroup = reject;
+                });
+            }
+            throw new Error(`Unexpected path: ${path}`);
+        });
+        render(
+            <CreateExpenseProvider>
+                <CreateExpenseHarness />
+            </CreateExpenseProvider>
+        );
+        await waitFor(() => {
+            expect(screen.getByTestId("participant-ids")).toHaveTextContent("user-1");
+            expect(screen.getByTestId("payer")).toHaveTextContent("user-1");
+        });
+
+        fireEvent.click(screen.getByRole("button", { name: "Select second group" }));
+
+        expect(screen.getByTestId("participant-ids")).toHaveTextContent("user-1");
+        expect(screen.getByTestId("payer")).toHaveTextContent("user-1");
+        rejectSecondGroup?.(new Error("load failed"));
+        await waitFor(() => {
+            expect(screen.getByTestId("member-load-status")).toHaveTextContent("error");
+        });
+        expect(screen.getByTestId("participant-ids")).toHaveTextContent("user-1");
+        expect(screen.getByTestId("payer")).toHaveTextContent("user-1");
+    });
+
     it("aborts the split-options request after leaving the form", async () => {
         let groupSignal: AbortSignal | undefined;
         apiFetchMock.mockImplementation(
@@ -266,6 +334,9 @@ describe("CreateExpenseProvider error handling", () => {
 
         const form = screen.getByRole("form", { name: "expense form" });
         fireEvent.change(screen.getByLabelText("amount"), { target: { value: "10" } });
+        fireEvent.change(screen.getByLabelText("description"), {
+            target: { value: "Dinner" },
+        });
         fireEvent.submit(form);
         fireEvent.submit(form);
 

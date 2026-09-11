@@ -39,6 +39,7 @@ export DB_USER="$CI_DB_USER"
 export DB_PASSWORD="$CI_DB_PASSWORD"
 export DB_SSLMODE="disable"
 export PGPASSWORD="$CI_DB_PASSWORD"
+export EXPENSE_TRACKER_REQUIRE_TEST_DB="1"
 
 psql_ci() {
   psql \

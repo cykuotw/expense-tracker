@@ -28,7 +28,10 @@ func formOptionsGroupStore(userID, groupID uuid.UUID) *mockGroupStore {
 		return &types.Group{ID: groupID, GroupName: "Trip", Currency: "CAD"}, nil
 	}
 	store.GetGroupMemberByGroupIDFn = func(string) ([]*types.User, error) {
-		return []*types.User{{ID: uuid.New(), Username: "Other"}, {ID: userID, Username: "Current"}}, nil
+		return []*types.User{
+			{ID: uuid.New(), Username: "other-account", Nickname: "Other"},
+			{ID: userID, Username: "current-account", Nickname: "Current"},
+		}, nil
 	}
 	store.CanEditGroupCurrencyFn = func(string, string) (bool, error) {
 		return false, nil
@@ -70,9 +73,12 @@ func TestGetCreateExpenseOptionsReturnsOnePageReadModel(t *testing.T) {
 	require.Len(t, response.Currencies, 1)
 	assert.Equal(t, "CAD", response.Currencies[0].Code)
 	require.NotNil(t, response.Group)
+	assert.Equal(t, userID.String(), response.Group.CurrentUserID)
 	assert.Equal(t, "CAD", response.Group.Currency)
 	require.Len(t, response.Group.Members, 2)
+	assert.Equal(t, "Other", response.Group.Members[0].Username)
 	assert.Equal(t, userID.String(), response.Group.Members[1].UserID)
+	assert.Equal(t, "Current", response.Group.Members[1].Username)
 }
 
 func TestGetEditExpenseOptionsReturnsOnePageReadModel(t *testing.T) {
@@ -114,5 +120,8 @@ func TestGetEditExpenseOptionsReturnsOnePageReadModel(t *testing.T) {
 	require.Len(t, response.ExpenseTypes, 1)
 	require.Len(t, response.Currencies, 1)
 	assert.Equal(t, "CAD", response.Currencies[0].Code)
+	assert.Equal(t, userID.String(), response.Group.CurrentUserID)
 	require.Len(t, response.Group.Members, 2)
+	assert.Equal(t, "Other", response.Group.Members[0].Username)
+	assert.Equal(t, "Current", response.Group.Members[1].Username)
 }

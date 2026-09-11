@@ -51,6 +51,7 @@ func TestGetGroup(t *testing.T) {
 		err = json.NewDecoder(rr.Body).Decode(&rsp)
 
 		assert.Equal(t, http.StatusOK, rr.Code)
+		assert.Equal(t, mockUserId.String(), rsp.CurrentUserID)
 		assert.Equal(t, mockMemberNum, len(rsp.Members))
 	})
 	t.Run("invalid userid", func(t *testing.T) {

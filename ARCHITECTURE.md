@@ -166,12 +166,23 @@ and `frontend/src/lib/api.ts`. Do not duplicate endpoint details here.
 - A group contains members and expenses. An expense has descriptive and
   monetary data, may have item rows, and has ledger rows that describe who
   lent and borrowed each share.
+- Each expense stores one canonical allocation mode and one allocation row per
+  selected participant. The allocation rows preserve user-entered source values
+  for equal, exact-amount, percentage, and equal-plus-adjustment modes; selected
+  zero-value participants remain explicit rows rather than being inferred from
+  ledger amounts.
 - Balances are derived from unsettled, non-deleted expense ledgers. Expense
   creation, editing, deletion, and settlement are accounting-affecting
   operations and must keep their related writes consistent.
 - The backend, not the browser, is responsible for validating trusted actor
   identity, resource membership, currency and amount rules, and the final
-  consistency of split amounts and derived balances.
+  consistency of split amounts and derived balances. Create and update requests
+  submit the allocation configuration, while the backend deterministically
+  derives final ledger shares using the currency precision and stable
+  participant ordering. Allocation parsing, validation, and ledger derivation
+  live in `backend/services/expense/allocation`; HTTP routes coordinate the
+  request and persistence boundaries. Allocation, ledger reconciliation, and
+  balance updates share the expense mutation transaction.
 - Soft deletion removes an expense from normal balance and list calculations;
   it is not the same as a permanent purge.
 - An expense occurrence is a calendar day, stored as `expense.occurred_on

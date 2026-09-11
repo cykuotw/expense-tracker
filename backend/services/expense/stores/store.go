@@ -18,8 +18,9 @@ type transaction interface {
 }
 
 type Store struct {
-	db      queryExecutor
-	beginTx func() (transaction, error)
+	db               queryExecutor
+	beginTx          func() (transaction, error)
+	transactionBound bool
 }
 
 func NewStore(db *sql.DB) *Store {
@@ -31,8 +32,8 @@ func NewStore(db *sql.DB) *Store {
 	}
 }
 
-func (s *Store) RunInTransaction(callback func(types.ExpenseStore) error) error {
-	if s.beginTx == nil {
+func (s *Store) RunInTransaction(callback func(types.ExpenseTransactionStore) error) error {
+	if s.transactionBound || s.beginTx == nil {
 		return errors.New("transactions are unavailable on a transaction-bound expense store")
 	}
 
@@ -48,7 +49,7 @@ func (s *Store) RunInTransaction(callback func(types.ExpenseStore) error) error 
 		}
 	}()
 
-	if err := callback(&Store{db: tx}); err != nil {
+	if err := callback(&Store{db: tx, transactionBound: true}); err != nil {
 		return err
 	}
 	if err := tx.Commit(); err != nil {

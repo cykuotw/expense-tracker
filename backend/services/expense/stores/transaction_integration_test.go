@@ -27,7 +27,7 @@ func TestRunInTransactionRollsBackMidTransactionChildFailure(t *testing.T) {
 		TaxFeeTip:      decimal.Zero,
 		Total:          decimal.NewFromInt(10),
 		Currency:       "CAD",
-		SplitRule:      "Equally",
+		AllocationMode: "equal",
 	}
 	item := types.Item{
 		ID:        itemID,
@@ -42,7 +42,7 @@ func TestRunInTransactionRollsBackMidTransactionChildFailure(t *testing.T) {
 	defer deleteExpense(db, expenseID)
 	defer deleteItem(db, itemID)
 
-	err := store.RunInTransaction(func(transactionStore types.ExpenseStore) error {
+	err := store.RunInTransaction(func(transactionStore types.ExpenseTransactionStore) error {
 		if err := transactionStore.CreateExpense(expense); err != nil {
 			return err
 		}
@@ -77,7 +77,7 @@ func TestRunInTransactionRestoresOutdatedBalanceAfterLaterFailure(t *testing.T) 
 	require.NoError(t, store.CreateBalances(groupID.String(), []*types.Balance{existingBalance}))
 	defer deleteBalances(db, []*types.Balance{existingBalance})
 
-	err := store.RunInTransaction(func(transactionStore types.ExpenseStore) error {
+	err := store.RunInTransaction(func(transactionStore types.ExpenseTransactionStore) error {
 		if err := transactionStore.OutdateBalanceByGroupId(groupID.String()); err != nil {
 			return err
 		}

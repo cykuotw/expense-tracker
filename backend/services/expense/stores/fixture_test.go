@@ -20,7 +20,7 @@ func newTestExpense(expenseID uuid.UUID) types.Expense {
 		CreateTime:     time.Now().UTC(),
 		Total:          decimal.NewFromInt(1),
 		Currency:       "CAD",
-		SplitRule:      "Equally",
+		AllocationMode: "equal",
 		OccurredOn:     "2026-08-31",
 	}
 }
@@ -50,13 +50,13 @@ func ensureExpense(db *sql.DB, expenseID uuid.UUID) error {
 
 	_, err := db.Exec(`INSERT INTO expense (
 		id, description, group_id, create_by_user_id, pay_by_user_id, exp_type_id,
-		is_settled, sub_total, tax_fee_tip, total, currency, create_time_utc, split_rule
+		is_settled, sub_total, tax_fee_tip, total, currency, create_time_utc, allocation_mode
 	) VALUES (
 		$1, $2, $3, $4, $5, $6, FALSE, 0, 0, $7, $8, $9, $10
 	) ON CONFLICT (id) DO NOTHING`,
 		expense.ID, expense.Description, expense.GroupID, expense.CreateByUserID,
 		expense.PayByUserId, expense.ExpenseTypeID, expense.Total, expense.Currency,
-		expense.CreateTime, expense.SplitRule)
+		expense.CreateTime, expense.AllocationMode)
 	return err
 }
 

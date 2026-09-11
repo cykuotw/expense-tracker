@@ -31,8 +31,8 @@ func TestDeliveryLeaseLifecycle(t *testing.T) {
 	_, err = database.Exec(`INSERT INTO expense_type (id, name, category) VALUES ($1, $2, 'test')`, category, "lease-"+category.String()[:8])
 	require.NoError(t, err)
 	_, err = database.Exec(`INSERT INTO expense (id, description, group_id, create_by_user_id, pay_by_user_id,
-		exp_type_id, is_settled, sub_total, tax_fee_tip, total, currency, create_time_utc, split_rule, occurred_on)
-		VALUES ($1, 'lease test', $2, $3, $3, $4, FALSE, 1, 0, 1, 'CAD', NOW(), 'Equally', CURRENT_DATE)`, expense, group, actor, category)
+		exp_type_id, is_settled, sub_total, tax_fee_tip, total, currency, create_time_utc, allocation_mode, occurred_on)
+		VALUES ($1, 'lease test', $2, $3, $3, $4, FALSE, 1, 0, 1, 'CAD', NOW(), 'equal', CURRENT_DATE)`, expense, group, actor, category)
 	require.NoError(t, err)
 	store := NewStore(database)
 	endpoint := "https://fcm.googleapis.com/push/" + uuid.NewString()

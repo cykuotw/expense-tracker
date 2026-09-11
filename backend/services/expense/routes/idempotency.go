@@ -1,28 +1,29 @@
 package expense
 
 import (
+	"cmp"
 	"crypto/sha256"
 	"encoding/json"
-	"sort"
+	"slices"
 
 	"expense-tracker/backend/types"
 )
 
 type canonicalExpenseCreate struct {
-	Description   string                   `json:"description"`
-	GroupID       string                   `json:"groupId"`
-	PayerID       string                   `json:"payByUserId"`
-	ExpenseTypeID string                   `json:"expenseTypeId"`
-	ProviderName  string                   `json:"providerName"`
-	SubTotal      string                   `json:"subTotal"`
-	TaxFeeTip     string                   `json:"taxFeeTip"`
-	Total         string                   `json:"total"`
-	Currency      string                   `json:"currency"`
-	InvoiceURL    string                   `json:"invoiceUrl"`
-	SplitRule     string                   `json:"splitRule"`
-	OccurredOn    string                   `json:"occurredOn,omitempty"`
-	Items         []canonicalExpenseItem   `json:"items"`
-	Ledgers       []canonicalExpenseLedger `json:"ledgers"`
+	Description    string                       `json:"description"`
+	GroupID        string                       `json:"groupId"`
+	PayerID        string                       `json:"payByUserId"`
+	ExpenseTypeID  string                       `json:"expenseTypeId"`
+	ProviderName   string                       `json:"providerName"`
+	SubTotal       string                       `json:"subTotal"`
+	TaxFeeTip      string                       `json:"taxFeeTip"`
+	Total          string                       `json:"total"`
+	Currency       string                       `json:"currency"`
+	InvoiceURL     string                       `json:"invoiceUrl"`
+	AllocationMode types.ExpenseAllocationMode  `json:"allocationMode"`
+	OccurredOn     string                       `json:"occurredOn,omitempty"`
+	Items          []canonicalExpenseItem       `json:"items"`
+	Allocations    []canonicalExpenseAllocation `json:"allocations"`
 }
 
 type canonicalExpenseItem struct {
@@ -32,13 +33,18 @@ type canonicalExpenseItem struct {
 	UnitPrice string `json:"unitPrice"`
 }
 
-type canonicalExpenseLedger struct {
-	LenderID   string `json:"lenderUserId"`
-	BorrowerID string `json:"borrowerUserId"`
-	Share      string `json:"share"`
+type canonicalExpenseAllocation struct {
+	UserID                string `json:"userId"`
+	Amount                string `json:"amount,omitempty"`
+	PercentageBasisPoints *int32 `json:"percentageBasisPoints,omitempty"`
 }
 
-func expenseCreateFingerprint(expense types.Expense, items []types.Item, ledgers []types.Ledger, requestedOccurredOn *string) ([]byte, error) {
+func expenseCreateFingerprint(
+	expense types.Expense,
+	items []types.Item,
+	allocations []types.ExpenseAllocation,
+	requestedOccurredOn *string,
+) ([]byte, error) {
 	occurredOn := ""
 	if requestedOccurredOn != nil {
 		occurredOn = expense.OccurredOn
@@ -47,20 +53,31 @@ func expenseCreateFingerprint(expense types.Expense, items []types.Item, ledgers
 		Description: expense.Description, GroupID: expense.GroupID.String(), PayerID: expense.PayByUserId.String(),
 		ExpenseTypeID: expense.ExpenseTypeID.String(), ProviderName: expense.ProviderName,
 		SubTotal: expense.SubTotal.String(), TaxFeeTip: expense.TaxFeeTip.String(), Total: expense.Total.String(),
-		Currency: expense.Currency, InvoiceURL: expense.InvoicePicUrl, SplitRule: expense.SplitRule, OccurredOn: occurredOn,
-		Items: make([]canonicalExpenseItem, 0, len(items)), Ledgers: make([]canonicalExpenseLedger, 0, len(ledgers)),
+		Currency: expense.Currency, InvoiceURL: expense.InvoicePicUrl, AllocationMode: expense.AllocationMode, OccurredOn: occurredOn,
+		Items: make([]canonicalExpenseItem, 0, len(items)), Allocations: make([]canonicalExpenseAllocation, 0, len(allocations)),
 	}
 	for _, item := range items {
 		canonical.Items = append(canonical.Items, canonicalExpenseItem{Name: item.Name, Amount: item.Amount.String(), Unit: item.Unit, UnitPrice: item.UnitPrice.String()})
 	}
-	for _, ledger := range ledgers {
-		canonical.Ledgers = append(canonical.Ledgers, canonicalExpenseLedger{LenderID: ledger.LenderUserID.String(), BorrowerID: ledger.BorrowerUesrID.String(), Share: ledger.Share.String()})
+	for _, allocation := range allocations {
+		amount := ""
+		if allocation.Amount != nil {
+			amount = allocation.Amount.String()
+		}
+		canonical.Allocations = append(canonical.Allocations, canonicalExpenseAllocation{
+			UserID: allocation.UserID.String(), Amount: amount, PercentageBasisPoints: allocation.PercentageBasisPoints,
+		})
 	}
-	sort.Slice(canonical.Items, func(i, j int) bool {
-		return canonical.Items[i].Name+canonical.Items[i].Amount+canonical.Items[i].Unit+canonical.Items[i].UnitPrice < canonical.Items[j].Name+canonical.Items[j].Amount+canonical.Items[j].Unit+canonical.Items[j].UnitPrice
+	slices.SortFunc(canonical.Items, func(a, b canonicalExpenseItem) int {
+		return cmp.Or(
+			cmp.Compare(a.Name, b.Name),
+			cmp.Compare(a.Amount, b.Amount),
+			cmp.Compare(a.Unit, b.Unit),
+			cmp.Compare(a.UnitPrice, b.UnitPrice),
+		)
 	})
-	sort.Slice(canonical.Ledgers, func(i, j int) bool {
-		return canonical.Ledgers[i].LenderID+canonical.Ledgers[i].BorrowerID+canonical.Ledgers[i].Share < canonical.Ledgers[j].LenderID+canonical.Ledgers[j].BorrowerID+canonical.Ledgers[j].Share
+	slices.SortFunc(canonical.Allocations, func(a, b canonicalExpenseAllocation) int {
+		return cmp.Compare(a.UserID, b.UserID)
 	})
 	payload, err := json.Marshal(canonical)
 	if err != nil {

@@ -78,6 +78,7 @@ type ReplaceGroupMembersPayload struct {
 }
 
 type GetGroupResponse struct {
+	CurrentUserID    string        `json:"currentUserId"`
 	GroupName        string        `json:"groupName"`
 	Description      string        `json:"description"`
 	Currency         string        `json:"currency"`

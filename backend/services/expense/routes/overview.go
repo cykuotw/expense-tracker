@@ -54,7 +54,7 @@ func (h *Handler) handleGetGroupOverview(c *gin.Context) {
 	groupMembers := make([]types.GroupMember, 0, len(members))
 	var current *types.GroupMember
 	for _, member := range members {
-		item := types.GroupMember{UserID: member.ID.String(), Username: member.Username}
+		item := types.GroupMember{UserID: member.ID.String(), Username: member.DisplayName()}
 		if item.UserID == userID {
 			current = &item
 		} else {
@@ -65,7 +65,7 @@ func (h *Handler) handleGetGroupOverview(c *gin.Context) {
 		groupMembers = append(groupMembers, *current)
 	}
 	utils.WriteJSON(c, http.StatusOK, types.GroupOverviewResponse{
-		Group:    types.GetGroupResponse{GroupName: group.GroupName, Description: group.Description, Currency: group.Currency, GroupType: group.GroupType, Members: groupMembers},
+		Group:    types.GetGroupResponse{CurrentUserID: userID, GroupName: group.GroupName, Description: group.Description, Currency: group.Currency, GroupType: group.GroupType, Members: groupMembers},
 		Balance:  balances,
 		Expenses: expenses,
 	})

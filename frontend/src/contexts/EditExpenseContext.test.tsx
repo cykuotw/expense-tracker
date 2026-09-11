@@ -56,7 +56,10 @@ const expenseDetail = {
     invoiceUrl: "",
     currentUser: "user-1",
     groupId: "group-1",
-    splitRule: "Equally",
+    allocation: {
+        mode: "equal" as const,
+        participants: [{ userId: "user-1" }],
+    },
     items: [],
     ledgers: [
         {
@@ -97,7 +100,11 @@ function editOptions(
             { code: "CAD", displayName: "Canadian Dollar", minorUnitDigits: 2, amountDigits: 2 },
             { code: "USD", displayName: "US Dollar", minorUnitDigits: 2, amountDigits: 2 },
         ],
-        group: { currency: "CAD", members },
+        group: {
+            currentUserId: expense?.currentUser ?? "user-1",
+            currency: "CAD",
+            members,
+        },
     };
 }
 
@@ -107,7 +114,9 @@ function EditExpenseHarness() {
     return (
         <form aria-label="edit form" onSubmit={context.handleUpdateExpense}>
             <output data-testid="currency">{context.formData.currency}</output>
-            <output data-testid="split-rule">{context.formData.splitRule}</output>
+            <output data-testid="allocation-mode">
+                {context.formData.allocation.mode}
+            </output>
             <output data-testid="payer">{context.formData.payerUserId}</output>
             <output data-testid="members">{context.groupMembers.length}</output>
             <output data-testid="member-load-status">
@@ -140,17 +149,6 @@ function EditExpenseHarness() {
                 }
             >
                 Restore description
-            </button>
-            <button
-                type="button"
-                onClick={() =>
-                    context.setFormData((current) => ({
-                        ...current,
-                        groupId: "group-2",
-                    }))
-                }
-            >
-                Select second group
             </button>
             <button type="submit">Update</button>
         </form>
@@ -209,31 +207,6 @@ describe("EditExpenseProvider error handling", () => {
         );
         expect(initialReads).toHaveLength(1);
         expect(initialReads[0][0]).toBe("/expense/expense-1/edit-options");
-    });
-
-    it("loads a newly selected group's members through the same page endpoint", async () => {
-        render(
-            <EditExpenseProvider>
-                <EditExpenseHarness />
-            </EditExpenseProvider>
-        );
-        await waitFor(() => {
-            expect(screen.getByTestId("member-load-status")).toHaveTextContent(
-                "ready"
-            );
-        });
-
-        fireEvent.click(
-            screen.getByRole("button", { name: "Select second group" })
-        );
-
-        await waitFor(() => {
-            expect(screen.getByTestId("members")).toHaveTextContent("2");
-        });
-        expect(apiFetchMock).toHaveBeenCalledWith(
-            "/expense/expense-1/edit-options?groupId=group-2",
-            expect.objectContaining({ method: "GET" })
-        );
     });
 
     it("shows the parsed update error without success behavior", async () => {
@@ -314,14 +287,20 @@ describe("EditExpenseProvider error handling", () => {
         expect(toastErrorMock).not.toHaveBeenCalled();
     });
 
-    it("orients a two-person split rule to the member editing the expense", async () => {
+    it("restores a stored two-person allocation without changing it", async () => {
         apiFetchMock.mockImplementation((path: string) => {
             if (path === "/expense/expense-1/edit-options") {
                 return Promise.resolve(
                     jsonResponse(editOptions({
                         ...expenseDetail,
                         currentUser: "user-b",
-                        splitRule: "You-Half",
+                        allocation: {
+                            mode: "equal" as const,
+                            participants: [
+                                { userId: "user-a" },
+                                { userId: "user-b" },
+                            ],
+                        },
                         ledgers: [
                             {
                                 id: "ledger-a",
@@ -361,9 +340,7 @@ describe("EditExpenseProvider error handling", () => {
             );
         });
         expect(screen.getByTestId("payer")).toHaveTextContent("user-a");
-        expect(screen.getByTestId("split-rule")).toHaveTextContent(
-            "Other-Half"
-        );
+        expect(screen.getByTestId("allocation-mode")).toHaveTextContent("equal");
         expect(screen.getByTestId("has-changes")).toHaveTextContent(
             "unchanged"
         );

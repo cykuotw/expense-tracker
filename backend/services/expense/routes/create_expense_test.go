@@ -49,9 +49,7 @@ func TestRouteCreateExpense(t *testing.T) {
 				Total:          decimal.NewFromFloat(22.2),
 				Currency:       "CAD",
 				Items:          nil,
-				Ledgers: []types.LedgerPayload{{
-					LenderUserID: mockPayerID.String(), BorrowerUesrID: mockCreatorID.String(), Share: decimal.NewFromFloat(22.2),
-				}},
+				Allocation:     exactAllocation(mockCreatorID, "22.2"),
 			},
 			expectFail:       false,
 			expectStatusCode: http.StatusCreated,
@@ -70,7 +68,7 @@ func TestRouteCreateExpense(t *testing.T) {
 				Total:          decimal.NewFromFloat(22.2),
 				Currency:       "CAD",
 				Items:          nil,
-				Ledgers:        nil,
+				Allocation:     exactAllocation(mockCreatorID, "22.2"),
 			},
 			expectFail:       true,
 			expectStatusCode: http.StatusNotFound,
@@ -89,7 +87,7 @@ func TestRouteCreateExpense(t *testing.T) {
 				Total:          decimal.NewFromFloat(22.2),
 				Currency:       "CAD",
 				Items:          nil,
-				Ledgers:        nil,
+				Allocation:     exactAllocation(mockCreatorID, "22.2"),
 			},
 			expectFail:       true,
 			expectStatusCode: http.StatusNotFound,
@@ -108,7 +106,7 @@ func TestRouteCreateExpense(t *testing.T) {
 				Total:          decimal.NewFromFloat(22.2),
 				Currency:       "CAD",
 				Items:          nil,
-				Ledgers:        nil,
+				Allocation:     exactAllocation(mockCreatorID, "22.2"),
 			},
 			expectFail:       true,
 			expectStatusCode: http.StatusNotFound,
@@ -156,7 +154,7 @@ func TestHandleCreateExpenseUsesOneTransactionBoundStore(t *testing.T) {
 	transactionCalls := 0
 	stages := []string{}
 
-	rootStore.RunInTransactionFn = func(callback func(types.ExpenseStore) error) error {
+	rootStore.RunInTransactionFn = func(callback func(types.ExpenseTransactionStore) error) error {
 		transactionCalls++
 		return callback(transactionStore)
 	}
@@ -170,6 +168,10 @@ func TestHandleCreateExpenseUsesOneTransactionBoundStore(t *testing.T) {
 	}
 	transactionStore.CreateLedgerFn = func(types.Ledger) error {
 		stages = append(stages, "ledger")
+		return nil
+	}
+	transactionStore.CreateExpenseAllocationFn = func(types.ExpenseAllocation) error {
+		stages = append(stages, "allocation")
 		return nil
 	}
 	transactionStore.GetLedgerUnsettledFromGroupFn = func(string) ([]*types.Ledger, error) {
@@ -196,6 +198,7 @@ func TestHandleCreateExpenseUsesOneTransactionBoundStore(t *testing.T) {
 	assert.Equal(t, []string{
 		"expense",
 		"item",
+		"allocation",
 		"ledger",
 		"ledger read",
 		"balance outdate",
@@ -204,15 +207,15 @@ func TestHandleCreateExpenseUsesOneTransactionBoundStore(t *testing.T) {
 	}, stages)
 }
 
-func TestHandleCreateExpenseRejectsInvalidLedgerBeforeTransaction(t *testing.T) {
+func TestHandleCreateExpenseRejectsInvalidAllocationBeforeTransaction(t *testing.T) {
 	store := createExpenseStoreMock()
 	transactionCalls := 0
-	store.RunInTransactionFn = func(callback func(types.ExpenseStore) error) error {
+	store.RunInTransactionFn = func(callback func(types.ExpenseTransactionStore) error) error {
 		transactionCalls++
 		return callback(store)
 	}
 	payload := validCreateExpensePayload()
-	payload.Ledgers[0].LenderUserID = "invalid-uuid"
+	payload.Allocation.Participants[0].UserID = "invalid-uuid"
 
 	response := runCreateExpenseHandler(t, store, payload)
 
@@ -223,7 +226,7 @@ func TestHandleCreateExpenseRejectsInvalidLedgerBeforeTransaction(t *testing.T) 
 func TestHandleCreateExpenseRechecksParticipantsInsideTransaction(t *testing.T) {
 	rootStore := createExpenseStoreMock()
 	transactionStore := createExpenseStoreMock()
-	rootStore.RunInTransactionFn = func(callback func(types.ExpenseStore) error) error {
+	rootStore.RunInTransactionFn = func(callback func(types.ExpenseTransactionStore) error) error {
 		return callback(transactionStore)
 	}
 	transactionStore.CheckGroupParticipantsFn = func(groupID string, userIDs []uuid.UUID) error {
@@ -291,7 +294,7 @@ func TestHandleCreateExpensePropagatesTransactionStageErrors(t *testing.T) {
 		{
 			name: "transaction boundary",
 			configure: func(rootStore, _ *mockExpenseStore) {
-				rootStore.RunInTransactionFn = func(func(types.ExpenseStore) error) error {
+				rootStore.RunInTransactionFn = func(func(types.ExpenseTransactionStore) error) error {
 					return stageErr
 				}
 			},
@@ -306,6 +309,12 @@ func TestHandleCreateExpensePropagatesTransactionStageErrors(t *testing.T) {
 			name: "item insert",
 			configure: func(_ *mockExpenseStore, transactionStore *mockExpenseStore) {
 				transactionStore.CreateItemFn = func(types.Item) error { return stageErr }
+			},
+		},
+		{
+			name: "allocation insert",
+			configure: func(_ *mockExpenseStore, transactionStore *mockExpenseStore) {
+				transactionStore.CreateExpenseAllocationFn = func(types.ExpenseAllocation) error { return stageErr }
 			},
 		},
 		{
@@ -348,7 +357,7 @@ func TestHandleCreateExpensePropagatesTransactionStageErrors(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			rootStore := createExpenseStoreMock()
 			transactionStore := createExpenseStoreMock()
-			rootStore.RunInTransactionFn = func(callback func(types.ExpenseStore) error) error {
+			rootStore.RunInTransactionFn = func(callback func(types.ExpenseTransactionStore) error) error {
 				return callback(transactionStore)
 			}
 			test.configure(rootStore, transactionStore)
@@ -382,13 +391,17 @@ func validCreateExpensePayload() types.ExpensePayload {
 				UnitPrice: decimal.NewFromFloat(20.1),
 			},
 		},
-		Ledgers: []types.LedgerPayload{
-			{
-				LenderUserID:   mockPayerID.String(),
-				BorrowerUesrID: mockCreatorID.String(),
-				Share:          decimal.NewFromFloat(22.2),
-			},
-		},
+		Allocation: exactAllocation(mockCreatorID, "22.2"),
+	}
+}
+
+func exactAllocation(userID uuid.UUID, amount string) types.ExpenseAllocationPayload {
+	value := decimal.RequireFromString(amount)
+	return types.ExpenseAllocationPayload{
+		Mode: types.ExpenseAllocationExact,
+		Participants: []types.ExpenseAllocationParticipantPayload{{
+			UserID: userID.String(), Amount: &value,
+		}},
 	}
 }
 

@@ -1,24 +1,20 @@
 import Icon from "@mdi/react";
-import { Link } from "react-router-dom";
+import { useEffect } from "react";
+import { Link, Route, Routes, useParams } from "react-router-dom";
 import {
-    mdiAccountOutline,
     mdiCamera,
     mdiCheckBold,
     mdiSubdirectoryArrowLeft,
 } from "@mdi/js";
 
-import { Rule } from "../types/splitRule";
 import { EditExpenseProvider } from "../contexts/EditExpenseContext";
 import { useEditExpense } from "../hooks/EditExpenseContextHooks";
 import { ExpenseTypePicker } from "../components/expense/ExpenseTypePicker";
-import {
-    ExpenseFormPicker,
-    ExpenseFormPickerOption,
-} from "../components/expense/ExpenseFormPicker";
 import MobilePageHeader from "../components/MobilePageHeader";
-import { getGroupTypePresentation } from "../lib/groupTypePresentation";
 import { ExpenseDateInput } from "../components/expense/ExpenseDateInput";
 import { moneyInputPlaceholder, moneyInputStep } from "../lib/money";
+import SplitExpensePage from "../components/expense/SplitExpensePage";
+import ExpenseSimpleSplitControl from "../components/expense/ExpenseSimpleSplitControl";
 
 const EditExpenseContent = () => {
     const {
@@ -28,54 +24,22 @@ const EditExpenseContent = () => {
         groupList,
         expenseTypes,
         groupMembers,
+        currentUserId,
         groupMembersLoadStatus,
         reloadGroupMembers,
         indicatorShow,
         dataOk,
         hasChanges,
-        ledgerShareOk,
-        ledgerShareMessage,
+        allocationCalculation,
         handleUpdateExpense,
         handleFormDataChange,
+        markMainFormVisited,
     } = useEditExpense();
 
-    const expenseId = window.location.pathname.split("/")[2] || "";
-    const payerOptions: ExpenseFormPickerOption[] = groupMembers.map(
-        (member, index) => ({
-            value: member.userId,
-            label:
-                index === groupMembers.length - 1 ? "You" : member.username,
-            description:
-                index === groupMembers.length - 1
-                    ? "Your account"
-                    : undefined,
-        })
-    );
-
-    const handleTwoPersonRuleChange = (value: string) => {
-        const splitRule = value as Rule;
-        let payerUserId = formData.payerUserId;
-
-        switch (splitRule) {
-            case Rule.YouHalf:
-            case Rule.YouFull:
-                payerUserId = groupMembers.at(-1)?.userId ?? "";
-                break;
-            case Rule.OtherHalf:
-            case Rule.OtherFull:
-                payerUserId = groupMembers[0]?.userId ?? "";
-                break;
-            default:
-                break;
-        }
-
-        setFormData((current) => ({
-            ...current,
-            splitRule,
-            payerUserId,
-        }));
-    };
-
+    const { id: expenseId = "" } = useParams();
+    useEffect(() => {
+        markMainFormVisited();
+    }, [markMainFormVisited]);
     return (
         <div className="page-shell expense-form-page">
             <div className="page-container max-w-5xl">
@@ -131,31 +95,9 @@ const EditExpenseContent = () => {
                                 <label className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground/60">
                                     Group
                                 </label>
-                                <div className="mt-2">
-                                    <ExpenseFormPicker
-                                        label="Group"
-                                        emptyLabel="Choose a group"
-                                        value={formData.groupId}
-                                        onChange={(groupId) =>
-                                            setFormData((current) => ({
-                                                ...current,
-                                                groupId,
-                                            }))
-                                        }
-                                        options={groupList.map((group) => {
-                                            const groupType = getGroupTypePresentation(
-                                                group.groupType
-                                            );
-                                            return {
-                                                value: group.id,
-                                                label: group.groupName,
-                                                description: group.description,
-                                                icon: groupType.icon,
-                                                iconClassName: groupType.iconClassName,
-                                            };
-                                        })}
-                                    />
-                                </div>
+                                <output className="ui-input-shell mt-2 flex min-h-12 items-center bg-muted/40 px-4 text-foreground/70">
+                                    {groupList.find(({ id }) => id === formData.groupId)?.groupName ?? "Loading group…"}
+                                </output>
                             </div>
 
                             <div className="col-span-2">
@@ -256,178 +198,52 @@ const EditExpenseContent = () => {
                         </div>
 
                         <div className="mt-4 md:mt-6">
-                            <div className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground/60">
-                                Split rule
-                            </div>
-                            <div className="mt-2 md:mt-3">
-                                {groupMembersLoadStatus === "error" ? (
-                                    <div className="flex min-h-14 items-center justify-between gap-3 rounded-2xl border border-destructive/30 bg-destructive/5 px-4 py-2 md:min-h-20">
-                                        <p className="text-sm text-destructive">
-                                            Split options could not be loaded.
-                                        </p>
-                                        <button
-                                            type="button"
-                                            className="ui-button ui-button-ghost min-h-11 shrink-0 px-3"
-                                            onClick={reloadGroupMembers}
-                                        >
-                                            Try again
-                                        </button>
-                                    </div>
-                                ) : groupMembers.length === 0 ? (
-                                    <p
-                                        role="status"
-                                        className="flex min-h-14 items-center rounded-2xl border border-border bg-muted/40 px-4 text-sm text-foreground/60 md:min-h-20"
-                                    >
-                                        {groupMembersLoadStatus === "loading"
-                                            ? "Loading split options…"
-                                            : "Waiting for expense details…"}
+                            {groupMembersLoadStatus === "error" ? (
+                                <div className="flex min-h-14 items-center justify-between gap-3 rounded-2xl border border-destructive/30 bg-destructive/5 px-4 py-2 md:min-h-20">
+                                    <p className="text-sm text-destructive">
+                                        Split options could not be loaded.
                                     </p>
-                                ) : groupMembers.length === 1 ? (
-                                    <ExpenseFormPicker
-                                        label="Split rule"
-                                        emptyLabel="Split equally"
-                                        value={Rule.Equally}
-                                        onChange={() =>
+                                    <button
+                                        type="button"
+                                        className="ui-button ui-button-ghost min-h-11 shrink-0 px-3"
+                                        onClick={reloadGroupMembers}
+                                    >
+                                        Try again
+                                    </button>
+                                </div>
+                            ) : groupMembers.length === 0 ? (
+                                <p
+                                    role="status"
+                                    className="flex min-h-14 items-center rounded-2xl border border-border bg-muted/40 px-4 text-sm text-foreground/60 md:min-h-20"
+                                >
+                                    Loading split options…
+                                </p>
+                            ) : (
+                                <>
+                                    <ExpenseSimpleSplitControl
+                                        allocation={formData.allocation}
+                                        amountDigits={amountDigits}
+                                        calculation={allocationCalculation}
+                                        currency={formData.currency}
+                                        groupMembers={groupMembers}
+                                        currentUserId={currentUserId}
+                                        onAllocationChange={(allocation) =>
                                             setFormData((current) => ({
                                                 ...current,
-                                                splitRule: Rule.Equally,
+                                                allocation,
                                             }))
                                         }
-                                        options={[
-                                            {
-                                                value: Rule.Equally,
-                                                label: "Split equally",
-                                                description: "Only you are in this group",
-                                            },
-                                        ]}
-                                    />
-                                ) : groupMembers.length === 2 ? (
-                                    <ExpenseFormPicker
-                                        label="Split rule"
-                                        emptyLabel="Choose a split rule"
-                                        mobileMenuPlacement="above"
-                                        value={formData.splitRule}
-                                        onChange={handleTwoPersonRuleChange}
-                                        options={[
-                                            {
-                                                value: Rule.YouHalf,
-                                                label: "You paid, split equally",
-                                            },
-                                            {
-                                                value: Rule.YouFull,
-                                                label: "You are owed the full amount",
-                                            },
-                                            {
-                                                value: Rule.OtherHalf,
-                                                label: `${groupMembers[0].username} paid, split equally`,
-                                            },
-                                            {
-                                                value: Rule.OtherFull,
-                                                label: `${groupMembers[0].username} is owed the full amount`,
-                                            },
-                                            {
-                                                value: Rule.Unequally,
-                                                label: "Unequally",
-                                            },
-                                        ]}
-                                    />
-                                ) : (
-                                    <div className="grid gap-2 md:grid-cols-2 md:gap-3">
-                                        <ExpenseFormPicker
-                                            label="Paid by"
-                                            emptyLabel="Choose a payer"
-                                            icon={mdiAccountOutline}
-                                            value={formData.payerUserId}
-                                            onChange={(payerUserId) =>
-                                                setFormData((current) => ({
-                                                    ...current,
-                                                    payerUserId,
-                                                }))
-                                            }
-                                            options={payerOptions}
-                                        />
-                                        <ExpenseFormPicker
-                                            label="Split"
-                                            emptyLabel="Choose a split"
-                                            value={formData.splitRule}
-                                            onChange={(value) =>
-                                                setFormData((current) => ({
-                                                    ...current,
-                                                    splitRule: value as Rule,
-                                                }))
-                                            }
-                                            options={[
-                                                {
-                                                    value: Rule.Equally,
-                                                    label: "Equally",
-                                                },
-                                                {
-                                                    value: Rule.Unequally,
-                                                    label: "Unequally",
-                                                },
-                                            ]}
-                                        />
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-
-                        <div
-                            className={`${
-                                formData.splitRule === Rule.Unequally
-                                    ? ""
-                                    : "hidden"
-                            } mt-4 space-y-2 md:mt-6 md:space-y-3`}
-                        >
-                            {formData.ledgers.map((ledger, index) => (
-                                <div
-                                    className="flex flex-col gap-2 rounded-2xl border border-border bg-background px-4 py-3 sm:flex-row sm:items-center"
-                                    key={ledger.id}
-                                >
-                                    <p className="sm:w-1/3 text-sm text-foreground/70">
-                                        {
-                                            groupMembers.find(
-                                                (member) =>
-                                                    member.userId ===
-                                                    ledger.userId
-                                            )?.username
+                                        onPayerChange={(payerUserId) =>
+                                            setFormData((current) => ({
+                                                ...current,
+                                                payerUserId,
+                                            }))
                                         }
-                                    </p>
-
-                                    <label className="ui-input-shell flex items-center gap-2 w-full sm:w-2/3 bg-background">
-                                        Share:
-                                        <input
-                                            type="number"
-                                            className="grow"
-                                            step={amountDigits === null ? undefined : moneyInputStep(amountDigits)}
-                                            placeholder={amountDigits === null ? "Unavailable" : moneyInputPlaceholder(amountDigits)}
-                                            value={ledger.share}
-                                            disabled={amountDigits === null}
-                                            onChange={(e) => {
-                                                const updated = [
-                                                    ...formData.ledgers,
-                                                ];
-                                                updated[index].share = e.target.value;
-                                                setFormData((prev) => ({
-                                                    ...prev,
-                                                    ledgers: updated,
-                                                }));
-                                            }}
-                                        />
-                                    </label>
-                                </div>
-                            ))}
-                            <div className="text-center">
-                                <p
-                                    className={`text-sm ${
-                                        ledgerShareOk
-                                            ? "text-green-700"
-                                            : "text-red-700"
-                                    }`}
-                                >
-                                    {ledgerShareMessage}
-                                </p>
-                            </div>
+                                        payerUserId={formData.payerUserId}
+                                        splitTo="split"
+                                    />
+                                </>
+                            )}
                         </div>
 
                         <div className="mt-5 hidden flex-col gap-3 md:flex md:flex-row md:items-center md:justify-between">
@@ -452,8 +268,38 @@ const EditExpenseContent = () => {
 const EditExpense = () => {
     return (
         <EditExpenseProvider>
-            <EditExpenseContent />
+            <Routes>
+                <Route index element={<EditExpenseContent />} />
+                <Route path="split" element={<EditExpenseSplit />} />
+            </Routes>
         </EditExpenseProvider>
+    );
+};
+
+const EditExpenseSplit = () => {
+    const {
+        amountDigits,
+        formData,
+        groupMembers,
+        mainFormVisited,
+        setFormData,
+    } = useEditExpense();
+    const { id: expenseId = "" } = useParams();
+    const returnTo = `/expense/${expenseId}/edit`;
+
+    return (
+        <SplitExpensePage
+            allocation={formData.allocation}
+            amountDigits={amountDigits}
+            currency={formData.currency}
+            groupMembers={groupMembers}
+            mainFormVisited={mainFormVisited}
+            onSave={(allocation) =>
+                setFormData((current) => ({ ...current, allocation }))
+            }
+            returnTo={returnTo}
+            total={formData.total}
+        />
     );
 };
 

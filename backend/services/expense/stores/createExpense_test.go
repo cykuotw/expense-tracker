@@ -42,7 +42,7 @@ func TestCreateExpense(t *testing.T) {
 				Total:          decimal.NewFromFloat(21.02),
 				Currency:       "CAD",
 				InvoicePicUrl:  "http://mockpic.url.com",
-				SplitRule:      "Unequally",
+				AllocationMode: "exact",
 				OccurredOn:     "2026-08-31",
 			},
 			expectFail:  false,

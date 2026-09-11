@@ -18,7 +18,7 @@ const expenseTestColumns = `
 	id, description, group_id, create_by_user_id, pay_by_user_id,
 	provider_name, exp_type_id, is_settled, sub_total, tax_fee_tip,
 	total, currency, invoice_pic_url, create_time_utc, update_time_utc,
-	expense_time_utc, split_rule, is_deleted, delete_time_utc,
+	expense_time_utc, allocation_mode, is_deleted, delete_time_utc,
 	settle_time_utc, occurred_on`
 
 func selectExpense(db *sql.DB, groupID uuid.UUID) []*types.Expense {
@@ -58,7 +58,7 @@ func selectExpense(db *sql.DB, groupID uuid.UUID) []*types.Expense {
 			&expense.CreateTime,
 			&updateTime,
 			&expense.ExpenseTime,
-			&expense.SplitRule,
+			&expense.AllocationMode,
 			&expense.IsDeleted,
 			&deleteTime,
 			&settleTime,
@@ -118,7 +118,7 @@ func selectExpenseByID(db *sql.DB, expenseID uuid.UUID) *types.Expense {
 			&expense.CreateTime,
 			&updateTime,
 			&expense.ExpenseTime,
-			&expense.SplitRule,
+			&expense.AllocationMode,
 			&expense.IsDeleted,
 			&deleteTime,
 			&settleTime,
@@ -159,7 +159,7 @@ func insertExpense(db *sql.DB, expense types.Expense) error {
 		create_by_user_id, pay_by_user_id, provider_name,
 		exp_type_id, is_settled,
 		sub_total, tax_fee_tip, total,
-		currency, invoice_pic_url, create_time_utc, expense_time_utc, split_rule, occurred_on
+		currency, invoice_pic_url, create_time_utc, expense_time_utc, allocation_mode, occurred_on
 	) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, NULLIF($17, '')::date)`
 
 	_, err := db.Exec(query,
@@ -167,7 +167,7 @@ func insertExpense(db *sql.DB, expense types.Expense) error {
 		expense.CreateByUserID, expense.PayByUserId, expense.ProviderName,
 		expense.ExpenseTypeID, expense.IsSettled,
 		expense.SubTotal, expense.TaxFeeTip, expense.Total,
-		expense.Currency, expense.InvoicePicUrl, createTime, expenseTime.UTC(), expense.SplitRule, expense.OccurredOn)
+		expense.Currency, expense.InvoicePicUrl, createTime, expenseTime.UTC(), expense.AllocationMode, expense.OccurredOn)
 
 	return err
 }

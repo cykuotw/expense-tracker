@@ -1,22 +1,34 @@
 import {
-    useCallback,
-    useState,
-    useEffect,
-    useRef,
-    ReactNode,
-    FormEvent,
     ChangeEvent,
+    FormEvent,
+    ReactNode,
+    useCallback,
+    useEffect,
+    useMemo,
+    useState,
 } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "react-hot-toast";
+import {
+    EditExpenseContext,
+    expenseFormData,
+} from "../hooks/EditExpenseContextHooks";
 import {
     apiFetch,
     asArray,
     getResponseErrorMessage,
 } from "../lib/api";
+import { calculateExpenseAllocation } from "../lib/expenseAllocation";
+import { isDateOnly } from "../lib/dateOnly";
 import {
-    ExpenseDetailData,
+    CurrencyMetadata,
+    currencyAmountDigits,
+    decimalToUnits,
+    unitsToDecimal,
+} from "../lib/money";
+import {
     EditExpenseOptionsData,
+    ExpenseDetailData,
     ExpenseTypeItem,
     ExpenseUpdateData,
 } from "../types/expense";
@@ -25,41 +37,29 @@ import {
     GroupMember,
     GroupMembersLoadStatus,
 } from "../types/group";
-import { LedgerUpdateData } from "../types/ledger";
-import { Rule } from "../types/splitRule";
-import {
-    EditExpenseContext,
-    expenseFormData,
-} from "../hooks/EditExpenseContextHooks";
-import { isDateOnly } from "../lib/dateOnly";
-import { orientTwoPersonRuleForViewer } from "../lib/expenseSplitRule";
-import {
-    CurrencyMetadata,
-    currencyAmountDigits,
-    decimalToUnits,
-    splitEqually,
-    unitsToDecimal,
-} from "../lib/money";
 
-const emptyData: expenseFormData = {
+const EMPTY_FORM_DATA: expenseFormData = {
     groupId: "",
     expenseType: "",
     description: "",
     occurredOn: "",
     total: "",
     currency: "",
-    splitRule: Rule.Equally,
+    allocation: { mode: "equal", participants: [] },
     payerUserId: "",
-    ledgers: [],
 };
-
 const UPDATE_EXPENSE_FALLBACK = "Error updating expense";
 const LOAD_EXPENSE_FALLBACK = "Failed to load expense.";
 
 function cloneExpenseFormData(formData: expenseFormData): expenseFormData {
     return {
         ...formData,
-        ledgers: formData.ledgers.map((ledger) => ({ ...ledger })),
+        allocation: {
+            ...formData.allocation,
+            participants: formData.allocation.participants.map(
+                (participant) => ({ ...participant })
+            ),
+        },
     };
 }
 
@@ -67,104 +67,89 @@ function isSameExpenseFormData(
     left: expenseFormData,
     right: expenseFormData
 ): boolean {
-    return (
-        left.groupId === right.groupId &&
-        left.expenseType === right.expenseType &&
-        left.description === right.description &&
-        left.occurredOn === right.occurredOn &&
-        left.total === right.total &&
-        left.currency === right.currency &&
-        left.splitRule === right.splitRule &&
-        left.payerUserId === right.payerUserId &&
-        left.ledgers.length === right.ledgers.length &&
-        left.ledgers.every((ledger, index) => {
-            const compared = right.ledgers[index];
-            return (
-                compared !== undefined &&
-                ledger.id === compared.id &&
-                ledger.userId === compared.userId &&
-                ledger.share === compared.share
-            );
-        })
-    );
+    return JSON.stringify(left) === JSON.stringify(right);
 }
 
 export const EditExpenseProvider = ({ children }: { children: ReactNode }) => {
     const navigate = useNavigate();
     const { id: expenseId = "" } = useParams();
-
-    // handle form submission
-    const [indicatorShow, setIndicatorShow] = useState<boolean>(false);
-
-    const [formData, setFormData] = useState<expenseFormData>(emptyData);
+    const [indicatorShow, setIndicatorShow] = useState(false);
+    const [mainFormVisited, setMainFormVisited] = useState(false);
+    const [formData, setFormData] =
+        useState<expenseFormData>(EMPTY_FORM_DATA);
     const [currencies, setCurrencies] = useState<CurrencyMetadata[]>([]);
-    const amountDigits = currencyAmountDigits(currencies, formData.currency);
     const [initialFormData, setInitialFormData] =
         useState<expenseFormData | null>(null);
+    const [groupList, setGroupList] = useState<GroupListItem[]>([]);
+    const [expenseTypes, setExpenseTypes] = useState<ExpenseTypeItem[]>([]);
+    const [groupMembers, setGroupMembers] = useState<GroupMember[]>([]);
+    const [currentUserId, setCurrentUserId] = useState("");
+    const [groupMembersLoadStatus, setGroupMembersLoadStatus] =
+        useState<GroupMembersLoadStatus>("idle");
+    const [optionsReloadVersion, setOptionsReloadVersion] = useState(0);
 
-    const handleUpdateExpense = async (e: FormEvent) => {
-        e.preventDefault();
-        if (!dataOk || !hasChanges) return;
+    const amountDigits = currencyAmountDigits(currencies, formData.currency);
+    const allocationCalculation = useMemo(
+        () =>
+            calculateExpenseAllocation(
+                formData.total,
+                amountDigits,
+                formData.allocation,
+                formData.currency
+            ),
+        [
+            amountDigits,
+            formData.allocation,
+            formData.currency,
+            formData.total,
+        ]
+    );
+    const totalUnits =
+        amountDigits === null
+            ? null
+            : decimalToUnits(formData.total, amountDigits);
+    const dataOk =
+        totalUnits !== null &&
+        totalUnits > 0n &&
+        formData.description.length > 0 &&
+        isDateOnly(formData.occurredOn) &&
+        allocationCalculation.valid &&
+        groupMembersLoadStatus === "ready" &&
+        Boolean(formData.payerUserId && formData.expenseType);
+    const hasChanges =
+        initialFormData !== null &&
+        !isSameExpenseFormData(formData, initialFormData);
+
+    const reloadGroupMembers = useCallback(() => {
+        setOptionsReloadVersion((version) => version + 1);
+    }, []);
+    const markMainFormVisited = useCallback(() => {
+        setMainFormVisited(true);
+    }, []);
+
+    const handleUpdateExpense = async (event: FormEvent) => {
+        event.preventDefault();
+        if (
+            !dataOk ||
+            !hasChanges ||
+            amountDigits === null ||
+            totalUnits === null
+        ) {
+            return;
+        }
 
         try {
             setIndicatorShow(true);
-
-            // set up ledgers in defult split rules
-            const precision = amountDigits;
-            if (precision === null) {
-                toast.error("Currency metadata is unavailable. Try loading the expense again.");
-                return;
-            }
-            const totalUnits = decimalToUnits(formData.total, precision);
-            if (totalUnits === null || totalUnits <= 0n) return;
-            const submissionLedgers = formData.ledgers.map((ledger) => ({ ...ledger }));
-
-            switch (formData.splitRule) {
-                case Rule.Equally:
-                case Rule.YouHalf:
-                case Rule.OtherHalf: {
-                    const split = splitEqually(totalUnits, submissionLedgers.map((ledger) => ledger.userId));
-                    if (!split) return;
-                    submissionLedgers.forEach((ledger) => {
-                        ledger.share = unitsToDecimal(split.get(ledger.userId)!, precision);
-                    });
-                    break;
-                }
-
-                case Rule.YouFull:
-                    submissionLedgers[0].share = "0";
-                    submissionLedgers[1].share = unitsToDecimal(totalUnits, precision);
-                    break;
-
-                case Rule.OtherFull:
-                    submissionLedgers[0].share = unitsToDecimal(totalUnits, precision);
-                    submissionLedgers[1].share = "0";
-                    break;
-
-                default:
-                    break;
-            }
-
             const payload: ExpenseUpdateData = {
                 description: formData.description,
                 occurredOn: formData.occurredOn,
                 groupId: formData.groupId,
                 payByUserId: formData.payerUserId,
                 expTypeId: formData.expenseType,
-                total: unitsToDecimal(totalUnits, precision),
+                total: unitsToDecimal(totalUnits, amountDigits),
                 currency: formData.currency,
-                splitRule: formData.splitRule,
-                ledgers: submissionLedgers.map(
-                    (ledger) =>
-                        ({
-                            ledgerId: ledger.id,
-                            borrowerUserId: ledger.userId,
-                            lenderUserId: formData.payerUserId,
-                            share: unitsToDecimal(decimalToUnits(ledger.share, precision) ?? 0n, precision),
-                        } as LedgerUpdateData)
-                ),
+                allocation: formData.allocation,
             };
-
             const response = await apiFetch(`/expense/${expenseId}`, {
                 method: "PUT",
                 body: JSON.stringify(payload),
@@ -191,41 +176,19 @@ export const EditExpenseProvider = ({ children }: { children: ReactNode }) => {
         }
     };
 
-    // handle page load
-    const [groupList, setGroupList] = useState<GroupListItem[]>([]);
-    const [expenseTypes, setExpenseTypes] = useState<ExpenseTypeItem[]>([]);
-    const [groupMembers, setGroupMembers] = useState<GroupMember[]>([]);
-    const [groupMembersLoadStatus, setGroupMembersLoadStatus] =
-        useState<GroupMembersLoadStatus>("idle");
-    const initialLoadCompleteRef = useRef(false);
-    const skipNextGroupLoadRef = useRef("");
-    const [optionsReloadVersion, setOptionsReloadVersion] = useState(0);
-    const [groupMembersReloadVersion, setGroupMembersReloadVersion] =
-        useState(0);
-    const reloadGroupMembers = useCallback(() => {
-        if (initialLoadCompleteRef.current) {
-            setGroupMembersReloadVersion((version) => version + 1);
-        } else {
-            setOptionsReloadVersion((version) => version + 1);
-        }
-    }, []);
-
     useEffect(() => {
         const abortController = new AbortController();
         let active = true;
-        initialLoadCompleteRef.current = false;
         setInitialFormData(null);
         setGroupMembers([]);
+        setCurrentUserId("");
         setGroupMembersLoadStatus("loading");
 
         const fetchExpenseDetail = async () => {
             try {
                 const response = await apiFetch(
                     `/expense/${expenseId}/edit-options`,
-                    {
-                        method: "GET",
-                        signal: abortController.signal,
-                    }
+                    { method: "GET", signal: abortController.signal }
                 );
                 if (!response.ok) {
                     const message = await getResponseErrorMessage(
@@ -235,29 +198,39 @@ export const EditExpenseProvider = ({ children }: { children: ReactNode }) => {
                     if (active) toast.error(message);
                     return;
                 }
-
                 const responseData: unknown = await response.json();
                 if (
                     typeof responseData !== "object" ||
                     responseData === null ||
                     Array.isArray(responseData)
                 ) {
-                    if (active) toast.error(LOAD_EXPENSE_FALLBACK);
-                    return;
+                    throw new Error("invalid expense options response");
                 }
 
-                const options = responseData as Partial<EditExpenseOptionsData>;
+                const options =
+                    responseData as Partial<EditExpenseOptionsData>;
                 if (!options.expense || !options.group) {
-                    if (active) toast.error(LOAD_EXPENSE_FALLBACK);
-                    return;
+                    throw new Error("missing expense options");
                 }
                 const expenseDetail = options.expense;
-                const currencyOptions = asArray<CurrencyMetadata>(options.currencies);
+                const group = options.group;
+                const currencyOptions = asArray<CurrencyMetadata>(
+                    options.currencies
+                );
+                const members = asArray<GroupMember>(group.members);
                 if (
+                    members.length === 0 ||
+                    !group.currentUserId ||
+                    !members.some(
+                        ({ userId }) => userId === group.currentUserId
+                    ) ||
                     !expenseDetail.currency ||
-                    currencyAmountDigits(currencyOptions, expenseDetail.currency) === null
+                    currencyAmountDigits(
+                        currencyOptions,
+                        expenseDetail.currency
+                    ) === null
                 ) {
-                    throw new Error("expense currency metadata is unavailable");
+                    throw new Error("invalid expense options");
                 }
                 const data = {
                     ...expenseDetail,
@@ -268,12 +241,12 @@ export const EditExpenseProvider = ({ children }: { children: ReactNode }) => {
                         expenseDetail.ledgers
                     ),
                 };
-                const members = asArray<GroupMember>(options.group.members);
-                if (members.length === 0) {
-                    throw new Error("expense options group has no members");
+                if (
+                    !data.allocation ||
+                    !Array.isArray(data.allocation.participants)
+                ) {
+                    throw new Error("missing expense allocation");
                 }
-
-                const payerUserId = data.ledgers[0]?.lenderUserId ?? "";
                 const nextFormData: expenseFormData = {
                     groupId: data.groupId,
                     expenseType: data.expenseTypeId,
@@ -281,30 +254,26 @@ export const EditExpenseProvider = ({ children }: { children: ReactNode }) => {
                     occurredOn: data.occurredOn,
                     total: data.total,
                     currency: data.currency,
-                    splitRule: orientTwoPersonRuleForViewer(
-                        data.splitRule as Rule,
-                        payerUserId,
-                        data.currentUser
-                    ),
-                    payerUserId,
-                    ledgers: data.ledgers.map((ledger) => ({
-                        id: ledger.id,
-                        userId: ledger.borrowerUserId,
-                        share: ledger.share,
-                    })),
+                    allocation: {
+                        ...data.allocation,
+                        participants: data.allocation.participants.map(
+                            (participant) => ({ ...participant })
+                        ),
+                    },
+                    payerUserId: data.ledgers[0]?.lenderUserId ?? "",
                 };
-                if (active) {
-                    skipNextGroupLoadRef.current = nextFormData.groupId;
-                    initialLoadCompleteRef.current = true;
-                    setGroupList(asArray<GroupListItem>(options.groups));
-                    setExpenseTypes(asArray<ExpenseTypeItem>(options.expenseTypes));
-                    setCurrencies(currencyOptions);
-                    setGroupMembers(members);
-                    setGroupMembersLoadStatus("ready");
-                    setFormData(nextFormData);
-                    setInitialFormData(cloneExpenseFormData(nextFormData));
-                }
+                if (!active) return;
 
+                setGroupList(asArray<GroupListItem>(options.groups));
+                setExpenseTypes(
+                    asArray<ExpenseTypeItem>(options.expenseTypes)
+                );
+                setCurrencies(currencyOptions);
+                setGroupMembers(members);
+                setCurrentUserId(group.currentUserId);
+                setGroupMembersLoadStatus("ready");
+                setFormData(nextFormData);
+                setInitialFormData(cloneExpenseFormData(nextFormData));
             } catch {
                 if (active) {
                     setGroupMembersLoadStatus("error");
@@ -314,147 +283,18 @@ export const EditExpenseProvider = ({ children }: { children: ReactNode }) => {
         };
 
         void fetchExpenseDetail();
-
         return () => {
             active = false;
             abortController.abort();
         };
     }, [expenseId, optionsReloadVersion]);
 
-    useEffect(() => {
-        if (!formData.groupId) {
-            setGroupMembers([]);
-            setGroupMembersLoadStatus("idle");
-            return;
-        }
-
-        if (!initialLoadCompleteRef.current) return;
-
-        if (skipNextGroupLoadRef.current === formData.groupId) {
-            skipNextGroupLoadRef.current = "";
-            return;
-        }
-
-        setGroupMembers([]);
-        setGroupMembersLoadStatus("loading");
-
-        const abortController = new AbortController();
-        let active = true;
-
-        const fetchGroupMembers = async () => {
-            try {
-                const response = await apiFetch(
-                    `/expense/${expenseId}/edit-options?groupId=${encodeURIComponent(formData.groupId)}`,
-                    {
-                        method: "GET",
-                        signal: abortController.signal,
-                    }
-                );
-                if (!response.ok) throw new Error("expense options request failed");
-
-                const responseData: unknown = await response.json();
-                if (
-                    typeof responseData !== "object" ||
-                    responseData === null ||
-                    Array.isArray(responseData)
-                ) {
-                    throw new Error("invalid group detail response");
-                }
-
-                const options = responseData as Partial<EditExpenseOptionsData>;
-                const data = asArray<GroupMember>(options.group?.members);
-                const currencyOptions = asArray<CurrencyMetadata>(options.currencies);
-                if (data.length === 0) {
-                    throw new Error("group detail has no members");
-                }
-                if (
-                    !options.group?.currency ||
-                    currencyAmountDigits(currencyOptions, options.group.currency) === null
-                ) {
-                    throw new Error("group currency metadata is unavailable");
-                }
-                if (!active) return;
-
-                setGroupMembers(data);
-                setCurrencies(currencyOptions);
-                setGroupMembersLoadStatus("ready");
-            } catch {
-                if (active) setGroupMembersLoadStatus("error");
-            }
-        };
-
-        void fetchGroupMembers();
-
-        return () => {
-            active = false;
-            abortController.abort();
-        };
-    }, [expenseId, formData.groupId, groupMembersReloadVersion]);
-
-    const hasChanges =
-        initialFormData !== null &&
-        !isSameExpenseFormData(formData, initialFormData);
-
-    // handle form data update
     const handleFormDataChange = (
-        e: ChangeEvent<HTMLSelectElement | HTMLInputElement>
+        event: ChangeEvent<HTMLSelectElement | HTMLInputElement>
     ) => {
-        const { name, value } = e.target;
-        setFormData((prev) => ({
-            ...prev,
-            [name]: value,
-        }));
+        const { name, value } = event.target;
+        setFormData((current) => ({ ...current, [name]: value }));
     };
-
-    // handle form data validation
-    const [ledgerShareOk, setLedgerShareOk] = useState<boolean>(false);
-    const [ledgerShareMessage, setLedgerShareMessage] = useState<string>("");
-    const [dataOk, setDataOk] = useState<boolean>(false);
-
-    useEffect(() => {
-        const precision = amountDigits;
-        if (precision === null) {
-            setDataOk(false);
-            setLedgerShareOk(false);
-            setLedgerShareMessage("Currency metadata is unavailable.");
-            return;
-        }
-        const totalUnits = decimalToUnits(formData.total, precision);
-        const totalOk = totalUnits !== null && totalUnits > 0n;
-        const descriptionOk = formData.description.length > 0;
-        const occurredOnOk = isDateOnly(formData.occurredOn);
-
-        if (formData.splitRule !== Rule.Unequally) {
-            setDataOk(
-                totalOk &&
-                    descriptionOk &&
-                    occurredOnOk &&
-                    groupMembersLoadStatus === "ready" &&
-                    Boolean(formData.payerUserId && formData.expenseType)
-            );
-            return;
-        }
-
-        const ledgerUnits = formData.ledgers.map((ledger) => decimalToUnits(ledger.share || "0", precision));
-        const ledgerTotal = ledgerUnits.reduce<bigint>((sum, value) => sum + (value ?? 0n), 0n);
-        const ledgerOk =
-            totalUnits !== null && ledgerTotal === totalUnits && ledgerUnits.every((value) => value !== null && value >= 0n);
-
-        setDataOk(
-            totalOk &&
-                descriptionOk &&
-                occurredOnOk &&
-                ledgerOk &&
-                groupMembersLoadStatus === "ready" &&
-                Boolean(formData.payerUserId && formData.expenseType)
-        );
-        setLedgerShareOk(ledgerOk);
-        setLedgerShareMessage(
-            ledgerOk
-                ? `Total 0 ${formData.currency} left.`
-                : `Total ${unitsToDecimal((totalUnits ?? 0n) - ledgerTotal, precision)} ${formData.currency} left.`
-        );
-    }, [amountDigits, formData, groupMembersLoadStatus]);
 
     return (
         <EditExpenseContext.Provider
@@ -465,13 +305,15 @@ export const EditExpenseProvider = ({ children }: { children: ReactNode }) => {
                 groupList,
                 expenseTypes,
                 groupMembers,
+                currentUserId,
                 groupMembersLoadStatus,
                 reloadGroupMembers,
                 indicatorShow,
                 dataOk,
                 hasChanges,
-                ledgerShareOk,
-                ledgerShareMessage,
+                allocationCalculation,
+                mainFormVisited,
+                markMainFormVisited,
                 handleUpdateExpense,
                 handleFormDataChange,
             }}

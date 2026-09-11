@@ -40,7 +40,7 @@ func TestUpdateExpenseSettleInGroup(t *testing.T) {
 			IsSettled:      false,
 			Total:          decimal.NewFromFloat(99.37 + 0.37*float64(i)),
 			Currency:       "CAD",
-			SplitRule:      "Equally",
+			AllocationMode: "equal",
 		}
 		insertExpense(db, expense)
 	}
@@ -61,7 +61,7 @@ func TestUpdateExpenseSettleInGroup(t *testing.T) {
 			IsSettled:      false,
 			Total:          decimal.NewFromFloat(99.37 + 0.37*float64(i)),
 			Currency:       "CAD",
-			SplitRule:      "Equally",
+			AllocationMode: "equal",
 		}
 		insertExpense(db, expense)
 	}
@@ -138,7 +138,7 @@ func TestUpdateExpense(t *testing.T) {
 		IsSettled:      false,
 		Total:          decimal.NewFromFloat(99.37 + 0.37*8.3),
 		Currency:       "CAD",
-		SplitRule:      "Equally",
+		AllocationMode: "equal",
 		OccurredOn:     "2024-03-10",
 	}
 	insertExpense(db, mockExpense)

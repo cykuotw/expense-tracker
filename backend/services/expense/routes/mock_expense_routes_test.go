@@ -29,13 +29,14 @@ var mockItems = []*types.Item{
 // expense store base mock
 
 type mockExpenseStore struct {
-	RunInTransactionFn                 func(callback func(types.ExpenseStore) error) error
+	RunInTransactionFn                 func(callback func(types.ExpenseTransactionStore) error) error
 	LockGroupCurrencyFn                func(groupID string) (string, error)
 	CheckGroupParticipantsFn           func(groupID string, userIDs []uuid.UUID) error
 	GetCurrencyAmountDigitsFn          func(currency string) (int32, error)
 	CreateExpenseFn                    func(expense types.Expense) error
 	CreateItemFn                       func(item types.Item) error
 	CreateLedgerFn                     func(ledger types.Ledger) error
+	CreateExpenseAllocationFn          func(allocation types.ExpenseAllocation) error
 	ClaimExpenseCreateIdempotencyFn    func(record types.ExpenseCreateIdempotency) (types.ExpenseCreateIdempotency, bool, error)
 	QueueExpenseCreatedNotificationsFn func(expense types.Expense) error
 	GetExpenseByIDFn                   func(expenseID string) (*types.Expense, error)
@@ -43,11 +44,13 @@ type mockExpenseStore struct {
 	GetExpenseTypeFn                   func() ([]*types.ExpenseType, error)
 	GetItemsByExpenseIDFn              func(expenseID string) ([]*types.Item, error)
 	GetLedgersByExpenseIDFn            func(expenseID string) ([]*types.Ledger, error)
+	GetExpenseAllocationsByExpenseIDFn func(expenseID string) ([]types.ExpenseAllocation, error)
 	GetLedgerUnsettledFromGroupFn      func(expenseID string) ([]*types.Ledger, error)
 	UpdateExpenseFn                    func(expense types.Expense) error
 	UpdateExpenseSettleInGroupFn       func(groupID string) error
 	UpdateItemFn                       func(item types.Item) error
 	UpdateLedgerFn                     func(ledger types.Ledger) error
+	ReconcileExpenseAllocationStateFn  func(expenseID, payerID uuid.UUID, allocations []types.ExpenseAllocation, ledgers []types.Ledger) error
 	CheckExpenseExistByIDFn            func(id string) (bool, error)
 	GetExpenseTypeByIdFn               func(id uuid.UUID) (string, error)
 	DeleteExpenseFn                    func(expense types.Expense) error
@@ -82,7 +85,7 @@ func (s *mockExpenseStore) GetCurrencyAmountDigits(currency string) (int32, erro
 	return 2, nil
 }
 
-func (s *mockExpenseStore) RunInTransaction(callback func(types.ExpenseStore) error) error {
+func (s *mockExpenseStore) RunInTransaction(callback func(types.ExpenseTransactionStore) error) error {
 	if s.RunInTransactionFn != nil {
 		return s.RunInTransactionFn(callback)
 	}
@@ -104,6 +107,12 @@ func (s *mockExpenseStore) CreateItem(item types.Item) error {
 func (s *mockExpenseStore) CreateLedger(ledger types.Ledger) error {
 	if s.CreateLedgerFn != nil {
 		return s.CreateLedgerFn(ledger)
+	}
+	return nil
+}
+func (s *mockExpenseStore) CreateExpenseAllocation(allocation types.ExpenseAllocation) error {
+	if s.CreateExpenseAllocationFn != nil {
+		return s.CreateExpenseAllocationFn(allocation)
 	}
 	return nil
 }
@@ -149,6 +158,12 @@ func (s *mockExpenseStore) GetLedgersByExpenseID(expenseID string) ([]*types.Led
 	}
 	return nil, nil
 }
+func (s *mockExpenseStore) GetExpenseAllocationsByExpenseID(expenseID string) ([]types.ExpenseAllocation, error) {
+	if s.GetExpenseAllocationsByExpenseIDFn != nil {
+		return s.GetExpenseAllocationsByExpenseIDFn(expenseID)
+	}
+	return []types.ExpenseAllocation{{ExpenseID: mockExpenseID, UserID: mockUserID}}, nil
+}
 func (s *mockExpenseStore) GetLedgerUnsettledFromGroup(expenseID string) ([]*types.Ledger, error) {
 	if s.GetLedgerUnsettledFromGroupFn != nil {
 		return s.GetLedgerUnsettledFromGroupFn(expenseID)
@@ -176,6 +191,12 @@ func (s *mockExpenseStore) UpdateItem(item types.Item) error {
 func (s *mockExpenseStore) UpdateLedger(ledger types.Ledger) error {
 	if s.UpdateLedgerFn != nil {
 		return s.UpdateLedgerFn(ledger)
+	}
+	return nil
+}
+func (s *mockExpenseStore) ReconcileExpenseAllocationState(expenseID, payerID uuid.UUID, allocations []types.ExpenseAllocation, ledgers []types.Ledger) error {
+	if s.ReconcileExpenseAllocationStateFn != nil {
+		return s.ReconcileExpenseAllocationStateFn(expenseID, payerID, allocations, ledgers)
 	}
 	return nil
 }
@@ -633,7 +654,10 @@ func getUnsettledBalanceControllerMock() *mockController {
 func getExpenseDetailStoreMock() *mockExpenseStore {
 	store := expenseStoreMock()
 	store.GetExpenseByIDFn = func(expenseID string) (*types.Expense, error) {
-		return &types.Expense{ID: mockExpenseID, GroupID: mockGroupID, OccurredOn: "2026-08-31"}, nil
+		return &types.Expense{
+			ID: mockExpenseID, GroupID: mockGroupID, OccurredOn: "2026-08-31",
+			AllocationMode: types.ExpenseAllocationEqual,
+		}, nil
 	}
 	store.GetItemsByExpenseIDFn = func(expenseID string) ([]*types.Item, error) {
 		return mockItems, nil

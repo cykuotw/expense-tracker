@@ -222,7 +222,7 @@ func testExpense() types.Expense {
 		TaxFeeTip:      decimal.NewFromInt(1),
 		Total:          decimal.NewFromInt(11),
 		Currency:       "CAD",
-		SplitRule:      "Equally",
+		AllocationMode: "equal",
 		OccurredOn:     "2026-09-01",
 	}
 }

@@ -44,6 +44,7 @@ func (h *Handler) handleGetGroup(c *gin.Context) {
 	}
 
 	response := types.GetGroupResponse{
+		CurrentUserID:    userID,
 		GroupName:        group.GroupName,
 		Description:      group.Description,
 		Currency:         group.Currency,

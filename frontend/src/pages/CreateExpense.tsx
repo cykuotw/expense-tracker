@@ -1,25 +1,23 @@
-import { Link } from "react-router-dom";
+import { useEffect } from "react";
+import { Link, Route, Routes } from "react-router-dom";
 
 import Icon from "@mdi/react";
 import {
-    mdiAccountOutline,
     mdiCamera,
     mdiCheckBold,
     mdiSubdirectoryArrowLeft,
 } from "@mdi/js";
 
-import { Rule } from "../types/splitRule";
 import { CreateExpenseProvider } from "../contexts/CreateExpenseContext";
 import { useCreateExpense } from "../hooks/CreateExpenseContextHooks";
 import { ExpenseTypePicker } from "../components/expense/ExpenseTypePicker";
-import {
-    ExpenseFormPicker,
-    ExpenseFormPickerOption,
-} from "../components/expense/ExpenseFormPicker";
+import { ExpenseFormPicker } from "../components/expense/ExpenseFormPicker";
 import MobilePageHeader from "../components/MobilePageHeader";
 import { getGroupTypePresentation } from "../lib/groupTypePresentation";
 import { ExpenseDateInput } from "../components/expense/ExpenseDateInput";
 import { moneyInputPlaceholder, moneyInputStep } from "../lib/money";
+import SplitExpensePage from "../components/expense/SplitExpensePage";
+import ExpenseSimpleSplitControl from "../components/expense/ExpenseSimpleSplitControl";
 
 const CreateExpenseContent = () => {
     const {
@@ -36,58 +34,29 @@ const CreateExpenseContent = () => {
         setOccurredOn,
         currency,
         amountDigits,
-        setCurrency,
         payer,
         setPayer,
-        selectedRule,
-        setSelectedRule,
-        ledgers,
-        setLedgers,
+        allocation,
+        setAllocation,
+        allocationCalculation,
         indicatorShow,
         dataOk,
-        ledgerShareOk,
-        ledgerShareMessage,
         groupList,
         expenseTypes,
         groupMembers,
+        currentUserId,
         groupMembersLoadStatus,
         reloadGroupMembers,
         handleCreateExpense,
+        markMainFormVisited,
     } = useCreateExpense();
 
-    const payerOptions: ExpenseFormPickerOption[] = groupMembers.map(
-        (member, index) => ({
-            value: member.userId,
-            label:
-                index === groupMembers.length - 1 ? "You" : member.username,
-            description:
-                index === groupMembers.length - 1
-                    ? "Your account"
-                    : undefined,
-        })
-    );
-
-    const handleTwoPersonRuleChange = (value: string) => {
-        const rule = value as Rule;
-        setSelectedRule(rule);
-
-        switch (rule) {
-            case Rule.YouHalf:
-            case Rule.YouFull:
-                setPayer(groupMembers.at(-1)?.userId ?? "");
-                break;
-            case Rule.OtherHalf:
-            case Rule.OtherFull:
-                setPayer(groupMembers[0]?.userId ?? "");
-                break;
-            default:
-                break;
-        }
-    };
+    useEffect(() => {
+        markMainFormVisited();
+    }, [markMainFormVisited]);
 
     const selectGroup = (value: string) => {
         setSelectedGroupId(value);
-        setCurrency(groupList.find((group) => group.id === value)?.currency ?? "");
     };
 
     return (
@@ -266,158 +235,49 @@ const CreateExpenseContent = () => {
                         </div>
 
                         <div className="mt-4 md:mt-6">
-                            <div className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground/60">
-                                Split rule
-                            </div>
-                            <div className="mt-2 md:mt-3">
-                                {groupMembersLoadStatus === "error" ? (
-                                    <div className="flex min-h-14 items-center justify-between gap-3 rounded-2xl border border-destructive/30 bg-destructive/5 px-4 py-2 md:min-h-20">
-                                        <p className="text-sm text-destructive">
-                                            Split options could not be loaded.
-                                        </p>
-                                        <button
-                                            type="button"
-                                            className="ui-button ui-button-ghost min-h-11 shrink-0 px-3"
-                                            onClick={reloadGroupMembers}
-                                        >
-                                            Try again
-                                        </button>
-                                    </div>
-                                ) : groupMembers.length === 0 ? (
-                                    <p
-                                        role="status"
-                                        className="flex min-h-14 items-center rounded-2xl border border-border bg-muted/40 px-4 text-sm text-foreground/60 md:min-h-20"
-                                    >
-                                        {groupMembersLoadStatus === "loading"
-                                            ? "Loading split options…"
-                                            : "Choose a group to see split options."}
-                                    </p>
-                                ) : groupMembers.length === 1 ? (
-                                    <ExpenseFormPicker
-                                        label="Split rule"
-                                        emptyLabel="Split equally"
-                                        value={Rule.Equally}
-                                        onChange={() => setSelectedRule(Rule.Equally)}
-                                        options={[
-                                            {
-                                                value: Rule.Equally,
-                                                label: "Split equally",
-                                                description: "Only you are in this group",
-                                            },
-                                        ]}
-                                    />
-                                ) : groupMembers.length === 2 ? (
-                                    <ExpenseFormPicker
-                                        label="Split rule"
-                                        emptyLabel="Choose a split rule"
-                                        mobileMenuPlacement="above"
-                                        value={selectedRule}
-                                        onChange={handleTwoPersonRuleChange}
-                                        options={[
-                                            {
-                                                value: Rule.YouHalf,
-                                                label: "You paid, split equally",
-                                            },
-                                            {
-                                                value: Rule.YouFull,
-                                                label: "You are owed the full amount",
-                                            },
-                                            {
-                                                value: Rule.OtherHalf,
-                                                label: `${groupMembers[0].username} paid, split equally`,
-                                            },
-                                            {
-                                                value: Rule.OtherFull,
-                                                label: `${groupMembers[0].username} is owed the full amount`,
-                                            },
-                                            {
-                                                value: Rule.Unequally,
-                                                label: "Unequally",
-                                            },
-                                        ]}
-                                    />
-                                ) : (
-                                    <div className="grid gap-2 md:grid-cols-2 md:gap-3">
-                                        <ExpenseFormPicker
-                                            label="Paid by"
-                                            emptyLabel="Choose a payer"
-                                            icon={mdiAccountOutline}
-                                            value={payer}
-                                            onChange={setPayer}
-                                            options={payerOptions}
-                                        />
-                                        <ExpenseFormPicker
-                                            label="Split"
-                                            emptyLabel="Choose a split"
-                                            value={selectedRule}
-                                            onChange={(value) =>
-                                                setSelectedRule(value as Rule)
-                                            }
-                                            options={[
-                                                {
-                                                    value: Rule.Equally,
-                                                    label: "Equally",
-                                                },
-                                                {
-                                                    value: Rule.Unequally,
-                                                    label: "Unequally",
-                                                },
-                                            ]}
-                                        />
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-
-                        <div
-                            className={`${
-                                selectedRule === Rule.Unequally ? "" : "hidden"
-                            } mt-4 space-y-2 md:mt-6 md:space-y-3`}
-                        >
-                            {ledgers.map((ledger, index) => (
-                                <div
-                                    className="flex flex-col gap-2 rounded-2xl border border-border bg-background px-4 py-3 sm:flex-row sm:items-center"
-                                    key={ledger.userId}
-                                >
-                                    <p className="sm:w-1/3 text-sm text-foreground/70">
-                                        {
-                                            groupMembers.find(
-                                                (member) =>
-                                                    member.userId ===
-                                                    ledger.userId
-                                            )?.username
-                                        }
-                                    </p>
-
-                                    <label className="ui-input-shell flex items-center gap-2 w-full sm:w-2/3 bg-background">
-                                        Share:
-                                        <input
-                                            type="number"
-                                            className="grow"
-                                            step={amountDigits === null ? undefined : moneyInputStep(amountDigits)}
-                                            placeholder={amountDigits === null ? "Unavailable" : moneyInputPlaceholder(amountDigits)}
-                                            value={ledger.share}
-                                            disabled={amountDigits === null}
-                                            onChange={(e) => {
-                                                const updated = [...ledgers];
-                                                updated[index].share = e.target.value;
-                                                setLedgers(updated);
-                                            }}
-                                        />
-                                    </label>
-                                </div>
-                            ))}
-                            <div className="text-center">
+                            {groupMembersLoadStatus === "loading" ? (
                                 <p
-                                    className={`text-sm ${
-                                        ledgerShareOk
-                                            ? "text-green-700"
-                                            : "text-red-700"
-                                    }`}
+                                    role="status"
+                                    className="flex min-h-14 items-center rounded-2xl border border-border bg-muted/40 px-4 text-sm text-foreground/60 md:min-h-20"
                                 >
-                                    {ledgerShareMessage}
+                                    Loading split options…
                                 </p>
-                            </div>
+                            ) : groupMembersLoadStatus === "error" ? (
+                                <div className="flex min-h-14 items-center justify-between gap-3 rounded-2xl border border-destructive/30 bg-destructive/5 px-4 py-2 md:min-h-20">
+                                    <p className="text-sm text-destructive">
+                                        Split options could not be loaded.
+                                    </p>
+                                    <button
+                                        type="button"
+                                        className="ui-button ui-button-ghost min-h-11 shrink-0 px-3"
+                                        onClick={reloadGroupMembers}
+                                    >
+                                        Try again
+                                    </button>
+                                </div>
+                            ) : groupMembers.length === 0 ? (
+                                <p
+                                    role="status"
+                                    className="flex min-h-14 items-center rounded-2xl border border-border bg-muted/40 px-4 text-sm text-foreground/60 md:min-h-20"
+                                >
+                                    Choose a group to see split options.
+                                </p>
+                            ) : (
+                                <>
+                                    <ExpenseSimpleSplitControl
+                                        allocation={allocation}
+                                        amountDigits={amountDigits}
+                                        calculation={allocationCalculation}
+                                        currency={currency}
+                                        groupMembers={groupMembers}
+                                        currentUserId={currentUserId}
+                                        onAllocationChange={setAllocation}
+                                        onPayerChange={setPayer}
+                                        payerUserId={payer}
+                                        splitTo={`split${selectedGroupId ? `?g=${encodeURIComponent(selectedGroupId)}` : ""}`}
+                                    />
+                                </>
+                            )}
                         </div>
 
                         <div className="mt-5 hidden flex-col gap-3 md:flex md:flex-row md:items-center md:justify-between">
@@ -445,8 +305,38 @@ const CreateExpenseContent = () => {
 const CreateExpense = () => {
     return (
         <CreateExpenseProvider>
-            <CreateExpenseContent />
+            <Routes>
+                <Route index element={<CreateExpenseContent />} />
+                <Route path="split" element={<CreateExpenseSplit />} />
+            </Routes>
         </CreateExpenseProvider>
+    );
+};
+
+const CreateExpenseSplit = () => {
+    const {
+        allocation,
+        amountDigits,
+        currency,
+        groupMembers,
+        mainFormVisited,
+        selectedGroupId,
+        setAllocation,
+        totalInput,
+    } = useCreateExpense();
+    const returnTo = `/create_expense${selectedGroupId ? `?g=${encodeURIComponent(selectedGroupId)}` : ""}`;
+
+    return (
+        <SplitExpensePage
+            allocation={allocation}
+            amountDigits={amountDigits}
+            currency={currency}
+            groupMembers={groupMembers}
+            mainFormVisited={mainFormVisited}
+            onSave={setAllocation}
+            returnTo={returnTo}
+            total={totalInput}
+        />
     );
 };
 

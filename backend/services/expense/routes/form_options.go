@@ -37,7 +37,7 @@ func (h *Handler) expenseFormGroup(groupID, userID string) (types.GetGroupRespon
 	groupMembers := make([]types.GroupMember, 0, len(members))
 	var current *types.GroupMember
 	for _, member := range members {
-		item := types.GroupMember{UserID: member.ID.String(), Username: member.Username}
+		item := types.GroupMember{UserID: member.ID.String(), Username: member.DisplayName()}
 		if item.UserID == userID {
 			current = &item
 		} else {
@@ -49,6 +49,7 @@ func (h *Handler) expenseFormGroup(groupID, userID string) (types.GetGroupRespon
 	}
 
 	return types.GetGroupResponse{
+		CurrentUserID:    userID,
 		GroupName:        group.GroupName,
 		Description:      group.Description,
 		Currency:         group.Currency,

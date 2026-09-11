@@ -71,8 +71,13 @@ func (h *Handler) handleCreateExpense(c *gin.Context) {
 		Total:          payload.Total,
 		Currency:       payload.Currency,
 		InvoicePicUrl:  payload.InvoicePicUrl,
-		SplitRule:      payload.SplitRule,
+		AllocationMode: payload.Allocation.Mode,
 		OccurredOn:     occurredOn,
+	}
+	allocations, err := parseExpenseAllocationPayload(expenseID, payload.Allocation)
+	if err != nil {
+		utils.WriteError(c, http.StatusBadRequest, err)
+		return
 	}
 
 	items := make([]types.Item, 0, len(payload.Items))
@@ -87,33 +92,9 @@ func (h *Handler) handleCreateExpense(c *gin.Context) {
 		})
 	}
 
-	ledgers := make([]types.Ledger, 0, len(payload.Ledgers))
-	for _, ledgerPayload := range payload.Ledgers {
-		lenderUserId, err := uuid.Parse(ledgerPayload.LenderUserID)
-		if err != nil {
-			utils.WriteError(c, http.StatusBadRequest, err)
-			return
-		}
-		borrowerUserId, err := uuid.Parse(ledgerPayload.BorrowerUesrID)
-		if err != nil {
-			utils.WriteError(c, http.StatusBadRequest, err)
-			return
-		}
-		if err := h.validateGroupParticipants(groupID, lenderUserId, borrowerUserId); err != nil {
-			utils.WriteError(c, http.StatusBadRequest, err)
-			return
-		}
-		ledgers = append(ledgers, types.Ledger{
-			ID:             uuid.New(),
-			ExpenseID:      expenseID,
-			LenderUserID:   lenderUserId,
-			BorrowerUesrID: borrowerUserId,
-			Share:          ledgerPayload.Share,
-		})
-	}
 	resultExpenseID := expenseID
 
-	err = h.store.RunInTransaction(func(store types.ExpenseStore) error {
+	err = h.store.RunInTransaction(func(store types.ExpenseTransactionStore) error {
 		groupCurrency, err := store.LockGroupCurrency(payload.GroupID)
 		if err != nil {
 			return err
@@ -122,14 +103,19 @@ func (h *Handler) handleCreateExpense(c *gin.Context) {
 			return types.ErrCurrencyMismatch
 		}
 		expense.Currency = groupCurrency
-		if err := store.CheckGroupParticipants(payload.GroupID, expenseParticipantIDs(creatorID, expense, ledgers)); err != nil {
+		if err := store.CheckGroupParticipants(payload.GroupID, expenseParticipantIDs(creatorID, expense, allocations)); err != nil {
 			return err
 		}
-		if err := validateExpenseMoney(store, expense, items, ledgers, creatorID); err != nil {
+		amountDigits, err := validateExpenseMoney(store, expense, items)
+		if err != nil {
+			return err
+		}
+		ledgers, err := deriveExpenseLedgers(expense, allocations, amountDigits)
+		if err != nil {
 			return err
 		}
 
-		fingerprint, err := expenseCreateFingerprint(expense, items, ledgers, payload.OccurredOn)
+		fingerprint, err := expenseCreateFingerprint(expense, items, allocations, payload.OccurredOn)
 		if err != nil {
 			return err
 		}
@@ -151,6 +137,11 @@ func (h *Handler) handleCreateExpense(c *gin.Context) {
 		}
 		for _, item := range items {
 			if err := store.CreateItem(item); err != nil {
+				return err
+			}
+		}
+		for _, allocation := range allocations {
+			if err := store.CreateExpenseAllocation(allocation); err != nil {
 				return err
 			}
 		}

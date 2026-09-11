@@ -51,6 +51,24 @@ func (h *Handler) expenseDetailResponse(c *gin.Context, expenseTypes []*types.Ex
 	if err != nil {
 		return types.ExpenseResponse{}, err
 	}
+	allocations, err := h.store.GetExpenseAllocationsByExpenseID(expenseID)
+	if err != nil {
+		return types.ExpenseResponse{}, err
+	}
+	allocationResponse := types.ExpenseAllocationPayload{
+		Mode:         expense.AllocationMode,
+		Participants: make([]types.ExpenseAllocationParticipantPayload, 0, len(allocations)),
+	}
+	for _, allocation := range allocations {
+		allocationResponse.Participants = append(
+			allocationResponse.Participants,
+			types.ExpenseAllocationParticipantPayload{
+				UserID:                allocation.UserID.String(),
+				Amount:                allocation.Amount,
+				PercentageBasisPoints: allocation.PercentageBasisPoints,
+			},
+		)
+	}
 	userIDs := make([]string, 0, len(ledgers)*2)
 	for _, ledger := range ledgers {
 		userIDs = append(userIDs, ledger.LenderUserID.String(), ledger.BorrowerUesrID.String())
@@ -91,7 +109,7 @@ func (h *Handler) expenseDetailResponse(c *gin.Context, expenseTypes []*types.Ex
 		ID:                expense.ID,
 		Description:       expense.Description,
 		CreatedByUserID:   expense.CreateByUserID,
-		CreatedByUsername: user.Username,
+		CreatedByUsername: user.DisplayName(),
 		ExpenseTypeId:     expense.ExpenseTypeID,
 		ExpenseType:       expenseType,
 		ExpenseCategory:   expenseCategory,
@@ -106,6 +124,6 @@ func (h *Handler) expenseDetailResponse(c *gin.Context, expenseTypes []*types.Ex
 		GroupId:           expense.GroupID.String(),
 		Items:             itemRsp,
 		Ledgers:           ledgerRsp,
-		SplitRule:         expense.SplitRule,
+		Allocation:        allocationResponse,
 	}, nil
 }

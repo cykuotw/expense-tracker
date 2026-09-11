@@ -1,7 +1,8 @@
 import { ItemCreateData, ItemData } from "./item";
-import { LedgerCreateData, LedgerData, LedgerUpdateData } from "./ledger";
+import { LedgerData } from "./ledger";
 import { GroupInfo, GroupListItem } from "./group";
 import { CurrencyMetadata } from "../lib/money";
+import { ExpenseAllocation } from "./allocation";
 
 export interface ExpenseData {
     expenseId: string;
@@ -36,7 +37,7 @@ export interface ExpenseDetailData {
     invoiceUrl: string;
     currentUser: string;
     groupId: string;
-    splitRule: string;
+    allocation: ExpenseAllocation;
     items: ItemData[];
     ledgers: LedgerData[];
 }
@@ -54,9 +55,8 @@ export interface ExpenseCreateData {
     expTypeId: string;
     total: string;
     currency: string;
-    splitRule: string;
+    allocation: ExpenseAllocation;
     occurredOn: string;
-    ledgers: LedgerCreateData[];
 
     createByUserId?: string;
 
@@ -67,10 +67,7 @@ export interface ExpenseCreateData {
     items?: ItemCreateData[];
 }
 
-export interface ExpenseUpdateData
-    extends Omit<ExpenseCreateData, "createByUserId" | "ledgers"> {
-    ledgers: LedgerUpdateData[];
-}
+export type ExpenseUpdateData = Omit<ExpenseCreateData, "createByUserId">;
 
 export interface CreateExpenseOptionsData {
     groups: GroupListItem[];

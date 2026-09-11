@@ -49,7 +49,7 @@ const expenseDetail = {
     invoiceUrl: "",
     currentUser: "user-1",
     groupId: "group-1",
-    splitRule: "Equally",
+    allocation: { mode: "equal", participants: [] },
     items: [],
     ledgers: [],
 };

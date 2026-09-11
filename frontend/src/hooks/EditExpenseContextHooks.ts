@@ -6,7 +6,8 @@ import {
     Dispatch,
     SetStateAction,
 } from "react";
-import { Rule } from "../types/splitRule";
+import { ExpenseAllocation } from "../types/allocation";
+import { AllocationCalculation } from "../lib/expenseAllocation";
 import {
     GroupListItem,
     GroupMember,
@@ -21,14 +22,9 @@ export interface expenseFormData {
     occurredOn: string;
     currency: string;
     total: string;
-    splitRule: Rule;
+    allocation: ExpenseAllocation;
 
     payerUserId: string;
-    ledgers: {
-        id: string;
-        userId: string;
-        share: string;
-    }[];
 }
 
 export interface EditExpenseContextType {
@@ -38,13 +34,15 @@ export interface EditExpenseContextType {
     groupList: GroupListItem[];
     expenseTypes: ExpenseTypeItem[];
     groupMembers: GroupMember[];
+    currentUserId: string;
     groupMembersLoadStatus: GroupMembersLoadStatus;
     reloadGroupMembers: () => void;
     indicatorShow: boolean;
     dataOk: boolean;
     hasChanges: boolean;
-    ledgerShareOk: boolean;
-    ledgerShareMessage: string;
+    allocationCalculation: AllocationCalculation;
+    mainFormVisited: boolean;
+    markMainFormVisited: () => void;
     handleUpdateExpense: (e: FormEvent) => Promise<void>;
     handleFormDataChange: (
         e: ChangeEvent<HTMLSelectElement | HTMLInputElement>

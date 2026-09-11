@@ -6,11 +6,18 @@ import (
 	"github.com/google/uuid"
 )
 
+type balanceRebuildStore interface {
+	GetLedgerUnsettledFromGroup(groupID string) ([]*types.Ledger, error)
+	OutdateBalanceByGroupId(groupID string) error
+	CreateBalances(groupID string, balances []*types.Balance) error
+	CreateBalanceLedger(balanceIDs []uuid.UUID, ledgerIDs []uuid.UUID) error
+}
+
 func (h *Handler) updateBalance(groupId string) error {
 	return h.updateBalanceWithStore(h.store, groupId)
 }
 
-func (h *Handler) updateBalanceWithStore(store types.ExpenseStore, groupId string) error {
+func (h *Handler) updateBalanceWithStore(store balanceRebuildStore, groupId string) error {
 	// get unsettled ledgers
 	ledgers, err := store.GetLedgerUnsettledFromGroup(groupId)
 	if err != nil {

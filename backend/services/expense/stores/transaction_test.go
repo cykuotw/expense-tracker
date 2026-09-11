@@ -44,7 +44,7 @@ func TestRunInTransactionCommitsSuccessfulCallback(t *testing.T) {
 	}
 
 	callbackCalls := 0
-	err := store.RunInTransaction(func(transactionStore types.ExpenseStore) error {
+	err := store.RunInTransaction(func(transactionStore types.ExpenseTransactionStore) error {
 		callbackCalls++
 		boundStore, ok := transactionStore.(*Store)
 		require.True(t, ok)
@@ -67,7 +67,7 @@ func TestRunInTransactionReturnsBeginError(t *testing.T) {
 	}
 
 	callbackCalled := false
-	err := store.RunInTransaction(func(types.ExpenseStore) error {
+	err := store.RunInTransaction(func(types.ExpenseTransactionStore) error {
 		callbackCalled = true
 		return nil
 	})
@@ -85,7 +85,7 @@ func TestRunInTransactionRollsBackCallbackError(t *testing.T) {
 		},
 	}
 
-	err := store.RunInTransaction(func(types.ExpenseStore) error {
+	err := store.RunInTransaction(func(types.ExpenseTransactionStore) error {
 		return callbackErr
 	})
 
@@ -103,7 +103,7 @@ func TestRunInTransactionRollsBackCommitError(t *testing.T) {
 		},
 	}
 
-	err := store.RunInTransaction(func(types.ExpenseStore) error {
+	err := store.RunInTransaction(func(types.ExpenseTransactionStore) error {
 		return nil
 	})
 

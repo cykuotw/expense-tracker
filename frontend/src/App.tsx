@@ -74,11 +74,11 @@ function AppRoutes() {
                             element={<ExpenseDetail />}
                         />
                         <Route
-                            path="/expense/:id/edit"
+                            path="/expense/:id/edit/*"
                             element={<EditExpense />}
                         />
                         <Route
-                            path="/create_expense"
+                            path="/create_expense/*"
                             element={<CreateExpense />}
                         />
                         <Route path="/add_member" element={<AddMember />} />

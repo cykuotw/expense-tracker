@@ -113,7 +113,7 @@ func TestGetLedgerUnsettledFromGroup(t *testing.T) {
 			IsSettled:      false,
 			Total:          decimal.NewFromFloat(99.37 + 0.37*float64(i)),
 			Currency:       "CAD",
-			SplitRule:      "Equally",
+			AllocationMode: "equal",
 		}
 		insertExpense(db, expense)
 

@@ -18,6 +18,7 @@ export interface GroupMember {
 export type GroupMembersLoadStatus = "idle" | "loading" | "ready" | "error";
 
 export interface GroupInfo {
+    currentUserId: string;
     groupName: string;
     description: string;
     currency: string;

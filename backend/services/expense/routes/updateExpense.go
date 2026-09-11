@@ -71,41 +71,10 @@ func (h *Handler) handleUpdateExpense(c *gin.Context) {
 			UnitPrice: itemPayload.UnitPrice,
 		})
 	}
-
-	ledgers := make([]types.Ledger, 0, len(payload.Ledgers))
-	newLedgers := make([]bool, 0, len(payload.Ledgers))
-	for _, ledgerPayload := range payload.Ledgers {
-		lenderID, err := uuid.Parse(ledgerPayload.LenderUserID)
-		if err != nil {
-			utils.WriteError(c, http.StatusBadRequest, err)
-			return
-		}
-		borrowerID, err := uuid.Parse(ledgerPayload.BorrowerUesrID)
-		if err != nil {
-			utils.WriteError(c, http.StatusBadRequest, err)
-			return
-		}
-		if err := h.validateGroupParticipants(expense.GroupID, lenderID, borrowerID); err != nil {
-			utils.WriteError(c, http.StatusBadRequest, err)
-			return
-		}
-
-		ledgerID, err := uuid.Parse(ledgerPayload.ID)
-		if err != nil {
-			ledgerID = uuid.Nil
-		}
-		newLedger := ledgerID == uuid.Nil
-		if newLedger {
-			ledgerID = uuid.New()
-		}
-		newLedgers = append(newLedgers, newLedger)
-		ledgers = append(ledgers, types.Ledger{
-			ID:             ledgerID,
-			ExpenseID:      expense.ID,
-			LenderUserID:   lenderID,
-			BorrowerUesrID: borrowerID,
-			Share:          ledgerPayload.Share,
-		})
+	allocations, err := parseExpenseAllocationPayload(expense.ID, payload.Allocation)
+	if err != nil {
+		utils.WriteError(c, http.StatusBadRequest, err)
+		return
 	}
 
 	updatedExpense := *expense
@@ -118,10 +87,10 @@ func (h *Handler) handleUpdateExpense(c *gin.Context) {
 	updatedExpense.Total = payload.Total
 	updatedExpense.Currency = expense.Currency
 	updatedExpense.InvoicePicUrl = payload.InvoicePicUrl
-	updatedExpense.SplitRule = payload.SplitRule
+	updatedExpense.AllocationMode = payload.Allocation.Mode
 	updatedExpense.OccurredOn = expense.OccurredOn
 
-	err = h.store.RunInTransaction(func(store types.ExpenseStore) error {
+	err = h.store.RunInTransaction(func(store types.ExpenseTransactionStore) error {
 		groupCurrency, err := store.LockGroupCurrency(expense.GroupID.String())
 		if err != nil {
 			return err
@@ -129,10 +98,15 @@ func (h *Handler) handleUpdateExpense(c *gin.Context) {
 		if groupCurrency != expense.Currency {
 			return types.ErrCurrencyMismatch
 		}
-		if err := store.CheckGroupParticipants(expense.GroupID.String(), expenseParticipantIDs(actorID, updatedExpense, ledgers)); err != nil {
+		if err := store.CheckGroupParticipants(expense.GroupID.String(), expenseParticipantIDs(actorID, updatedExpense, allocations)); err != nil {
 			return err
 		}
-		if err := validateExpenseMoney(store, updatedExpense, items, ledgers, actorID); err != nil {
+		amountDigits, err := validateExpenseMoney(store, updatedExpense, items)
+		if err != nil {
+			return err
+		}
+		ledgers, err := deriveExpenseLedgers(updatedExpense, allocations, amountDigits)
+		if err != nil {
 			return err
 		}
 		for index, item := range items {
@@ -147,19 +121,10 @@ func (h *Handler) handleUpdateExpense(c *gin.Context) {
 			}
 		}
 
-		for index, ledger := range ledgers {
-			if newLedgers[index] {
-				if err := store.CreateLedger(ledger); err != nil {
-					return err
-				}
-				continue
-			}
-			if err := store.UpdateLedger(ledger); err != nil {
-				return err
-			}
-		}
-
 		if err := store.UpdateExpense(updatedExpense); err != nil {
+			return err
+		}
+		if err := store.ReconcileExpenseAllocationState(expense.ID, payerID, allocations, ledgers); err != nil {
 			return err
 		}
 		return h.updateBalanceWithStore(store, expense.GroupID.String())

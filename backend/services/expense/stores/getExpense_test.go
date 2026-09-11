@@ -33,7 +33,7 @@ func TestGetExpenseByID(t *testing.T) {
 		Total:          decimal.NewFromFloat(11.77),
 		Currency:       "CAD",
 		InvoicePicUrl:  "https://test.com",
-		SplitRule:      "Equally",
+		AllocationMode: "equal",
 	}
 	insertExpense(db, mockExpense)
 	defer deleteExpense(db, mockExpenseID)
@@ -112,7 +112,7 @@ func TestGetExpenseList(t *testing.T) {
 			IsSettled:      false,
 			Total:          decimal.NewFromFloat(10.112),
 			Currency:       "CAD",
-			SplitRule:      "Equally",
+			AllocationMode: "equal",
 		}
 
 		insertExpense(db, exp)
@@ -234,7 +234,7 @@ func TestGetExpenseListFiltersBySettlementStatus(t *testing.T) {
 			IsSettled:      false,
 			Total:          decimal.NewFromInt(10),
 			Currency:       "CAD",
-			SplitRule:      "Equally",
+			AllocationMode: "equal",
 		},
 		{
 			ID:             uuid.New(),
@@ -248,7 +248,7 @@ func TestGetExpenseListFiltersBySettlementStatus(t *testing.T) {
 			IsSettled:      true,
 			Total:          decimal.NewFromInt(20),
 			Currency:       "CAD",
-			SplitRule:      "Equally",
+			AllocationMode: "equal",
 		},
 	}
 	ids := make([]uuid.UUID, 0, len(expenses))

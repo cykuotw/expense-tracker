@@ -10,7 +10,7 @@ const expenseSelectColumns = `
 	id, description, group_id, create_by_user_id, pay_by_user_id,
 	provider_name, exp_type_id, is_settled, sub_total, tax_fee_tip,
 	total, currency, invoice_pic_url, create_time_utc, update_time_utc,
-	expense_time_utc, split_rule, is_deleted, delete_time_utc,
+	expense_time_utc, allocation_mode, is_deleted, delete_time_utc,
 	settle_time_utc, occurred_on`
 
 func scanRowIntoExpense(rows *sql.Rows) (*types.Expense, error) {
@@ -37,7 +37,7 @@ func scanRowIntoExpense(rows *sql.Rows) (*types.Expense, error) {
 		&expense.CreateTime,
 		&updateTime,
 		&expense.ExpenseTime,
-		&expense.SplitRule,
+		&expense.AllocationMode,
 		&expense.IsDeleted,
 		&deleteTime,
 		&settleTime,

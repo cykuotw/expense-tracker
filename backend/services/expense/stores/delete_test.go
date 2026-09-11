@@ -37,7 +37,7 @@ func TestDeleteExpense(t *testing.T) {
 				IsDeleted:      false,
 				Total:          decimal.NewFromFloat(21.02),
 				Currency:       "CAD",
-				SplitRule:      "Unequally",
+				AllocationMode: "exact",
 			},
 			expectFail:  false,
 			expectError: nil,

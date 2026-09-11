@@ -32,7 +32,7 @@ func (s *Store) UpdateExpense(expense types.Expense) error {
 		"total = $10, " +
 		"currency = $11, " +
 		"invoice_pic_url = $12, " +
-		"split_rule = $13, " +
+		"allocation_mode = $13, " +
 		"occurred_on = COALESCE(NULLIF($14, '')::date, occurred_on) " +
 		"WHERE id = $15;"
 	_, err := s.db.Exec(query,
@@ -42,7 +42,7 @@ func (s *Store) UpdateExpense(expense types.Expense) error {
 		expense.ProviderName,
 		expense.ExpenseTypeID, expense.IsSettled, expense.SubTotal,
 		expense.TaxFeeTip, expense.Total, expense.Currency,
-		expense.InvoicePicUrl, expense.SplitRule, expense.OccurredOn, expense.ID)
+		expense.InvoicePicUrl, expense.AllocationMode, expense.OccurredOn, expense.ID)
 	if err != nil {
 		return err
 	}

@@ -53,13 +53,13 @@ export function simpleSplitChoice(
         }
         if (
             payerUserId === currentUserId &&
-            exactlySelected(selected, [currentUserId])
+            exactlySelected(selected, [otherUserId])
         ) {
             return "you-full";
         }
         if (
             payerUserId === otherUserId &&
-            exactlySelected(selected, [otherUserId])
+            exactlySelected(selected, [currentUserId])
         ) {
             return "other-full";
         }
@@ -95,11 +95,12 @@ export function simpleSplitSelection(
                 allocation: { mode: "equal", participants: allParticipants },
             };
         case "you-full":
+            if (!otherUserId) return null;
             return {
                 payerUserId: currentUserId,
                 allocation: {
                     mode: "equal",
-                    participants: [{ userId: currentUserId }],
+                    participants: [{ userId: otherUserId }],
                 },
             };
         case "other-equal":
@@ -114,7 +115,7 @@ export function simpleSplitSelection(
                 payerUserId: otherUserId,
                 allocation: {
                     mode: "equal",
-                    participants: [{ userId: otherUserId }],
+                    participants: [{ userId: currentUserId }],
                 },
             };
         case "equal":

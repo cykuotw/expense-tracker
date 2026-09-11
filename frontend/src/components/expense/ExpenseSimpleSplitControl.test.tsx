@@ -84,7 +84,7 @@ describe("ExpenseSimpleSplitControl", () => {
         expect(onPayerChange).toHaveBeenCalledWith("other");
         expect(onAllocationChange).toHaveBeenCalledWith({
             mode: "equal",
-            participants: [{ userId: "other" }],
+            participants: [{ userId: "current" }],
         });
     });
 

@@ -17,9 +17,9 @@ const threeMembers: GroupMember[] = [
 describe("expenseSimpleSplit", () => {
     it.each([
         ["you-equal", "current", ["other", "current"]],
-        ["you-full", "current", ["current"]],
+        ["you-full", "current", ["other"]],
         ["other-equal", "other", ["other", "current"]],
-        ["other-full", "other", ["other"]],
+        ["other-full", "other", ["current"]],
     ] as const)(
         "maps the %s two-person shortcut to its canonical allocation",
         (choice, expectedPayer, expectedParticipants) => {
@@ -103,7 +103,7 @@ describe("expenseSimpleSplit", () => {
             payerUserId: "current",
             allocation: {
                 mode: "equal",
-                participants: [{ userId: "current" }],
+                participants: [{ userId: "other" }],
             },
         });
         expect(

@@ -29,7 +29,7 @@ class ComponentTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary, mock.patch("backend.artifacts._go_build", side_effect=fake_build):
             output = Path(temporary)
             first = build(REPO, output)
-            self.assertEqual(set(first), {"worker", "bootstrap", "sender", "delivery"})
+            self.assertEqual(set(first), {"worker", "bootstrap", "sender", "delivery", "notifier"})
             hashes = {name: hashlib.sha256(path.read_bytes()).hexdigest() for name, path in first.items()}
             second = build(REPO, output)
             self.assertEqual(hashes, {name: hashlib.sha256(path.read_bytes()).hexdigest() for name, path in second.items()})
@@ -38,6 +38,7 @@ class ComponentTest(unittest.TestCase):
                 "./backend/cmd/bootstrap-serverless",
                 "./backend/cmd/push-sender-serverless",
                 "./backend/cmd/push-delivery-serverless",
+                "./backend/cmd/error-notifier-serverless",
             ):
                 self.assertEqual(flags[package], "-s -w")
 

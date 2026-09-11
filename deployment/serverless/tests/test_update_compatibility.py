@@ -17,6 +17,7 @@ class UpdateCompatibilityTest(unittest.TestCase):
     def test_pre_update_health_check_allows_not_yet_deployed_contracts(self) -> None:
         context = mock.MagicMock()
         context.terraform_root = Path("/repo/deployment/serverless/infrastructure/tf")
+        context.config.error_alerting_enabled = True
         outputs = {"api_id": "api"}
 
         with mock.patch.object(
@@ -43,6 +44,7 @@ class UpdateCompatibilityTest(unittest.TestCase):
     def test_all_scope_applies_only_non_destructive_infrastructure_targets(self) -> None:
         context = mock.MagicMock()
         context.terraform_root = Path("/repo/deployment/serverless/infrastructure/tf")
+        context.config.error_alerting_enabled = True
         terraform = mock.MagicMock()
         terraform.show_plan.return_value = {
             "resource_changes": [
@@ -77,6 +79,8 @@ class UpdateCompatibilityTest(unittest.TestCase):
         self.assertIn("aws_cloudfront_distribution.frontend", targets)
         self.assertIn("aws_lambda_function.sender", targets)
         self.assertIn("aws_lambda_function.delivery", targets)
+        self.assertIn("aws_lambda_function.error_notifier", targets)
+        self.assertIn("aws_cloudwatch_log_subscription_filter.worker_error_notifier", targets)
         self.assertIn("aws_iam_role_policy.delivery", targets)
         self.assertIn("aws_cloudwatch_event_rule.sender", targets)
         self.assertIn("aws_ec2_instance_connect_endpoint.operator_access", targets)
@@ -141,6 +145,7 @@ class UpdateCompatibilityTest(unittest.TestCase):
     def test_infrastructure_update_skips_apply_when_plan_is_empty(self) -> None:
         context = mock.MagicMock()
         context.terraform_root = Path("/repo/deployment/serverless/infrastructure/tf")
+        context.config.error_alerting_enabled = False
         terraform = mock.MagicMock()
         terraform.show_plan.return_value = {"resource_changes": []}
 
@@ -156,6 +161,33 @@ class UpdateCompatibilityTest(unittest.TestCase):
             workflow._apply_infrastructure_updates(context, "backend")
 
         terraform.apply.assert_not_called()
+
+    def test_disabling_alerting_allows_only_its_conditional_resources_to_be_removed(self) -> None:
+        context = mock.MagicMock()
+        context.terraform_root = Path("/repo/deployment/serverless/infrastructure/tf")
+        context.config.error_alerting_enabled = False
+        terraform = mock.MagicMock()
+        terraform.show_plan.return_value = {
+            "resource_changes": [
+                {
+                    "address": "aws_lambda_function.error_notifier[0]",
+                    "change": {"actions": ["delete"]},
+                },
+                {
+                    "address": "aws_cloudwatch_log_subscription_filter.worker_error_notifier[0]",
+                    "change": {"actions": ["delete"]},
+                },
+            ]
+        }
+
+        with mock.patch.object(
+            workflow,
+            "_terraform",
+            return_value=contextlib.nullcontext(Path("/tmp/variables")),
+        ), mock.patch.object(workflow, "Terraform", return_value=terraform):
+            workflow._apply_infrastructure_updates(context, "backend")
+
+        terraform.apply.assert_called_once()
 
 
 if __name__ == "__main__":

@@ -60,6 +60,12 @@ def state(environment: dict[str, str], *, unrelated: str = "safe") -> dict[str, 
             },
             {
                 "mode": "managed",
+                "type": "aws_lambda_function",
+                "name": "error_notifier",
+                "instances": [{"attributes": {"environment": environment_state}}],
+            },
+            {
+                "mode": "managed",
                 "type": "aws_s3_bucket",
                 "name": "frontend",
                 "instances": [{"attributes": {"tags": {"value": unrelated}}}],
@@ -86,7 +92,8 @@ class RuntimeStateTest(unittest.TestCase):
                 self.assertEqual(repaired["serial"], 11)
                 self.assertEqual(repaired["resources"][0]["instances"][0]["attributes"]["environment"], [])
                 self.assertEqual(repaired["resources"][1]["instances"][0]["attributes"]["environment"], [])
-                self.assertEqual(repaired["resources"][2]["instances"][0]["attributes"]["tags"], {"value": "safe"})
+                self.assertEqual(repaired["resources"][2]["instances"][0]["attributes"]["environment"], [])
+                self.assertEqual(repaired["resources"][3]["instances"][0]["attributes"]["tags"], {"value": "safe"})
                 self.assertEqual(repaired_path.stat().st_mode & 0o777, 0o600)
                 self.assertNotIn(b"runtime-secret", repaired_path.read_bytes())
                 self.assertNotIn(b"admin-secret", repaired_path.read_bytes())

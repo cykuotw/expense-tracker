@@ -26,7 +26,7 @@ resource "aws_iam_role" "bootstrap" {
 }
 resource "aws_cloudwatch_log_group" "worker" {
   name              = "/aws/lambda/${local.resource_prefix}-worker"
-  retention_in_days = 7
+  retention_in_days = var.worker_log_retention_days
   tags = merge(local.common_tags, {
     Component = "backend"
   })

@@ -36,6 +36,7 @@ def build(repo_root: Path, output_dir: Path) -> dict[str, Path]:
         bootstrap_binary = staging / "admin-bootstrap"
         sender_binary = staging / "push-sender"
         delivery_binary = staging / "push-delivery"
+        notifier_binary = staging / "error-notifier"
         _go_build(
             repo_root,
             "./backend/cmd/tracker-serverless",
@@ -45,12 +46,14 @@ def build(repo_root: Path, output_dir: Path) -> dict[str, Path]:
         _go_build(repo_root, "./backend/cmd/bootstrap-serverless", bootstrap_binary)
         _go_build(repo_root, "./backend/cmd/push-sender-serverless", sender_binary)
         _go_build(repo_root, "./backend/cmd/push-delivery-serverless", delivery_binary)
+        _go_build(repo_root, "./backend/cmd/error-notifier-serverless", notifier_binary)
 
         artifacts = {
             "worker": output_dir / "worker.zip",
             "bootstrap": output_dir / "bootstrap.zip",
             "sender": output_dir / "sender.zip",
             "delivery": output_dir / "delivery.zip",
+            "notifier": output_dir / "notifier.zip",
         }
         worker_data = worker_binary.read_bytes()
         with zipfile.ZipFile(artifacts["worker"], "w") as archive:
@@ -70,6 +73,9 @@ def build(repo_root: Path, output_dir: Path) -> dict[str, Path]:
         delivery_data = delivery_binary.read_bytes()
         with zipfile.ZipFile(artifacts["delivery"], "w") as archive:
             archive.writestr(_entry("bootstrap", delivery_data, 0o100755), delivery_data)
+        notifier_data = notifier_binary.read_bytes()
+        with zipfile.ZipFile(artifacts["notifier"], "w") as archive:
+            archive.writestr(_entry("bootstrap", notifier_data, 0o100755), notifier_data)
         for artifact in artifacts.values():
             os.chmod(artifact, 0o600)
         return artifacts

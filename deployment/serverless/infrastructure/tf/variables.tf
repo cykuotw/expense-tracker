@@ -22,6 +22,25 @@ variable "database_ami_id" {
   nullable = true
 }
 variable "worker_artifact_path" { type = string }
+variable "notifier_artifact_path" { type = string }
+variable "enable_error_alerting" {
+  type        = bool
+  description = "Create the optional Discord error-alerting resources."
+  default     = false
+}
+variable "worker_log_retention_days" {
+  type        = number
+  description = "Number of days to retain Worker logs in CloudWatch Logs."
+  default     = 3
+
+  validation {
+    condition = contains([
+      1, 3, 5, 7, 14, 30, 60, 90, 120, 150, 180, 365, 400, 545, 731,
+      1096, 1827, 2192, 2557, 2922, 3288, 3653,
+    ], var.worker_log_retention_days)
+    error_message = "worker_log_retention_days must be a retention period supported by CloudWatch Logs."
+  }
+}
 variable "bootstrap_artifact_path" { type = string }
 variable "sender_artifact_path" { type = string }
 variable "delivery_artifact_path" { type = string }

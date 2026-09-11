@@ -59,11 +59,12 @@ class WorkflowTest(unittest.TestCase):
     def test_preflight_does_not_require_nat(self) -> None:
         context = mock.MagicMock()
         context.config.deployment.account_id = "123"
+        context.config.error_alerting_enabled = False
         context.config.aws.hosted_zone_name = "example.com"
         context.aws.identity.return_value = {"Account": "123"}
         context.aws.json.side_effect = [
             {"HostedZones": [{"Name": "example.com."}]},
-            {"AccountLimit": {"ConcurrentExecutions": 5}},
+            {"AccountLimit": {"ConcurrentExecutions": 7}},
         ]
         with mock.patch.object(workflow, "require_tools"), \
              mock.patch.object(workflow, "require_node_22"), \
@@ -133,6 +134,8 @@ class WorkflowTest(unittest.TestCase):
         context.serverless_root = Path("/repo/deployment/serverless")
         context.terraform_root = context.serverless_root / "infrastructure/tf"
         context.config.deployment.name_prefix = "expense-tracker"
+        context.config.observability.discord_webhook_url = None
+        context.config.error_alerting_enabled = False
         outputs = {
             "database_temporary_public_ipv4": "203.0.113.5",
             "database_host": "10.0.0.5",
@@ -171,6 +174,7 @@ class WorkflowTest(unittest.TestCase):
              mock.patch.object(workflow, "_confirm"), \
              mock.patch.object(workflow, "setup_database", side_effect=lambda *args: events.append("database")), \
              mock.patch.object(workflow.runtime, "configure_bootstrap", side_effect=lambda *args: events.append("bootstrap")), \
+             mock.patch.object(workflow.runtime, "configure_error_notifier", side_effect=lambda *args: events.append("notifier")), \
              mock.patch.object(workflow.runtime, "configure_worker", side_effect=lambda *args: events.append("worker")), \
              mock.patch.object(workflow.runtime, "configure_notifications", side_effect=lambda *args: events.append("sender")), \
              mock.patch.object(workflow, "verify_api", side_effect=lambda *args, **kwargs: events.append("api-verify")), \
@@ -181,6 +185,8 @@ class WorkflowTest(unittest.TestCase):
             context.aws.raw_endpoint.side_effect = lambda *args: events.append("raw-cutover")
             workflow.deploy(context)
         self.assertLess(events.index("database"), events.index("bootstrap"))
+        self.assertLess(events.index("bootstrap"), events.index("notifier"))
+        self.assertLess(events.index("notifier"), events.index("worker"))
         self.assertLess(events.index("bootstrap"), events.index("worker"))
         self.assertLess(events.index("worker"), events.index("sender"))
         self.assertLess(events.index("worker"), events.index("frontend"))
@@ -192,39 +198,45 @@ class WorkflowTest(unittest.TestCase):
         context.serverless_root = Path("/repo/deployment/serverless")
         context.terraform_root = context.serverless_root / "infrastructure/tf"
         context.config = mock.MagicMock()
+        context.config.observability.discord_webhook_url = None
+        context.config.error_alerting_enabled = False
         context.aws = mock.MagicMock()
         outputs = {"worker_function_name": "worker", "sender_function_name": "sender"}
         events: list[str] = []
         with mock.patch.object(workflow, "preflight"), \
              mock.patch.object(workflow.runtime, "repair_secret_boundary", side_effect=lambda *args: events.append("state-repair")), \
              mock.patch.object(workflow, "_require_complete", return_value=outputs), \
-             mock.patch.object(workflow.artifacts, "build", return_value={"bootstrap": Path("bootstrap.zip"), "worker": Path("worker.zip"), "sender": Path("sender.zip"), "delivery": Path("delivery.zip")}), \
+             mock.patch.object(workflow.artifacts, "build", return_value={"bootstrap": Path("bootstrap.zip"), "worker": Path("worker.zip"), "sender": Path("sender.zip"), "delivery": Path("delivery.zip"), "notifier": Path("notifier.zip")}), \
              mock.patch.object(workflow.runtime, "update_bootstrap", side_effect=lambda *args: events.append("migrations")), \
              mock.patch.object(workflow, "_apply_infrastructure_updates", side_effect=lambda *args: events.append("infrastructure")), \
+             mock.patch.object(workflow.runtime, "update_error_notifier", side_effect=lambda *args: events.append("notifier")), \
              mock.patch.object(workflow.runtime, "update_worker", side_effect=lambda *args: events.append("backend")), \
              mock.patch.object(workflow.runtime, "update_notifications", side_effect=lambda *args: events.append("sender")), \
              mock.patch.object(workflow, "verify_api"), \
              mock.patch.object(workflow, "publish_frontend", side_effect=lambda *args: events.append("frontend")), \
              mock.patch.object(workflow, "verify_frontend"):
             workflow.update(context, "all")
-        self.assertEqual(events, ["state-repair", "migrations", "infrastructure", "backend", "sender", "frontend"])
+        self.assertEqual(events, ["state-repair", "migrations", "infrastructure", "notifier", "backend", "sender", "frontend"])
 
     def test_backend_scope_does_not_publish_frontend(self) -> None:
         context = mock.MagicMock()
         context.repo_root = Path("/repo")
         context.serverless_root = Path("/repo/deployment/serverless")
         context.terraform_root = context.serverless_root / "infrastructure/tf"
+        context.config.observability.discord_webhook_url = None
+        context.config.error_alerting_enabled = False
         events: list[str] = []
         with mock.patch.object(workflow, "preflight"), \
              mock.patch.object(workflow.runtime, "repair_secret_boundary", return_value=0), \
              mock.patch.object(workflow, "_require_complete", return_value={}), \
-             mock.patch.object(workflow.artifacts, "build", return_value={"bootstrap": Path("b"), "worker": Path("w"), "sender": Path("s"), "delivery": Path("d")}), \
+             mock.patch.object(workflow.artifacts, "build", return_value={"bootstrap": Path("b"), "worker": Path("w"), "sender": Path("s"), "delivery": Path("d"), "notifier": Path("n")}), \
              mock.patch.object(workflow, "_apply_infrastructure_updates"), \
              mock.patch.object(workflow.runtime, "update_bootstrap", side_effect=lambda *args: events.append("migrations")), \
+             mock.patch.object(workflow.runtime, "update_error_notifier", side_effect=lambda *args: events.append("notifier")), \
              mock.patch.object(workflow.runtime, "update_worker", side_effect=lambda *args: events.append("backend")), \
              mock.patch.object(workflow.runtime, "update_notifications", side_effect=lambda *args: events.append("sender")), \
              mock.patch.object(workflow, "verify_api"), \
              mock.patch.object(workflow, "publish_frontend") as publish:
             workflow.update(context, "backend")
         publish.assert_not_called()
-        self.assertEqual(events, ["migrations", "backend", "sender"])
+        self.assertEqual(events, ["migrations", "notifier", "backend", "sender"])

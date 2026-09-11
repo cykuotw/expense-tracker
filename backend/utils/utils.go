@@ -2,6 +2,7 @@ package utils
 
 import (
 	"encoding/json"
+	"expense-tracker/backend/internal/observability"
 	"expense-tracker/backend/types"
 	"io"
 
@@ -31,6 +32,8 @@ func WriteError(c *gin.Context, status int, err error) {
 	if err == nil {
 		WriteJSON(c, status, nil)
 	} else {
-		WriteJSON(c, status, normalizeError(status, err))
+		response := normalizeError(status, err)
+		observability.RecordHTTPError(c, status, response.Code, err)
+		WriteJSON(c, status, response)
 	}
 }

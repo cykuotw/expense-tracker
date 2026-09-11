@@ -59,6 +59,9 @@ class ConfigTest(unittest.TestCase):
         self.assertFalse(variables["enable_restore_verification"])
         self.assertEqual(config.backup.time, "03:17:00")
         self.assertEqual(config.backup.timezone, "UTC")
+        self.assertIsNone(config.observability.discord_webhook_url)
+        self.assertFalse(config.error_alerting_enabled)
+        self.assertFalse(variables["enable_error_alerting"])
         worker = config.worker_environment("10.0.0.2")["Variables"]
         self.assertEqual(worker["AUTH_COOKIE_SAME_SITE"], "lax")
         self.assertEqual(worker["WEB_PUSH_VAPID_PUBLIC_KEY"], "p" * 43)
@@ -72,6 +75,44 @@ class ConfigTest(unittest.TestCase):
         self.assertEqual(delivery["DB_PUBLIC_HOST"], "10.0.0.2")
         self.assertFalse(any(key.startswith("WEB_PUSH_") for key in delivery))
         self.assertNotIn("WEB_PUSH_VAPID_PRIVATE_KEY", config.worker_environment("10.0.0.2")["Variables"])
+
+    def test_validates_webhook_and_projects_it_only_to_protected_runtime(self) -> None:
+        webhook_url = "https://discord.com/api/webhooks/1234567890/" + "token_value_" * 3
+        self.value["observability"]["discord_webhook_url"] = webhook_url
+        self.write()
+
+        config = load(self.path, Path("/unrelated/repository"))
+        self.assertEqual(config.observability.discord_webhook_url, webhook_url)
+        self.assertTrue(config.error_alerting_enabled)
+        self.assertEqual(config.notifier_environment(), {"Variables": {
+            "DISCORD_WEBHOOK_URL": webhook_url,
+            "DEPLOYMENT_ENVIRONMENT": "serverless",
+        }})
+        variables = config.terraform_variables(temporary_access=False)
+        self.assertTrue(variables["enable_error_alerting"])
+        self.assertNotIn(webhook_url, json.dumps(variables))
+
+    def test_rejects_invalid_discord_webhook_urls(self) -> None:
+        for value in (
+            "http://discord.com/api/webhooks/123/" + "x" * 24,
+            "https://example.com/api/webhooks/123/" + "x" * 24,
+            "https://discord.com/channels/123/456",
+            "https://discord.com/api/webhooks/not-a-number/" + "x" * 24,
+            "https://discord.com:8443/api/webhooks/123/" + "x" * 24,
+            "https://discord.com/api/webhooks/123/" + "x" * 24 + "?wait=true",
+            "",
+        ):
+            with self.subTest(value=value):
+                self.value["observability"]["discord_webhook_url"] = value
+                self.write()
+                with self.assertRaisesRegex(ConfigError, "discord_webhook_url"):
+                    load(self.path, Path("/unrelated/repository"))
+
+    def test_disabled_discord_alerting_has_no_notifier_environment(self) -> None:
+        self.write()
+        config = load(self.path, Path("/unrelated/repository"))
+        with self.assertRaisesRegex(ConfigError, "required when error alerting is enabled"):
+            config.notifier_environment()
 
     def test_rejects_invalid_vapid_configuration(self) -> None:
         self.value["backend"]["web_push_vapid_private_key"] = "short"

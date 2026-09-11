@@ -19,7 +19,12 @@ chmod 600 /home/your-user/exp-env/deploy.json
 
 The config file, SSH key, and optional Google token must be regular non-symlink files outside the repository with mode `0600`. `ACTION=init` refuses to overwrite an existing file.
 
-The JSON sections are `deployment`, `aws`, `database`, `backend`, `frontend`, optional `first_admin`, and `local_credentials`. This is the sole human-edited serverless deployment source. Do not create serverless `.tfvars`, PostgreSQL password files, or Lambda runtime JSON files; the deployer creates protected temporary projections and removes them.
+The JSON sections are `deployment`, `aws`, `database`, optional `backup`,
+`backend`, `observability`, `frontend`, optional `first_admin`, and
+`local_credentials`.
+This is the sole human-edited serverless deployment source. Do not create
+serverless `.tfvars`, PostgreSQL password files, or Lambda runtime JSON files;
+the deployer creates protected temporary projections and removes them.
 
 Complete example—replace every `REPLACE` value before deployment:
 
@@ -67,6 +72,9 @@ Complete example—replace every `REPLACE` value before deployment:
         "web_push_vapid_private_key": "REPLACE_WITH_VAPID_PRIVATE_KEY",
         "web_push_vapid_subject": "mailto:ops@example.com"
     },
+    "observability": {
+        "discord_webhook_url": null
+    },
     "frontend": {
         "hostname": "expense.example.com"
     },
@@ -85,6 +93,23 @@ Complete example—replace every `REPLACE` value before deployment:
 ```
 
 Set `"first_admin": null` when no initial administrator should be created. `nickname` may be an empty string. The application generates the administrator's user ID; no ID belongs in this file.
+
+Set `observability.discord_webhook_url` to the Discord webhook URL, or leave it
+`null` to disable Discord error alerting. The protected deploy config is the
+only human-managed source for this value. During `ACTION=deploy` or a backend
+update, the deployer writes it directly to the notifier Lambda environment
+through the same mode-`0600` protected temporary projection used for other
+runtime secrets such as `jwt_secret`. Terraform receives only the enable/disable
+boolean and never receives the URL. The notifier validates the configured URL
+at startup and keeps the parsed value only in process memory.
+
+When the field is `null`, Terraform omits the notifier Lambda, notifier log
+group, IAM role, invoke permission, and Worker subscription. Disabling an
+existing installation removes those managed resources but deliberately retains
+the value in the protected external deploy config until the operator removes
+it. This design adds no fixed-monthly-cost alerting service. Lambda and
+CloudWatch Logs usage can still be billed if the account exceeds the applicable
+shared free-tier allowances, so an absolute zero bill cannot be guaranteed.
 
 The access-token lifetime must be between 60 and 86,400 seconds. The refresh
 lifetime must be between 300 and 31,536,000 seconds and greater than the access
@@ -231,12 +256,105 @@ the deployment ownership tags and requires typing `backup-cleanup-<name_prefix>`
 before clearing retained data. Then run `ACTION=destroy` separately. The bucket
 is not configured for forced deletion.
 
+## Worker log investigation
+
+The Worker writes structured, line-delimited JSON to its stable CloudWatch log
+group, `/aws/lambda/<name_prefix>-<environment>-worker`. Terraform retains this
+log group across Worker code updates. Its retention is controlled by
+`worker_log_retention_days`, which defaults to three days and accepts only
+periods supported by CloudWatch Logs. The Bootstrap, Sender, and Delivery log
+groups keep their existing retention settings.
+
+Treat three days as the operational evidence window: start an investigation as
+soon as an error is reported and do not rely on older events being available.
+In CloudWatch Logs Insights, select only the Worker log group and the narrowest
+useful time range. Structured JSON fields are discovered automatically. These
+queries intentionally display allowlisted diagnostic fields instead of the raw
+`@message`.
+
+Recent alertable errors:
+
+```text
+fields @timestamp, level, event, request_id, route, status, error_code, error_category, diagnostic_message
+| filter alertable = true
+| sort @timestamp desc
+| limit 100
+```
+
+All events for an application request ID:
+
+```text
+fields @timestamp, level, event, method, route, status, error_code, error_category
+| filter request_id = "REPLACE_WITH_REQUEST_ID"
+| sort @timestamp asc
+| limit 100
+```
+
+Count 5xx failures by registered route and public error code:
+
+```text
+filter event = "unexpected_http_error" and status >= 500
+| stats count(*) as failures by route, error_code
+| sort failures desc
+```
+
+Recovered panics:
+
+```text
+fields @timestamp, request_id, route, error_category, diagnostic_message
+| filter event = "panic_recovered"
+| sort @timestamp desc
+| limit 100
+```
+
+Correlate an API Gateway or Lambda request ID:
+
+```text
+fields @timestamp, level, event, request_id, api_gateway_request_id, aws_request_id, route, status, error_code
+| filter api_gateway_request_id = "REPLACE_WITH_API_GATEWAY_REQUEST_ID"
+    or aws_request_id = "REPLACE_WITH_AWS_REQUEST_ID"
+| sort @timestamp asc
+| limit 100
+```
+
+Request IDs are correlation keys, not proof of identity. Keep query results in
+approved operational systems and avoid copying log records into tickets or chat
+without checking them for sensitive data.
+
+CloudWatch Logs subscription delivery and Discord posting are best-effort and
+at-least-once. Retryable Discord failures can cause AWS to deliver a
+batch again, so duplicate Discord posts are possible. The notifier has no
+persistent deduplication store and does not claim exactly-once delivery.
+
+### Authorized alerting smoke check
+
+Run this only after explicit approval for a live deployment check. Create a
+uniquely named temporary stream in the Worker log group and publish one
+sanitized JSON event with `alertable=true`,
+`event="unexpected_http_error"`, `status=500`, a synthetic `request_id`, and no
+request body, headers, user data, credentials, or webhook material. Then:
+
+1. Find the event by its synthetic `request_id` with the allowlisted Logs
+   Insights query above.
+2. Confirm Discord receives a sanitized message containing the same request ID.
+   At-least-once delivery means duplicates are possible.
+3. Inspect notifier logs for the request ID and confirm that neither logs nor
+   Discord contain the webhook or any sensitive canary.
+4. Set `discord_webhook_url` to `null`, run a backend update, confirm Terraform
+   removes only the six conditional alerting resources, and repeat with a new
+   synthetic ID to confirm no Discord delivery occurs.
+
+The smoke event itself consumes CloudWatch Logs and, while enabled, Lambda
+usage. Do not run it when the requirement is strictly no additional metered
+usage, even though a single check will ordinarily fit within shared free-tier
+allowances.
+
 ## Safety boundary
 
-- Terraform never receives database/JWT/first-admin secrets and never manages Lambda environments.
+- Terraform never receives database/JWT/first-admin/webhook secrets and never manages Lambda environments.
 - The Worker begins at reserved concurrency `0`; Python publishes runtime configuration and activates it at `5`. With the deployed `DB_MAX_OPEN_CONNS=2`, the Worker has a maximum application-side database pool budget of 10 connections.
 - The raw execute-api endpoint is disabled only after custom-domain and frontend checks pass.
-- Normal updates use narrowly targeted Terraform plans for supported API, CloudFront, notification, and database-support infrastructure changes; Lambda code and runtime environments remain owned by the deployment runtime after initial creation. Deletions are limited to the two retired invitation routes and the obsolete notification HTTPS egress rule; replacements and unrelated deletions are rejected.
-- Before an update, the deployer removes only unmanaged Worker/Bootstrap/Sender/Delivery runtime environments if an AWS provider response persisted them into local state, then verifies that no configured protected value remains anywhere in Terraform artifacts.
+- Normal updates use narrowly targeted Terraform plans for supported API, CloudFront, notification, and database-support infrastructure changes; Lambda code and runtime environments remain owned by the deployment runtime after initial creation. Deletions are limited to the two retired invitation routes, the obsolete notification HTTPS egress rule, and the six conditional alerting resources when alerting is explicitly disabled; replacements and unrelated deletions are rejected.
+- Before an update, the deployer removes only unmanaged Worker/Bootstrap/Sender/Delivery/Error Notifier runtime environments if an AWS provider response persisted them into local state, then verifies that no configured protected value remains anywhere in Terraform artifacts.
 - Destroy deletes Lambdas first, waits for their owned ENIs, then runs `terraform destroy -refresh=false`.
 - A deployment failure keeps persistent resources for an explicit resume; it never performs automatic rollback or destroy.

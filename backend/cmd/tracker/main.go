@@ -4,55 +4,65 @@ import (
 	"context"
 	"expense-tracker/backend/config"
 	dbstore "expense-tracker/backend/db"
+	"expense-tracker/backend/internal/observability"
 	"expense-tracker/backend/internal/requestserver"
 	trackerapp "expense-tracker/backend/internal/tracker"
-	"log"
+	"fmt"
+	"log/slog"
 	"net/http"
+	"os"
 	"os/signal"
 	"syscall"
 	"time"
 )
 
-func closeDBPool(storage interface{ Close() error }) {
+func closeDBPool(logger *slog.Logger, storage interface{ Close() error }) {
 	if err := storage.Close(); err != nil {
-		log.Printf("failed to close db pool: %v", err)
+		logger.Error("database_pool_close_failed", slog.String("error_type", fmt.Sprintf("%T", err)))
 	}
 }
 
+func exitWithError(logger *slog.Logger, event string, err error) {
+	logger.Error(event, slog.String("error_type", fmt.Sprintf("%T", err)))
+	os.Exit(1)
+}
+
 func main() {
+	logger := observability.NewLogger("release", os.Stderr)
 	cfg, err := config.Load()
 	if err != nil {
-		log.Fatal(err)
+		exitWithError(logger, "configuration_load_failed", err)
 	}
+	logger = observability.NewLogger(cfg.Mode, os.Stdout)
 
 	storage, err := requestserver.OpenDatabase(cfg, config.RequestServerStandalone, dbstore.NewPostgreSQLStorage)
 	if err != nil {
-		log.Fatal(err)
+		exitWithError(logger, "database_open_failed", err)
 	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	handler := trackerapp.NewHandler(storage)
+	handler := trackerapp.NewHandler(storage, trackerapp.WithLogger(logger))
 	apiServer := trackerapp.NewHTTPServer(cfg.BackendURL, handler)
 	go func() {
-		log.Println("API Server Listening on", cfg.BackendURL)
+		logger.Info("server_started")
 		if err := apiServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatal(err)
+			exitWithError(logger, "server_failed", err)
 		}
 	}()
 
 	<-ctx.Done()
 
 	stop()
-	log.Println("Shutting down system")
+	logger.Info("server_shutdown_started")
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 	if err := apiServer.Shutdown(shutdownCtx); err != nil {
-		closeDBPool(storage)
-		log.Fatal(err)
+		closeDBPool(logger, storage)
+		exitWithError(logger, "server_shutdown_failed", err)
 	}
-	closeDBPool(storage)
-	log.Println("	API Server is shut down")
+	closeDBPool(logger, storage)
+	logger.Info("server_stopped")
 }

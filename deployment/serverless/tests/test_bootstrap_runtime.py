@@ -29,11 +29,47 @@ def runtime_config() -> SimpleNamespace:
             web_push_vapid_subject="mailto:ops@example.com",
         ),
         first_admin=None,
+        observability=SimpleNamespace(discord_webhook_url=None),
+        error_alerting_enabled=False,
         bootstrap_environment=lambda _host: {"SAFE": "value"},
     )
 
 
 class BootstrapRuntimeTest(unittest.TestCase):
+    def test_error_notifier_configuration_is_optional_and_fail_closed(self) -> None:
+        client = mock.MagicMock()
+        config = runtime_config()
+        with tempfile.TemporaryDirectory() as temporary:
+            runtime.configure_error_notifier(client, config, {}, Path(temporary))
+        client.assert_not_called()
+
+        config.error_alerting_enabled = True
+        config.observability.discord_webhook_url = "private-webhook"
+        config.notifier_environment = lambda: {"Variables": {"DISCORD_WEBHOOK_URL": "private-webhook"}}
+        outputs = {"error_notifier_function_name": "notifier"}
+        with tempfile.TemporaryDirectory() as temporary:
+            runtime.configure_error_notifier(client, config, outputs, Path(temporary))
+        self.assertEqual(
+            [(call[0], call.args[0]) for call in client.mock_calls],
+            [("publish_environment", "notifier"), ("activate_notification_function", "notifier")],
+        )
+
+    def test_error_notifier_update_publishes_before_configuration(self) -> None:
+        client = mock.MagicMock()
+        config = runtime_config()
+        config.error_alerting_enabled = True
+        outputs = {"error_notifier_function_name": "notifier"}
+        with mock.patch.object(runtime, "configure_error_notifier") as configure:
+            runtime.update_error_notifier(
+                client,
+                Path("notifier.zip"),
+                config,
+                outputs,
+                Path("/tmp"),
+            )
+        client.publish_code.assert_called_once_with("notifier", Path("notifier.zip"))
+        configure.assert_called_once()
+
     def test_delivery_is_configured_before_sender_and_failure_stops_activation(self) -> None:
         config = runtime_config()
         config.delivery_environment = lambda _host: {"Variables": {"DB_PUBLIC_HOST": "private"}}

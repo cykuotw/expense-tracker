@@ -28,6 +28,13 @@ def _protected_values(config: Config) -> tuple[bytes, ...]:
     ]
     if config.first_admin:
         values.append(config.first_admin.password)
+    webhook_url = getattr(
+        getattr(config, "observability", None),
+        "discord_webhook_url",
+        None,
+    )
+    if webhook_url:
+        values.append(webhook_url)
     return tuple(value.encode() for value in values if value)
 
 
@@ -89,7 +96,7 @@ def repair_secret_boundary(terraform_root: Path, config: Config) -> int:
             if (
                 resource.get("mode", "managed") != "managed"
                 or resource.get("type") != "aws_lambda_function"
-                or resource.get("name") not in {"worker", "bootstrap", "sender", "delivery"}
+                or resource.get("name") not in {"worker", "bootstrap", "sender", "delivery", "error_notifier"}
             ):
                 continue
             for instance in resource.get("instances", []):
@@ -160,6 +167,24 @@ def configure_notifications(client: AWSClient, config: Config, outputs: dict[str
         raise CommandError("Terraform state changed while publishing notification runtimes")
 
 
+def configure_error_notifier(client: AWSClient, config: Config, outputs: dict[str, Any], terraform_root: Path) -> None:
+    function_name = str(outputs.get("error_notifier_function_name", ""))
+    if not config.error_alerting_enabled:
+        if function_name:
+            raise CommandError("disabled error alerting unexpectedly exposed a notifier function")
+        return
+    if not function_name:
+        raise CommandError("enabled error alerting did not expose a notifier function")
+
+    before = _state_digest(terraform_root)
+    with protected_json(config.notifier_environment(), prefix="expense-notifier-env-") as path:
+        client.publish_environment(function_name, path)
+    client.activate_notification_function(function_name)
+    assert_secret_boundary(terraform_root, config)
+    if _state_digest(terraform_root) != before:
+        raise CommandError("Terraform state changed while publishing error notifier runtime")
+
+
 def update_bootstrap(client: AWSClient, artifact: Path, config: Config, outputs: dict[str, Any], terraform_root: Path) -> dict[str, Any]:
     client.publish_code(str(outputs["bootstrap_function_name"]), artifact)
     return configure_bootstrap(client, config, outputs, terraform_root)
@@ -174,3 +199,14 @@ def update_notifications(client: AWSClient, artifact: Path, delivery_artifact: P
     client.publish_code(str(outputs["delivery_function_name"]), delivery_artifact)
     client.publish_code(str(outputs["sender_function_name"]), artifact)
     configure_notifications(client, config, outputs, terraform_root)
+
+
+def update_error_notifier(client: AWSClient, artifact: Path, config: Config, outputs: dict[str, Any], terraform_root: Path) -> None:
+    if not config.error_alerting_enabled:
+        configure_error_notifier(client, config, outputs, terraform_root)
+        return
+    function_name = str(outputs.get("error_notifier_function_name", ""))
+    if not function_name:
+        raise CommandError("enabled error alerting did not expose a notifier function")
+    client.publish_code(function_name, artifact)
+    configure_error_notifier(client, config, outputs, terraform_root)

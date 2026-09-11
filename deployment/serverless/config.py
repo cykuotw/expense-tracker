@@ -8,6 +8,7 @@ import stat
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 
 class ConfigError(ValueError):
@@ -97,6 +98,32 @@ def _time_zone(value: Any, name: str) -> str:
     return result
 
 
+def _discord_webhook_url(value: Any, name: str) -> str | None:
+    if value is None:
+        return None
+    result = _string(value, name)
+    try:
+        parsed = urlsplit(result)
+        port = parsed.port
+    except ValueError as exc:
+        raise ConfigError(f"{name} must be a valid Discord HTTPS webhook URL") from exc
+    if (
+        parsed.scheme != "https"
+        or parsed.hostname != "discord.com"
+        or port is not None
+        or parsed.username is not None
+        or parsed.password is not None
+        or parsed.query
+        or parsed.fragment
+        or not re.fullmatch(
+            r"/api/webhooks/\d+/[A-Za-z0-9._-]{20,}",
+            parsed.path,
+        )
+    ):
+        raise ConfigError(f"{name} must be a valid Discord HTTPS webhook URL")
+    return result
+
+
 @dataclass(frozen=True)
 class Deployment:
     account_id: str
@@ -151,6 +178,11 @@ class Backend:
 
 
 @dataclass(frozen=True)
+class Observability:
+    discord_webhook_url: str | None
+
+
+@dataclass(frozen=True)
 class Frontend:
     hostname: str
 
@@ -177,6 +209,7 @@ class Config:
     database: Database
     backup: Backup
     backend: Backend
+    observability: Observability
     frontend: Frontend
     first_admin: FirstAdmin | None
     local_credentials: LocalCredentials
@@ -188,6 +221,10 @@ class Config:
     @property
     def api_origin(self) -> str:
         return f"https://{self.backend.api_hostname}"
+
+    @property
+    def error_alerting_enabled(self) -> bool:
+        return self.observability.discord_webhook_url is not None
 
     def terraform_variables(self, *, temporary_access: bool, restore_verification: bool = False) -> dict[str, Any]:
         return {
@@ -206,12 +243,14 @@ class Config:
             "database_instance_type": self.database.instance_type,
             "database_ami_id": self.database.ami_id,
             "worker_artifact_path": str((Path(__file__).parent / "build/worker.zip").resolve()),
+            "notifier_artifact_path": str((Path(__file__).parent / "build/notifier.zip").resolve()),
             "bootstrap_artifact_path": str((Path(__file__).parent / "build/bootstrap.zip").resolve()),
             "sender_artifact_path": str((Path(__file__).parent / "build/sender.zip").resolve()),
             "delivery_artifact_path": str((Path(__file__).parent / "build/delivery.zip").resolve()),
             "api_hostname": self.backend.api_hostname,
             "frontend_hostname": self.frontend.hostname,
             "google_client_id": self.backend.google_client_id,
+            "enable_error_alerting": self.error_alerting_enabled,
         }
 
     def worker_environment(self, db_host: str) -> dict[str, dict[str, str]]:
@@ -256,6 +295,16 @@ class Config:
             "WEB_PUSH_VAPID_PUBLIC_KEY": self.backend.web_push_vapid_public_key,
             "WEB_PUSH_VAPID_PRIVATE_KEY": self.backend.web_push_vapid_private_key,
             "WEB_PUSH_VAPID_SUBJECT": self.backend.web_push_vapid_subject,
+        }}
+
+    def notifier_environment(self) -> dict[str, dict[str, str]]:
+        if not self.error_alerting_enabled:
+            raise ConfigError(
+                "observability.discord_webhook_url is required when error alerting is enabled"
+            )
+        return {"Variables": {
+            "DISCORD_WEBHOOK_URL": self.observability.discord_webhook_url,
+            "DEPLOYMENT_ENVIRONMENT": self.deployment.environment,
         }}
 
     def bootstrap_environment(self, db_host: str) -> dict[str, dict[str, str]]:
@@ -310,7 +359,15 @@ def load(path: Path, repo_root: Path) -> Config:
         raw = _object(json.loads(resolved.read_text()), "config")
     except (OSError, json.JSONDecodeError) as exc:
         raise ConfigError(f"cannot read deployment config: {exc}") from exc
-    required_sections = {"deployment", "aws", "database", "backend", "frontend", "local_credentials"}
+    required_sections = {
+        "deployment",
+        "aws",
+        "database",
+        "backend",
+        "observability",
+        "frontend",
+        "local_credentials",
+    }
     _keys(raw, "config", required_sections, {"backup", "first_admin"})
 
     deployment = _object(raw["deployment"], "deployment")
@@ -405,6 +462,15 @@ def load(path: Path, repo_root: Path) -> Config:
     if backend.refresh_jwt_exp <= backend.jwt_exp:
         raise ConfigError("backend.refresh_jwt_exp must be greater than backend.jwt_exp")
 
+    observability_raw = _object(raw["observability"], "observability")
+    _keys(observability_raw, "observability", {"discord_webhook_url"})
+    observability = Observability(
+        _discord_webhook_url(
+            observability_raw["discord_webhook_url"],
+            "observability.discord_webhook_url",
+        )
+    )
+
     frontend_raw = _object(raw["frontend"], "frontend")
     _keys(frontend_raw, "frontend", {"hostname"})
     frontend = Frontend(_hostname(frontend_raw["hostname"], "frontend.hostname"))
@@ -421,7 +487,7 @@ def load(path: Path, repo_root: Path) -> Config:
     credentials_raw = _object(raw["local_credentials"], "local_credentials")
     _keys(credentials_raw, "local_credentials", {"ssh_private_key_file"}, {"google_id_token_file"})
     credentials = LocalCredentials(_protected_path(credentials_raw["ssh_private_key_file"], "local_credentials.ssh_private_key_file", repo_root, required=True), _protected_path(credentials_raw.get("google_id_token_file"), "local_credentials.google_id_token_file", repo_root, required=False))
-    return Config(deploy, aws, database, backup, backend, frontend, admin, credentials)
+    return Config(deploy, aws, database, backup, backend, observability, frontend, admin, credentials)
 
 
 def template() -> dict[str, Any]:
@@ -431,6 +497,7 @@ def template() -> dict[str, Any]:
         "database": {"name": "expense_tracker", "admin_user": "expense_admin", "admin_password": "REPLACE_WITH_RANDOM_SECRET", "migration_user": "expense_migration", "migration_password": "REPLACE_WITH_RANDOM_SECRET", "runtime_user": "expense_runtime", "runtime_password": "REPLACE_WITH_RANDOM_SECRET", "instance_type": "t4g.micro", "ami_id": None},
         "backup": {"time": "03:17:00", "timezone": "UTC"},
         "backend": {"api_hostname": "api.example.com", "google_client_id": "REPLACE.apps.googleusercontent.com", "jwt_secret": "REPLACE_WITH_32_BYTE_RANDOM_SECRET", "jwt_exp": 900, "refresh_jwt_secret": "REPLACE_WITH_32_BYTE_RANDOM_SECRET", "refresh_jwt_exp": 604800, "expenses_per_page": 25, "db_conn_max_lifetime_seconds": 300, "db_conn_max_idle_time_seconds": 60, "web_push_vapid_public_key": "REPLACE_WITH_VAPID_PUBLIC_KEY", "web_push_vapid_private_key": "REPLACE_WITH_VAPID_PRIVATE_KEY", "web_push_vapid_subject": "mailto:REPLACE@example.com"},
+        "observability": {"discord_webhook_url": None},
         "frontend": {"hostname": "expense.example.com"},
         "first_admin": None,
         "local_credentials": {"ssh_private_key_file": "/absolute/path/to/key.pem", "google_id_token_file": None},

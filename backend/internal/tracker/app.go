@@ -3,6 +3,7 @@ package tracker
 import (
 	"database/sql"
 	"expense-tracker/backend/config"
+	"expense-tracker/backend/internal/observability"
 	adminService "expense-tracker/backend/services/admin"
 	"expense-tracker/backend/services/auth"
 	authRoute "expense-tracker/backend/services/auth/routes"
@@ -15,7 +16,9 @@ import (
 	"expense-tracker/backend/services/middleware"
 	"expense-tracker/backend/services/notification"
 	"expense-tracker/backend/services/user"
+	"log/slog"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -26,16 +29,38 @@ const (
 	readTimeout       = 10 * time.Second
 	writeTimeout      = 15 * time.Second
 	idleTimeout       = 60 * time.Second
+	slowRequest       = time.Second
 )
 
-func NewHandler(db *sql.DB) http.Handler {
+type handlerConfig struct {
+	logger *slog.Logger
+}
+
+type HandlerOption func(*handlerConfig)
+
+func WithLogger(logger *slog.Logger) HandlerOption {
+	return func(config *handlerConfig) {
+		if logger != nil {
+			config.logger = logger
+		}
+	}
+}
+
+func NewHandler(db *sql.DB, options ...HandlerOption) http.Handler {
 	gin.SetMode(config.Envs.Mode)
+	settings := handlerConfig{
+		logger: observability.NewLogger(config.Envs.Mode, os.Stdout),
+	}
+	for _, option := range options {
+		option(&settings)
+	}
 
 	router := gin.New()
-	if config.Envs.Mode != "release" {
-		router.Use(gin.Logger())
-	}
-	router.Use(gin.Recovery(), middleware.CORSMiddleware())
+	router.Use(observability.RequestLogging(observability.RequestLoggingConfig{
+		Logger:               settings.logger,
+		SlowRequestThreshold: slowRequest,
+	}))
+	router.Use(observability.Recovery(), middleware.CORSMiddleware())
 
 	registerRoutes(router, db)
 

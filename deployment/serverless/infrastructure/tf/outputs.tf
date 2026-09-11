@@ -49,6 +49,9 @@ output "worker_function_name" {
 output "bootstrap_function_name" {
   value = aws_lambda_function.bootstrap.function_name
 }
+output "error_notifier_function_name" {
+  value = try(aws_lambda_function.error_notifier[0].function_name, "")
+}
 output "sender_function_name" {
   value = aws_lambda_function.sender.function_name
 }

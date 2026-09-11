@@ -1,10 +1,7 @@
 package serverless
 
 import (
-	"errors"
 	"expense-tracker/backend/services/auth/google"
-	"expense-tracker/backend/types"
-	"log"
 	"net/http"
 
 	"github.com/aws/aws-lambda-go/events"
@@ -16,8 +13,6 @@ func WrapWithGoogleAuthorizerClaims(next http.Handler) http.Handler {
 		if gatewayContext, ok := core.GetAPIGatewayV2ContextFromContext(r.Context()); ok {
 			if claims, err := google.VerifiedClaimsFromAuthorizer(v2AuthorizerClaims(gatewayContext.Authorizer)); err == nil {
 				r = r.WithContext(google.ContextWithVerifiedClaims(r.Context(), claims))
-			} else if !errors.Is(err, types.ErrGoogleClaimsUnavailable) {
-				log.Printf("failed to extract google authorizer claims: %v", err)
 			}
 		}
 

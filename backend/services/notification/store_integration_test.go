@@ -41,6 +41,15 @@ func TestSubscriptionSettingsAndGroupMute(t *testing.T) {
 	assert.Equal(t, "public-key", settings.VAPIDKey)
 	require.Len(t, settings.MutedGroups, 1)
 	assert.Equal(t, groupID, settings.MutedGroups[0].GroupID)
+	status, err := store.SubscriptionStatus(ctx, userID, input.Endpoint)
+	require.NoError(t, err)
+	assert.True(t, status.Registered)
+	assert.True(t, status.ShowDetails)
+
+	status, err = store.SubscriptionStatus(ctx, userID, "https://fcm.googleapis.com/fcm/send/missing")
+	require.NoError(t, err)
+	assert.False(t, status.Registered)
+	assert.False(t, status.ShowDetails)
 
 	require.NoError(t, store.UpsertSubscription(ctx, userID, input))
 	settings, err = store.Settings(ctx, userID, "public-key")

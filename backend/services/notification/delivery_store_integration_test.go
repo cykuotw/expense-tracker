@@ -92,8 +92,26 @@ func TestDeliveryLeaseLifecycle(t *testing.T) {
 	batch, err = store.ClaimDeliveries(ctx)
 	require.NoError(t, err)
 	require.Len(t, batch.Deliveries, 1)
-	require.NoError(t, store.AcknowledgeDeliveries(ctx, batch.Token, []DeliveryResult{{ID: id, Status: "retired"}}))
+
+	auditEndpoint := "https://fcm.googleapis.com/push/" + uuid.NewString()
+	require.NoError(t, store.UpsertSubscription(ctx, recipient, types.WebPushSubscriptionInput{Endpoint: auditEndpoint, P256DH: "test", Auth: "test"}))
+	auditID := uuid.New()
 	var count int
+	_, err = database.Exec(`INSERT INTO web_push_delivery (id, expense_id, subscription_id, recipient_user_id,
+		group_id, actor_user_id, group_name, currency, amount, expires_at, completed_at, failure_code)
+		SELECT $1, $2, id, $3, $4, $5, 'audit test', 'CAD', 1, NOW() + INTERVAL '1 hour', NOW() - INTERVAL '6 days', 'delivered'
+		FROM web_push_subscription WHERE endpoint = $6`, auditID, expense, recipient, group, actor, auditEndpoint)
+	require.NoError(t, err)
+	require.NoError(t, store.Cleanup(ctx))
+	require.NoError(t, database.QueryRow("SELECT COUNT(*) FROM web_push_delivery WHERE id = $1", auditID).Scan(&count))
+	require.Equal(t, 1, count, "six-day-old completed deliveries must remain available for audit")
+	_, err = database.Exec("UPDATE web_push_delivery SET completed_at = NOW() - INTERVAL '8 days' WHERE id = $1", auditID)
+	require.NoError(t, err)
+	require.NoError(t, store.Cleanup(ctx))
+	require.NoError(t, database.QueryRow("SELECT COUNT(*) FROM web_push_delivery WHERE id = $1", auditID).Scan(&count))
+	require.Zero(t, count, "eight-day-old completed deliveries must be removed")
+
+	require.NoError(t, store.AcknowledgeDeliveries(ctx, batch.Token, []DeliveryResult{{ID: id, Status: "retired"}}))
 	require.NoError(t, database.QueryRow("SELECT COUNT(*) FROM web_push_subscription WHERE endpoint = $1", endpoint).Scan(&count))
 	require.Zero(t, count)
 }

@@ -172,6 +172,6 @@ func (s *Store) Cleanup(ctx context.Context) error {
 		UPDATE web_push_delivery SET completed_at = NOW(), failure_code = 'expired'
 		WHERE completed_at IS NULL AND expires_at <= NOW();
 		DELETE FROM web_push_delivery
-		WHERE completed_at < NOW() - INTERVAL '24 hours'`)
+		WHERE completed_at < NOW() - INTERVAL '7 days'`)
 	return err
 }

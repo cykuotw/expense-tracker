@@ -25,7 +25,7 @@ function response(body: unknown, status = 200) {
     });
 }
 
-function supportWebPush() {
+function supportWebPush(subscription: { endpoint: string; unsubscribe?: () => Promise<boolean> } | null = null) {
     Object.defineProperty(window, "isSecureContext", { configurable: true, value: true });
     Object.defineProperty(window, "Notification", {
         configurable: true,
@@ -34,19 +34,32 @@ function supportWebPush() {
     Object.defineProperty(window, "PushManager", { configurable: true, value: class PushManager {} });
     Object.defineProperty(navigator, "serviceWorker", {
         configurable: true,
-        value: { ready: Promise.resolve({ pushManager: { getSubscription: vi.fn() } }) },
+        value: { ready: Promise.resolve({ pushManager: { getSubscription: vi.fn().mockResolvedValue(subscription) } }) },
     });
 }
 
-function mockSettings(muted: boolean) {
+function mockSettings(
+    muted: boolean,
+    options: { subscriptionCount?: number; currentRegistered?: boolean; currentShowDetails?: boolean } = {},
+) {
     apiFetchMock.mockImplementation((path: string, init?: RequestInit) => {
         if (path === "/notifications/settings") {
             return Promise.resolve(response({
                 enabled: true,
                 showDetails: false,
+                subscriptionCount: options.subscriptionCount ?? 1,
                 vapidPublicKey: "public-key",
                 mutedGroups: muted ? [{ groupId: group.id, groupName: group.groupName, muted: true }] : [],
             }));
+        }
+        if (path === "/notifications/subscriptions/status" && init?.method === "POST") {
+            return Promise.resolve(response({
+                registered: options.currentRegistered === true,
+                showDetails: options.currentShowDetails === true,
+            }));
+        }
+        if (path === "/notifications/subscriptions" && init?.method === "DELETE") {
+            return Promise.resolve(new Response(null, { status: 204 }));
         }
         if (path === "/groups") return Promise.resolve(response([group]));
         if (path === `/notifications/groups/${group.id}/mute` && init?.method === "PUT") {
@@ -71,6 +84,51 @@ describe("NotificationSettings", () => {
         expect(screen.getByText("Activity notifications").closest("section")).toHaveClass(
             "md:hidden",
         );
+    });
+
+    it("does not treat another browser's subscription as enabled in this browser", async () => {
+        mockSettings(false, { subscriptionCount: 1 });
+        render(<NotificationSettings />);
+
+        expect(await screen.findByRole("button", { name: "Enable notifications in this browser" })).toBeInTheDocument();
+        expect(screen.getByText("Notifications remain enabled in 1 other browser or device.")).toBeInTheDocument();
+    });
+
+    it("uses the current browser subscription for enabled and preview-detail state", async () => {
+        supportWebPush({ endpoint: "https://fcm.googleapis.com/fcm/send/current" });
+        mockSettings(false, { subscriptionCount: 2, currentRegistered: true, currentShowDetails: true });
+        render(<NotificationSettings />);
+
+        expect(await screen.findByRole("button", { name: "Disable notifications in this browser" })).toBeInTheDocument();
+        expect(screen.getByRole("checkbox", { name: /Show notification details in this browser/ })).toBeChecked();
+        expect(apiFetchMock).toHaveBeenCalledWith(
+            "/notifications/subscriptions/status",
+            { method: "POST", body: JSON.stringify({ endpoint: "https://fcm.googleapis.com/fcm/send/current" }) },
+        );
+    });
+
+    it("offers to repair a browser subscription that is missing from the account", async () => {
+        supportWebPush({ endpoint: "https://fcm.googleapis.com/fcm/send/stale" });
+        mockSettings(false, { subscriptionCount: 0, currentRegistered: false });
+        render(<NotificationSettings />);
+
+        expect(await screen.findByRole("button", { name: "Enable notifications in this browser" })).toBeInTheDocument();
+        expect(screen.queryByText(/Notifications remain enabled/)).not.toBeInTheDocument();
+    });
+
+    it("disables only the current browser endpoint", async () => {
+        const unsubscribe = vi.fn().mockResolvedValue(true);
+        supportWebPush({ endpoint: "https://fcm.googleapis.com/fcm/send/current", unsubscribe });
+        mockSettings(false, { subscriptionCount: 2, currentRegistered: true });
+        render(<NotificationSettings />);
+
+        fireEvent.click(await screen.findByRole("button", { name: "Disable notifications in this browser" }));
+
+        await waitFor(() => expect(apiFetchMock).toHaveBeenCalledWith(
+            "/notifications/subscriptions",
+            { method: "DELETE", body: JSON.stringify({ endpoint: "https://fcm.googleapis.com/fcm/send/current" }) },
+        ));
+        expect(unsubscribe).toHaveBeenCalledOnce();
     });
 
     it("presents a muted group as notifications off and enables it with positive semantics", async () => {

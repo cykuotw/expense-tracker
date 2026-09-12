@@ -5,6 +5,7 @@ import (
 	"crypto/ecdh"
 	"crypto/rand"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"expense-tracker/backend/types"
 	"io"
@@ -93,6 +94,31 @@ func TestSenderAcknowledgesBatchOutcomes(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestSenderUsesOneMailtoSchemeInVAPIDSubject(t *testing.T) {
+	delivery := testDelivery(t)
+	store := &fakeDeliveryStore{batch: DeliveryBatch{Token: uuid.New(), Deliveries: []types.WebPushDelivery{delivery}}}
+	sender := testSender(t, store, func(r *http.Request) (*http.Response, error) {
+		authorization := strings.TrimPrefix(r.Header.Get("Authorization"), "vapid t=")
+		token, _, found := strings.Cut(authorization, ", k=")
+		require.True(t, found)
+		parts := strings.Split(token, ".")
+		require.Len(t, parts, 3)
+		payload, err := base64.RawURLEncoding.DecodeString(parts[1])
+		require.NoError(t, err)
+		var claims map[string]any
+		require.NoError(t, json.Unmarshal(payload, &claims))
+		require.Equal(t, "mailto:ops@example.com", claims["sub"])
+		return &http.Response{StatusCode: http.StatusCreated, Body: io.NopCloser(strings.NewReader(""))}, nil
+	})
+	require.NoError(t, sender.RunOnce(t.Context()))
+}
+
+func TestSupportedPushHostAcceptsAppleSubdomains(t *testing.T) {
+	require.True(t, supportedPushHost("web.push.apple.com"))
+	require.True(t, supportedPushHost("regional.push.apple.com"))
+	require.False(t, supportedPushHost("push.apple.com.example.test"))
 }
 
 func TestSenderEmptyAndClaimFailureDoNotAcknowledge(t *testing.T) {

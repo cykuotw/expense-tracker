@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -44,7 +45,8 @@ func NewSender(store DeliveryStore, publicKey, privateKey, subscriber string) (*
 		store:      store,
 		publicKey:  publicKey,
 		privateKey: privateKey,
-		subscriber: subscriber,
+		// webpush-go adds the mailto: scheme for non-HTTPS subjects.
+		subscriber: strings.TrimPrefix(subscriber, "mailto:"),
 		client: &http.Client{
 			Timeout: senderTimeout,
 			Transport: &http.Transport{
@@ -121,6 +123,12 @@ func (s *Sender) send(ctx context.Context, delivery types.WebPushDelivery) (Deli
 		return result, nil
 	}
 	if response != nil && response.StatusCode >= http.StatusBadRequest && response.StatusCode < http.StatusInternalServerError && response.StatusCode != http.StatusTooManyRequests {
+		slog.Warn("web push provider rejected delivery",
+			"delivery_id", delivery.ID,
+			"subscription_id", delivery.Subscription.ID,
+			"provider", pushProviderHost(delivery.Subscription.Endpoint),
+			"status_code", response.StatusCode,
+		)
 		result.Status = "provider_rejected"
 		return result, nil
 	}
@@ -137,6 +145,14 @@ func (s *Sender) send(ctx context.Context, delivery types.WebPushDelivery) (Deli
 	}
 	result.Status, result.RetryAt = "retry", next
 	return result, nil
+}
+
+func pushProviderHost(endpoint string) string {
+	parsed, err := url.Parse(endpoint)
+	if err != nil {
+		return "unknown"
+	}
+	return strings.ToLower(parsed.Hostname())
 }
 
 func notificationPayload(delivery types.WebPushDelivery) ([]byte, error) {

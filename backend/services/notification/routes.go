@@ -30,9 +30,30 @@ func NewHandler(store *Store, publicKey string) *Handler {
 func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 	router.GET("/notifications/settings", h.handleSettings)
 	router.POST("/notifications/subscriptions", h.handleCreateSubscription)
+	router.POST("/notifications/subscriptions/status", h.handleSubscriptionStatus)
 	router.DELETE("/notifications/subscriptions", h.handleDeleteSubscription)
 	router.PATCH("/notifications/subscriptions/details", h.handleDetails)
 	router.PUT("/notifications/groups/:groupID/mute", h.handleGroupMute)
+}
+
+func (h *Handler) handleSubscriptionStatus(c *gin.Context) {
+	userID, ok := notificationUserID(c)
+	if !ok {
+		return
+	}
+	var payload struct {
+		Endpoint string `json:"endpoint"`
+	}
+	if err := utils.ParseJSON(c, &payload); err != nil || strings.TrimSpace(payload.Endpoint) == "" {
+		utils.WriteError(c, http.StatusBadRequest, types.ErrInvalidWebPushSubscription)
+		return
+	}
+	status, err := h.store.SubscriptionStatus(c.Request.Context(), userID, strings.TrimSpace(payload.Endpoint))
+	if err != nil {
+		utils.WriteError(c, http.StatusInternalServerError, err)
+		return
+	}
+	utils.WriteJSON(c, http.StatusOK, status)
 }
 
 func notificationUserID(c *gin.Context) (uuid.UUID, bool) {
@@ -178,7 +199,7 @@ func validateSubscription(ctx context.Context, input types.WebPushSubscriptionIn
 
 func supportedPushHost(host string) bool {
 	host = strings.ToLower(strings.TrimSuffix(host, "."))
-	return host == "fcm.googleapis.com" || host == "updates.push.services.mozilla.com" || host == "web.push.apple.com"
+	return host == "fcm.googleapis.com" || host == "updates.push.services.mozilla.com" || host == "push.apple.com" || strings.HasSuffix(host, ".push.apple.com")
 }
 
 func ensurePublicHost(ctx context.Context, host string) error {

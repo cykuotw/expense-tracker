@@ -63,6 +63,19 @@ func (s *Store) DeleteSubscription(ctx context.Context, userID uuid.UUID, endpoi
 	return err
 }
 
+func (s *Store) SubscriptionStatus(ctx context.Context, userID uuid.UUID, endpoint string) (types.WebPushSubscriptionStatus, error) {
+	var status types.WebPushSubscriptionStatus
+	err := s.db.QueryRowContext(ctx, `
+		SELECT TRUE, show_details
+		FROM web_push_subscription
+		WHERE user_id = $1 AND endpoint = $2`, userID, endpoint).
+		Scan(&status.Registered, &status.ShowDetails)
+	if errors.Is(err, sql.ErrNoRows) {
+		return types.WebPushSubscriptionStatus{}, nil
+	}
+	return status, err
+}
+
 func (s *Store) SetDetails(ctx context.Context, userID uuid.UUID, endpoint string, showDetails bool) error {
 	result, err := s.db.ExecContext(ctx, `
 		UPDATE web_push_subscription

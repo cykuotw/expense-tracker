@@ -31,6 +31,11 @@ type WebPushSettings struct {
 	Subscription int                     `json:"subscriptionCount"`
 }
 
+type WebPushSubscriptionStatus struct {
+	Registered  bool `json:"registered"`
+	ShowDetails bool `json:"showDetails"`
+}
+
 type GroupNotificationMute struct {
 	GroupID   uuid.UUID `json:"groupId"`
 	GroupName string    `json:"groupName"`

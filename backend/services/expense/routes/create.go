@@ -157,6 +157,9 @@ func (h *Handler) handleCreateExpense(c *gin.Context) {
 		return h.updateBalanceWithStore(store, payload.GroupID)
 	})
 	if err != nil {
+		if writeBalanceLedgerConflict(c, err) {
+			return
+		}
 		if errors.Is(err, types.ErrIdempotencyKeyConflict) {
 			utils.WriteError(c, http.StatusConflict, err)
 			return

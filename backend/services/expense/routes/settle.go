@@ -20,6 +20,9 @@ func (h *Handler) handleSettleExpense(c *gin.Context) {
 
 	err = h.updateBalance(groupID)
 	if err != nil {
+		if writeBalanceLedgerConflict(c, err) {
+			return
+		}
 		utils.WriteError(c, http.StatusInternalServerError, err)
 		return
 	}

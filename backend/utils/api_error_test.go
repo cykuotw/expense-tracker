@@ -33,6 +33,20 @@ func TestWriteErrorMapsTypedErrorToCode(t *testing.T) {
 	assert.Equal(t, "permission_denied", body.Code)
 }
 
+func TestWriteErrorMapsBalanceLedgerConflictToStableCode(t *testing.T) {
+	gin.SetMode(gin.ReleaseMode)
+	rr := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rr)
+
+	WriteError(c, http.StatusConflict, types.ErrBalanceLedgerConflict)
+
+	var body APIErrorResponse
+	err := json.Unmarshal(rr.Body.Bytes(), &body)
+	assert.NoError(t, err)
+	assert.Equal(t, "balance-ledger association already exists", body.Error)
+	assert.Equal(t, "balance_ledger_conflict", body.Code)
+}
+
 func TestWriteErrorSanitizesInternalErrors(t *testing.T) {
 	gin.SetMode(gin.ReleaseMode)
 	var output bytes.Buffer

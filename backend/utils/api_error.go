@@ -256,6 +256,9 @@ func normalizeError(status int, err error) APIErrorResponse {
 	if errors.Is(err, types.ErrBalanceNotExist) {
 		return APIErrorResponse{Error: err.Error(), Code: "balance_not_exist"}
 	}
+	if errors.Is(err, types.ErrBalanceLedgerConflict) {
+		return APIErrorResponse{Error: err.Error(), Code: "balance_ledger_conflict"}
+	}
 
 	if status >= http.StatusInternalServerError {
 		return APIErrorResponse{

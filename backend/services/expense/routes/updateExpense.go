@@ -130,6 +130,9 @@ func (h *Handler) handleUpdateExpense(c *gin.Context) {
 		return h.updateBalanceWithStore(store, expense.GroupID.String())
 	})
 	if err != nil {
+		if writeBalanceLedgerConflict(c, err) {
+			return
+		}
 		if errors.Is(err, types.ErrItemNotExist) || errors.Is(err, types.ErrLedgerNotExist) {
 			utils.WriteError(c, http.StatusNotFound, err)
 			return

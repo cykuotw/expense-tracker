@@ -73,7 +73,8 @@ var (
 	ErrWebPushSubscriptionLimit   = errors.New("too many push subscriptions")
 
 	// balance
-	ErrBalanceNotExist = errors.New("balacne not exist")
+	ErrBalanceNotExist       = errors.New("balacne not exist")
+	ErrBalanceLedgerConflict = errors.New("balance-ledger association already exists")
 )
 
 type ServerErr struct {

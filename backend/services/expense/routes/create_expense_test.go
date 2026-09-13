@@ -207,6 +207,18 @@ func TestHandleCreateExpenseUsesOneTransactionBoundStore(t *testing.T) {
 	}, stages)
 }
 
+func TestHandleCreateExpenseMapsBalanceLedgerConflict(t *testing.T) {
+	store := createExpenseStoreMock()
+	store.CreateBalanceLedgerFn = func([]uuid.UUID, []uuid.UUID) error {
+		return types.ErrBalanceLedgerConflict
+	}
+
+	response := runCreateExpenseHandler(t, store, validCreateExpensePayload())
+
+	assert.Equal(t, http.StatusConflict, response.Code)
+	assert.Contains(t, response.Body.String(), `"code":"balance_ledger_conflict"`)
+}
+
 func TestHandleCreateExpenseRejectsInvalidAllocationBeforeTransaction(t *testing.T) {
 	store := createExpenseStoreMock()
 	transactionCalls := 0

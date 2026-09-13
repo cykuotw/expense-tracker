@@ -27,6 +27,9 @@ func (h *Handler) handleDeleteExpense(c *gin.Context) {
 	// update balance
 	err = h.updateBalance(expense.GroupID.String())
 	if err != nil {
+		if writeBalanceLedgerConflict(c, err) {
+			return
+		}
 		utils.WriteError(c, http.StatusInternalServerError, err)
 		return
 	}

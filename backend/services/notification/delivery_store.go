@@ -128,8 +128,13 @@ func pendingDeliveries(ctx context.Context, db deliveryQueryer, limit int) ([]ty
 	query := `
 		SELECT delivery.id, subscription.id, subscription.user_id, subscription.endpoint,
 			subscription.p256dh_key, subscription.auth_key, subscription.show_details,
-			delivery.expense_id, delivery.recipient_user_id, delivery.group_id, delivery.actor_user_id,
-			delivery.group_name, delivery.currency, delivery.amount::text, delivery.attempts, delivery.expires_at
+			delivery.notification_type,
+			COALESCE(delivery.expense_id, '00000000-0000-0000-0000-000000000000'::uuid),
+			COALESCE(to_char(delivery.review_month, 'YYYY-MM'), ''),
+			delivery.recipient_user_id, delivery.group_id,
+			COALESCE(delivery.actor_user_id, '00000000-0000-0000-0000-000000000000'::uuid),
+			delivery.group_name, COALESCE(delivery.currency, ''), COALESCE(delivery.amount::text, ''),
+			delivery.attempts, delivery.expires_at
 		FROM web_push_delivery delivery
 		JOIN web_push_subscription subscription
 			ON subscription.id = delivery.subscription_id AND subscription.user_id = delivery.recipient_user_id
@@ -141,7 +146,7 @@ func pendingDeliveries(ctx context.Context, db deliveryQueryer, limit int) ([]ty
 			AND delivery.available_at <= NOW()
 			AND delivery.expires_at > NOW()
 			AND (delivery.claimed_until IS NULL OR delivery.claimed_until <= NOW())
-			AND delivery.recipient_user_id <> delivery.actor_user_id
+			AND (delivery.notification_type <> 'expense_created' OR delivery.recipient_user_id <> delivery.actor_user_id)
 			AND COALESCE(preference.muted, FALSE) IS FALSE
 		ORDER BY delivery.available_at, delivery.id
 		LIMIT $1`
@@ -157,7 +162,8 @@ func pendingDeliveries(ctx context.Context, db deliveryQueryer, limit int) ([]ty
 		if err := rows.Scan(
 			&delivery.ID, &delivery.Subscription.ID, &delivery.Subscription.UserID, &delivery.Subscription.Endpoint,
 			&delivery.Subscription.P256DH, &delivery.Subscription.Auth, &delivery.Subscription.ShowDetails,
-			&delivery.ExpenseID, &delivery.RecipientID, &delivery.GroupID, &delivery.ActorID,
+			&delivery.Type, &delivery.ExpenseID, &delivery.ReviewMonth,
+			&delivery.RecipientID, &delivery.GroupID, &delivery.ActorID,
 			&delivery.GroupName, &delivery.Currency, &delivery.Amount, &delivery.Attempts, &delivery.ExpiresAt,
 		); err != nil {
 			return nil, err

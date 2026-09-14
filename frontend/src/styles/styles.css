@@ -253,6 +253,67 @@ textarea {
     color: rgba(31, 41, 55, 0.72);
 }
 
+.desktop-page-utility {
+    display: none;
+}
+
+.desktop-back-link {
+    display: inline-flex;
+    width: fit-content;
+    min-height: 2.75rem;
+    align-items: center;
+    gap: 0.625rem;
+    border: 1px solid color-mix(in srgb, var(--primary) 16%, var(--shadcn-border));
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--background) 88%, var(--secondary));
+    padding: 0.3rem 0.9rem 0.3rem 0.38rem;
+    color: color-mix(in srgb, var(--foreground) 78%, transparent);
+    font-size: 0.875rem;
+    font-weight: 600;
+    line-height: 1;
+    box-shadow: 0 4px 14px color-mix(in srgb, var(--foreground) 8%, transparent);
+    touch-action: manipulation;
+}
+
+.desktop-back-link__icon {
+    display: inline-flex;
+    width: 2rem;
+    height: 2rem;
+    flex: 0 0 2rem;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    background: var(--secondary);
+    color: var(--primary);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--primary) 12%, transparent);
+    transition: transform 180ms ease;
+}
+
+.desktop-back-link:hover {
+    border-color: color-mix(in srgb, var(--primary) 34%, var(--shadcn-border));
+    background: color-mix(in srgb, var(--background) 72%, var(--secondary));
+    color: var(--primary);
+    box-shadow: 0 6px 18px color-mix(in srgb, var(--foreground) 10%, transparent);
+}
+
+.desktop-back-link:hover .desktop-back-link__icon {
+    transform: translateX(-2px);
+}
+
+.desktop-back-link:active {
+    background: color-mix(in srgb, var(--background) 60%, var(--secondary));
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .desktop-back-link__icon {
+        transition: none;
+    }
+
+    .desktop-back-link:hover .desktop-back-link__icon {
+        transform: none;
+    }
+}
+
 .page-actions {
     display: flex;
     flex-direction: column;
@@ -699,6 +760,12 @@ textarea {
 
     .desktop-page-header {
         display: flex;
+    }
+
+    .desktop-page-utility {
+        display: flex;
+        justify-content: flex-end;
+        margin-bottom: 1rem;
     }
 
     .expense-form-page {

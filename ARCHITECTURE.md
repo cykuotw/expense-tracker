@@ -33,6 +33,10 @@ Deployment workflow --> Bootstrap Lambda --> migrations and bootstrap work
 EventBridge --> Push Sender Lambda (outside VPC) --> public Web Push providers
                     |
                     +-- IAM Invoke --> Delivery Lambda (VPC) --> PostgreSQL
+
+Daily EventBridge -------------------------> Delivery Lambda (VPC)
+                                                |
+                                                +-- publish monthly reviews
 ```
 
 - **Frontend:** React, TypeScript, Vite, Tailwind CSS, and shadcn/Radix components produce the
@@ -51,6 +55,13 @@ EventBridge --> Push Sender Lambda (outside VPC) --> public Web Push providers
   claims, and expired leases permit recovery after interrupted sends. Delivery is
   at-least-once: a provider may accept a push before its acknowledgement is lost.
   See [notification component](backend/services/notification/README.md).
+- **Monthly reviews:** one daily UTC EventBridge rule invokes a bounded
+  publication action on the existing DB-connected Delivery Lambda. PostgreSQL
+  stores one publication marker per eligible Home group/month and notification
+  deduplication state. Authorized HTTP reads calculate the review live from the
+  current expense, ledger, and settlement rows. Expense-list details use a
+  separate bounded cursor-paginated read; there is no rendered or aggregate
+  report snapshot and no per-group schedule.
 - **Database:** PostgreSQL is stateful infrastructure on its own EC2 host.
   The Worker and Bootstrap functions connect through the VPC and security-group
   boundary; it is not a public application API. Operator host inspection uses

@@ -72,7 +72,7 @@ describe("ExpenseDetail", () => {
             name: "Edit Expense",
         });
         const backToGroup = screen.getAllByRole("link", {
-            name: "Back to Group",
+            name: /Back to group/i,
         });
 
         expect(editExpense).toHaveLength(2);
@@ -83,7 +83,13 @@ describe("ExpenseDetail", () => {
         });
         backToGroup.forEach((link) => {
             expect(link).toHaveAttribute("href", "/group/group-1");
-            expect(link.closest(".page-header")).toContainElement(link);
         });
+        const desktopBackLink = backToGroup.find((link) =>
+            link.classList.contains("desktop-back-link")
+        );
+        expect(desktopBackLink).toBeDefined();
+        expect(desktopBackLink?.closest(".page-header")).toBeNull();
+        expect(desktopBackLink?.parentElement).toHaveClass("desktop-page-utility");
+        expect(desktopBackLink?.parentElement?.nextElementSibling).toHaveClass("desktop-page-header");
     });
 });

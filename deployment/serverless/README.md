@@ -198,6 +198,12 @@ acknowledgement can be sent again; exactly-once delivery is not promised.
 Concurrency is Worker `2`, Sender `1`, Delivery `1`, and Bootstrap `1` (five
 reserved executions in total, subject to the account's reservation quota).
 
+A second product-wide EventBridge rule invokes the existing Delivery Lambda at
+05:15 UTC each day to publish at most 25 eligible closed Home-group months. It
+does not create a new Lambda or scan from the every-minute Sender tick. Review
+reads calculate current totals directly from PostgreSQL, while publication and
+notification deduplication use one durable group/month marker.
+
 `SCOPE=all` also creates and manages the database EC2 Instance Connect
 Endpoint. It uses a dedicated security group with SSH-only access to the
 database host; it does not create a public IP or an SSM interface endpoint.

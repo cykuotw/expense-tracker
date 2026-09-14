@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import Icon from "@mdi/react";
 import {
     mdiAccountMultipleOutline,
+    mdiCalendarMonthOutline,
     mdiChevronRight,
     mdiHandshakeOutline,
     mdiPencilOutline,
@@ -23,7 +24,9 @@ import { Button } from "@/components/ui/button";
 import { GroupDetailProvider } from "../contexts/GroupDetailContext";
 import { useGroupDetail } from "../hooks/GroupDetailContextHooks";
 import { getGroupTypePresentation } from "../lib/groupTypePresentation";
+import { formatReviewMonth, previousClosedUTCMonth } from "../lib/reviewMonth";
 import MobilePageHeader from "../components/MobilePageHeader";
+import DesktopBackLink from "../components/DesktopBackLink";
 
 const GroupDetailContent = () => {
     const {
@@ -49,6 +52,7 @@ const GroupDetailContent = () => {
     const [settleOpen, setSettleOpen] = useState(false);
     const [showAllBalances, setShowAllBalances] = useState(false);
     const groupType = getGroupTypePresentation(groupinfo?.groupType);
+    const previousMonth = previousClosedUTCMonth();
     const memberCount = groupinfo?.members?.length ?? 0;
     const loadedSettledExpensesRef = useRef<string | null>(null);
     const balanceEntries = balance
@@ -129,6 +133,7 @@ const GroupDetailContent = () => {
                         </Link>
                     }
                 />
+                <DesktopBackLink to="/" label="Back to groups" />
                 <div className="page-header desktop-page-header">
                     <div className="page-header__copy">
                         <div className="page-eyebrow">Group</div>
@@ -154,7 +159,7 @@ const GroupDetailContent = () => {
                     </div>
                 </div>
 
-                <div className="mb-4 flex items-stretch gap-2 md:mb-6">
+                <div className="mb-4 grid grid-cols-[minmax(0,1fr)_auto] items-stretch gap-2 md:mb-6 md:max-w-2xl md:grid-cols-2">
                     <Link
                         to={`/group/${groupId}/edit#members`}
                         className="panel-card-soft group flex min-h-14 min-w-0 flex-1 items-center gap-3 rounded-2xl px-3 py-2 transition-colors hover:border-primary/30 hover:bg-primary/5 md:max-w-sm md:px-4"
@@ -195,6 +200,34 @@ const GroupDetailContent = () => {
                         />
                         <span>Settle up</span>
                     </button>
+                    {groupinfo?.groupType === "home" ? (
+                        <Link
+                            to={`/group/${groupId}/monthly-review/${previousMonth}`}
+                            className="panel-card-soft group col-span-2 flex min-h-14 min-w-0 items-center gap-3 rounded-2xl px-3 py-2 transition-colors hover:border-primary/30 hover:bg-primary/5 md:col-span-1 md:px-4"
+                            aria-label={`View ${formatReviewMonth(previousMonth)} monthly review`}
+                        >
+                            <span
+                                className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"
+                                aria-hidden="true"
+                            >
+                                <Icon path={mdiCalendarMonthOutline} size={1} />
+                            </span>
+                            <span className="min-w-0 flex-1">
+                                <span className="block text-sm font-semibold text-foreground">
+                                    {formatReviewMonth(previousMonth)} review
+                                </span>
+                                <span className="block truncate text-xs text-foreground/60">
+                                    View monthly spending
+                                </span>
+                            </span>
+                            <Icon
+                                className="shrink-0 text-foreground/45 transition-transform group-hover:translate-x-0.5"
+                                path={mdiChevronRight}
+                                size={0.8}
+                                aria-hidden="true"
+                            />
+                        </Link>
+                    ) : null}
                 </div>
 
                 <div className="grid gap-4 md:gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(18rem,0.55fr)]">

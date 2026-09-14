@@ -7,6 +7,7 @@ import { GroupTypePicker } from "../components/group/GroupTypePicker";
 import { CurrencyPicker } from "../components/group/CurrencyPicker";
 import { GroupMemberManager } from "../components/group/GroupMemberManager";
 import MobilePageHeader from "../components/MobilePageHeader";
+import DesktopBackLink from "../components/DesktopBackLink";
 import { AddMemberProvider } from "../contexts/AddMemberContext";
 import { apiFetch, getResponseErrorMessage } from "../lib/api";
 import { useCurrencies } from "../hooks/useCurrencies";
@@ -149,6 +150,7 @@ export default function EditGroup() {
                         )
                     ) : undefined}
                 />
+                <DesktopBackLink to={`/group/${id}`} label="Back to group" />
                 <div className="page-header desktop-page-header">
                     <div className="page-header__copy">
                         <div className="page-eyebrow">Group</div>

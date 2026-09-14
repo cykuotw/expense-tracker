@@ -1,10 +1,9 @@
 import Icon from "@mdi/react";
 import { useEffect } from "react";
-import { Link, Route, Routes, useParams } from "react-router-dom";
+import { Route, Routes, useParams } from "react-router-dom";
 import {
     mdiCamera,
     mdiCheckBold,
-    mdiSubdirectoryArrowLeft,
 } from "@mdi/js";
 
 import { EditExpenseProvider } from "../contexts/EditExpenseContext";
@@ -15,6 +14,7 @@ import { ExpenseDateInput } from "../components/expense/ExpenseDateInput";
 import { moneyInputPlaceholder, moneyInputStep } from "../lib/money";
 import SplitExpensePage from "../components/expense/SplitExpensePage";
 import ExpenseSimpleSplitControl from "../components/expense/ExpenseSimpleSplitControl";
+import DesktopBackLink from "../components/DesktopBackLink";
 
 const EditExpenseContent = () => {
     const {
@@ -63,6 +63,7 @@ const EditExpenseContent = () => {
                         )
                     }
                 />
+                <DesktopBackLink to={`/expense/${expenseId}`} label="Back to expense" />
                 <div className="page-header desktop-page-header expense-form-header">
                     <div className="page-header__copy expense-form-header__copy">
                         <div className="page-eyebrow">Expense</div>
@@ -70,18 +71,6 @@ const EditExpenseContent = () => {
                         <p className="page-copy">
                             Update details and adjust how this expense is split.
                         </p>
-                    </div>
-                    <div className="page-actions hidden w-full md:flex md:w-auto">
-                        <Link
-                            className="ui-button ui-button-ghost w-full sm:w-auto"
-                            to={`/expense/${expenseId}`}
-                        >
-                            <Icon
-                                path={mdiSubdirectoryArrowLeft}
-                                size={1}
-                            />
-                            Back to Expense
-                        </Link>
                     </div>
                 </div>
 

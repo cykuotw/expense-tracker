@@ -1,6 +1,7 @@
 import { mdiCheckBold } from "@mdi/js";
 import Icon from "@mdi/react";
 import MobilePageHeader from "../components/MobilePageHeader";
+import DesktopBackLink from "../components/DesktopBackLink";
 import { GroupMemberManager } from "../components/group/GroupMemberManager";
 import { AddMemberProvider } from "../contexts/AddMemberContext";
 import { useAddMember } from "../hooks/AddMemberContextHooks";
@@ -30,6 +31,7 @@ const AddMemberContent = () => {
                         )
                     }
                 />
+                <DesktopBackLink to={groupId ? `/group/${groupId}` : "/"} label="Back to group" />
                 <div className="page-header desktop-page-header">
                     <div className="page-header__copy">
                         <div className="page-eyebrow">Group Members</div>

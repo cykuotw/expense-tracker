@@ -105,7 +105,7 @@ describe("SplitExpensePage", () => {
             target: { value: "9.00" },
         });
         fireEvent.click(
-            screen.getByRole("link", { name: "Cancel split changes" })
+            screen.getAllByRole("link", { name: "Cancel split changes" })[0]
         );
 
         expect(onSave).not.toHaveBeenCalled();

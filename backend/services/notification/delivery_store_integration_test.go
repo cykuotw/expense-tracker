@@ -47,11 +47,15 @@ func TestDeliveryLeaseLifecycle(t *testing.T) {
 	// A locked delivery must be skipped rather than blocking another claimer.
 	tx, err := database.BeginTx(ctx, nil)
 	require.NoError(t, err)
+	defer tx.Rollback()
 	_, err = tx.ExecContext(ctx, "SELECT id FROM web_push_delivery WHERE id = $1 FOR UPDATE", id)
 	require.NoError(t, err)
-	batch, err := store.ClaimDeliveries(ctx)
+	claimTx, err := database.BeginTx(ctx, nil)
 	require.NoError(t, err)
-	require.Empty(t, batch.Deliveries)
+	batchDeliveries, err := pendingDeliveries(ctx, claimTx, senderBatchSize)
+	require.NoError(t, err)
+	require.Empty(t, batchDeliveries)
+	require.NoError(t, claimTx.Rollback())
 	require.NoError(t, tx.Rollback())
 
 	first, err := store.ClaimDeliveries(ctx)
@@ -79,7 +83,7 @@ func TestDeliveryLeaseLifecycle(t *testing.T) {
 	var attempts int
 	require.NoError(t, database.QueryRow("SELECT attempts FROM web_push_delivery WHERE id = $1", id).Scan(&attempts))
 	require.Equal(t, 1, attempts, "duplicate acknowledgements must not increment attempts")
-	batch, err = store.ClaimDeliveries(ctx)
+	batch, err := store.ClaimDeliveries(ctx)
 	require.NoError(t, err)
 	require.Empty(t, batch.Deliveries, "retry is not due yet")
 	_, err = database.Exec("UPDATE web_push_delivery SET available_at = NOW() WHERE id = $1", id)

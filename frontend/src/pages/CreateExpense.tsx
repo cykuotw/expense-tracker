@@ -1,11 +1,10 @@
 import { useEffect } from "react";
-import { Link, Route, Routes } from "react-router-dom";
+import { Route, Routes } from "react-router-dom";
 
 import Icon from "@mdi/react";
 import {
     mdiCamera,
     mdiCheckBold,
-    mdiSubdirectoryArrowLeft,
 } from "@mdi/js";
 
 import { CreateExpenseProvider } from "../contexts/CreateExpenseContext";
@@ -18,6 +17,7 @@ import { ExpenseDateInput } from "../components/expense/ExpenseDateInput";
 import { moneyInputPlaceholder, moneyInputStep } from "../lib/money";
 import SplitExpensePage from "../components/expense/SplitExpensePage";
 import ExpenseSimpleSplitControl from "../components/expense/ExpenseSimpleSplitControl";
+import DesktopBackLink from "../components/DesktopBackLink";
 
 const CreateExpenseContent = () => {
     const {
@@ -82,6 +82,7 @@ const CreateExpenseContent = () => {
                         )
                     }
                 />
+                <DesktopBackLink to={`/group/${groupId}`} label="Back to group" />
                 <div className="page-header desktop-page-header expense-form-header">
                     <div className="page-header__copy expense-form-header__copy">
                         <div className="page-eyebrow">Expense</div>
@@ -89,18 +90,6 @@ const CreateExpenseContent = () => {
                         <p className="page-copy">
                             Track what was paid and split it across the group.
                         </p>
-                    </div>
-                    <div className="page-actions hidden w-full md:flex md:w-auto">
-                        <Link
-                            className="ui-button ui-button-ghost w-full sm:w-auto"
-                            to={`/group/${groupId}`}
-                        >
-                            <Icon
-                                path={mdiSubdirectoryArrowLeft}
-                                size={1}
-                            />
-                            Back to Group
-                        </Link>
                     </div>
                 </div>
 

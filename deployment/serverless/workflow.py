@@ -340,6 +340,9 @@ def _infrastructure_targets(scope: str) -> tuple[str, ...]:
             "aws_cloudwatch_event_rule.sender",
             "aws_cloudwatch_event_target.sender",
             "aws_lambda_permission.sender_eventbridge",
+            "aws_cloudwatch_event_rule.monthly_review_publisher",
+            "aws_cloudwatch_event_target.monthly_review_publisher",
+            "aws_lambda_permission.monthly_review_publisher_eventbridge",
         ))
     if scope in {"frontend", "all"}:
         targets.extend((

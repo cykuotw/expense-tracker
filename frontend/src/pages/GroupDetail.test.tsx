@@ -35,6 +35,60 @@ afterEach(() => {
 });
 
 describe("GroupDetail mobile balance summary", () => {
+    it("shows monthly-review navigation only for Home groups", () => {
+        const groupState = {
+            groupinfo: {
+                groupName: "Household",
+                description: "",
+                currency: "CAD",
+                groupType: "home",
+                members: [{ userId: "user-1", username: "Alex" }],
+            },
+            balance: null,
+            unsettledExpenses: [],
+            unsettledLoading: false,
+            unsettledHasMore: false,
+            expenseOrder: "newest",
+            expenseListRefreshVersion: 0,
+            setExpenseOrder: vi.fn(),
+            settledExpenses: [],
+            settledLoading: false,
+            settledHasMore: false,
+            loading: false,
+            groupId: "group-home",
+            handleSettle: vi.fn(),
+            loadMoreUnsettledExpenses: vi.fn(),
+            loadSettledExpenses: vi.fn(),
+            loadMoreSettledExpenses: vi.fn(),
+        };
+        groupDetailMock.mockReturnValue(groupState);
+
+        const { rerender } = renderGroupDetail();
+        const reviewLink = screen.getByRole("link", { name: /monthly review$/i });
+        expect(reviewLink).toHaveAttribute(
+            "href",
+            expect.stringMatching(/^\/group\/group-home\/monthly-review\/\d{4}-\d{2}$/),
+        );
+        expect(reviewLink).toHaveClass("col-span-2", "md:col-span-1", "min-h-14");
+
+        groupDetailMock.mockReturnValue({
+            ...groupState,
+            groupinfo: {
+                groupName: "Trip",
+                description: "",
+                currency: "CAD",
+                groupType: "trip",
+                members: [{ userId: "user-1", username: "Alex" }],
+            },
+        });
+        rerender(
+            <MemoryRouter>
+                <GroupDetail />
+            </MemoryRouter>,
+        );
+        expect(screen.queryByRole("link", { name: /monthly review$/i })).toBeNull();
+    });
+
     it("prioritizes mobile expense creation and links member management to edit group", () => {
         groupDetailMock.mockReturnValue({
             groupinfo: {

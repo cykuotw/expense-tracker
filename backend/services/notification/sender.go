@@ -161,6 +161,12 @@ func notificationPayload(delivery types.WebPushDelivery) ([]byte, error) {
 		"body":  "New activity is available",
 		"tag":   "expense-tracker-activity",
 	}
+	if delivery.Type == types.WebPushNotificationMonthlyReview {
+		payload["body"] = "Your monthly expense review is ready"
+		payload["tag"] = "expense-tracker-monthly-review-" + delivery.GroupID.String() + "-" + delivery.ReviewMonth
+		payload["url"] = "/group/" + delivery.GroupID.String() + "/monthly-review/" + delivery.ReviewMonth
+		return json.Marshal(payload)
+	}
 	if delivery.Subscription.ShowDetails {
 		payload["body"] = fmt.Sprintf("New expense in %s: %s %s", delivery.GroupName, delivery.Currency, delivery.Amount)
 	}

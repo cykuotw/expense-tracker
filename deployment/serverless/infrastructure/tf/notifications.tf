@@ -85,6 +85,31 @@ resource "aws_lambda_permission" "sender_eventbridge" {
   source_arn    = aws_cloudwatch_event_rule.sender.arn
 }
 
+# Monthly reviews reuse the existing database-connected Delivery Lambda. This
+# is one product-wide UTC schedule, not one schedule per group.
+resource "aws_cloudwatch_event_rule" "monthly_review_publisher" {
+  name                = "${local.resource_prefix}-monthly-review-publisher"
+  description         = "Publish eligible closed monthly expense reviews once per day"
+  schedule_expression = "cron(15 5 * * ? *)"
+  tags = merge(local.common_tags, {
+    Component = "monthly-reviews"
+  })
+}
+
+resource "aws_cloudwatch_event_target" "monthly_review_publisher" {
+  rule  = aws_cloudwatch_event_rule.monthly_review_publisher.name
+  arn   = aws_lambda_function.delivery.arn
+  input = jsonencode({ action = "publish_monthly_reviews" })
+}
+
+resource "aws_lambda_permission" "monthly_review_publisher_eventbridge" {
+  statement_id  = "AllowEventBridgeMonthlyReviewPublisher"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.delivery.function_name
+  principal     = "events.amazonaws.com"
+  source_arn    = aws_cloudwatch_event_rule.monthly_review_publisher.arn
+}
+
 resource "aws_security_group" "sender" {
   name_prefix = "${local.resource_prefix}-sender-"
   description = "Expense Tracker web push sender Lambda"

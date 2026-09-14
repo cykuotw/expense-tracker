@@ -1,9 +1,9 @@
 # Notifications
 
-The API stores subscriptions and preferences. Expense creation records pending
-notifications in PostgreSQL. A scheduled sender claims a batch, sends Web Push,
-and acknowledges outcomes. The mobile API and service worker do not depend on
-where sending runs.
+The API stores subscriptions and preferences. Expense creation and first-time
+monthly-review publication record pending notifications in PostgreSQL. A
+scheduled sender claims a shared batch, sends Web Push, and acknowledges
+outcomes. The mobile API and service worker do not depend on where sending runs.
 
 Notification enablement and preview details are scoped to one browser push
 subscription. The settings response retains an account-wide subscription count,
@@ -45,6 +45,13 @@ normalized before calling the transport library, which adds that scheme itself.
 Provider-rejected requests log only delivery and subscription IDs, the allowlisted
 provider hostname, and HTTP status; endpoints, encryption keys, payloads, and
 response bodies are not logged.
+
+`expense_created` deliveries retain their short expiry and optional
+group/amount preview. `monthly_review_available` deliveries use a generic body,
+a same-origin authorized review route, and a group/month deduplication key; they
+never include expense descriptions, split details, or balances. The monthly
+publisher runs as a separate daily EventBridge action on the existing Delivery
+Lambda, not from the every-minute Sender tick.
 
 For deployment, secrets, concurrency, and recovery, see the
 [operator guide](../../../deployment/serverless/README.md).

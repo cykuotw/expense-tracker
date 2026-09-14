@@ -14,6 +14,7 @@ import (
 	groupStore "expense-tracker/backend/services/group/stores"
 	"expense-tracker/backend/services/invitation"
 	"expense-tracker/backend/services/middleware"
+	"expense-tracker/backend/services/monthlyreview"
 	"expense-tracker/backend/services/notification"
 	"expense-tracker/backend/services/user"
 	"log/slog"
@@ -106,6 +107,7 @@ func registerRoutes(router *gin.Engine, db *sql.DB) {
 	notificationStore := notification.NewStore(db)
 	notificationHandler := notification.NewHandler(notificationStore, config.Envs.WebPushVAPIDPublicKey)
 	notificationHandler.RegisterRoutes(protected)
+	monthlyreview.NewHandler(monthlyreview.NewStore(db)).RegisterRoutes(protected)
 
 	expenseStore := expenseStore.NewStore(db)
 	expenseController := expense.NewController()

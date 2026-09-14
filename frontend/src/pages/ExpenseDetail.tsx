@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { Link } from "react-router-dom";
 
 import Icon from "@mdi/react";
-import { mdiPencilOutline, mdiSubdirectoryArrowLeft } from "@mdi/js";
+import { mdiPencilOutline } from "@mdi/js";
 
 import Dropdown from "../components/Dropdown";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
@@ -22,6 +22,7 @@ import { getExpenseTypePresentation } from "../lib/expenseCategoryPresentation";
 import { ExpenseDetailProvider } from "../contexts/ExpenseDetailContext";
 import { useExpenseDetail } from "../hooks/ExpenseDetailContextHooks";
 import MobilePageHeader from "../components/MobilePageHeader";
+import DesktopBackLink from "../components/DesktopBackLink";
 
 const ExpenseDetailContent = () => {
     const {
@@ -58,7 +59,7 @@ const ExpenseDetailContent = () => {
         <div className="page-shell compact-mobile-page">
             <div className="page-container max-w-4xl">
                 <div className="flex flex-col gap-0">
-                    <MobilePageHeader
+                <MobilePageHeader
                         title={expenseDetail.description || expenseDetail.expenseType}
                         backTo={`/group/${expenseDetail.groupId}`}
                         backLabel="Back to Group"
@@ -78,10 +79,14 @@ const ExpenseDetailContent = () => {
                             >
                                 <Icon path={mdiPencilOutline} size={1} aria-hidden="true" />
                             </Link>
-                        }
-                    />
-                    <div className="page-header desktop-page-header">
-                        <div className="page-header__copy min-w-0">
+                    }
+                />
+                <DesktopBackLink
+                    to={`/group/${expenseDetail.groupId}`}
+                    label="Back to group"
+                />
+                <div className="page-header desktop-page-header">
+                    <div className="page-header__copy min-w-0">
                             <div className="page-eyebrow">Expense</div>
                             <div className="mt-2 flex min-w-0 items-start gap-3 md:items-center md:gap-4">
                                 <div
@@ -107,16 +112,6 @@ const ExpenseDetailContent = () => {
                                 className="ui-button ui-button-primary w-full sm:w-auto"
                             >
                                 Edit Expense
-                            </Link>
-                            <Link
-                                className="ui-button ui-button-ghost w-full sm:w-auto"
-                                to={`/group/${expenseDetail.groupId}`}
-                            >
-                                <Icon
-                                    path={mdiSubdirectoryArrowLeft}
-                                    size={1}
-                                />
-                                Back to Group
                             </Link>
                         </div>
                     </div>

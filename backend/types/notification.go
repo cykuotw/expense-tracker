@@ -8,6 +8,13 @@ import (
 
 const WebPushSubscriptionLimit = 5
 
+type WebPushNotificationType string
+
+const (
+	WebPushNotificationExpenseCreated WebPushNotificationType = "expense_created"
+	WebPushNotificationMonthlyReview  WebPushNotificationType = "monthly_review_available"
+)
+
 type WebPushSubscriptionInput struct {
 	Endpoint string `json:"endpoint"`
 	P256DH   string `json:"p256dh"`
@@ -45,6 +52,7 @@ type GroupNotificationMute struct {
 type WebPushDelivery struct {
 	ID           uuid.UUID
 	Subscription WebPushSubscription
+	Type         WebPushNotificationType
 	ExpenseID    uuid.UUID
 	RecipientID  uuid.UUID
 	GroupID      uuid.UUID
@@ -52,6 +60,7 @@ type WebPushDelivery struct {
 	GroupName    string
 	Currency     string
 	Amount       string
+	ReviewMonth  string
 	Attempts     int
 	ExpiresAt    time.Time
 }

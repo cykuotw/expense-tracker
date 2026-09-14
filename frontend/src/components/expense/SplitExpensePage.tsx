@@ -1,12 +1,13 @@
 import { FormEvent, useEffect, useRef } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { toast } from "react-hot-toast";
-import { mdiArrowLeft, mdiCheck } from "@mdi/js";
+import { mdiCheck } from "@mdi/js";
 import Icon from "@mdi/react";
 
 import { ExpenseAllocation } from "../../types/allocation";
 import { GroupMember } from "../../types/group";
 import MobilePageHeader from "../MobilePageHeader";
+import DesktopBackLink from "../DesktopBackLink";
 import { Button } from "../ui/button";
 import {
     Card,
@@ -99,6 +100,7 @@ export default function SplitExpensePage({
                     backTo={returnTo}
                     backLabel="Cancel split changes"
                 />
+                <DesktopBackLink to={returnTo} label="Cancel split changes" />
 
                 <div className="page-header desktop-page-header expense-form-header">
                     <div className="page-header__copy expense-form-header__copy">
@@ -109,19 +111,6 @@ export default function SplitExpensePage({
                             expense.
                         </p>
                     </div>
-                    <Button
-                        className="min-h-11"
-                        type="button"
-                        variant="ghost"
-                        onClick={() => navigate(returnTo)}
-                    >
-                        <Icon
-                            path={mdiArrowLeft}
-                            data-icon="inline-start"
-                            aria-hidden="true"
-                        />
-                        Cancel
-                    </Button>
                 </div>
 
                 <form

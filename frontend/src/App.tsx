@@ -25,6 +25,7 @@ const EditGroup = lazy(() => import("./pages/EditGroup"));
 const EditExpense = lazy(() => import("./pages/EditExpense"));
 const AdminUsers = lazy(() => import("./pages/AdminUsers"));
 const AccountSettings = lazy(() => import("./pages/AccountSettings"));
+const MonthlyReview = lazy(() => import("./pages/MonthlyReview"));
 
 function RouteFallback() {
     return (
@@ -66,6 +67,7 @@ function AppRoutes() {
                         <Route path="/" element={<Home />} />
 
                         <Route path="/group/:id" element={<GroupDetail />} />
+                        <Route path="/group/:id/monthly-review/:month" element={<MonthlyReview />} />
                         <Route path="/create_group" element={<CreateGroup />} />
                         <Route path="/group/:id/edit" element={<EditGroup />} />
 

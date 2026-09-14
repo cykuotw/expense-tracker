@@ -222,6 +222,20 @@ class ComponentTest(unittest.TestCase):
         self.assertNotIn("aws_vpc_endpoint", source)
         self.assertNotIn("sender_to_push_providers", source)
 
+    def test_monthly_review_reuses_delivery_lambda_with_one_daily_schedule(self) -> None:
+        source = (ROOT / "infrastructure/tf/notifications.tf").read_text()
+        self.assertEqual(
+            source.count('resource "aws_cloudwatch_event_rule" "monthly_review_publisher"'),
+            1,
+        )
+        self.assertIn('schedule_expression = "cron(15 5 * * ? *)"', source)
+        self.assertIn("arn   = aws_lambda_function.delivery.arn", source)
+        self.assertIn('input = jsonencode({ action = "publish_monthly_reviews" })', source)
+        self.assertIn('source_arn    = aws_cloudwatch_event_rule.monthly_review_publisher.arn', source)
+        self.assertEqual(source.count('resource "aws_lambda_function"'), 2)
+        self.assertNotIn("aws_nat_gateway", source)
+        self.assertNotIn("aws_vpc_endpoint", source)
+
     def test_api_route_throttling_covers_anonymous_and_authenticated_mutations(self) -> None:
         source = (ROOT / "infrastructure/tf/api.tf").read_text()
 

@@ -115,6 +115,27 @@ func TestSenderUsesOneMailtoSchemeInVAPIDSubject(t *testing.T) {
 	require.NoError(t, sender.RunOnce(t.Context()))
 }
 
+func TestMonthlyReviewPayloadIsGenericAndDeepLinksToAuthorizedRoute(t *testing.T) {
+	delivery := testDelivery(t)
+	delivery.Type = types.WebPushNotificationMonthlyReview
+	delivery.GroupID = uuid.New()
+	delivery.GroupName = "Private household"
+	delivery.Currency = "CAD"
+	delivery.Amount = "123.45"
+	delivery.ReviewMonth = "2026-08"
+	delivery.Subscription.ShowDetails = true
+
+	payload, err := notificationPayload(delivery)
+	require.NoError(t, err)
+	var decoded map[string]string
+	require.NoError(t, json.Unmarshal(payload, &decoded))
+	require.Equal(t, "Your monthly expense review is ready", decoded["body"])
+	require.Equal(t, "/group/"+delivery.GroupID.String()+"/monthly-review/2026-08", decoded["url"])
+	require.NotContains(t, string(payload), delivery.GroupName)
+	require.NotContains(t, string(payload), delivery.Currency)
+	require.NotContains(t, string(payload), delivery.Amount)
+}
+
 func TestSupportedPushHostAcceptsAppleSubdomains(t *testing.T) {
 	require.True(t, supportedPushHost("web.push.apple.com"))
 	require.True(t, supportedPushHost("regional.push.apple.com"))

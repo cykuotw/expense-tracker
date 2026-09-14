@@ -6,6 +6,7 @@ import { useCreateGroup } from "../hooks/CreateGroupContextHooks";
 import { GroupTypePicker } from "../components/group/GroupTypePicker";
 import { CurrencyPicker } from "../components/group/CurrencyPicker";
 import MobilePageHeader from "../components/MobilePageHeader";
+import DesktopBackLink from "../components/DesktopBackLink";
 import { useCurrencies } from "../hooks/useCurrencies";
 
 const CreateGroupContent = () => {
@@ -53,6 +54,7 @@ const CreateGroupContent = () => {
                         )
                     }
                 />
+                <DesktopBackLink to="/" label="Back to groups" />
                 <div className="page-header desktop-page-header">
                     <div className="page-header__copy">
                         <div className="page-eyebrow">Groups</div>

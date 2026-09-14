@@ -3,9 +3,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { GroupDetailProvider } from "./GroupDetailContext";
 import { useGroupDetail } from "../hooks/GroupDetailContextHooks";
 
-const { apiFetchMock, toastErrorMock } = vi.hoisted(() => ({
+const { apiFetchMock, toastErrorMock, toastSuccessMock } = vi.hoisted(() => ({
     apiFetchMock: vi.fn(),
     toastErrorMock: vi.fn(),
+    toastSuccessMock: vi.fn(),
 }));
 
 vi.mock("react-router-dom", () => ({
@@ -23,7 +24,7 @@ vi.mock("../lib/api", async () => {
 });
 
 vi.mock("react-hot-toast", () => ({
-    toast: { error: toastErrorMock },
+    toast: { error: toastErrorMock, success: toastSuccessMock },
 }));
 
 function jsonResponse(body: unknown, status = 200) {
@@ -48,13 +49,20 @@ function GroupDetailHarness() {
             <output data-testid="unsettled-has-more">
                 {context.unsettledHasMore ? "yes" : "no"}
             </output>
+            <output data-testid="settlement-pending">
+                {context.settlementPending ? "pending" : "idle"}
+            </output>
             <button type="button" onClick={() => context.setExpenseOrder("oldest")}>
                 Oldest first
             </button>
             <button type="button" onClick={context.loadMoreUnsettledExpenses}>
                 Load more unsettled
             </button>
-            <button type="button" onClick={context.handleSettle}>
+            <button
+                type="button"
+                disabled={context.settlementPending}
+                onClick={context.handleSettle}
+            >
                 Settle
             </button>
         </>
@@ -111,6 +119,11 @@ describe("GroupDetailProvider error handling", () => {
             );
         });
         expect(successLog).not.toHaveBeenCalledWith("Settlement successful");
+        expect(
+            apiFetchMock.mock.calls.filter(
+                ([path]) => path === "/settle_expense/group-1"
+            )
+        ).toHaveLength(1);
         successLog.mockRestore();
     });
 
@@ -139,6 +152,98 @@ describe("GroupDetailProvider error handling", () => {
             });
             expect(apiFetchMock).toHaveBeenCalledWith("/group_overview/group-1/0?order=newest&status=unsettled");
         });
+    });
+
+    it("guards duplicate submissions and exposes a pending state", async () => {
+        let resolveSettlement!: (response: Response) => void;
+        const settlementResponse = new Promise<Response>((resolve) => {
+            resolveSettlement = resolve;
+        });
+        apiFetchMock.mockImplementation((path: string) => {
+            if (path.startsWith("/group_overview/group-1/0?order=")) {
+                return Promise.resolve(jsonResponse({ group: { groupName: "Group", description: "", currency: "CAD", members: [] }, balance: { currency: "CAD", currentUser: "user-1", balances: [] }, expenses: { expenses: [], hasMore: false } }));
+            }
+            if (path === "/settle_expense/group-1") return settlementResponse;
+            throw new Error(`Unexpected path: ${path}`);
+        });
+        render(
+            <GroupDetailProvider>
+                <GroupDetailHarness />
+            </GroupDetailProvider>
+        );
+        await waitFor(() => expect(screen.getByTestId("loading")).toHaveTextContent("idle"));
+        apiFetchMock.mockClear();
+
+        const settleButton = screen.getByRole("button", { name: "Settle" });
+        fireEvent.click(settleButton);
+        fireEvent.click(settleButton);
+
+        expect(apiFetchMock).toHaveBeenCalledTimes(1);
+        expect(settleButton).toBeDisabled();
+        expect(screen.getByTestId("settlement-pending")).toHaveTextContent("pending");
+
+        resolveSettlement(jsonResponse({}));
+        await waitFor(() => expect(screen.getByTestId("settlement-pending")).toHaveTextContent("idle"));
+    });
+
+    it("confirms an ambiguous response from authoritative state", async () => {
+        let overviewCalls = 0;
+        apiFetchMock.mockImplementation((path: string) => {
+            if (path.startsWith("/group_overview/group-1/0?order=")) {
+                overviewCalls += 1;
+                return Promise.resolve(jsonResponse({
+                    group: { groupName: "Group", description: "", currency: "CAD", members: [] },
+                    balance: { currency: "CAD", currentUser: "user-1", balances: overviewCalls === 1 ? [{ id: "balance-1" }] : [] },
+                    expenses: { expenses: overviewCalls === 1 ? [{ expenseId: "expense-1" }] : [], hasMore: false },
+                }));
+            }
+            if (path === "/settle_expense/group-1") return Promise.reject(new TypeError("network lost"));
+            throw new Error(`Unexpected path: ${path}`);
+        });
+        render(
+            <GroupDetailProvider>
+                <GroupDetailHarness />
+            </GroupDetailProvider>
+        );
+        await waitFor(() => expect(screen.getByTestId("loading")).toHaveTextContent("idle"));
+
+        fireEvent.click(screen.getByRole("button", { name: "Settle" }));
+
+        await waitFor(() => {
+            expect(toastSuccessMock).toHaveBeenCalledWith("Settlement confirmed.");
+            expect(screen.getByTestId("unsettled-count")).toHaveTextContent("0");
+        });
+        expect(toastErrorMock).not.toHaveBeenCalled();
+    });
+
+    it("keeps the latest state and offers a safe retry when an ambiguous response is not committed", async () => {
+        apiFetchMock.mockImplementation((path: string) => {
+            if (path.startsWith("/group_overview/group-1/0?order=")) {
+                return Promise.resolve(jsonResponse({
+                    group: { groupName: "Group", description: "", currency: "CAD", members: [] },
+                    balance: { currency: "CAD", currentUser: "user-1", balances: [{ id: "balance-1" }] },
+                    expenses: { expenses: [{ expenseId: "expense-1" }], hasMore: false },
+                }));
+            }
+            if (path === "/settle_expense/group-1") return Promise.reject(new TypeError("network lost"));
+            throw new Error(`Unexpected path: ${path}`);
+        });
+        render(
+            <GroupDetailProvider>
+                <GroupDetailHarness />
+            </GroupDetailProvider>
+        );
+        await waitFor(() => expect(screen.getByTestId("loading")).toHaveTextContent("idle"));
+
+        fireEvent.click(screen.getByRole("button", { name: "Settle" }));
+
+        await waitFor(() => {
+            expect(toastErrorMock).toHaveBeenCalledWith(
+                "Settlement was not confirmed. Review the latest balances before trying again."
+            );
+            expect(screen.getByTestId("unsettled-count")).toHaveTextContent("1");
+        });
+        expect(toastSuccessMock).not.toHaveBeenCalled();
     });
 
     it("reloads expenses in the order selected by the user", async () => {

@@ -55,6 +55,7 @@ describe("GroupDetail mobile balance summary", () => {
             settledLoading: false,
             settledHasMore: false,
             loading: false,
+            settlementPending: false,
             groupId: "group-home",
             handleSettle: vi.fn(),
             loadMoreUnsettledExpenses: vi.fn(),
@@ -112,6 +113,7 @@ describe("GroupDetail mobile balance summary", () => {
             settledLoading: false,
             settledHasMore: false,
             loading: false,
+            settlementPending: false,
             groupId: "group-1",
             handleSettle: vi.fn(),
             loadMoreUnsettledExpenses: vi.fn(),
@@ -181,6 +183,7 @@ describe("GroupDetail mobile balance summary", () => {
             settledLoading: false,
             settledHasMore: false,
             loading: false,
+            settlementPending: false,
             groupId: "group-1",
             handleSettle: vi.fn(),
             loadMoreUnsettledExpenses: vi.fn(),
@@ -223,6 +226,7 @@ describe("GroupDetail mobile balance summary", () => {
             settledLoading: false,
             settledHasMore: true,
             loading: false,
+            settlementPending: false,
             groupId: "group-1",
             handleSettle: vi.fn(),
             loadMoreUnsettledExpenses,
@@ -261,6 +265,7 @@ describe("GroupDetail mobile balance summary", () => {
             settledLoading: false,
             settledHasMore: false,
             loading: false,
+            settlementPending: false,
             groupId: "group-1",
             handleSettle: vi.fn(),
             loadMoreUnsettledExpenses: vi.fn(),
@@ -280,5 +285,53 @@ describe("GroupDetail mobile balance summary", () => {
         expect(
             screen.queryByRole("button", { name: "Load more settled expenses" })
         ).toBeNull();
+    });
+
+    it("keeps the settlement dialog busy and non-dismissible while submitting", () => {
+        const state = {
+            groupinfo: {
+                groupName: "Trip",
+                description: "",
+                currency: "CAD",
+                groupType: "trip",
+                members: [],
+            },
+            balance: null,
+            unsettledExpenses: [],
+            unsettledLoading: false,
+            unsettledHasMore: false,
+            expenseOrder: "newest",
+            expenseListRefreshVersion: 0,
+            setExpenseOrder: vi.fn(),
+            settledExpenses: [],
+            settledLoading: false,
+            settledHasMore: false,
+            loading: false,
+            settlementPending: false,
+            groupId: "group-1",
+            handleSettle: vi.fn(),
+            loadMoreUnsettledExpenses: vi.fn(),
+            loadSettledExpenses: vi.fn(),
+            loadMoreSettledExpenses: vi.fn(),
+        };
+        groupDetailMock.mockReturnValue(state);
+        const { rerender } = renderGroupDetail();
+
+        fireEvent.click(screen.getAllByRole("button", { name: /settle up/i })[0]);
+        expect(screen.getByRole("alertdialog")).toBeVisible();
+
+        groupDetailMock.mockReturnValue({ ...state, settlementPending: true });
+        rerender(
+            <MemoryRouter>
+                <GroupDetail />
+            </MemoryRouter>
+        );
+
+        expect(screen.getByRole("button", { name: "Settling…" })).toBeDisabled();
+        expect(screen.getByRole("button", { name: "Settling…" })).toHaveAttribute(
+            "aria-busy",
+            "true"
+        );
+        expect(screen.getByRole("button", { name: "Cancel" })).toBeDisabled();
     });
 });

@@ -42,6 +42,7 @@ const GroupDetailContent = () => {
         settledLoading,
         settledHasMore,
         loading,
+        settlementPending,
         groupId,
         handleSettle,
         loadMoreUnsettledExpenses,
@@ -433,7 +434,12 @@ const GroupDetailContent = () => {
                 <span>Add expense</span>
             </Link>
 
-            <AlertDialog open={settleOpen} onOpenChange={setSettleOpen}>
+            <AlertDialog
+                open={settleOpen}
+                onOpenChange={(open) => {
+                    if (!settlementPending) setSettleOpen(open);
+                }}
+            >
                 <AlertDialogContent>
                     <AlertDialogHeader>
                         <AlertDialogTitle>Settle all expenses?</AlertDialogTitle>
@@ -442,16 +448,20 @@ const GroupDetailContent = () => {
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogCancel disabled={settlementPending}>
+                            Cancel
+                        </AlertDialogCancel>
                         <Button
                             variant="destructive"
-                            onClick={() => {
-                                void handleSettle().finally(() =>
-                                    setSettleOpen(false)
-                                );
+                            disabled={settlementPending}
+                            aria-busy={settlementPending}
+                            onClick={async () => {
+                                if (await handleSettle()) {
+                                    setSettleOpen(false);
+                                }
                             }}
                         >
-                            Settle
+                            {settlementPending ? "Settling…" : "Settle"}
                         </Button>
                     </AlertDialogFooter>
                 </AlertDialogContent>

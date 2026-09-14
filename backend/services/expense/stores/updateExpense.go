@@ -8,7 +8,7 @@ import (
 func (s *Store) UpdateExpenseSettleInGroup(groupID string) error {
 	// settle all expense with groupID
 	settleTime := time.Now().UTC()
-	query := "UPDATE expense SET is_settled = true, update_time_utc = $1, settle_time_utc = $1 WHERE group_id = $2 AND is_settled = false;"
+	query := "UPDATE expense SET is_settled = true, update_time_utc = $1, settle_time_utc = $1 WHERE group_id = $2 AND is_settled = false AND is_deleted = false;"
 	_, err := s.db.Exec(query, settleTime, groupID)
 	if err != nil {
 		return err

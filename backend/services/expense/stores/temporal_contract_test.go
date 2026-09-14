@@ -152,20 +152,6 @@ func TestMutationAuditWritesUseUTCInstants(t *testing.T) {
 			},
 		},
 		{
-			name:        "settle expenses after balances settle",
-			expectedSQL: "settle_time_utc",
-			mutate: func(store *Store) error {
-				return store.SettleExpenseByGroupId(uuid.NewString())
-			},
-		},
-		{
-			name:        "settle balance",
-			expectedSQL: "settle_time_utc",
-			mutate: func(store *Store) error {
-				return store.SettleBalanceByBalanceId(uuid.NewString(), uuid.NewString())
-			},
-		},
-		{
 			name:        "soft delete expense",
 			expectedSQL: "delete_time_utc",
 			mutate: func(store *Store) error {

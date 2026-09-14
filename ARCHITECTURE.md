@@ -184,7 +184,14 @@ and `frontend/src/lib/api.ts`. Do not duplicate endpoint details here.
   ledger amounts.
 - Balances are derived from unsettled, non-deleted expense ledgers. Expense
   creation, editing, deletion, and settlement are accounting-affecting
-  operations and must keep their related writes consistent.
+  operations and must keep their related writes consistent. They serialize on
+  the active group and commit expense, balance, and balance-ledger changes in one
+  transaction. Any active member may settle the whole group, while only a
+  current balance's sender or receiver may settle that individual balance;
+  inactive groups and outdated balance history are not mutable settlement
+  targets. Ambiguous outcomes are reconciled from authoritative unsettled
+  ledgers and current balances; see the
+  [settlement recovery procedure](backend/services/expense/SETTLEMENT_RECOVERY.md).
 - The backend, not the browser, is responsible for validating trusted actor
   identity, resource membership, currency and amount rules, and the final
   consistency of split amounts and derived balances. Create and update requests

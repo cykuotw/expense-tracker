@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestCheckGroupBallanceAllSettled(t *testing.T) {
+func TestCheckGroupBalanceAllSettled(t *testing.T) {
 	db := openTestDB(t)
 	store := expense.NewStore(db)
 
@@ -115,6 +115,33 @@ func TestCheckGroupBallanceAllSettled(t *testing.T) {
 			expectError:  nil,
 		},
 		{
+			name: "outdated unsettled history is ignored",
+			mockBalance: []*types.Balance{
+				{
+					ID:             uuid.New(),
+					SenderUserID:   uuid.New(),
+					ReceiverUserID: uuid.New(),
+					Share:          decimal.NewFromFloat(20.01),
+					GroupID:        mockGroupID,
+					IsSettled:      true,
+					SettledTime:    time.Now(),
+				},
+				{
+					ID:             uuid.New(),
+					SenderUserID:   uuid.New(),
+					ReceiverUserID: uuid.New(),
+					Share:          decimal.NewFromFloat(15.01),
+					GroupID:        mockGroupID,
+					IsOutdated:     true,
+					IsSettled:      false,
+				},
+			},
+			mockGroupId:  mockGroupID.String(),
+			expectFail:   false,
+			expectResult: true,
+			expectError:  nil,
+		},
+		{
 			name:         "valid-empty group",
 			mockBalance:  []*types.Balance{},
 			mockGroupId:  mockGroupID.String(),
@@ -150,7 +177,7 @@ func TestCheckGroupBallanceAllSettled(t *testing.T) {
 			}
 			defer deleteBalances(db, test.mockBalance)
 
-			exist, err := store.CheckGroupBallanceAllSettled(test.mockGroupId)
+			exist, err := store.CheckGroupBalanceAllSettled(test.mockGroupId)
 
 			if !test.expectFail {
 				assert.Nil(t, err)

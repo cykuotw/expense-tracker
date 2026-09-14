@@ -7,7 +7,7 @@ import (
 )
 
 func (s *Store) LockGroupCurrency(groupID string) (string, error) {
-	rows, err := s.db.Query(`SELECT btrim(currency) FROM groups WHERE id = $1 FOR UPDATE`, groupID)
+	rows, err := s.db.Query(`SELECT btrim(currency) FROM groups WHERE id = $1 AND is_active = TRUE FOR UPDATE`, groupID)
 	if err != nil {
 		return "", err
 	}

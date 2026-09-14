@@ -29,39 +29,41 @@ var mockItems = []*types.Item{
 // expense store base mock
 
 type mockExpenseStore struct {
-	RunInTransactionFn                 func(callback func(types.ExpenseTransactionStore) error) error
-	LockGroupCurrencyFn                func(groupID string) (string, error)
-	CheckGroupParticipantsFn           func(groupID string, userIDs []uuid.UUID) error
-	GetCurrencyAmountDigitsFn          func(currency string) (int32, error)
-	CreateExpenseFn                    func(expense types.Expense) error
-	CreateItemFn                       func(item types.Item) error
-	CreateLedgerFn                     func(ledger types.Ledger) error
-	CreateExpenseAllocationFn          func(allocation types.ExpenseAllocation) error
-	ClaimExpenseCreateIdempotencyFn    func(record types.ExpenseCreateIdempotency) (types.ExpenseCreateIdempotency, bool, error)
-	QueueExpenseCreatedNotificationsFn func(expense types.Expense) error
-	GetExpenseByIDFn                   func(expenseID string) (*types.Expense, error)
-	GetExpenseListFn                   func(groupID string, page int64, order types.ExpenseListOrder, status types.ExpenseListStatus) (*types.ExpenseListPage, error)
-	GetExpenseTypeFn                   func() ([]*types.ExpenseType, error)
-	GetItemsByExpenseIDFn              func(expenseID string) ([]*types.Item, error)
-	GetLedgersByExpenseIDFn            func(expenseID string) ([]*types.Ledger, error)
-	GetExpenseAllocationsByExpenseIDFn func(expenseID string) ([]types.ExpenseAllocation, error)
-	GetLedgerUnsettledFromGroupFn      func(expenseID string) ([]*types.Ledger, error)
-	UpdateExpenseFn                    func(expense types.Expense) error
-	UpdateExpenseSettleInGroupFn       func(groupID string) error
-	UpdateItemFn                       func(item types.Item) error
-	UpdateLedgerFn                     func(ledger types.Ledger) error
-	ReconcileExpenseAllocationStateFn  func(expenseID, payerID uuid.UUID, allocations []types.ExpenseAllocation, ledgers []types.Ledger) error
-	CheckExpenseExistByIDFn            func(id string) (bool, error)
-	GetExpenseTypeByIdFn               func(id uuid.UUID) (string, error)
-	DeleteExpenseFn                    func(expense types.Expense) error
-	CreateBalancesFn                   func(groupId string, balances []*types.Balance) error
-	CreateBalanceLedgerFn              func(balanceIds []uuid.UUID, ledgerIds []uuid.UUID) error
-	OutdateBalanceByGroupIdFn          func(groupId string) error
-	GetBalanceByGroupIdFn              func(groupId string) ([]types.Balance, error)
-	SettleExpenseByGroupIdFn           func(groupId string) error
-	CheckBalanceExistByIDFn            func(id string) (bool, error)
-	SettleBalanceByBalanceIdFn         func(groupID string, balanceID string) error
-	CheckGroupBallanceAllSettledFn     func(groupId string) (bool, error)
+	RunInTransactionFn                        func(callback func(types.ExpenseTransactionStore) error) error
+	LockGroupCurrencyFn                       func(groupID string) (string, error)
+	CheckGroupParticipantsFn                  func(groupID string, userIDs []uuid.UUID) error
+	GetCurrencyAmountDigitsFn                 func(currency string) (int32, error)
+	CreateExpenseFn                           func(expense types.Expense) error
+	CreateItemFn                              func(item types.Item) error
+	CreateLedgerFn                            func(ledger types.Ledger) error
+	CreateExpenseAllocationFn                 func(allocation types.ExpenseAllocation) error
+	ClaimExpenseCreateIdempotencyFn           func(record types.ExpenseCreateIdempotency) (types.ExpenseCreateIdempotency, bool, error)
+	QueueExpenseCreatedNotificationsFn        func(expense types.Expense) error
+	GetExpenseByIDFn                          func(expenseID string) (*types.Expense, error)
+	GetExpenseListFn                          func(groupID string, page int64, order types.ExpenseListOrder, status types.ExpenseListStatus) (*types.ExpenseListPage, error)
+	GetExpenseTypeFn                          func() ([]*types.ExpenseType, error)
+	GetItemsByExpenseIDFn                     func(expenseID string) ([]*types.Item, error)
+	GetLedgersByExpenseIDFn                   func(expenseID string) ([]*types.Ledger, error)
+	GetExpenseAllocationsByExpenseIDFn        func(expenseID string) ([]types.ExpenseAllocation, error)
+	GetLedgerUnsettledFromGroupFn             func(expenseID string) ([]*types.Ledger, error)
+	UpdateExpenseFn                           func(expense types.Expense) error
+	UpdateExpenseSettleInGroupFn              func(groupID string) error
+	UpdateItemFn                              func(item types.Item) error
+	UpdateLedgerFn                            func(ledger types.Ledger) error
+	ReconcileExpenseAllocationStateFn         func(expenseID, payerID uuid.UUID, allocations []types.ExpenseAllocation, ledgers []types.Ledger) error
+	CheckExpenseExistByIDFn                   func(id string) (bool, error)
+	GetExpenseTypeByIdFn                      func(id uuid.UUID) (string, error)
+	DeleteExpenseFn                           func(expense types.Expense) error
+	CreateBalancesFn                          func(groupId string, balances []*types.Balance) error
+	CreateBalanceLedgerFn                     func(balanceIds []uuid.UUID, ledgerIds []uuid.UUID) error
+	OutdateBalanceByGroupIdFn                 func(groupId string) error
+	GetBalanceByGroupIdFn                     func(groupId string) ([]types.Balance, error)
+	GetCurrentBalancesByGroupIDFn             func(groupID string) ([]types.Balance, error)
+	GetUnsettledExpenseReconciliationCountsFn func(groupID string) (int, int, error)
+	CountCurrentBalanceLedgerLinksFn          func(groupID string) (int, error)
+	CheckBalanceExistByIDFn                   func(id string) (bool, error)
+	SettleBalanceByBalanceIDFn                func(groupID string, balanceID string, actorID uuid.UUID) error
+	CheckGroupBalanceAllSettledFn             func(groupID string) (bool, error)
 }
 
 func (s *mockExpenseStore) LockGroupCurrency(groupID string) (string, error) {
@@ -242,11 +244,23 @@ func (s *mockExpenseStore) GetBalanceByGroupId(groupId string) ([]types.Balance,
 	}
 	return nil, nil
 }
-func (s *mockExpenseStore) SettleExpenseByGroupId(groupId string) error {
-	if s.SettleExpenseByGroupIdFn != nil {
-		return s.SettleExpenseByGroupIdFn(groupId)
+func (s *mockExpenseStore) GetCurrentBalancesByGroupID(groupID string) ([]types.Balance, error) {
+	if s.GetCurrentBalancesByGroupIDFn != nil {
+		return s.GetCurrentBalancesByGroupIDFn(groupID)
 	}
-	return nil
+	return nil, nil
+}
+func (s *mockExpenseStore) GetUnsettledExpenseReconciliationCounts(groupID string) (int, int, error) {
+	if s.GetUnsettledExpenseReconciliationCountsFn != nil {
+		return s.GetUnsettledExpenseReconciliationCountsFn(groupID)
+	}
+	return 0, 0, nil
+}
+func (s *mockExpenseStore) CountCurrentBalanceLedgerLinks(groupID string) (int, error) {
+	if s.CountCurrentBalanceLedgerLinksFn != nil {
+		return s.CountCurrentBalanceLedgerLinksFn(groupID)
+	}
+	return 0, nil
 }
 func (s *mockExpenseStore) CheckBalanceExistByID(id string) (bool, error) {
 	if s.CheckBalanceExistByIDFn != nil {
@@ -254,15 +268,15 @@ func (s *mockExpenseStore) CheckBalanceExistByID(id string) (bool, error) {
 	}
 	return false, nil
 }
-func (s *mockExpenseStore) SettleBalanceByBalanceId(groupID string, balanceID string) error {
-	if s.SettleBalanceByBalanceIdFn != nil {
-		return s.SettleBalanceByBalanceIdFn(groupID, balanceID)
+func (s *mockExpenseStore) SettleBalanceByBalanceID(groupID string, balanceID string, actorID uuid.UUID) error {
+	if s.SettleBalanceByBalanceIDFn != nil {
+		return s.SettleBalanceByBalanceIDFn(groupID, balanceID, actorID)
 	}
 	return nil
 }
-func (s *mockExpenseStore) CheckGroupBallanceAllSettled(groupId string) (bool, error) {
-	if s.CheckGroupBallanceAllSettledFn != nil {
-		return s.CheckGroupBallanceAllSettledFn(groupId)
+func (s *mockExpenseStore) CheckGroupBalanceAllSettled(groupID string) (bool, error) {
+	if s.CheckGroupBalanceAllSettledFn != nil {
+		return s.CheckGroupBalanceAllSettledFn(groupID)
 	}
 	return false, nil
 }

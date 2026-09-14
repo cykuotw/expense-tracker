@@ -66,13 +66,21 @@ type ExpenseTransactionStore interface {
 	ClaimExpenseCreateIdempotency(record ExpenseCreateIdempotency) (existing ExpenseCreateIdempotency, claimed bool, err error)
 	QueueExpenseCreatedNotifications(expense Expense) error
 	UpdateExpense(expense Expense) error
+	DeleteExpense(expense Expense) error
+	UpdateExpenseSettleInGroup(groupID string) error
 	UpdateItem(item Item) error
 	UpdateLedger(ledger Ledger) error
 	ReconcileExpenseAllocationState(expenseID, payerID uuid.UUID, allocations []ExpenseAllocation, ledgers []Ledger) error
 	GetLedgerUnsettledFromGroup(groupID string) ([]*Ledger, error)
+	GetBalanceByGroupId(groupID string) ([]Balance, error)
+	GetCurrentBalancesByGroupID(groupID string) ([]Balance, error)
+	GetUnsettledExpenseReconciliationCounts(groupID string) (expenseCount, expensesWithoutLedger int, err error)
+	CountCurrentBalanceLedgerLinks(groupID string) (int, error)
 	CreateBalances(groupId string, balances []*Balance) error
 	CreateBalanceLedger(balanceIds []uuid.UUID, ledgerIds []uuid.UUID) error
 	OutdateBalanceByGroupId(groupId string) error
+	SettleBalanceByBalanceID(groupID string, balanceID string, actorID uuid.UUID) error
+	CheckGroupBalanceAllSettled(groupID string) (bool, error)
 }
 
 type ExpenseStore interface {
@@ -88,18 +96,9 @@ type ExpenseStore interface {
 	GetLedgersByExpenseID(expenseID string) ([]*Ledger, error)
 	GetExpenseAllocationsByExpenseID(expenseID string) ([]ExpenseAllocation, error)
 	GetLedgerUnsettledFromGroup(groupID string) ([]*Ledger, error)
-	SettleExpenseByGroupId(groupId string) error
-
-	DeleteExpense(expense Expense) error
-	UpdateExpenseSettleInGroup(groupID string) error
 
 	GetBalanceByGroupId(groupId string) ([]Balance, error)
-	CreateBalances(groupId string, balances []*Balance) error
-	CreateBalanceLedger(balanceIds []uuid.UUID, ledgerIds []uuid.UUID) error
-	OutdateBalanceByGroupId(groupId string) error
 	CheckBalanceExistByID(id string) (bool, error)
-	SettleBalanceByBalanceId(groupID string, balanceID string) error
-	CheckGroupBallanceAllSettled(groupId string) (bool, error)
 }
 
 type ExpenseCreateIdempotency struct {

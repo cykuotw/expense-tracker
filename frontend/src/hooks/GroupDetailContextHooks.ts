@@ -18,8 +18,9 @@ export interface GroupDetailContextType {
     settledLoading: boolean;
     settledHasMore: boolean;
     loading: boolean;
+    settlementPending: boolean;
     groupId: string | undefined;
-    handleSettle: () => Promise<void>;
+    handleSettle: () => Promise<boolean>;
     loadMoreUnsettledExpenses: () => Promise<void>;
     loadSettledExpenses: () => Promise<void>;
     loadMoreSettledExpenses: () => Promise<void>;

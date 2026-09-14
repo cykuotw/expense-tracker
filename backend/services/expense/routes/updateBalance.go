@@ -1,6 +1,8 @@
 package expense
 
 import (
+	"fmt"
+
 	"expense-tracker/backend/types"
 
 	"github.com/google/uuid"
@@ -13,15 +15,24 @@ type balanceRebuildStore interface {
 	CreateBalanceLedger(balanceIDs []uuid.UUID, ledgerIDs []uuid.UUID) error
 }
 
-func (h *Handler) updateBalance(groupId string) error {
-	return h.updateBalanceWithStore(h.store, groupId)
+type balanceRebuildError struct {
+	stage string
+	err   error
+}
+
+func (e *balanceRebuildError) Error() string {
+	return fmt.Sprintf("balance rebuild %s: %v", e.stage, e.err)
+}
+
+func (e *balanceRebuildError) Unwrap() error {
+	return e.err
 }
 
 func (h *Handler) updateBalanceWithStore(store balanceRebuildStore, groupId string) error {
 	// get unsettled ledgers
 	ledgers, err := store.GetLedgerUnsettledFromGroup(groupId)
 	if err != nil {
-		return err
+		return &balanceRebuildError{stage: "ledger_read", err: err}
 	}
 	ledgerIds := []uuid.UUID{}
 	for _, ledger := range ledgers {
@@ -31,7 +42,7 @@ func (h *Handler) updateBalanceWithStore(store balanceRebuildStore, groupId stri
 	// outdate previous non-settled balances
 	err = store.OutdateBalanceByGroupId(groupId)
 	if err != nil {
-		return err
+		return &balanceRebuildError{stage: "balance_outdate", err: err}
 	}
 
 	// create balances
@@ -43,13 +54,13 @@ func (h *Handler) updateBalanceWithStore(store balanceRebuildStore, groupId stri
 	}
 	err = store.CreateBalances(groupId, balances)
 	if err != nil {
-		return err
+		return &balanceRebuildError{stage: "balance_create", err: err}
 	}
 
 	// create balance_ledger
 	err = store.CreateBalanceLedger(balanceIds, ledgerIds)
 	if err != nil {
-		return err
+		return &balanceRebuildError{stage: "balance_ledger_create", err: err}
 	}
 
 	return nil

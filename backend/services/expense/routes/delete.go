@@ -1,11 +1,14 @@
 package expense
 
 import (
+	"errors"
 	"expense-tracker/backend/services/middleware/extractors"
+	"expense-tracker/backend/types"
 	"expense-tracker/backend/utils"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 func (h *Handler) handleDeleteExpense(c *gin.Context) {
@@ -17,17 +20,30 @@ func (h *Handler) handleDeleteExpense(c *gin.Context) {
 		return
 	}
 
-	// delete expense
-	err = h.store.DeleteExpense(*expense)
+	actorID, err := uuid.Parse(c.GetString("userID"))
 	if err != nil {
-		utils.WriteError(c, http.StatusInternalServerError, err)
+		utils.WriteError(c, http.StatusUnauthorized, types.ErrInvalidToken)
 		return
 	}
 
-	// update balance
-	err = h.updateBalance(expense.GroupID.String())
+	err = h.store.RunInTransaction(func(store types.ExpenseTransactionStore) error {
+		if _, err := store.LockGroupCurrency(expense.GroupID.String()); err != nil {
+			return err
+		}
+		if err := store.CheckGroupParticipants(expense.GroupID.String(), []uuid.UUID{actorID}); err != nil {
+			return err
+		}
+		if err := store.DeleteExpense(*expense); err != nil {
+			return err
+		}
+		return h.updateBalanceWithStore(store, expense.GroupID.String())
+	})
 	if err != nil {
 		if writeBalanceLedgerConflict(c, err) {
+			return
+		}
+		if errors.Is(err, types.ErrGroupNotExist) || errors.Is(err, types.ErrGroupParticipantNotAllowed) {
+			utils.WriteError(c, http.StatusNotFound, err)
 			return
 		}
 		utils.WriteError(c, http.StatusInternalServerError, err)

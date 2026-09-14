@@ -11,10 +11,21 @@ import {
 } from "../hooks/GroupDetailContextHooks";
 
 const SETTLE_EXPENSES_FALLBACK = "Failed to settle expenses.";
+const SETTLEMENT_ACCEPTED_UNCONFIRMED =
+    "Settlement was accepted, but the latest state could not be confirmed. Refresh before trying again.";
+const SETTLEMENT_STATUS_UNKNOWN =
+    "Settlement status is unknown. Refresh before trying again.";
+const SETTLEMENT_NOT_CONFIRMED =
+    "Settlement was not confirmed. Review the latest balances before trying again.";
 type ExpenseListStatus = "unsettled" | "settled";
 type ExpenseListPage = {
     expenses: ExpenseData[];
     hasMore: boolean;
+};
+type GroupOverviewSnapshot = {
+    group?: GroupInfo;
+    balance?: BalanceData;
+    expenses?: ExpenseListPage;
 };
 
 export const GroupDetailProvider = ({ children }: { children: ReactNode }) => {
@@ -36,22 +47,20 @@ export const GroupDetailProvider = ({ children }: { children: ReactNode }) => {
     const [settledPage, setSettledPage] = useState(0);
     const [settledHasMore, setSettledHasMore] = useState(false);
     const [settledLoading, setSettledLoading] = useState(false);
+    const [settlementPending, setSettlementPending] = useState(false);
     const unsettledExpenseListGenerationRef = useRef(0);
     const settledExpenseListGenerationRef = useRef(0);
+    const settlementInFlightRef = useRef(false);
 
-    const refreshGroupSummary = useCallback(async () => {
-        if (!groupId) return;
+    const refreshGroupSummary = useCallback(async (): Promise<GroupOverviewSnapshot | null> => {
+        if (!groupId) return null;
         setLoading(true);
         try {
             const response = await apiFetch(
                 `/group_overview/${groupId}/0?order=${expenseOrder}&status=unsettled`
             );
-            if (!response.ok) return;
-            const data = (await response.json()) as {
-                group?: GroupInfo;
-                balance?: BalanceData;
-                expenses?: ExpenseListPage;
-            };
+            if (!response.ok) return null;
+            const data = (await response.json()) as GroupOverviewSnapshot;
             if (data.group) {
                 setGroupInfo({ ...data.group, members: asArray(data.group.members) });
             }
@@ -72,8 +81,10 @@ export const GroupDetailProvider = ({ children }: { children: ReactNode }) => {
                 setSettledHasMore(false);
                 setExpenseListRefreshVersion((version) => version + 1);
             }
+            return data;
         } catch (error) {
             console.error(error);
+            return null;
         } finally {
             setLoading(false);
         }
@@ -181,9 +192,11 @@ export const GroupDetailProvider = ({ children }: { children: ReactNode }) => {
         }
     };
 
-    const handleSettle = async () => {
-        if (!groupId) return;
+    const handleSettle = async (): Promise<boolean> => {
+        if (!groupId || settlementInFlightRef.current) return false;
 
+        settlementInFlightRef.current = true;
+        setSettlementPending(true);
         try {
             const response = await apiFetch(`/settle_expense/${groupId}`, {
                 method: "PUT",
@@ -198,12 +211,32 @@ export const GroupDetailProvider = ({ children }: { children: ReactNode }) => {
                         SETTLE_EXPENSES_FALLBACK
                     )
                 );
-                return;
+                return false;
             }
 
-            await refreshGroupSummary();
+            const snapshot = await refreshGroupSummary();
+            if (!snapshot) {
+                toast.error(SETTLEMENT_ACCEPTED_UNCONFIRMED);
+                return false;
+            }
+            if (!isSettlementCommitted(snapshot)) {
+                toast.error(SETTLEMENT_NOT_CONFIRMED);
+                return false;
+            }
+            return true;
         } catch {
-            toast.error(SETTLE_EXPENSES_FALLBACK);
+            const snapshot = await refreshGroupSummary();
+            if (isSettlementCommitted(snapshot)) {
+                toast.success("Settlement confirmed.");
+                return true;
+            }
+            toast.error(
+                snapshot ? SETTLEMENT_NOT_CONFIRMED : SETTLEMENT_STATUS_UNKNOWN
+            );
+            return false;
+        } finally {
+            settlementInFlightRef.current = false;
+            setSettlementPending(false);
         }
     };
 
@@ -222,6 +255,7 @@ export const GroupDetailProvider = ({ children }: { children: ReactNode }) => {
                 settledLoading,
                 settledHasMore,
                 loading,
+                settlementPending,
                 groupId,
                 handleSettle,
                 loadMoreUnsettledExpenses,
@@ -233,3 +267,11 @@ export const GroupDetailProvider = ({ children }: { children: ReactNode }) => {
         </GroupDetailContext.Provider>
     );
 };
+
+function isSettlementCommitted(snapshot: GroupOverviewSnapshot | null): boolean {
+    if (!snapshot?.balance || !snapshot.expenses) return false;
+    return (
+        asArray(snapshot.balance.balances).length === 0 &&
+        asArray(snapshot.expenses.expenses).length === 0
+    );
+}

@@ -1,44 +1,64 @@
 package expense
 
 import (
-	"errors"
 	"expense-tracker/backend/types"
 	"expense-tracker/backend/utils"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 func (h *Handler) handleSettleBalance(c *gin.Context) {
 	groupId := c.Param("groupId")
 	balanceId := c.Param("balanceId")
-
-	// settle balance
-	err := h.store.SettleBalanceByBalanceId(groupId, balanceId)
+	actorID, err := uuid.Parse(c.GetString("userID"))
 	if err != nil {
-		if errors.Is(err, types.ErrBalanceNotExist) {
-			utils.WriteError(c, http.StatusNotFound, err)
-			return
+		logSettlementOutcome(c, "balance", uuid.Nil, groupId, "rejected", "actor_identity")
+		utils.WriteError(c, http.StatusUnauthorized, types.ErrInvalidToken)
+		return
+	}
+
+	stage := "transaction_begin"
+	callbackCompleted := false
+	err = h.store.RunInTransaction(func(store types.ExpenseTransactionStore) error {
+		stage = "group_lock"
+		if _, err := store.LockGroupCurrency(groupId); err != nil {
+			return err
 		}
-		utils.WriteError(c, http.StatusInternalServerError, err)
-		return
-	}
-
-	// check all balances in group are settled
-	allSettled, err := h.store.CheckGroupBallanceAllSettled(groupId)
-	if err != nil {
-		utils.WriteError(c, http.StatusInternalServerError, err)
-		return
-	}
-
-	// if all balance are settled, settle all the expense in the group
-	if allSettled {
-		err = h.store.SettleExpenseByGroupId(groupId)
+		stage = "membership"
+		if err := store.CheckGroupParticipants(groupId, []uuid.UUID{actorID}); err != nil {
+			return err
+		}
+		stage = "balance_settle"
+		if err := store.SettleBalanceByBalanceID(groupId, balanceId, actorID); err != nil {
+			return err
+		}
+		stage = "completion_check"
+		allSettled, err := store.CheckGroupBalanceAllSettled(groupId)
 		if err != nil {
-			utils.WriteError(c, http.StatusInternalServerError, err)
-			return
+			return err
 		}
+		if !allSettled {
+			callbackCompleted = true
+			return nil
+		}
+		stage = "expense_settle"
+		if err := store.UpdateExpenseSettleInGroup(groupId); err != nil {
+			return err
+		}
+		callbackCompleted = true
+		return nil
+	})
+	if err != nil {
+		if callbackCompleted {
+			stage = "transaction_commit"
+		}
+		logSettlementOutcome(c, "balance", actorID, groupId, settlementErrorOutcome(err), settlementErrorStage(err, stage))
+		writeSettlementMutationError(c, err)
+		return
 	}
 
+	logSettlementOutcome(c, "balance", actorID, groupId, "committed", "complete")
 	utils.WriteJSON(c, http.StatusCreated, nil)
 }

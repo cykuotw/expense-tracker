@@ -33,9 +33,14 @@ make migrate-down
 make migrate-step n=1
 ```
 
+Read the [schema migration policy](backend/cmd/migrate/MIGRATION_POLICY.md)
+before creating or applying a migration. Migration `000035` is the immutable
+metadata baseline; every later migration must include the policy-defined
+manifest entry and follow the expand/contract release sequence.
+
 ### Frontend
 
-Requires Node 22.23.2 or a compatible Node 22 release, plus pnpm 12.3.4.
+Requires Node 22.23.2 or a compatible Node 22 release, plus pnpm 12.4.2.
 Both tool versions are declared in `frontend/package.json`; `.node-version` is
 provided for compatible local version managers.
 
@@ -60,8 +65,8 @@ build. It does not call AWS, provision containers, or interact with the
 development database.
 
 Prerequisites are Docker Desktop with a user-managed PostgreSQL 16 container,
-`psql`, Go 1.25.4 or a newer Go 1.25 patch release, uv with Python 3.14, Node
-22.23.2, pnpm 12.3.4, and Terraform. The CI container must expose the dedicated
+`psql`, Go 1.25.14 or a newer Go 1.25 patch release, uv with Python 3.14, Node
+22.23.2, pnpm 12.4.2, and Terraform. The CI container must expose the dedicated
 database on `127.0.0.1:55432`. Keep its CI-only connection values in the ignored
 `backend/.env.ci` file with permissions `600`. The file must define `CI_DB_HOST`,
 `CI_DB_PORT`, `CI_DB_NAME`, `CI_DB_USER`, and `CI_DB_PASSWORD`; the host, port,

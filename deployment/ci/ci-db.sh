@@ -105,7 +105,7 @@ case "${1:-}" in
   test)
     verify_database
     shift
-    exec go test -count=1 "$@"
+    exec go test -p 1 -count=1 "$@"
     ;;
   verify)
     verify_database

@@ -18,9 +18,10 @@ func TestHandlerDefaultsEmptyOperationToAll(t *testing.T) {
 			called = true
 			return databasebootstrap.Result{FirstAdminStatus: "not_requested"}, nil
 		},
+		nil,
 	)
 
-	result, err := handler(context.Background(), request{})
+	result, err := handler(t.Context(), request{})
 
 	assert.NoError(t, err)
 	assert.True(t, called)
@@ -34,9 +35,10 @@ func TestHandlerRejectsUnknownOperationBeforeLoadingConfig(t *testing.T) {
 			return databasebootstrap.Config{}, nil
 		},
 		nil,
+		nil,
 	)
 
-	_, err := handler(context.Background(), request{Operation: "migrate"})
+	_, err := handler(t.Context(), request{Operation: "migrate"})
 
 	assert.EqualError(t, err, `unsupported operation "migrate"`)
 }
@@ -48,11 +50,32 @@ func TestHandlerReturnsRunnerError(t *testing.T) {
 		func(context.Context, databasebootstrap.Config) (databasebootstrap.Result, error) {
 			return databasebootstrap.Result{}, expected
 		},
+		nil,
 	)
 
-	_, err := handler(context.Background(), request{Operation: "all"})
+	_, err := handler(t.Context(), request{Operation: "all"})
 
 	assert.ErrorIs(t, err, expected)
+}
+
+func TestHandlerReadsMigrationStateWithoutRunningBootstrap(t *testing.T) {
+	handler := newHandler(
+		func() (databasebootstrap.Config, error) { return databasebootstrap.Config{}, nil },
+		func(context.Context, databasebootstrap.Config) (databasebootstrap.Result, error) {
+			t.Fatal("bootstrap runner should not run")
+			return databasebootstrap.Result{}, nil
+		},
+		func(context.Context, databasebootstrap.Config) (databasebootstrap.MigrationState, error) {
+			return databasebootstrap.MigrationState{Version: 36, Dirty: false}, nil
+		},
+	)
+
+	result, err := handler(t.Context(), request{Operation: "migration-state"})
+
+	assert.NoError(t, err)
+	assert.Equal(t, uint(36), result.MigrationVersion)
+	assert.False(t, result.MigrationDirty)
+	assert.Equal(t, "migration-state", result.Operation)
 }
 
 func TestLoadConfigSupportsOptionalFirstAdmin(t *testing.T) {

@@ -79,21 +79,64 @@ class AWSClient:
         if self.concurrency(function_name) != 1:
             raise CommandError("notification function activation did not reach reserved concurrency 1")
 
-    def pause_sender(self, function_name: str) -> None:
-        if not self.function_exists(function_name) or self.concurrency(function_name) == 0:
-            return
-        self.call("lambda", "put-function-concurrency", "--function-name", function_name, "--reserved-concurrent-executions", "0")
-        # Existing invocations are not stopped by reserved concurrency. Both
-        # supported sender versions have a maximum 60-second execution time.
-        print("Waiting 60 seconds for in-flight push delivery before updating", flush=True)
-        time.sleep(60)
+    def pause_sender(self, function_name: str) -> int | None:
+        if not self.function_exists(function_name):
+            return None
+        previous = self.concurrency(function_name)
+        if previous not in (0, 1):
+            raise CommandError(f"unexpected sender reserved concurrency: {previous}")
+        if previous == 0:
+            return previous
+        try:
+            self.call("lambda", "put-function-concurrency", "--function-name", function_name, "--reserved-concurrent-executions", "0")
+            if self.concurrency(function_name) != 0:
+                raise CommandError("sender pause did not reach reserved concurrency 0")
+            # Existing invocations are not stopped by reserved concurrency. Both
+            # supported sender versions have a maximum 60-second execution time.
+            print("Waiting 60 seconds for in-flight push delivery before updating", flush=True)
+            time.sleep(60)
+        except BaseException as pause_error:
+            try:
+                self.restore_sender(function_name, previous)
+            except Exception as recovery_error:
+                raise CommandError(
+                    "notification Sender pause failed and previous concurrency recovery also failed: "
+                    f"{recovery_error}"
+                ) from pause_error
+            raise
+        return previous
 
-    def invoke_bootstrap(self, function_name: str, response_path: Path) -> dict[str, Any]:
-        metadata = self.json("lambda", "invoke", "--function-name", function_name, "--cli-binary-format", "raw-in-base64-out", "--payload", '{"operation":"all"}', str(response_path))
+    def restore_sender(self, function_name: str, concurrency: int | None) -> None:
+        if concurrency is None:
+            return
+        if concurrency not in (0, 1):
+            raise CommandError(f"invalid previous sender reserved concurrency: {concurrency}")
+        if self.concurrency(function_name) != concurrency:
+            self.call(
+                "lambda",
+                "put-function-concurrency",
+                "--function-name",
+                function_name,
+                "--reserved-concurrent-executions",
+                str(concurrency),
+            )
+        if self.concurrency(function_name) != concurrency:
+            raise CommandError(
+                f"sender recovery did not restore reserved concurrency {concurrency}"
+            )
+
+    def invoke_bootstrap(
+        self,
+        function_name: str,
+        response_path: Path,
+        operation: str = "all",
+    ) -> dict[str, Any]:
+        payload = json.dumps({"operation": operation}, separators=(",", ":"))
+        metadata = self.json("lambda", "invoke", "--function-name", function_name, "--cli-binary-format", "raw-in-base64-out", "--payload", payload, str(response_path))
         if "FunctionError" in metadata:
             raise CommandError("bootstrap Lambda returned FunctionError")
         response = json.loads(response_path.read_text())
-        if response.get("status") != "ok" or response.get("operation") != "all":
+        if response.get("status") != "ok" or response.get("operation") != operation:
             raise CommandError("bootstrap Lambda returned an unexpected response")
         return response
 

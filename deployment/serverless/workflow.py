@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from backend import artifacts, runtime
+from backend import artifacts, migration_policy, runtime
 from backend.verify import verify_api, verify_google_exchange, verify_session
 from common.aws import AWSClient
 from common.command import CommandError, deployment_lock, protected_json, require_tools, run
@@ -207,6 +207,7 @@ def status(context: Context) -> str:
 
 def plan(context: Context) -> None:
     preflight(context, mutation=True)
+    _migration_preflight(context, "all")
     artifacts.build(context.repo_root, context.serverless_root / "build")
     with tempfile.TemporaryDirectory(prefix="expense-serverless-plan-") as temporary, _terraform(context, True) as variables:
         terraform = Terraform(context.terraform_root, variables)
@@ -235,6 +236,7 @@ def deploy(context: Context) -> None:
             if state == "complete":
                 update(context, "all")
                 return
+            _migration_preflight(context, "all", outputs)
             if state in {"absent", "infra_partial"}:
                 if state == "absent":
                     _assert_no_conflicts(context)
@@ -484,37 +486,93 @@ def _apply_infrastructure_updates(context: Context, scope: str) -> dict[str, Any
     return outputs
 
 
+def _migration_preflight(
+    context: Context,
+    scope: str,
+    outputs: dict[str, Any] | None = None,
+) -> None:
+    if scope not in {"migrations", "backend", "all"}:
+        return
+    manifest = migration_policy.validate_repository(context.repo_root)
+    if manifest.has_maintenance_required():
+        current_version = 0
+        dirty = False
+        bootstrap_name = str((outputs or {}).get("bootstrap_function_name", ""))
+        if bootstrap_name and context.aws.function_exists(bootstrap_name):
+            with tempfile.NamedTemporaryFile(
+                prefix="expense-migration-state-",
+                suffix=".json",
+                delete=False,
+            ) as stream:
+                response_path = Path(stream.name)
+            try:
+                response = context.aws.invoke_bootstrap(
+                    bootstrap_name,
+                    response_path,
+                    operation="migration-state",
+                )
+            finally:
+                response_path.unlink(missing_ok=True)
+            current_version = response.get("migration_version")
+            dirty = response.get("migration_dirty")
+            if (
+                not isinstance(current_version, int)
+                or isinstance(current_version, bool)
+                or not isinstance(dirty, bool)
+            ):
+                raise CommandError("Bootstrap migration-state response is invalid")
+        manifest.validate_pending(current_version, dirty)
+    print(manifest.summary(), flush=True)
+
+
 def update(context: Context, scope: str) -> None:
     preflight(context, mutation=True)
+    outputs = _require_complete(context)
+    _migration_preflight(context, scope, outputs)
     repaired_state_files = runtime.repair_secret_boundary(context.terraform_root, context.config)
     if repaired_state_files:
         print(f"repaired Terraform secret boundary: files={repaired_state_files}")
-    outputs = _require_complete(context)
     # Terraform evaluates Lambda artifact hashes even for targeted infrastructure plans.
     built = artifacts.build(context.repo_root, context.serverless_root / "build")
-    if scope in {"backend", "all"} and outputs.get("sender_function_name"):
-        context.aws.pause_sender(str(outputs["sender_function_name"]))
     if scope in {"migrations", "backend", "all"}:
         step("migrations")
         runtime.update_bootstrap(context.aws, built["bootstrap"], context.config, outputs, context.terraform_root)
         step("migrations", "pass")
-    infrastructure_outputs = _apply_infrastructure_updates(context, scope)
-    if infrastructure_outputs is not None:
-        outputs = infrastructure_outputs
-    if scope == "all" and infrastructure_outputs is not None:
-        _ensure_postgres_backup_profile(context, infrastructure_outputs)
-    if scope in {"backend", "all"}:
-        step("backend")
-        runtime.update_error_notifier(context.aws, built["notifier"], context.config, outputs, context.terraform_root)
-        runtime.update_worker(context.aws, built["worker"], context.config, outputs, context.terraform_root)
-        runtime.update_notifications(context.aws, built["sender"], built["delivery"], context.config, outputs, context.terraform_root)
-        verify_api(context.config)
-        step("backend", "pass")
-    if scope in {"frontend", "all"}:
-        step("frontend")
-        publish_frontend(context.aws, context.repo_root, context.config, outputs)
-        verify_frontend(context.config)
-        step("frontend", "pass")
+    sender_name = (
+        str(outputs["sender_function_name"])
+        if scope in {"backend", "all"} and outputs.get("sender_function_name")
+        else None
+    )
+    previous_sender_concurrency = (
+        context.aws.pause_sender(sender_name) if sender_name is not None else None
+    )
+    try:
+        infrastructure_outputs = _apply_infrastructure_updates(context, scope)
+        if infrastructure_outputs is not None:
+            outputs = infrastructure_outputs
+        if scope == "all" and infrastructure_outputs is not None:
+            _ensure_postgres_backup_profile(context, infrastructure_outputs)
+        if scope in {"backend", "all"}:
+            step("backend")
+            runtime.update_error_notifier(context.aws, built["notifier"], context.config, outputs, context.terraform_root)
+            runtime.update_worker(context.aws, built["worker"], context.config, outputs, context.terraform_root)
+            runtime.update_notifications(context.aws, built["sender"], built["delivery"], context.config, outputs, context.terraform_root)
+            verify_api(context.config)
+            step("backend", "pass")
+        if scope in {"frontend", "all"}:
+            step("frontend")
+            publish_frontend(context.aws, context.repo_root, context.config, outputs)
+            verify_frontend(context.config)
+            step("frontend", "pass")
+    except BaseException as deployment_error:
+        try:
+            context.aws.restore_sender(sender_name, previous_sender_concurrency)
+        except Exception as recovery_error:
+            raise CommandError(
+                "deployment failed and notification Sender concurrency recovery also failed: "
+                f"{recovery_error}"
+            ) from deployment_error
+        raise
     print("deployment_state=complete")
 
 

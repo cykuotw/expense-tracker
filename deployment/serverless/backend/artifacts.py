@@ -5,6 +5,7 @@ import tempfile
 import zipfile
 from pathlib import Path
 
+from backend.migration_policy import MANIFEST_NAME, validate_repository
 from common.command import run
 
 
@@ -29,6 +30,7 @@ def _go_build(repo_root: Path, package: str, destination: Path, ldflags: str = "
 
 
 def build(repo_root: Path, output_dir: Path) -> dict[str, Path]:
+    validate_repository(repo_root)
     output_dir.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="expense-tracker-artifacts-") as temporary:
         staging = Path(temporary)
@@ -59,6 +61,7 @@ def build(repo_root: Path, output_dir: Path) -> dict[str, Path]:
         with zipfile.ZipFile(artifacts["worker"], "w") as archive:
             archive.writestr(_entry("bootstrap", worker_data, 0o100755), worker_data)
         migrations = sorted((repo_root / "backend/cmd/migrate/migrations").glob("*.sql"))
+        manifest = repo_root / "backend/cmd/migrate/migrations" / MANIFEST_NAME
         if not any(path.name.endswith(".up.sql") for path in migrations):
             raise RuntimeError("no up migrations found for bootstrap artifact")
         with zipfile.ZipFile(artifacts["bootstrap"], "w") as archive:
@@ -67,6 +70,11 @@ def build(repo_root: Path, output_dir: Path) -> dict[str, Path]:
             for migration in migrations:
                 data = migration.read_bytes()
                 archive.writestr(_entry(f"migrations/{migration.name}", data, 0o100644), data)
+            manifest_data = manifest.read_bytes()
+            archive.writestr(
+                _entry(f"migrations/{MANIFEST_NAME}", manifest_data, 0o100644),
+                manifest_data,
+            )
         sender_data = sender_binary.read_bytes()
         with zipfile.ZipFile(artifacts["sender"], "w") as archive:
             archive.writestr(_entry("bootstrap", sender_data, 0o100755), sender_data)

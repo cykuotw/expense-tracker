@@ -21,22 +21,29 @@ type response struct {
 	Status           string `json:"status"`
 	Operation        string `json:"operation"`
 	FirstAdminStatus string `json:"first_admin_status"`
+	MigrationVersion uint   `json:"migration_version"`
+	MigrationDirty   bool   `json:"migration_dirty"`
 }
 
 type configLoader func() (databasebootstrap.Config, error)
 type bootstrapRunner func(context.Context, databasebootstrap.Config) (databasebootstrap.Result, error)
+type migrationStateReader func(context.Context, databasebootstrap.Config) (databasebootstrap.MigrationState, error)
 
 func main() {
-	lambda.Start(newHandler(loadConfig, databasebootstrap.Run))
+	lambda.Start(newHandler(loadConfig, databasebootstrap.Run, databasebootstrap.ReadMigrationState))
 }
 
-func newHandler(load configLoader, run bootstrapRunner) func(context.Context, request) (response, error) {
+func newHandler(
+	load configLoader,
+	run bootstrapRunner,
+	readState migrationStateReader,
+) func(context.Context, request) (response, error) {
 	return func(ctx context.Context, input request) (response, error) {
 		operation := strings.TrimSpace(input.Operation)
 		if operation == "" {
 			operation = "all"
 		}
-		if operation != "all" {
+		if operation != "all" && operation != "migration-state" {
 			return response{}, fmt.Errorf("unsupported operation %q", operation)
 		}
 
@@ -44,6 +51,19 @@ func newHandler(load configLoader, run bootstrapRunner) func(context.Context, re
 		if err != nil {
 			return response{}, err
 		}
+		if operation == "migration-state" {
+			state, err := readState(ctx, cfg)
+			if err != nil {
+				return response{}, fmt.Errorf("migration state inspection failed: %w", err)
+			}
+			return response{
+				Status:           "ok",
+				Operation:        operation,
+				MigrationVersion: state.Version,
+				MigrationDirty:   state.Dirty,
+			}, nil
+		}
+
 		result, err := run(ctx, cfg)
 		if err != nil {
 			return response{}, fmt.Errorf("bootstrap failed: %w", err)

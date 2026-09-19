@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "baselineVersion": 35,
+  "migrations": [
+    {
+      "version": 36,
+      "name": "example_expansion",
+      "categories": ["additive"],
+      "deployment": "online",
+      "backfill": {
+        "mode": "none",
+        "resumable": false,
+        "notes": "No existing rows are rewritten."
+      },
+      "locking": {
+        "risk": "low",
+        "notes": "Metadata-only addition with bounded lock acquisition."
+      },
+      "rollback": {
+        "application": "compatible",
+        "schema": "not_required",
+        "dataLossRisk": false,
+        "notes": "The previous application ignores the added column."
+      }
+    }
+  ]
+}

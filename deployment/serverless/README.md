@@ -166,6 +166,20 @@ make deploy ACTION=destroy
 
 `SCOPE=backend` also publishes and invokes the bootstrap function first. This applies pending migrations and verifies first-administrator reconciliation before marker-dependent Worker code is published. Use `SCOPE=migrations` when only the migration/bootstrap step should run.
 
+The canonical [schema migration policy](../../backend/cmd/migrate/MIGRATION_POLICY.md)
+defines the `000035` metadata baseline, expand/contract sequence, online
+execution limits, and recovery rules. The `migrations`, `backend`, and `all`
+scopes are all migration-bearing scopes and must satisfy that policy. Before
+any remote or database mutation, the deployer validates the manifest. If the
+manifest contains maintenance history, an update queries the currently deployed
+Bootstrap through its read-only `migration-state` operation and rejects only
+pending maintenance-required entries. Deploy this inspection capability before
+adding the first such entry. Bootstrap artifact construction and the Bootstrap
+runtime validate the same manifest again; runtime validation also rejects a
+dirty database migration state before applying pending migrations.
+Fresh plan and deploy operations apply the same normal-deployment policy before
+creating infrastructure.
+
 Web Push uses two small Lambdas. The scheduled Sender runs outside the VPC and
 contacts public Push providers. It invokes the VPC-connected Delivery function
 through the IAM-authorized Lambda API to claim pending work and acknowledge a
@@ -182,12 +196,13 @@ Only Sender receives VAPID signing credentials; only Delivery receives database
 credentials. The API Worker receives the public VAPID key.
 
 Use `ACTION=update SCOPE=all` to publish migrations, both notification functions,
-and the frontend. Updates pause an existing Sender and wait up to its 60-second
-execution limit before replacing notification code. Delivery is configured and
-activated before Sender. If an update fails, rerun the same command; notifications
-may remain paused until it completes. The obsolete notification HTTPS security
-group rule is the only notification resource explicitly allowed to be deleted
-during this migration.
+and the frontend. Updates apply migrations before pausing an existing Sender,
+then wait up to its 60-second execution limit before replacing notification
+code. Delivery is configured and activated before Sender. If a later update
+step fails, the deployer restores the Sender's previous reserved concurrency
+before returning the failure. The obsolete notification HTTPS security group
+rule is the only notification resource explicitly allowed to be deleted during
+this migration.
 
 The schedule runs every minute, claims up to 10 deliveries, and acknowledges
 results in one batch. An empty poll makes one Delivery invocation; a nonempty

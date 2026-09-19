@@ -10,9 +10,11 @@ import (
 	"path/filepath"
 	"strings"
 
+	"expense-tracker/backend/internal/migrationpolicy"
 	"expense-tracker/backend/services/user"
 
 	"github.com/golang-migrate/migrate/v4"
+	migratedatabase "github.com/golang-migrate/migrate/v4/database"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -36,6 +38,11 @@ type Config struct {
 
 type Result struct {
 	FirstAdminStatus string
+}
+
+type MigrationState struct {
+	Version uint
+	Dirty   bool
 }
 
 func (cfg Config) Validate() error {
@@ -120,12 +127,25 @@ func Run(ctx context.Context, cfg Config) (Result, error) {
 	if err := cfg.Validate(); err != nil {
 		return Result{}, err
 	}
+	manifest, err := migrationpolicy.LoadDirectory(cfg.MigrationsPath)
+	if err != nil {
+		return Result{}, fmt.Errorf("validate migration policy: %w", err)
+	}
+	if manifest.HasMaintenanceRequired() {
+		state, stateErr := ReadMigrationState(ctx, cfg)
+		if stateErr != nil {
+			return Result{}, stateErr
+		}
+		if err := manifest.ValidatePending(state.Version, state.Dirty); err != nil {
+			return Result{}, fmt.Errorf("validate migration policy: %w", err)
+		}
+	}
 	if err := Prepare(ctx, cfg); err != nil {
 		return Result{}, err
 	}
 
 	migrationDSN := dsn(cfg.MigrationUser, cfg.MigrationPassword, cfg, cfg.DatabaseName)
-	if err := migrateUp(cfg.MigrationsPath, migrationDSN); err != nil {
+	if err := migrateUp(cfg.MigrationsPath, migrationDSN, manifest); err != nil {
 		return Result{}, fmt.Errorf("apply migrations: %w", err)
 	}
 
@@ -149,6 +169,34 @@ func Run(ctx context.Context, cfg Config) (Result, error) {
 		return Result{}, fmt.Errorf("bootstrap first admin: %w", err)
 	}
 	return Result{FirstAdminStatus: string(status)}, nil
+}
+
+func ReadMigrationState(ctx context.Context, cfg Config) (MigrationState, error) {
+	if err := cfg.Validate(); err != nil {
+		return MigrationState{}, err
+	}
+	if _, err := migrationpolicy.LoadDirectory(cfg.MigrationsPath); err != nil {
+		return MigrationState{}, fmt.Errorf("validate migration policy: %w", err)
+	}
+
+	database, err := open(ctx, dsn(cfg.MigrationUser, cfg.MigrationPassword, cfg, cfg.DatabaseName))
+	if err != nil {
+		return MigrationState{}, errors.New("connect to migration database for state inspection failed")
+	}
+	defer database.Close()
+
+	var state MigrationState
+	err = database.QueryRowContext(
+		ctx,
+		"SELECT version, dirty FROM public.schema_migrations LIMIT 1",
+	).Scan(&state.Version, &state.Dirty)
+	if errors.Is(err, sql.ErrNoRows) || sqlState(err) == "42P01" {
+		return MigrationState{}, nil
+	}
+	if err != nil {
+		return MigrationState{}, errors.New("read database migration state failed")
+	}
+	return state, nil
 }
 
 func open(ctx context.Context, connectionString string) (*sql.DB, error) {
@@ -276,21 +324,105 @@ func grantExistingObjects(ctx context.Context, db *sql.DB, runtimeUser string) e
 	return tx.Commit()
 }
 
-func migrateUp(path, connectionString string) error {
+func migrateUp(path, connectionString string, manifest migrationpolicy.Manifest) error {
 	absPath, err := filepath.Abs(path)
 	if err != nil {
 		return err
 	}
 	sourceURL := (&url.URL{Scheme: "file", Path: filepath.ToSlash(absPath)}).String()
-	migration, err := migrate.New(sourceURL, connectionString)
+	timeoutConnectionString, err := migrationConnectionString(connectionString)
 	if err != nil {
 		return err
 	}
+	migration, err := migrate.New(sourceURL, timeoutConnectionString)
+	if err != nil {
+		return errors.New("initialize migration driver failed")
+	}
 	defer migration.Close()
-	if err := migration.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
+	current, dirty, err := migration.Version()
+	if errors.Is(err, migrate.ErrNilVersion) {
+		current = 0
+		dirty = false
+	} else if err != nil {
+		return errors.New("read database migration state failed")
+	}
+	if err := manifest.ValidatePending(current, dirty); err != nil {
 		return err
 	}
+	if err := migration.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
+		return migrationExecutionError(err, migration)
+	}
 	return nil
+}
+
+type migrationStateReader interface {
+	Version() (uint, bool, error)
+}
+
+func migrationExecutionError(cause error, reader migrationStateReader) error {
+	reason := migrationFailureReason(cause)
+	failedVersion, failedDirty, stateErr := reader.Version()
+	if stateErr == nil {
+		return fmt.Errorf(
+			"migration execution failed: reason=%s version=%06d dirty=%t; inspect migration recovery guidance",
+			reason,
+			failedVersion,
+			failedDirty,
+		)
+	}
+	return fmt.Errorf(
+		"migration execution failed: reason=%s; database migration state could not be read",
+		reason,
+	)
+}
+
+func migrationFailureReason(err error) string {
+	if errors.Is(err, migrate.ErrLockTimeout) {
+		return "migration_lock_timeout"
+	}
+
+	var databaseError migratedatabase.Error
+	if errors.As(err, &databaseError) {
+		err = databaseError.OrigErr
+	} else {
+		var databaseErrorPointer *migratedatabase.Error
+		if errors.As(err, &databaseErrorPointer) {
+			err = databaseErrorPointer.OrigErr
+		}
+	}
+
+	switch sqlState(err) {
+	case "55P03":
+		return "lock_timeout"
+	case "57014":
+		return "statement_timeout"
+	default:
+		return "sql_error"
+	}
+}
+
+func sqlState(err error) string {
+	type sqlStateError interface {
+		SQLState() string
+	}
+	var stateError sqlStateError
+	if errors.As(err, &stateError) {
+		return stateError.SQLState()
+	}
+	return ""
+}
+
+func migrationConnectionString(connectionString string) (string, error) {
+	connectionURL, err := url.Parse(connectionString)
+	if err != nil || connectionURL.Scheme == "" || connectionURL.Host == "" {
+		return "", errors.New("migration database URL is invalid")
+	}
+	query := connectionURL.Query()
+	options := strings.TrimSpace(query.Get("options"))
+	options = strings.TrimSpace(options + " -c lock_timeout=5s -c statement_timeout=240s")
+	query.Set("options", options)
+	connectionURL.RawQuery = query.Encode()
+	return connectionURL.String(), nil
 }
 
 func quoteIdentifier(value string) string {

@@ -165,6 +165,7 @@ class WorkflowTest(unittest.TestCase):
 
         context.aws.json.return_value = {"DisableExecuteApiEndpoint": False}
         with mock.patch.object(workflow, "preflight"), \
+             mock.patch.object(workflow, "_migration_preflight", side_effect=lambda *args: events.append("migration-policy")), \
              mock.patch.object(workflow.artifacts, "build", side_effect=lambda *args: events.append("artifacts")), \
              mock.patch.object(workflow, "_terraform", side_effect=lambda *args: contextlib.nullcontext(Path("/tmp/vars"))), \
              mock.patch.object(workflow, "Terraform", FakeTerraform), \
@@ -184,6 +185,8 @@ class WorkflowTest(unittest.TestCase):
              mock.patch.object(workflow, "verify_google_exchange"):
             context.aws.raw_endpoint.side_effect = lambda *args: events.append("raw-cutover")
             workflow.deploy(context)
+        self.assertLess(events.index("artifacts"), events.index("migration-policy"))
+        self.assertLess(events.index("migration-policy"), events.index("database"))
         self.assertLess(events.index("database"), events.index("bootstrap"))
         self.assertLess(events.index("bootstrap"), events.index("notifier"))
         self.assertLess(events.index("notifier"), events.index("worker"))
@@ -204,9 +207,11 @@ class WorkflowTest(unittest.TestCase):
         outputs = {"worker_function_name": "worker", "sender_function_name": "sender"}
         events: list[str] = []
         with mock.patch.object(workflow, "preflight"), \
+             mock.patch.object(workflow, "_migration_preflight", side_effect=lambda *args: events.append("migration-policy")), \
              mock.patch.object(workflow.runtime, "repair_secret_boundary", side_effect=lambda *args: events.append("state-repair")), \
              mock.patch.object(workflow, "_require_complete", return_value=outputs), \
              mock.patch.object(workflow.artifacts, "build", return_value={"bootstrap": Path("bootstrap.zip"), "worker": Path("worker.zip"), "sender": Path("sender.zip"), "delivery": Path("delivery.zip"), "notifier": Path("notifier.zip")}), \
+             mock.patch.object(context.aws, "pause_sender", side_effect=lambda *args: events.append("pause-sender") or 1), \
              mock.patch.object(workflow.runtime, "update_bootstrap", side_effect=lambda *args: events.append("migrations")), \
              mock.patch.object(workflow, "_apply_infrastructure_updates", side_effect=lambda *args: events.append("infrastructure")), \
              mock.patch.object(workflow.runtime, "update_error_notifier", side_effect=lambda *args: events.append("notifier")), \
@@ -216,7 +221,8 @@ class WorkflowTest(unittest.TestCase):
              mock.patch.object(workflow, "publish_frontend", side_effect=lambda *args: events.append("frontend")), \
              mock.patch.object(workflow, "verify_frontend"):
             workflow.update(context, "all")
-        self.assertEqual(events, ["state-repair", "migrations", "infrastructure", "notifier", "backend", "sender", "frontend"])
+        self.assertEqual(events, ["migration-policy", "state-repair", "migrations", "pause-sender", "infrastructure", "notifier", "backend", "sender", "frontend"])
+        context.aws.restore_sender.assert_not_called()
 
     def test_backend_scope_does_not_publish_frontend(self) -> None:
         context = mock.MagicMock()
@@ -227,6 +233,7 @@ class WorkflowTest(unittest.TestCase):
         context.config.error_alerting_enabled = False
         events: list[str] = []
         with mock.patch.object(workflow, "preflight"), \
+             mock.patch.object(workflow, "_migration_preflight") as migration_preflight, \
              mock.patch.object(workflow.runtime, "repair_secret_boundary", return_value=0), \
              mock.patch.object(workflow, "_require_complete", return_value={}), \
              mock.patch.object(workflow.artifacts, "build", return_value={"bootstrap": Path("b"), "worker": Path("w"), "sender": Path("s"), "delivery": Path("d"), "notifier": Path("n")}), \
@@ -239,4 +246,115 @@ class WorkflowTest(unittest.TestCase):
              mock.patch.object(workflow, "publish_frontend") as publish:
             workflow.update(context, "backend")
         publish.assert_not_called()
+        migration_preflight.assert_called_once_with(context, "backend", {})
         self.assertEqual(events, ["migrations", "notifier", "backend", "sender"])
+
+    def test_migration_policy_preflight_covers_only_migration_bearing_scopes(self) -> None:
+        context = mock.MagicMock()
+        context.repo_root = Path("/repo")
+        manifest = mock.MagicMock()
+        manifest.has_maintenance_required.return_value = False
+        manifest.summary.return_value = "migration summary"
+        with mock.patch.object(workflow.migration_policy, "validate_repository", return_value=manifest) as validate:
+            for scope in ("migrations", "backend", "all"):
+                with self.subTest(scope=scope):
+                    workflow._migration_preflight(context, scope)
+            workflow._migration_preflight(context, "frontend")
+
+        self.assertEqual(validate.call_count, 3)
+        self.assertEqual(manifest.has_maintenance_required.call_count, 3)
+
+    def test_preflight_allows_applied_maintenance_migration(self) -> None:
+        context = mock.MagicMock()
+        context.repo_root = Path("/repo")
+        context.aws.function_exists.return_value = True
+        context.aws.invoke_bootstrap.return_value = {
+            "migration_version": 36,
+            "migration_dirty": False,
+        }
+        manifest = mock.MagicMock()
+        manifest.has_maintenance_required.return_value = True
+        manifest.summary.return_value = "migration summary"
+        outputs = {"bootstrap_function_name": "bootstrap"}
+        with mock.patch.object(
+            workflow.migration_policy,
+            "validate_repository",
+            return_value=manifest,
+        ):
+            workflow._migration_preflight(context, "backend", outputs)
+
+        manifest.validate_pending.assert_called_once_with(36, False)
+        context.aws.invoke_bootstrap.assert_called_once()
+
+    def test_migration_policy_failure_precedes_remote_update_mutations(self) -> None:
+        context = mock.MagicMock()
+        context.repo_root = Path("/repo")
+        context.serverless_root = Path("/repo/deployment/serverless")
+        context.terraform_root = context.serverless_root / "infrastructure/tf"
+        context.config = mock.MagicMock()
+        context.aws = mock.MagicMock()
+        with mock.patch.object(workflow, "preflight"), \
+             mock.patch.object(workflow, "_require_complete", return_value={"bootstrap_function_name": "bootstrap"}), \
+             mock.patch.object(workflow, "_migration_preflight", side_effect=ValueError("unsafe migration")), \
+             mock.patch.object(workflow.runtime, "repair_secret_boundary") as repair, \
+             mock.patch.object(workflow.artifacts, "build") as build, \
+             mock.patch.object(workflow.runtime, "update_bootstrap") as bootstrap:
+            with self.assertRaisesRegex(ValueError, "unsafe migration"):
+                workflow.update(context, "all")
+
+        repair.assert_not_called()
+        build.assert_not_called()
+        context.aws.pause_sender.assert_not_called()
+        bootstrap.assert_not_called()
+
+    def test_migration_failure_does_not_pause_sender(self) -> None:
+        context = mock.MagicMock()
+        context.repo_root = Path("/repo")
+        context.serverless_root = Path("/repo/deployment/serverless")
+        context.terraform_root = context.serverless_root / "infrastructure/tf"
+        context.config = mock.MagicMock()
+        context.aws = mock.MagicMock()
+        outputs = {"worker_function_name": "worker", "sender_function_name": "sender"}
+        with mock.patch.object(workflow, "preflight"), \
+             mock.patch.object(workflow, "_migration_preflight"), \
+             mock.patch.object(workflow.runtime, "repair_secret_boundary", return_value=0), \
+             mock.patch.object(workflow, "_require_complete", return_value=outputs), \
+             mock.patch.object(workflow.artifacts, "build", return_value={"bootstrap": Path("b")}), \
+             mock.patch.object(workflow.runtime, "update_bootstrap", side_effect=RuntimeError("migration failed")):
+            with self.assertRaisesRegex(RuntimeError, "migration failed"):
+                workflow.update(context, "backend")
+
+        context.aws.pause_sender.assert_not_called()
+        context.aws.restore_sender.assert_not_called()
+
+    def test_backend_failure_restores_previous_sender_concurrency(self) -> None:
+        context = mock.MagicMock()
+        context.repo_root = Path("/repo")
+        context.serverless_root = Path("/repo/deployment/serverless")
+        context.terraform_root = context.serverless_root / "infrastructure/tf"
+        context.config = mock.MagicMock()
+        context.config.error_alerting_enabled = False
+        context.aws = mock.MagicMock()
+        context.aws.pause_sender.return_value = 1
+        outputs = {"worker_function_name": "worker", "sender_function_name": "sender"}
+        built = {
+            "bootstrap": Path("b"),
+            "worker": Path("w"),
+            "sender": Path("s"),
+            "delivery": Path("d"),
+            "notifier": Path("n"),
+        }
+        with mock.patch.object(workflow, "preflight"), \
+             mock.patch.object(workflow, "_migration_preflight"), \
+             mock.patch.object(workflow.runtime, "repair_secret_boundary", return_value=0), \
+             mock.patch.object(workflow, "_require_complete", return_value=outputs), \
+             mock.patch.object(workflow.artifacts, "build", return_value=built), \
+             mock.patch.object(workflow.runtime, "update_bootstrap"), \
+             mock.patch.object(workflow, "_apply_infrastructure_updates"), \
+             mock.patch.object(workflow.runtime, "update_error_notifier"), \
+             mock.patch.object(workflow.runtime, "update_worker", side_effect=RuntimeError("worker failed")):
+            with self.assertRaisesRegex(RuntimeError, "worker failed"):
+                workflow.update(context, "backend")
+
+        context.aws.pause_sender.assert_called_once_with("sender")
+        context.aws.restore_sender.assert_called_once_with("sender", 1)

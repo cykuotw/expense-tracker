@@ -4,6 +4,7 @@ import hashlib
 import sys
 import tempfile
 import unittest
+import zipfile
 from datetime import UTC, datetime
 from pathlib import Path
 from unittest import mock
@@ -33,6 +34,12 @@ class ComponentTest(unittest.TestCase):
             hashes = {name: hashlib.sha256(path.read_bytes()).hexdigest() for name, path in first.items()}
             second = build(REPO, output)
             self.assertEqual(hashes, {name: hashlib.sha256(path.read_bytes()).hexdigest() for name, path in second.items()})
+            with zipfile.ZipFile(first["bootstrap"]) as archive:
+                self.assertIn("migrations/manifest.json", archive.namelist())
+                self.assertEqual(
+                    archive.read("migrations/manifest.json"),
+                    (REPO / "backend/cmd/migrate/migrations/manifest.json").read_bytes(),
+                )
             self.assertIn("config.BuildMode=release", flags["./backend/cmd/tracker-serverless"])
             for package in (
                 "./backend/cmd/bootstrap-serverless",
@@ -41,6 +48,17 @@ class ComponentTest(unittest.TestCase):
                 "./backend/cmd/error-notifier-serverless",
             ):
                 self.assertEqual(flags[package], "-s -w")
+
+    def test_invalid_migration_set_is_rejected_before_building_binaries(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            repo = Path(temporary)
+            migrations = repo / "backend/cmd/migrate/migrations"
+            migrations.mkdir(parents=True)
+            with mock.patch("backend.artifacts._go_build") as go_build:
+                with self.assertRaisesRegex(ValueError, "manifest is missing"):
+                    build(repo, repo / "build")
+
+        go_build.assert_not_called()
 
     def test_frontend_runtime_contract(self) -> None:
         case = ConfigTest()

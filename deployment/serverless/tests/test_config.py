@@ -62,6 +62,7 @@ class ConfigTest(unittest.TestCase):
         self.assertIsNone(config.observability.discord_webhook_url)
         self.assertFalse(config.error_alerting_enabled)
         self.assertFalse(variables["enable_error_alerting"])
+        self.assertTrue(variables["use_lambda_aliases"])
         worker = config.worker_environment("10.0.0.2")["Variables"]
         self.assertEqual(worker["AUTH_COOKIE_SAME_SITE"], "lax")
         self.assertEqual(worker["WEB_PUSH_VAPID_PUBLIC_KEY"], "p" * 43)

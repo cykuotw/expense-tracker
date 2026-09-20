@@ -154,14 +154,24 @@ def configure_worker(client: AWSClient, config: Config, outputs: dict[str, Any],
         raise CommandError("Terraform state changed while publishing worker runtime")
 
 
-def configure_notifications(client: AWSClient, config: Config, outputs: dict[str, Any], terraform_root: Path) -> None:
+def configure_notifications(
+    client: AWSClient,
+    config: Config,
+    outputs: dict[str, Any],
+    terraform_root: Path,
+    *,
+    activate: bool = True,
+) -> None:
     before = _state_digest(terraform_root)
     with protected_json(config.delivery_environment(str(outputs["database_host"])), prefix="expense-delivery-env-") as path:
         client.publish_environment(str(outputs["delivery_function_name"]), path)
-    client.activate_notification_function(str(outputs["delivery_function_name"]))
-    with protected_json(config.sender_environment(str(outputs["delivery_function_name"])), prefix="expense-sender-env-") as path:
+    if activate:
+        client.activate_notification_function(str(outputs["delivery_function_name"]))
+    delivery_reference = f"{outputs['delivery_function_name']}:live"
+    with protected_json(config.sender_environment(delivery_reference), prefix="expense-sender-env-") as path:
         client.publish_environment(str(outputs["sender_function_name"]), path)
-    client.activate_notification_function(str(outputs["sender_function_name"]))
+    if activate:
+        client.activate_notification_function(str(outputs["sender_function_name"]))
     assert_secret_boundary(terraform_root, config)
     if _state_digest(terraform_root) != before:
         raise CommandError("Terraform state changed while publishing notification runtimes")
@@ -210,3 +220,162 @@ def update_error_notifier(client: AWSClient, artifact: Path, config: Config, out
         raise CommandError("enabled error alerting did not expose a notifier function")
     client.publish_code(function_name, artifact)
     configure_error_notifier(client, config, outputs, terraform_root)
+
+
+def _publish_configured_function(
+    client: AWSClient,
+    function_name: str,
+    artifact: Path,
+    environment: dict[str, dict[str, str]],
+    release_id: str,
+    config: Config,
+    terraform_root: Path,
+) -> dict[str, str]:
+    before = _state_digest(terraform_root)
+    client.update_code(function_name, artifact)
+    with protected_json(
+        environment,
+        prefix=f"expense-{function_name}-release-env-",
+    ) as path:
+        client.update_environment(
+            function_name,
+            path,
+            description=f"Expense Tracker release {release_id}",
+        )
+    assert_secret_boundary(terraform_root, config)
+    if _state_digest(terraform_root) != before:
+        raise CommandError(
+            f"Terraform state changed while publishing release for {function_name}"
+        )
+    return client.publish_version(function_name)
+
+
+def publish_bootstrap_release(
+    client: AWSClient,
+    artifact: Path,
+    config: Config,
+    outputs: dict[str, Any],
+    terraform_root: Path,
+    release_id: str,
+) -> tuple[dict[str, str], dict[str, Any]]:
+    function_name = str(outputs["bootstrap_function_name"])
+    record = _publish_configured_function(
+        client,
+        function_name,
+        artifact,
+        config.bootstrap_environment(str(outputs["database_host"])),
+        release_id,
+        config,
+        terraform_root,
+    )
+    with tempfile.NamedTemporaryFile(
+        prefix="expense-bootstrap-response-",
+        suffix=".json",
+        delete=False,
+    ) as stream:
+        response_path = Path(stream.name)
+    try:
+        first = client.invoke_bootstrap(record["qualifiedArn"], response_path)
+        second = client.invoke_bootstrap(record["qualifiedArn"], response_path)
+        if first.get("first_admin_status") not in {
+            "created",
+            "reconciled",
+            "already_exists",
+            "not_requested",
+        }:
+            raise CommandError("first bootstrap invocation returned an invalid first-admin status")
+        if second.get("first_admin_status") not in {
+            "not_requested",
+            "already_exists",
+        }:
+            raise CommandError("second bootstrap invocation was not idempotent")
+        return record, first
+    finally:
+        response_path.unlink(missing_ok=True)
+
+
+def publish_worker_release(
+    client: AWSClient,
+    artifact: Path,
+    config: Config,
+    outputs: dict[str, Any],
+    terraform_root: Path,
+    release_id: str,
+) -> dict[str, str]:
+    record = _publish_configured_function(
+        client,
+        str(outputs["worker_function_name"]),
+        artifact,
+        config.worker_environment(str(outputs["database_host"])),
+        release_id,
+        config,
+        terraform_root,
+    )
+    client.activate_worker(record["functionName"])
+    return record
+
+
+def publish_notification_releases(
+    client: AWSClient,
+    sender_artifact: Path,
+    delivery_artifact: Path,
+    config: Config,
+    outputs: dict[str, Any],
+    terraform_root: Path,
+    release_id: str,
+    *,
+    activate: bool = True,
+) -> tuple[dict[str, str], dict[str, str]]:
+    delivery_name = str(outputs["delivery_function_name"])
+    delivery = _publish_configured_function(
+        client,
+        delivery_name,
+        delivery_artifact,
+        config.delivery_environment(str(outputs["database_host"])),
+        release_id,
+        config,
+        terraform_root,
+    )
+    if activate:
+        client.activate_notification_function(delivery_name)
+    sender_name = str(outputs["sender_function_name"])
+    sender = _publish_configured_function(
+        client,
+        sender_name,
+        sender_artifact,
+        config.sender_environment(f"{delivery_name}:live"),
+        release_id,
+        config,
+        terraform_root,
+    )
+    if activate:
+        client.activate_notification_function(sender_name)
+    return sender, delivery
+
+
+def publish_error_notifier_release(
+    client: AWSClient,
+    artifact: Path,
+    config: Config,
+    outputs: dict[str, Any],
+    terraform_root: Path,
+    release_id: str,
+) -> dict[str, str] | None:
+    if not config.error_alerting_enabled:
+        if outputs.get("error_notifier_function_name"):
+            raise CommandError("disabled error alerting unexpectedly exposed a notifier function")
+        return None
+    function_name = str(outputs.get("error_notifier_function_name", ""))
+    if not function_name:
+        raise CommandError("enabled error alerting did not expose a notifier function")
+    record = _publish_configured_function(
+        client,
+        function_name,
+        artifact,
+        config.notifier_environment(),
+        release_id,
+        config,
+        terraform_root,
+    )
+    client.activate_notification_function(function_name)
+    return record

@@ -51,6 +51,257 @@ class AWSClient:
         self.call("lambda", "update-function-code", "--function-name", function_name, "--zip-file", f"fileb://{artifact}", "--architectures", "arm64", "--publish")
         self.call("lambda", "wait", "function-updated", "--function-name", function_name)
 
+    def update_code(self, function_name: str, artifact: Path) -> None:
+        self.call(
+            "lambda",
+            "update-function-code",
+            "--function-name",
+            function_name,
+            "--zip-file",
+            f"fileb://{artifact}",
+            "--architectures",
+            "arm64",
+        )
+        self.call("lambda", "wait", "function-updated", "--function-name", function_name)
+
+    def update_environment(
+        self,
+        function_name: str,
+        path: Path,
+        *,
+        description: str,
+    ) -> None:
+        self.call(
+            "lambda",
+            "update-function-configuration",
+            "--function-name",
+            function_name,
+            "--environment",
+            f"file://{path}",
+            "--description",
+            description,
+        )
+        self.call("lambda", "wait", "function-updated", "--function-name", function_name)
+
+    def publish_version(self, function_name: str) -> dict[str, str]:
+        response = self.json("lambda", "publish-version", "--function-name", function_name)
+        version = str(response.get("Version", ""))
+        arn = str(response.get("FunctionArn", ""))
+        code_hash = str(response.get("CodeSha256", ""))
+        if not version.isdigit() or version == "0" or not arn.endswith(f":{version}") or not code_hash:
+            raise CommandError(f"Lambda returned an invalid published version for {function_name}")
+        self.call(
+            "lambda",
+            "wait",
+            "function-updated",
+            "--function-name",
+            function_name,
+            "--qualifier",
+            version,
+        )
+        return {
+            "functionName": function_name,
+            "version": version,
+            "qualifiedArn": arn,
+            "codeSha256": code_hash,
+        }
+
+    def publish_current_configuration(
+        self,
+        function_name: str,
+        *,
+        description: str,
+    ) -> dict[str, str]:
+        self.call(
+            "lambda",
+            "update-function-configuration",
+            "--function-name",
+            function_name,
+            "--description",
+            description,
+        )
+        self.call("lambda", "wait", "function-updated", "--function-name", function_name)
+        return self.publish_version(function_name)
+
+    def alias(self, function_name: str, alias_name: str = "live") -> dict[str, Any] | None:
+        result = run(
+            [
+                "aws",
+                "lambda",
+                "get-alias",
+                "--function-name",
+                function_name,
+                "--name",
+                alias_name,
+                "--output",
+                "json",
+                "--region",
+                self.region,
+            ],
+            check=False,
+        )
+        if result.returncode:
+            detail = result.stderr or result.stdout
+            if "ResourceNotFoundException" in detail:
+                return None
+            raise CommandError(f"unable to read Lambda alias: {detail.strip()}")
+        return json.loads(result.stdout or "null")
+
+    def create_alias(
+        self,
+        function_name: str,
+        function_version: str,
+        alias_name: str = "live",
+    ) -> dict[str, Any]:
+        return self.json(
+            "lambda",
+            "create-alias",
+            "--function-name",
+            function_name,
+            "--name",
+            alias_name,
+            "--function-version",
+            function_version,
+        )
+
+    def update_alias(
+        self,
+        function_name: str,
+        function_version: str,
+        revision_id: str,
+        alias_name: str = "live",
+    ) -> dict[str, Any]:
+        return self.json(
+            "lambda",
+            "update-alias",
+            "--function-name",
+            function_name,
+            "--name",
+            alias_name,
+            "--function-version",
+            function_version,
+            "--revision-id",
+            revision_id,
+        )
+
+    def function_version(
+        self,
+        function_name: str,
+        version: str,
+    ) -> dict[str, str]:
+        response = self.json(
+            "lambda",
+            "get-function",
+            "--function-name",
+            function_name,
+            "--qualifier",
+            version,
+        )
+        configuration = response.get("Configuration", {})
+        actual_version = str(configuration.get("Version", ""))
+        arn = str(configuration.get("FunctionArn", ""))
+        code_hash = str(configuration.get("CodeSha256", ""))
+        if actual_version != version or not arn.endswith(f":{version}") or not code_hash:
+            raise CommandError(
+                f"Lambda version metadata is invalid for {function_name}:{version}"
+            )
+        return {
+            "functionName": function_name,
+            "version": version,
+            "qualifiedArn": arn,
+            "codeSha256": code_hash,
+        }
+
+    def list_versions(self, function_name: str) -> list[dict[str, Any]]:
+        response = self.json(
+            "lambda",
+            "list-versions-by-function",
+            "--function-name",
+            function_name,
+        )
+        return list(response.get("Versions", []))
+
+    def delete_version(self, function_name: str, version: str) -> None:
+        if not version.isdigit() or version == "0":
+            raise CommandError("refusing to delete a non-numbered Lambda version")
+        self.call(
+            "lambda",
+            "delete-function",
+            "--function-name",
+            function_name,
+            "--qualifier",
+            version,
+        )
+
+    def put_parameter(self, name: str, value: str, *, overwrite: bool) -> None:
+        arguments = [
+            "put-parameter",
+            "--name",
+            name,
+            "--type",
+            "String",
+            "--tier",
+            "Standard",
+            "--value",
+            value,
+        ]
+        if overwrite:
+            arguments.append("--overwrite")
+        self.call("ssm", *arguments)
+
+    def get_parameter(self, name: str) -> str | None:
+        result = run(
+            [
+                "aws",
+                "ssm",
+                "get-parameter",
+                "--name",
+                name,
+                "--output",
+                "json",
+                "--region",
+                self.region,
+            ],
+            check=False,
+        )
+        if result.returncode:
+            detail = result.stderr or result.stdout
+            if "ParameterNotFound" in detail:
+                return None
+            raise CommandError(f"unable to read release metadata: {detail.strip()}")
+        parsed = json.loads(result.stdout or "null")
+        return str(parsed["Parameter"]["Value"])
+
+    def parameters_by_path(self, path: str) -> list[dict[str, Any]]:
+        response = self.json(
+            "ssm",
+            "get-parameters-by-path",
+            "--path",
+            path,
+            "--recursive",
+        )
+        return list(response.get("Parameters", []))
+
+    def delete_parameter(self, name: str) -> None:
+        result = run(
+            [
+                "aws",
+                "ssm",
+                "delete-parameter",
+                "--name",
+                name,
+                "--region",
+                self.region,
+            ],
+            check=False,
+        )
+        if result.returncode and "ParameterNotFound" not in (
+            result.stderr or result.stdout
+        ):
+            raise CommandError(
+                f"failed to delete release metadata: {(result.stderr or result.stdout).strip()}"
+            )
+
     def concurrency(self, function_name: str) -> int | None:
         result = self.json("lambda", "get-function-concurrency", "--function-name", function_name)
         return result.get("ReservedConcurrentExecutions")

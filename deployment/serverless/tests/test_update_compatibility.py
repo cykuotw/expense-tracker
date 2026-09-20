@@ -77,6 +77,8 @@ class UpdateCompatibilityTest(unittest.TestCase):
             targets,
         )
         self.assertIn("aws_cloudfront_distribution.frontend", targets)
+        self.assertIn("aws_apigatewayv2_integration.worker", targets)
+        self.assertIn("aws_lambda_permission.api_gateway", targets)
         self.assertIn("aws_lambda_function.sender", targets)
         self.assertIn("aws_lambda_function.delivery", targets)
         self.assertIn("aws_lambda_function.error_notifier", targets)
@@ -180,6 +182,29 @@ class UpdateCompatibilityTest(unittest.TestCase):
                     "address": "aws_cloudwatch_log_subscription_filter.worker_error_notifier[0]",
                     "change": {"actions": ["delete"]},
                 },
+            ]
+        }
+
+        with mock.patch.object(
+            workflow,
+            "_terraform",
+            return_value=contextlib.nullcontext(Path("/tmp/variables")),
+        ), mock.patch.object(workflow, "Terraform", return_value=terraform):
+            workflow._apply_infrastructure_updates(context, "backend")
+
+        terraform.apply.assert_called_once()
+
+    def test_alias_cutover_allows_error_notifier_subscription_replacement(self) -> None:
+        context = mock.MagicMock()
+        context.terraform_root = Path("/repo/deployment/serverless/infrastructure/tf")
+        context.config.error_alerting_enabled = True
+        terraform = mock.MagicMock()
+        terraform.show_plan.return_value = {
+            "resource_changes": [
+                {
+                    "address": "aws_cloudwatch_log_subscription_filter.worker_error_notifier[0]",
+                    "change": {"actions": ["delete", "create"]},
+                }
             ]
         }
 

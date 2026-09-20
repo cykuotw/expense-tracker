@@ -22,10 +22,11 @@ def parser() -> argparse.ArgumentParser:
     result = argparse.ArgumentParser(description="Expense Tracker unified serverless deployment")
     result.add_argument(
         "--action",
-        choices=["auto", "init", "plan", "deploy", "update", "status", "backup-configure", "restore-verify", "backup-status", "backup-cleanup", "destroy"],
+        choices=["auto", "init", "plan", "deploy", "update", "status", "history", "show", "rollback", "promote", "cleanup", "backup-configure", "restore-verify", "backup-status", "backup-cleanup", "destroy"],
         default="auto",
     )
     result.add_argument("--scope", choices=["migrations", "backend", "frontend", "all"], default="all")
+    result.add_argument("--release")
     return result
 
 
@@ -38,7 +39,7 @@ def main() -> int:
             print(f"Created protected deployment config template: {config_path}")
             return 0
         config = load(config_path, REPO_ROOT)
-        execute(make_context(config), arguments.action, arguments.scope)
+        execute(make_context(config), arguments.action, arguments.scope, arguments.release)
         return 0
     except (ConfigError, CommandError, OSError, ValueError, RuntimeError) as error:
         print(f"error: {error}", file=sys.stderr)

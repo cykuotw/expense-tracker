@@ -65,6 +65,7 @@ resource "aws_lambda_permission" "worker_logs_error_notifier" {
   statement_id   = "AllowWorkerCloudWatchLogs"
   action         = "lambda:InvokeFunction"
   function_name  = aws_lambda_function.error_notifier[0].function_name
+  qualifier      = var.use_lambda_aliases ? "live" : null
   principal      = "logs.${var.aws_region}.amazonaws.com"
   source_account = var.expected_account_id
   source_arn     = "${aws_cloudwatch_log_group.worker.arn}:*"
@@ -75,6 +76,6 @@ resource "aws_cloudwatch_log_subscription_filter" "worker_error_notifier" {
   name            = "${local.resource_prefix}-unexpected-server-errors"
   log_group_name  = aws_cloudwatch_log_group.worker.name
   filter_pattern  = "{ ($.alertable IS TRUE) && (($.event = \"unexpected_http_error\" && $.status >= 500) || $.event = \"panic_recovered\") }"
-  destination_arn = aws_lambda_function.error_notifier[0].arn
+  destination_arn = var.use_lambda_aliases ? local.error_notifier_live_arn : aws_lambda_function.error_notifier[0].arn
   depends_on      = [aws_lambda_permission.worker_logs_error_notifier]
 }

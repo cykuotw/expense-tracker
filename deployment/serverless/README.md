@@ -26,6 +26,10 @@ This is the sole human-edited serverless deployment source. Do not create
 serverless `.tfvars`, PostgreSQL password files, or Lambda runtime JSON files;
 the deployer creates protected temporary projections and removes them.
 
+Release history does not add a deploy-config field. The deployer supplies the
+internal Terraform `use_lambda_aliases` cutover variable itself; do not add it
+to `deploy.json` or create a `.tfvars` file.
+
 Complete example—replace every `REPLACE` value before deployment:
 
 ```json
@@ -129,7 +133,7 @@ the deployer:
 
 - Node `22.23.2` through Node `22.x`; `frontend/.node-version` identifies the
   tested baseline and `frontend/package.json` enforces the supported range.
-- pnpm `11.25.0` through `12.x`; `frontend/package.json` pins the tested `12.3.4` version.
+- pnpm `11.25.0` through `12.x`; `frontend/package.json` pins the tested `12.4.2` version.
 
 pnpm requires Node, and the deployer intentionally does not download or install
 either tool. The serverless preflight checks that `node` and `pnpm` are
@@ -155,6 +159,11 @@ make deploy ACTION=update SCOPE=backend
 make deploy ACTION=update SCOPE=frontend
 make deploy ACTION=update SCOPE=all
 make deploy ACTION=status
+make deploy ACTION=history
+make deploy ACTION=show RELEASE=<exact-release-id>
+make deploy ACTION=rollback RELEASE=<exact-release-id> SCOPE=backend|frontend|all
+make deploy ACTION=promote RELEASE=<exact-release-id> SCOPE=backend|frontend|all
+make deploy ACTION=cleanup
 make deploy ACTION=backup-configure
 make deploy ACTION=restore-verify
 make deploy ACTION=backup-status
@@ -165,6 +174,89 @@ make deploy ACTION=destroy
 `make deploy` deploys/resumes an incomplete environment and runs migrations → backend → frontend when the environment is complete. Initial infrastructure requires typing the configured name prefix. Destroy requires typing `destroy-<name_prefix>`.
 
 `SCOPE=backend` also publishes and invokes the bootstrap function first. This applies pending migrations and verifies first-administrator reconciliation before marker-dependent Worker code is published. Use `SCOPE=migrations` when only the migration/bootstrap step should run.
+
+## Release history and application rollback
+
+Successful deployments publish immutable numbered Lambda versions, route all
+production invocations through stable `live` aliases, and write a compact
+non-secret manifest to standard-tier SSM Parameter Store. Each manifest is a
+complete resolved state: a scoped frontend update carries forward the current
+backend versions, and a scoped backend update carries forward the current
+frontend snapshot. `ACTION=status` shows the active and previous release;
+`ACTION=history` lists retained releases; `ACTION=show` validates and prints one
+exact manifest.
+
+Release-producing commands require a clean Git worktree so the recorded commit
+SHA identifies the exact deployed source. Git-ignored caches are allowed, but
+staged, unstaged, and non-ignored untracked files must be committed or removed.
+
+The first update of an existing installation must use `ACTION=update SCOPE=all`
+(or plain `make deploy`, which selects the all-scope update for a complete
+installation). It establishes the `live` aliases and adopts the installed
+backend as a baseline before publishing the candidate. Scoped updates fail
+before artifact construction until this one-time cutover succeeds. The adopted
+baseline cannot restore the legacy frontend because it predates snapshots;
+the successful all-scope update creates the first restorable frontend snapshot.
+No deploy-config migration or new deploy-config field is required.
+
+Rollback and promote both activate previously stored artifacts without
+checking out or rebuilding the old commit. Use `rollback` when moving to an
+older known-good release and `promote` when moving forward again. Both commands
+require the full release ID, print the exact Lambda versions or frontend
+snapshot, and require typing `rollback-<release-id>` or
+`promote-<release-id>`. A successful activation writes a new immutable
+composite manifest, so history records the actual resulting backend/frontend
+combination without a second event-log subsystem.
+
+Activation changes application artifacts only. It rejects a backend target
+whose optional Error Notifier enabled/disabled topology differs from the
+current release, because that transition requires a normal reviewed Terraform
+deployment.
+
+Database schema is forward-only during application rollback. The deployer
+reads the current migration state and rejects dirty state, unknown migration
+metadata, a target recorded against a newer schema, a repository manifest
+digest mismatch, or any intervening migration whose
+`rollback.application` is not `compatible`. It never runs a down migration,
+forces a migration version, or restores a database backup as part of release
+activation. Use a reviewed forward fix when compatibility cannot be proven.
+
+Frontend releases keep content-hashed `assets/` objects shared and immutable.
+Every other built file is copied into
+`releases/<release-id>/frontend/root/`, with a digest-checked snapshot
+descriptor. Activation verifies the descriptor, every referenced shared asset,
+and each mutable snapshot object before copying files to the live root and
+invalidating CloudFront. If a later deployment step fails, the deployer attempts
+to restore the prior aliases and frontend snapshot before reporting the error.
+
+The same bounded cleanup runs automatically after each release becomes current;
+if it fails, the command reports that the release is already active and directs
+the operator to repair cleanup separately. `ACTION=cleanup` previews that plan
+without applying it. Cleanup always protects the active and immediately
+previous releases, keeps at most five successes, expires other unprotected
+successes after 30 days, and reports stale candidates, Lambda versions,
+snapshots, and unreferenced assets. Review the exact plan, then run:
+
+```bash
+SERVERLESS_CLEANUP_APPLY=true make deploy ACTION=cleanup
+```
+
+Applied cleanup requires typing `cleanup-<name_prefix>`. Failed candidates are
+eligible after 24 hours. Cleanup will not prune shared frontend assets while
+the current release still represents an adopted legacy frontend without a
+snapshot.
+
+`ACTION=destroy` removes the deployment-scoped release manifests, candidates,
+and current pointer only after the owned infrastructure is verified absent.
+If infrastructure was already removed but those parameters remain, rerunning
+destroy requires the normal `destroy-<name_prefix>` confirmation before
+removing the stale metadata. PostgreSQL backup deletion remains a separate,
+explicitly guarded operation.
+
+The design adds no always-on service or fixed monthly charge. It reuses the
+existing Lambda, S3, and CloudFront resources and standard-tier SSM parameters.
+Cost remains an architecture and post-deployment billing review concern; the
+deployer does not print or enforce a static monthly estimate.
 
 The canonical [schema migration policy](../../backend/cmd/migrate/MIGRATION_POLICY.md)
 defines the `000035` metadata baseline, expand/contract sequence, online

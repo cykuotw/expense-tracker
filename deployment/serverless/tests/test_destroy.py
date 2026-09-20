@@ -73,6 +73,16 @@ class PlanGuardTest(unittest.TestCase):
         with self.assertRaises(CommandError):
             require_non_destructive_update(plan(("aws_instance.postgres", ["delete", "create"])))
 
+    def test_update_allows_explicit_permission_replacement(self) -> None:
+        value = require_non_destructive_update(
+            plan(("aws_lambda_permission.api_gateway", ["delete", "create"])),
+            allowed_replacements=frozenset({"aws_lambda_permission.api_gateway"}),
+        )
+        self.assertEqual(
+            value["aws_lambda_permission.api_gateway"],
+            ["delete", "create"],
+        )
+
     def test_update_allows_only_explicitly_allowlisted_route_deletions(self) -> None:
         retired_route = 'aws_apigatewayv2_route.authenticated_mutation["expire_invitation"]'
         value = require_non_destructive_update(

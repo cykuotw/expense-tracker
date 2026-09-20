@@ -226,7 +226,13 @@ class Config:
     def error_alerting_enabled(self) -> bool:
         return self.observability.discord_webhook_url is not None
 
-    def terraform_variables(self, *, temporary_access: bool, restore_verification: bool = False) -> dict[str, Any]:
+    def terraform_variables(
+        self,
+        *,
+        temporary_access: bool,
+        restore_verification: bool = False,
+        use_lambda_aliases: bool = True,
+    ) -> dict[str, Any]:
         return {
             "aws_region": self.aws.region,
             "expected_account_id": self.deployment.account_id,
@@ -251,6 +257,7 @@ class Config:
             "frontend_hostname": self.frontend.hostname,
             "google_client_id": self.backend.google_client_id,
             "enable_error_alerting": self.error_alerting_enabled,
+            "use_lambda_aliases": use_lambda_aliases,
         }
 
     def worker_environment(self, db_host: str) -> dict[str, dict[str, str]]:

@@ -134,4 +134,4 @@ tf-apply:
 	@terraform -chdir=deployment/serverful/infrastructure/tf apply
 
 deploy:
-	@python_path="$$(uv python find 3.14)"; "$$python_path" deployment/serverless/deploy.py --action "$(if $(ACTION),$(ACTION),auto)" --scope "$(if $(SCOPE),$(SCOPE),all)"
+	@python_path="$$(uv python find 3.14)"; "$$python_path" deployment/serverless/deploy.py --action "$(if $(ACTION),$(ACTION),auto)" --scope "$(if $(SCOPE),$(SCOPE),all)" $(if $(RELEASE),--release "$(RELEASE)",)

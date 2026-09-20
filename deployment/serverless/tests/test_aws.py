@@ -13,6 +13,86 @@ from common.aws import AWSClient
 
 
 class AWSClientTest(unittest.TestCase):
+    def test_publish_version_returns_exact_immutable_record(self) -> None:
+        client = AWSClient("ca-central-1")
+        with mock.patch.object(
+            client,
+            "json",
+            return_value={
+                "Version": "7",
+                "FunctionArn": "arn:aws:lambda:ca-central-1:123:function:worker:7",
+                "CodeSha256": "hash",
+            },
+        ), mock.patch.object(client, "call") as call:
+            record = client.publish_version("worker")
+
+        self.assertEqual(record["version"], "7")
+        self.assertEqual(record["codeSha256"], "hash")
+        call.assert_called_once_with(
+            "lambda",
+            "wait",
+            "function-updated",
+            "--function-name",
+            "worker",
+            "--qualifier",
+            "7",
+        )
+
+    def test_alias_update_uses_optimistic_revision(self) -> None:
+        client = AWSClient("ca-central-1")
+        with mock.patch.object(client, "json", return_value={}) as call:
+            client.update_alias("worker", "8", "revision-7")
+
+        call.assert_called_once_with(
+            "lambda",
+            "update-alias",
+            "--function-name",
+            "worker",
+            "--name",
+            "live",
+            "--function-version",
+            "8",
+            "--revision-id",
+            "revision-7",
+        )
+
+    def test_release_parameters_explicitly_use_standard_tier(self) -> None:
+        client = AWSClient("ca-central-1")
+        with mock.patch.object(client, "call") as call:
+            client.put_parameter("/release", "{}", overwrite=False)
+            client.put_parameter("/current", "{}", overwrite=True)
+
+        self.assertEqual(
+            call.call_args_list,
+            [
+                mock.call(
+                    "ssm",
+                    "put-parameter",
+                    "--name",
+                    "/release",
+                    "--type",
+                    "String",
+                    "--tier",
+                    "Standard",
+                    "--value",
+                    "{}",
+                ),
+                mock.call(
+                    "ssm",
+                    "put-parameter",
+                    "--name",
+                    "/current",
+                    "--type",
+                    "String",
+                    "--tier",
+                    "Standard",
+                    "--value",
+                    "{}",
+                    "--overwrite",
+                ),
+            ],
+        )
+
     def test_bootstrap_invocation_supports_read_only_state_operation(self) -> None:
         client = AWSClient("ca-central-1")
 

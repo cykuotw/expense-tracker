@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import sys
 import tempfile
 import unittest
@@ -15,7 +16,9 @@ sys.path.insert(0, str(ROOT))
 
 from backend.artifacts import build
 from database import backup
-from frontend.publish import frontend_version, publish, runtime_config
+from common.command import CommandError
+from frontend.publish import frontend_version, publish, restore, runtime_config, snapshot_descriptor
+from release import value_digest
 from tests.test_config import ConfigTest
 
 
@@ -89,7 +92,7 @@ class ComponentTest(unittest.TestCase):
             (dist / "assets/app.js").write_text("changed app")
             self.assertNotEqual(first, frontend_version(dist, now=now))
 
-    def test_frontend_publish_uses_safe_cache_headers_for_pwa_entrypoints(self) -> None:
+    def test_frontend_publish_snapshots_mutable_files_and_shares_hashed_assets(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             dist = Path(temporary)
             for filename in (
@@ -110,40 +113,175 @@ class ComponentTest(unittest.TestCase):
                 "frontend_bucket_name": "bucket",
                 "cloudfront_distribution_id": "distribution",
             }
-            with mock.patch("frontend.publish.build", return_value=dist):
-                publish(client, Path("/repo"), mock.MagicMock(), outputs)
+            release_id = "20260919T120000Z-0123456789ab"
+            with (
+                mock.patch("frontend.publish.build", return_value=dist),
+                mock.patch("frontend.publish.restore") as restore,
+                mock.patch("frontend.publish._invalidate") as invalidate,
+            ):
+                record = publish(client, Path("/repo"), mock.MagicMock(), outputs, release_id)
 
-        sync_call = client.call.call_args_list[0].args
-        self.assertEqual(sync_call[:4], ("s3", "sync", f"{dist}/", "s3://bucket/"))
-        self.assertIn("public, max-age=31536000, immutable", sync_call)
-        for filename in (
-            "index.html",
-            "runtime-config.js",
-            "service-worker.js",
-            "manifest.webmanifest",
-            "workbox-example.js",
-        ):
-            self.assertIn("--exclude", sync_call)
-            self.assertIn(filename, sync_call)
+        self.assertEqual(record["snapshotPrefix"], f"releases/{release_id}/frontend")
+        restore.assert_called_once_with(client, outputs, record, invalidate=False)
+        invalidate.assert_called_once_with(client, "distribution")
 
         copy_calls = [
             call.args
             for call in client.call.call_args_list
             if call.args[:2] == ("s3", "cp")
         ]
-        copied = {Path(call[2]).name: call for call in copy_calls}
+        destinations = {call[3]: call for call in copy_calls}
+        self.assertIn("s3://bucket/assets/index-123.js", destinations)
+        self.assertIn("public, max-age=31536000, immutable", destinations["s3://bucket/assets/index-123.js"])
+        for filename in ("index.html", "runtime-config.js", "service-worker.js", "manifest.webmanifest", "workbox-example.js"):
+            destination = f"s3://bucket/releases/{release_id}/frontend/root/{filename}"
+            self.assertIn(destination, destinations)
+            self.assertIn("no-cache", destinations[destination])
+        self.assertFalse(any("--delete" in call for call in copy_calls))
+
+    def test_frontend_snapshot_descriptor_classifies_only_assets_as_immutable(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            dist = Path(temporary)
+            (dist / "assets").mkdir()
+            (dist / "index.html").write_text("index")
+            (dist / "icon.svg").write_text("icon")
+            (dist / "assets/app.js").write_text("app")
+
+            descriptor = snapshot_descriptor(dist, "20260919T120000Z-0123456789ab")
+
         self.assertEqual(
-            set(copied),
-            {
-                "index.html",
-                "runtime-config.js",
-                "service-worker.js",
-                "manifest.webmanifest",
-                "workbox-example.js",
-            },
+            {record["path"] for record in descriptor["mutableFiles"]},
+            {"icon.svg", "index.html"},
         )
-        for call in copied.values():
-            self.assertIn("no-cache", call)
+        self.assertEqual(
+            {record["path"] for record in descriptor["assets"]},
+            {"assets/app.js"},
+        )
+
+    def test_frontend_restore_rejects_descriptor_digest_before_copying(self) -> None:
+        release_id = "20260919T120000Z-0123456789ab"
+        descriptor = {
+            "schemaVersion": 1,
+            "releaseId": release_id,
+            "mutableFiles": [
+                {
+                    "path": "index.html",
+                    "sha256": "1" * 64,
+                    "contentType": "text/html; charset=utf-8",
+                }
+            ],
+            "assets": [],
+        }
+        client = mock.MagicMock()
+        client.call.return_value = json.dumps(descriptor)
+        frontend = {
+            "snapshotPrefix": f"releases/{release_id}/frontend",
+            "snapshotManifestKey": f"releases/{release_id}/frontend/snapshot.json",
+            "snapshotDigest": "sha256:" + "0" * 64,
+        }
+
+        with self.assertRaisesRegex(CommandError, "digest does not match"):
+            restore(
+                client,
+                {"frontend_bucket_name": "bucket", "cloudfront_distribution_id": "distribution"},
+                frontend,
+            )
+
+        client.json.assert_not_called()
+
+    def test_frontend_restore_verifies_snapshot_and_live_copy(self) -> None:
+        release_id = "20260919T120000Z-0123456789ab"
+        descriptor = {
+            "schemaVersion": 1,
+            "releaseId": release_id,
+            "mutableFiles": [
+                {
+                    "path": "index.html",
+                    "sha256": "1" * 64,
+                    "contentType": "text/html; charset=utf-8",
+                }
+            ],
+            "assets": [
+                {
+                    "path": "assets/app.js",
+                    "sha256": "2" * 64,
+                    "contentType": "application/javascript; charset=utf-8",
+                }
+            ],
+        }
+        client = mock.MagicMock()
+        client.call.return_value = json.dumps(descriptor)
+        client.json.side_effect = [
+            {"Metadata": {"sha256": "2" * 64}},
+            {"Metadata": {"sha256": "1" * 64}},
+            {"CopyObjectResult": {}},
+            {"Metadata": {"sha256": "1" * 64}},
+        ]
+        frontend = {
+            "snapshotPrefix": f"releases/{release_id}/frontend",
+            "snapshotManifestKey": f"releases/{release_id}/frontend/snapshot.json",
+            "snapshotDigest": value_digest(descriptor),
+        }
+
+        with mock.patch("frontend.publish._invalidate") as invalidate:
+            restore(
+                client,
+                {"frontend_bucket_name": "bucket", "cloudfront_distribution_id": "distribution"},
+                frontend,
+            )
+
+        copy = client.json.call_args_list[2].args
+        self.assertEqual(copy[:2], ("s3api", "copy-object"))
+        self.assertIn(
+            "releases/20260919T120000Z-0123456789ab/frontend/root/index.html",
+            " ".join(copy),
+        )
+        invalidate.assert_called_once_with(client, "distribution")
+
+    def test_frontend_restore_verifies_all_sources_before_first_live_copy(self) -> None:
+        release_id = "20260919T120000Z-0123456789ab"
+        descriptor = {
+            "schemaVersion": 1,
+            "releaseId": release_id,
+            "mutableFiles": [
+                {
+                    "path": "index.html",
+                    "sha256": "1" * 64,
+                    "contentType": "text/html; charset=utf-8",
+                },
+                {
+                    "path": "runtime-config.js",
+                    "sha256": "2" * 64,
+                    "contentType": "application/javascript; charset=utf-8",
+                },
+            ],
+            "assets": [],
+        }
+        client = mock.MagicMock()
+        client.call.return_value = json.dumps(descriptor)
+        client.json.side_effect = [
+            {"Metadata": {"sha256": "1" * 64}},
+            {"Metadata": {"sha256": "wrong"}},
+        ]
+        frontend = {
+            "snapshotPrefix": f"releases/{release_id}/frontend",
+            "snapshotManifestKey": f"releases/{release_id}/frontend/snapshot.json",
+            "snapshotDigest": value_digest(descriptor),
+        }
+
+        with self.assertRaisesRegex(CommandError, "digest metadata does not match"):
+            restore(
+                client,
+                {
+                    "frontend_bucket_name": "bucket",
+                    "cloudfront_distribution_id": "distribution",
+                },
+                frontend,
+            )
+
+        self.assertFalse(
+            any(call.args[:2] == ("s3api", "copy-object") for call in client.json.call_args_list)
+        )
 
     def test_serverless_implementation_never_references_serverful(self) -> None:
         forbidden = "deployment/" + "serverful"
@@ -234,7 +372,10 @@ class ComponentTest(unittest.TestCase):
         policy = source.split('resource "aws_iam_role_policy" "sender" {')[1].split("\n}", 1)[0]
         self.assertNotIn("vpc_config", sender)
         self.assertIn("vpc_config", delivery)
-        self.assertIn('Action = ["lambda:InvokeFunction"], Resource = aws_lambda_function.delivery.arn', policy)
+        self.assertIn(
+            'Action = ["lambda:InvokeFunction"], Resource = var.use_lambda_aliases ? local.delivery_live_arn : aws_lambda_function.delivery.arn',
+            policy,
+        )
         self.assertNotIn("lambda_network_actions", policy)
         self.assertNotIn("aws_nat_gateway", source)
         self.assertNotIn("aws_vpc_endpoint", source)
@@ -247,7 +388,11 @@ class ComponentTest(unittest.TestCase):
             1,
         )
         self.assertIn('schedule_expression = "cron(15 5 * * ? *)"', source)
-        self.assertIn("arn   = aws_lambda_function.delivery.arn", source)
+        self.assertIn(
+            "arn   = var.use_lambda_aliases ? local.delivery_live_arn : aws_lambda_function.delivery.arn",
+            source,
+        )
+        self.assertIn('qualifier     = var.use_lambda_aliases ? "live" : null', source)
         self.assertIn('input = jsonencode({ action = "publish_monthly_reviews" })', source)
         self.assertIn('source_arn    = aws_cloudwatch_event_rule.monthly_review_publisher.arn', source)
         self.assertEqual(source.count('resource "aws_lambda_function"'), 2)

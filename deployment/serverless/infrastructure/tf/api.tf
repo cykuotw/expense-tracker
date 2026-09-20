@@ -55,7 +55,7 @@ resource "aws_apigatewayv2_domain_name" "api" {
 resource "aws_apigatewayv2_integration" "worker" {
   api_id                 = aws_apigatewayv2_api.worker.id
   integration_type       = "AWS_PROXY"
-  integration_uri        = aws_lambda_function.worker.invoke_arn
+  integration_uri        = var.use_lambda_aliases ? local.worker_live_invoke_arn : aws_lambda_function.worker.invoke_arn
   integration_method     = "POST"
   payload_format_version = "2.0"
   timeout_milliseconds   = 15000
@@ -232,6 +232,7 @@ resource "aws_lambda_permission" "api_gateway" {
   statement_id  = "AllowHTTPAPIInvoke"
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.worker.function_name
+  qualifier     = var.use_lambda_aliases ? "live" : null
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.worker.execution_arn}/*/*"
 }

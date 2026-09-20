@@ -11,7 +11,12 @@ ROOT = Path(__file__).resolve().parents[1]
 REPO = ROOT.parents[1]
 sys.path.insert(0, str(ROOT))
 
-from backend.migration_policy import MigrationPolicyError, validate_directory, validate_repository
+from backend.migration_policy import (
+    MigrationPolicyError,
+    digest_directory,
+    validate_directory,
+    validate_repository,
+)
 
 
 def entry(*, deployment: str = "online", categories: list[str] | None = None) -> dict[str, object]:
@@ -163,6 +168,44 @@ class MigrationPolicyTest(unittest.TestCase):
 
         with self.assertRaisesRegex(MigrationPolicyError, "version=000035 dirty=true"):
             manifest.validate_pending(35, True)
+
+    def test_application_rollback_requires_compatible_intervening_migrations(self) -> None:
+        self.write_sql(36, "example_expansion", "ALTER TABLE expense ADD COLUMN note TEXT;")
+        compatible = entry()
+        self.write_manifest([compatible])
+        manifest = validate_directory(self.migrations)
+        manifest.validate_application_rollback(35, 36, False)
+
+        incompatible = entry()
+        rollback = incompatible["rollback"]
+        assert isinstance(rollback, dict)
+        rollback["application"] = "follow_up_required"
+        self.write_manifest([incompatible])
+        manifest = validate_directory(self.migrations)
+        with self.assertRaisesRegex(MigrationPolicyError, "application rollback is incompatible"):
+            manifest.validate_application_rollback(35, 36, False)
+
+    def test_application_rollback_rejects_unknown_or_dirty_schema(self) -> None:
+        self.write_manifest([])
+        manifest = validate_directory(self.migrations)
+
+        with self.assertRaisesRegex(MigrationPolicyError, "newer database schema"):
+            manifest.validate_application_rollback(36, 35, False)
+        with self.assertRaisesRegex(MigrationPolicyError, "target database version.*not described"):
+            manifest.validate_application_rollback(34, 35, False)
+        with self.assertRaisesRegex(MigrationPolicyError, "current database version.*not described"):
+            manifest.validate_application_rollback(35, 36, False)
+        with self.assertRaisesRegex(MigrationPolicyError, "dirty=true"):
+            manifest.validate_application_rollback(35, 35, True)
+
+    def test_migration_digest_is_stable_and_covers_sql_content(self) -> None:
+        self.write_manifest([])
+        first = digest_directory(self.migrations)
+        self.assertEqual(first, digest_directory(self.migrations))
+
+        baseline = self.migrations / "000035_baseline.up.sql"
+        baseline.write_text("SELECT 2;")
+        self.assertNotEqual(first, digest_directory(self.migrations))
 
     def test_manifest_name_must_match_sql_files(self) -> None:
         self.write_sql(36, "actual_name", "SELECT 1;")

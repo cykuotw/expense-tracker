@@ -111,6 +111,10 @@ Common serverless commands:
 - `make deploy ACTION=deploy`: apply a serverless deployment.
 - `make deploy ACTION=update SCOPE=migrations|backend|frontend|all`: update a specific serverless scope.
 - `make deploy ACTION=status`: inspect serverless deployment status.
+- `make deploy ACTION=history`: list retained immutable releases.
+- `make deploy ACTION=show RELEASE=<release-id>`: inspect one exact release.
+- `make deploy ACTION=rollback|promote RELEASE=<release-id> SCOPE=backend|frontend|all`: activate stored application artifacts without changing the database schema.
+- `make deploy ACTION=cleanup`: preview bounded release retention cleanup.
 - `make deploy ACTION=destroy`: destroy the serverless deployment.
 
 `deployment/serverful/` is retained solely as archived reference code. It is

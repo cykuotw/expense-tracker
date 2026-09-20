@@ -28,6 +28,11 @@ variable "enable_error_alerting" {
   description = "Create the optional Discord error-alerting resources."
   default     = false
 }
+variable "use_lambda_aliases" {
+  type        = bool
+  description = "Route production invocations through deployer-managed live aliases."
+  default     = true
+}
 variable "worker_log_retention_days" {
   type        = number
   description = "Number of days to retain Worker logs in CloudWatch Logs."

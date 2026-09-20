@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 from dataclasses import dataclass
@@ -40,6 +41,7 @@ class MigrationEntry:
     name: str
     categories: tuple[str, ...]
     deployment: str
+    application_rollback: str
 
 
 @dataclass(frozen=True)
@@ -85,9 +87,70 @@ class Manifest:
                 f"normal deployment rejects maintenance-required pending migrations: {rendered}"
             )
 
+    def validate_application_rollback(
+        self,
+        target_version: int,
+        current_version: int,
+        dirty: bool,
+    ) -> None:
+        if dirty:
+            raise MigrationPolicyError(
+                f"database migration state is dirty: version={current_version:06d} dirty=true"
+            )
+        if target_version > current_version:
+            raise MigrationPolicyError(
+                "application rollback target requires a newer database schema: "
+                f"target={target_version:06d} current={current_version:06d}"
+            )
+        known_versions = {self.baseline_version, *(entry.version for entry in self.migrations)}
+        if target_version not in known_versions:
+            raise MigrationPolicyError(
+                f"target database version {target_version:06d} is not described by the "
+                "repository migration manifest"
+            )
+        if current_version not in known_versions:
+            raise MigrationPolicyError(
+                f"current database version {current_version:06d} is not described by the "
+                "repository migration manifest"
+            )
+        blocked = [
+            entry
+            for entry in self.migrations
+            if target_version < entry.version <= current_version
+            and entry.application_rollback != "compatible"
+        ]
+        if blocked:
+            rendered = ", ".join(f"{entry.version:06d}_{entry.name}" for entry in blocked)
+            raise MigrationPolicyError(
+                "application rollback is incompatible with the current schema because of: "
+                f"{rendered}"
+            )
+
 
 def validate_repository(repo_root: Path) -> Manifest:
     return validate_directory(repo_root / "backend/cmd/migrate/migrations")
+
+
+def repository_digest(repo_root: Path) -> str:
+    return digest_directory(repo_root / "backend/cmd/migrate/migrations")
+
+
+def digest_directory(migrations_dir: Path) -> str:
+    paths = [migrations_dir / MANIFEST_NAME, *sorted(migrations_dir.glob("*.sql"))]
+    missing = [path.name for path in paths if not path.is_file()]
+    if missing:
+        raise MigrationPolicyError(
+            f"migration digest inputs are missing: {', '.join(missing)}"
+        )
+    digest = hashlib.sha256()
+    for path in paths:
+        name = path.name.encode()
+        content = path.read_bytes()
+        digest.update(len(name).to_bytes(4, "big"))
+        digest.update(name)
+        digest.update(len(content).to_bytes(8, "big"))
+        digest.update(content)
+    return "sha256:" + digest.hexdigest()
 
 
 def validate_directory(migrations_dir: Path) -> Manifest:
@@ -248,7 +311,7 @@ def _validate_entry(raw: Any, index: int) -> MigrationEntry:
         {"application", "schema", "dataLossRisk", "notes"},
         f"migrations[{index}].rollback",
     )
-    _enum(
+    application_rollback = _enum(
         rollback.get("application"),
         ALLOWED_APPLICATION_ROLLBACK,
         f"migrations[{index}].rollback.application",
@@ -262,7 +325,7 @@ def _validate_entry(raw: Any, index: int) -> MigrationEntry:
         raise MigrationPolicyError(f"migrations[{index}].rollback.dataLossRisk must be a boolean")
     _nonempty_string(rollback.get("notes"), f"migrations[{index}].rollback.notes")
 
-    return MigrationEntry(version, name, categories, deployment)
+    return MigrationEntry(version, name, categories, deployment, application_rollback)
 
 
 def _validate_sql_consistency(entry: MigrationEntry, sql: str) -> None:

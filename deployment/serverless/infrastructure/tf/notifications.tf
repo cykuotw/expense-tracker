@@ -32,7 +32,7 @@ resource "aws_iam_role_policy" "sender" {
         Effect = "Allow", Action = ["logs:CreateLogStream", "logs:PutLogEvents"], Resource = "${aws_cloudwatch_log_group.sender.arn}:*"
       },
       {
-        Effect = "Allow", Action = ["lambda:InvokeFunction"], Resource = aws_lambda_function.delivery.arn
+        Effect = "Allow", Action = ["lambda:InvokeFunction"], Resource = var.use_lambda_aliases ? local.delivery_live_arn : aws_lambda_function.delivery.arn
       }
     ]
   })
@@ -74,13 +74,14 @@ resource "aws_cloudwatch_event_rule" "sender" {
 
 resource "aws_cloudwatch_event_target" "sender" {
   rule = aws_cloudwatch_event_rule.sender.name
-  arn  = aws_lambda_function.sender.arn
+  arn  = var.use_lambda_aliases ? local.sender_live_arn : aws_lambda_function.sender.arn
 }
 
 resource "aws_lambda_permission" "sender_eventbridge" {
   statement_id  = "AllowEventBridgePushSender"
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.sender.function_name
+  qualifier     = var.use_lambda_aliases ? "live" : null
   principal     = "events.amazonaws.com"
   source_arn    = aws_cloudwatch_event_rule.sender.arn
 }
@@ -98,7 +99,7 @@ resource "aws_cloudwatch_event_rule" "monthly_review_publisher" {
 
 resource "aws_cloudwatch_event_target" "monthly_review_publisher" {
   rule  = aws_cloudwatch_event_rule.monthly_review_publisher.name
-  arn   = aws_lambda_function.delivery.arn
+  arn   = var.use_lambda_aliases ? local.delivery_live_arn : aws_lambda_function.delivery.arn
   input = jsonencode({ action = "publish_monthly_reviews" })
 }
 
@@ -106,6 +107,7 @@ resource "aws_lambda_permission" "monthly_review_publisher_eventbridge" {
   statement_id  = "AllowEventBridgeMonthlyReviewPublisher"
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.delivery.function_name
+  qualifier     = var.use_lambda_aliases ? "live" : null
   principal     = "events.amazonaws.com"
   source_arn    = aws_cloudwatch_event_rule.monthly_review_publisher.arn
 }

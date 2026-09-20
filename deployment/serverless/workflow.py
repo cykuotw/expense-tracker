@@ -5,10 +5,11 @@ import os
 import tempfile
 import time
 from dataclasses import dataclass
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-from backend import artifacts, migration_policy, runtime
+from backend import aliases, artifacts, migration_policy, runtime
 from backend.verify import verify_api, verify_google_exchange, verify_session
 from common.aws import AWSClient
 from common.command import CommandError, deployment_lock, protected_json, require_tools, run
@@ -24,8 +25,17 @@ from common.terraform import (
 from config import Config
 from database import backup as database_backup
 from database.setup import setup as setup_database
+from frontend.publish import load_snapshot_descriptor
 from frontend.publish import publish as publish_frontend
+from frontend.publish import restore as restore_frontend
 from frontend.verify import verify as verify_frontend
+from release import (
+    ReleaseStore,
+    repository_release_identity,
+    retention_deletions,
+    stale_candidates,
+    utc_text,
+)
 
 
 @dataclass(frozen=True)
@@ -100,11 +110,18 @@ def preflight(context: Context, *, mutation: bool) -> None:
             )
 
 
-def _terraform(context: Context, temporary: bool, *, restore_verification: bool = False):
+def _terraform(
+    context: Context,
+    temporary: bool,
+    *,
+    restore_verification: bool = False,
+    use_lambda_aliases: bool = True,
+):
     return protected_json(
         context.config.terraform_variables(
             temporary_access=temporary,
             restore_verification=restore_verification,
+            use_lambda_aliases=use_lambda_aliases,
         ),
         prefix="expense-terraform-vars-",
     )
@@ -202,14 +219,61 @@ def status(context: Context) -> str:
                 print("worker_concurrency=unavailable")
         print(f"api_origin={context.config.api_origin}")
         print(f"frontend_origin={context.config.frontend_origin}")
+    pointer = ReleaseStore(context.aws, context.config).get_current()
+    if pointer is None:
+        print("current_release=unmanaged-legacy")
+    else:
+        print(f"current_release={pointer['currentReleaseId']}")
+        print(f"previous_release={pointer['previousReleaseId'] or 'none'}")
     return state
+
+
+def history(context: Context) -> None:
+    preflight(context, mutation=False)
+    store = ReleaseStore(context.aws, context.config)
+    pointer = store.get_current()
+    current_id = str(pointer["currentReleaseId"]) if pointer else None
+    previous_id = str(pointer["previousReleaseId"]) if pointer and pointer["previousReleaseId"] else None
+    releases = store.list_releases()
+    if not releases:
+        print("release_history=empty")
+        return
+    for manifest in releases:
+        release_id = str(manifest["releaseId"])
+        labels = []
+        if release_id == current_id:
+            labels.append("current")
+        if release_id == previous_id:
+            labels.append("previous")
+        print(
+            " ".join(
+                (
+                    f"release={release_id}",
+                    f"created_at={manifest['createdAt']}",
+                    f"commit={manifest['commitSha']}",
+                    f"operation={manifest['operation']}",
+                    f"scopes={','.join(manifest['changedScopes'])}",
+                    f"schema={manifest['database']['migrationVersion']}",
+                    f"labels={','.join(labels) or 'retained'}",
+                )
+            )
+        )
+
+
+def show_release(context: Context, release_id: str) -> None:
+    preflight(context, mutation=False)
+    print(json.dumps(ReleaseStore(context.aws, context.config).get_release(release_id), indent=2, sort_keys=True))
 
 
 def plan(context: Context) -> None:
     preflight(context, mutation=True)
     _migration_preflight(context, "all")
     artifacts.build(context.repo_root, context.serverless_root / "build")
-    with tempfile.TemporaryDirectory(prefix="expense-serverless-plan-") as temporary, _terraform(context, True) as variables:
+    with tempfile.TemporaryDirectory(prefix="expense-serverless-plan-") as temporary, _terraform(
+        context,
+        True,
+        use_lambda_aliases=False,
+    ) as variables:
         terraform = Terraform(context.terraform_root, variables)
         terraform.init()
         terraform.validate()
@@ -223,11 +287,9 @@ def plan(context: Context) -> None:
 
 def deploy(context: Context) -> None:
     preflight(context, mutation=True)
-    step("artifacts")
-    artifacts.build(context.repo_root, context.serverless_root / "build")
     with tempfile.TemporaryDirectory(prefix="expense-serverless-deploy-") as temporary:
         temporary_root = Path(temporary)
-        with _terraform(context, True) as variables:
+        with _terraform(context, True, use_lambda_aliases=False) as variables:
             terraform = Terraform(context.terraform_root, variables)
             terraform.init()
             terraform.validate()
@@ -236,55 +298,172 @@ def deploy(context: Context) -> None:
             if state == "complete":
                 update(context, "all")
                 return
+            step("artifacts")
+            built = artifacts.build(context.repo_root, context.serverless_root / "build")
             _migration_preflight(context, "all", outputs)
-            if state in {"absent", "infra_partial"}:
-                if state == "absent":
-                    _assert_no_conflicts(context)
-                plan_path = temporary_root / "initial.tfplan"
-                terraform.plan(plan_path)
-                actions = require_create_only(terraform.show_plan(plan_path))
-                _print_plan(actions)
-                _confirm("Create the unified serverless infrastructure?", context.config.deployment.name_prefix)
-                terraform.apply(plan_path)
-                outputs = terraform.output()
-                state = "infra_ready_public"
-            if state == "infra_ready_public":
-                step("database setup")
-                setup_database(context.config, outputs)
-                with _terraform(context, False) as private_variables:
-                    private_tf = Terraform(context.terraform_root, private_variables)
-                    cutover = temporary_root / "private-cutover.tfplan"
-                    private_tf.plan(cutover)
-                    actions = require_cutover_only(private_tf.show_plan(cutover))
+            release_id, commit, created_at = repository_release_identity(context.repo_root)
+            store = ReleaseStore(context.aws, context.config)
+            store.put_candidate(_candidate(release_id, created_at, "all"))
+            try:
+                if state in {"absent", "infra_partial"}:
+                    if state == "absent":
+                        _assert_no_conflicts(context)
+                    plan_path = temporary_root / "initial.tfplan"
+                    terraform.plan(plan_path)
+                    actions = require_create_only(terraform.show_plan(plan_path))
                     _print_plan(actions)
-                    private_tf.apply(cutover)
-                    outputs = private_tf.output()
+                    _confirm(
+                        "Create the unified serverless infrastructure?",
+                        context.config.deployment.name_prefix,
+                    )
+                    terraform.apply(plan_path)
+                    outputs = terraform.output()
+                    state = "infra_ready_public"
+                if state == "infra_ready_public":
+                    step("database setup")
+                    setup_database(context.config, outputs)
+                    with _terraform(
+                        context,
+                        False,
+                        use_lambda_aliases=False,
+                    ) as private_variables:
+                        private_tf = Terraform(context.terraform_root, private_variables)
+                        cutover = temporary_root / "private-cutover.tfplan"
+                        private_tf.plan(cutover)
+                        actions = require_cutover_only(private_tf.show_plan(cutover))
+                        _print_plan(actions)
+                        private_tf.apply(cutover)
+                        outputs = private_tf.output()
 
-        step("bootstrap runtime and migrations")
-        runtime.configure_bootstrap(context.aws, context.config, outputs, context.terraform_root)
-        step("error notifier runtime and activation")
-        runtime.configure_error_notifier(context.aws, context.config, outputs, context.terraform_root)
-        step("worker runtime and activation")
-        runtime.configure_worker(context.aws, context.config, outputs, context.terraform_root)
-        step("push sender runtime and activation")
-        runtime.configure_notifications(context.aws, context.config, outputs, context.terraform_root)
-        step("pre-cutover API verification")
-        live_api = context.aws.json("apigatewayv2", "get-api", "--api-id", str(outputs["api_id"]))
-        raw_already_disabled = bool(live_api.get("DisableExecuteApiEndpoint"))
-        verify_api(
-            context.config,
-            str(outputs["raw_api_endpoint"]) if not raw_already_disabled else None,
-            raw_disabled=False,
-        )
-        step("frontend publication")
-        publish_frontend(context.aws, context.repo_root, context.config, outputs)
-        verify_frontend(context.config)
-        verify_session(context.config)
-        verify_google_exchange(context.config)
-        step("raw API cutover")
-        context.aws.raw_endpoint(str(outputs["api_id"]), True)
-        verify_api(context.config, str(outputs["raw_api_endpoint"]), raw_disabled=True)
-        step("deployment", "pass")
+                step("bootstrap runtime and migrations")
+                bootstrap, _response = runtime.publish_bootstrap_release(
+                    context.aws,
+                    built["bootstrap"],
+                    context.config,
+                    outputs,
+                    context.terraform_root,
+                    release_id,
+                )
+                step("error notifier runtime and activation")
+                notifier = runtime.publish_error_notifier_release(
+                    context.aws,
+                    built["notifier"],
+                    context.config,
+                    outputs,
+                    context.terraform_root,
+                    release_id,
+                )
+                step("worker runtime and activation")
+                worker = runtime.publish_worker_release(
+                    context.aws,
+                    built["worker"],
+                    context.config,
+                    outputs,
+                    context.terraform_root,
+                    release_id,
+                )
+                step("push sender runtime and activation")
+                sender, delivery = runtime.publish_notification_releases(
+                    context.aws,
+                    built["sender"],
+                    built["delivery"],
+                    context.config,
+                    outputs,
+                    context.terraform_root,
+                    release_id,
+                    activate=False,
+                )
+                candidate_backend = {
+                    "worker": worker,
+                    "bootstrap": bootstrap,
+                    "sender": sender,
+                    "delivery": delivery,
+                    "errorNotifier": notifier,
+                }
+                aliases.ensure_live_aliases(
+                    context.aws,
+                    outputs,
+                    release_id,
+                    preferred=candidate_backend,
+                )
+                aliases.promote_backend(context.aws, candidate_backend)
+                backend = candidate_backend
+                alias_outputs = _apply_infrastructure_updates(context, "backend")
+                if alias_outputs is not None:
+                    outputs = alias_outputs
+                context.aws.activate_notification_function(
+                    str(outputs["delivery_function_name"])
+                )
+                context.aws.activate_notification_function(
+                    str(outputs["sender_function_name"])
+                )
+                step("pre-cutover API verification")
+                live_api = context.aws.json(
+                    "apigatewayv2",
+                    "get-api",
+                    "--api-id",
+                    str(outputs["api_id"]),
+                )
+                raw_already_disabled = bool(live_api.get("DisableExecuteApiEndpoint"))
+                verify_api(
+                    context.config,
+                    str(outputs["raw_api_endpoint"])
+                    if not raw_already_disabled
+                    else None,
+                    raw_disabled=False,
+                )
+                step("frontend publication")
+                frontend = publish_frontend(
+                    context.aws,
+                    context.repo_root,
+                    context.config,
+                    outputs,
+                    release_id,
+                )
+                verify_frontend(context.config)
+                verify_session(context.config)
+                verify_google_exchange(context.config)
+                step("raw API cutover")
+                context.aws.raw_endpoint(str(outputs["api_id"]), True)
+                verify_api(
+                    context.config,
+                    str(outputs["raw_api_endpoint"]),
+                    raw_disabled=True,
+                )
+                manifest = _manifest(
+                    release_id=release_id,
+                    commit=commit,
+                    created_at=created_at,
+                    operation="deploy",
+                    changed_scopes=["all"],
+                    source_release_id=None,
+                    database=_database_record(context, outputs),
+                    backend=backend,
+                    frontend=frontend,
+                )
+                digest = store.put_release(manifest)
+                store.set_current(manifest, digest)
+                _delete_committed_candidate(store, release_id)
+                step("deployment", "pass")
+            except BaseException as deployment_error:
+                try:
+                    store.put_candidate(
+                        _candidate(
+                            release_id,
+                            created_at,
+                            "all",
+                            status="failed",
+                            error_type=type(deployment_error).__name__,
+                        ),
+                        overwrite=True,
+                    )
+                except Exception as recovery_error:
+                    raise CommandError(
+                        "fresh deployment failed and candidate status recovery also failed: "
+                        f"{recovery_error}"
+                    ) from deployment_error
+                raise
+            _automatic_release_cleanup(context)
 
 
 def _require_complete(context: Context) -> dict[str, Any]:
@@ -310,6 +489,8 @@ def _require_complete(context: Context) -> dict[str, Any]:
 def _infrastructure_targets(scope: str) -> tuple[str, ...]:
     targets: list[str] = []
     if scope in {"backend", "all"}:
+        targets.append("aws_apigatewayv2_integration.worker")
+        targets.append("aws_lambda_permission.api_gateway")
         targets.append("aws_apigatewayv2_route.google_register")
         targets.append("aws_apigatewayv2_route.google_link")
         targets.append("aws_apigatewayv2_route.invitation_lookup")
@@ -477,6 +658,15 @@ def _apply_infrastructure_updates(context: Context, scope: str) -> dict[str, Any
                     else frozenset()
                 )
             ),
+            allowed_replacements=frozenset(
+                {
+                    "aws_lambda_permission.api_gateway",
+                    "aws_lambda_permission.sender_eventbridge",
+                    "aws_lambda_permission.monthly_review_publisher_eventbridge",
+                    "aws_lambda_permission.worker_logs_error_notifier[0]",
+                    "aws_cloudwatch_log_subscription_filter.worker_error_notifier[0]",
+                }
+            ),
         )
         _print_plan(actions)
         if actions:
@@ -525,55 +715,647 @@ def _migration_preflight(
     print(manifest.summary(), flush=True)
 
 
+def _migration_state(
+    context: Context,
+    outputs: dict[str, Any],
+    function_reference: str | None = None,
+) -> tuple[int, bool]:
+    function_name = function_reference or f"{outputs['bootstrap_function_name']}:live"
+    with tempfile.NamedTemporaryFile(
+        prefix="expense-migration-state-",
+        suffix=".json",
+        delete=False,
+    ) as stream:
+        response_path = Path(stream.name)
+    try:
+        response = context.aws.invoke_bootstrap(
+            function_name,
+            response_path,
+            operation="migration-state",
+        )
+    finally:
+        response_path.unlink(missing_ok=True)
+    version = response.get("migration_version")
+    dirty = response.get("migration_dirty")
+    if (
+        not isinstance(version, int)
+        or isinstance(version, bool)
+        or not isinstance(dirty, bool)
+    ):
+        raise CommandError("Bootstrap migration-state response is invalid")
+    return version, dirty
+
+
+def _database_record(context: Context, outputs: dict[str, Any]) -> dict[str, Any]:
+    version, dirty = _migration_state(context, outputs)
+    if dirty:
+        raise CommandError(
+            f"database migration state is dirty: version={version:06d} dirty=true"
+        )
+    return {
+        "migrationVersion": version,
+        "dirty": False,
+        "migrationManifestDigest": migration_policy.repository_digest(context.repo_root),
+    }
+
+
+def _changed_scopes(scope: str) -> list[str]:
+    if scope == "all":
+        return ["all"]
+    if scope == "backend":
+        return ["migrations", "backend"]
+    return [scope]
+
+
+def _manifest(
+    *,
+    release_id: str,
+    commit: str,
+    created_at: str,
+    operation: str,
+    changed_scopes: list[str],
+    source_release_id: str | None,
+    database: dict[str, Any],
+    backend: dict[str, Any],
+    frontend: dict[str, Any] | None,
+) -> dict[str, Any]:
+    return {
+        "schemaVersion": 1,
+        "releaseId": release_id,
+        "commitSha": commit,
+        "createdAt": created_at,
+        "status": "successful",
+        "operation": operation,
+        "changedScopes": changed_scopes,
+        "sourceReleaseId": source_release_id,
+        "database": database,
+        "backend": backend,
+        "frontend": frontend,
+    }
+
+
+def _adopt_existing_release(
+    context: Context,
+    outputs: dict[str, Any],
+    store: ReleaseStore,
+    commit: str,
+    created_at: str,
+) -> dict[str, Any]:
+    current = store.get_current()
+    if current is not None:
+        return store.get_release(str(current["currentReleaseId"]))
+    boundary_time = datetime.fromisoformat(created_at.replace("Z", "+00:00")) - timedelta(seconds=1)
+    adopted_id, adopted_commit, adopted_at = repository_release_identity(
+        context.repo_root,
+        now=boundary_time,
+    )
+    if adopted_commit != commit:
+        raise CommandError("repository changed while establishing the release boundary")
+    backend, _created = aliases.ensure_live_aliases(context.aws, outputs, adopted_id)
+    adopted = _manifest(
+        release_id=adopted_id,
+        commit=commit,
+        created_at=adopted_at,
+        operation="adopt",
+        changed_scopes=["all"],
+        source_release_id=None,
+        database=_database_record(context, outputs),
+        backend=backend,
+        frontend=None,
+    )
+    digest = store.put_release(adopted)
+    store.set_current(adopted, digest)
+    return adopted
+
+
+def _candidate(
+    release_id: str,
+    created_at: str,
+    scope: str,
+    *,
+    status: str = "deploying",
+    error_type: str | None = None,
+) -> dict[str, Any]:
+    value: dict[str, Any] = {
+        "schemaVersion": 1,
+        "releaseId": release_id,
+        "createdAt": created_at,
+        "updatedAt": utc_text(),
+        "status": status,
+        "operation": "deploy",
+        "changedScopes": _changed_scopes(scope),
+    }
+    if error_type is not None:
+        value["errorType"] = error_type
+    return value
+
+
+def _delete_committed_candidate(store: ReleaseStore, release_id: str) -> None:
+    try:
+        store.delete_candidate(release_id)
+    except Exception as error:
+        print(
+            "warning=release_committed_but_candidate_cleanup_failed "
+            f"release={release_id} error_type={type(error).__name__}",
+            flush=True,
+        )
+
+
 def update(context: Context, scope: str) -> None:
     preflight(context, mutation=True)
     outputs = _require_complete(context)
+    store = ReleaseStore(context.aws, context.config)
+    current_pointer = store.get_current()
+    if scope != "all":
+        cutover_incomplete = current_pointer is None
+        if current_pointer is not None:
+            active = store.get_release(str(current_pointer["currentReleaseId"]))
+            cutover_incomplete = (
+                active["operation"] == "adopt" and active["frontend"] is None
+            )
+        if cutover_incomplete:
+            raise CommandError(
+                "the first release-history cutover for an existing deployment requires "
+                "SCOPE=all"
+            )
     _migration_preflight(context, scope, outputs)
     repaired_state_files = runtime.repair_secret_boundary(context.terraform_root, context.config)
     if repaired_state_files:
         print(f"repaired Terraform secret boundary: files={repaired_state_files}")
-    # Terraform evaluates Lambda artifact hashes even for targeted infrastructure plans.
+    release_id, commit, created_at = repository_release_identity(context.repo_root)
     built = artifacts.build(context.repo_root, context.serverless_root / "build")
-    if scope in {"migrations", "backend", "all"}:
-        step("migrations")
-        runtime.update_bootstrap(context.aws, built["bootstrap"], context.config, outputs, context.terraform_root)
-        step("migrations", "pass")
+    store.put_candidate(_candidate(release_id, created_at, scope))
+    current_manifest: dict[str, Any] | None = None
+    promoted = False
+    frontend_attempted = False
     sender_name = (
         str(outputs["sender_function_name"])
         if scope in {"backend", "all"} and outputs.get("sender_function_name")
         else None
     )
-    previous_sender_concurrency = (
-        context.aws.pause_sender(sender_name) if sender_name is not None else None
-    )
+    previous_sender_concurrency: int | None = None
+    sender_pause_attempted = False
     try:
+        current_manifest = _adopt_existing_release(
+            context,
+            outputs,
+            store,
+            commit,
+            created_at,
+        )
+        policy = migration_policy.validate_repository(context.repo_root)
+        current_schema = int(current_manifest["database"]["migrationVersion"])
+        expected_schema = (
+            policy.migrations[-1].version if policy.migrations else policy.baseline_version
+        )
+        if scope in {"migrations", "backend", "all"}:
+            policy.validate_application_rollback(current_schema, expected_schema, False)
+
         infrastructure_outputs = _apply_infrastructure_updates(context, scope)
         if infrastructure_outputs is not None:
             outputs = infrastructure_outputs
         if scope == "all" and infrastructure_outputs is not None:
             _ensure_postgres_backup_profile(context, infrastructure_outputs)
+
+        target_backend = dict(current_manifest["backend"])
+        target_frontend = current_manifest["frontend"]
+        if scope in {"migrations", "backend", "all"}:
+            step("migrations")
+            bootstrap, _response = runtime.publish_bootstrap_release(
+                context.aws,
+                built["bootstrap"],
+                context.config,
+                outputs,
+                context.terraform_root,
+                release_id,
+            )
+            target_backend["bootstrap"] = bootstrap
+            step("migrations", "pass")
+
         if scope in {"backend", "all"}:
+            previous_sender_concurrency = context.aws.pause_sender(sender_name)
+            sender_pause_attempted = True
             step("backend")
-            runtime.update_error_notifier(context.aws, built["notifier"], context.config, outputs, context.terraform_root)
-            runtime.update_worker(context.aws, built["worker"], context.config, outputs, context.terraform_root)
-            runtime.update_notifications(context.aws, built["sender"], built["delivery"], context.config, outputs, context.terraform_root)
+            target_backend["errorNotifier"] = runtime.publish_error_notifier_release(
+                context.aws,
+                built["notifier"],
+                context.config,
+                outputs,
+                context.terraform_root,
+                release_id,
+            )
+            target_backend["worker"] = runtime.publish_worker_release(
+                context.aws,
+                built["worker"],
+                context.config,
+                outputs,
+                context.terraform_root,
+                release_id,
+            )
+            sender, delivery = runtime.publish_notification_releases(
+                context.aws,
+                built["sender"],
+                built["delivery"],
+                context.config,
+                outputs,
+                context.terraform_root,
+                release_id,
+                activate=False,
+            )
+            target_backend["sender"] = sender
+            target_backend["delivery"] = delivery
+
+        if scope in {"migrations", "backend", "all"}:
+            aliases.promote_backend(context.aws, target_backend)
+            promoted = True
+        if scope in {"backend", "all"}:
+            context.aws.activate_notification_function(
+                str(outputs["delivery_function_name"])
+            )
             verify_api(context.config)
             step("backend", "pass")
         if scope in {"frontend", "all"}:
             step("frontend")
-            publish_frontend(context.aws, context.repo_root, context.config, outputs)
+            frontend_attempted = True
+            target_frontend = publish_frontend(
+                context.aws,
+                context.repo_root,
+                context.config,
+                outputs,
+                release_id,
+            )
             verify_frontend(context.config)
             step("frontend", "pass")
-    except BaseException as deployment_error:
-        try:
+        database = _database_record(context, outputs)
+        if sender_pause_attempted:
             context.aws.restore_sender(sender_name, previous_sender_concurrency)
+        manifest = _manifest(
+            release_id=release_id,
+            commit=commit,
+            created_at=created_at,
+            operation="deploy",
+            changed_scopes=_changed_scopes(scope),
+            source_release_id=None,
+            database=database,
+            backend=target_backend,
+            frontend=target_frontend,
+        )
+        digest = store.put_release(manifest)
+        store.set_current(manifest, digest)
+        _delete_committed_candidate(store, release_id)
+    except BaseException as deployment_error:
+        recovery_errors: list[str] = []
+        if frontend_attempted and current_manifest is not None and current_manifest["frontend"] is not None:
+            try:
+                restore_frontend(
+                    context.aws,
+                    outputs,
+                    current_manifest["frontend"],
+                )
+            except Exception as recovery_error:
+                recovery_errors.append(f"frontend: {recovery_error}")
+        if promoted and current_manifest is not None:
+            try:
+                aliases.promote_backend(context.aws, current_manifest["backend"])
+            except Exception as recovery_error:
+                recovery_errors.append(f"backend: {recovery_error}")
+        if sender_pause_attempted:
+            try:
+                context.aws.restore_sender(sender_name, previous_sender_concurrency)
+            except Exception as recovery_error:
+                recovery_errors.append(f"notification Sender concurrency: {recovery_error}")
+        try:
+            store.put_candidate(
+                _candidate(
+                    release_id,
+                    created_at,
+                    scope,
+                    status="failed",
+                    error_type=type(deployment_error).__name__,
+                ),
+                overwrite=True,
+            )
         except Exception as recovery_error:
+            recovery_errors.append(f"candidate status: {recovery_error}")
+        if recovery_errors:
             raise CommandError(
-                "deployment failed and notification Sender concurrency recovery also failed: "
-                f"{recovery_error}"
+                "deployment failed and compensation was incomplete: "
+                + "; ".join(recovery_errors)
             ) from deployment_error
         raise
+    _automatic_release_cleanup(context)
     print("deployment_state=complete")
+
+
+def activate_release(
+    context: Context,
+    operation: str,
+    scope: str,
+    target_release_id: str,
+) -> None:
+    if operation not in {"rollback", "promote"}:
+        raise CommandError("release activation operation is invalid")
+    if scope not in {"backend", "frontend", "all"}:
+        raise CommandError("release activation scope must be backend, frontend, or all")
+    preflight(context, mutation=True)
+    outputs = _require_complete(context)
+    store = ReleaseStore(context.aws, context.config)
+    pointer = store.get_current()
+    if pointer is None:
+        raise CommandError("release activation requires managed release history")
+    current = store.get_release(str(pointer["currentReleaseId"]))
+    target = store.get_release(target_release_id)
+    if target["releaseId"] == current["releaseId"]:
+        raise CommandError("target release is already current")
+    if scope in {"backend", "all"} and (
+        (current["backend"]["errorNotifier"] is None)
+        != (target["backend"]["errorNotifier"] is None)
+    ):
+        raise CommandError(
+            "release activation cannot change the Error Notifier infrastructure "
+            "topology; use a reviewed deployment"
+        )
+
+    policy = migration_policy.validate_repository(context.repo_root)
+    repository_migration_digest = migration_policy.repository_digest(context.repo_root)
+    if current["database"]["migrationManifestDigest"] != repository_migration_digest:
+        raise CommandError(
+            "current release migration manifest digest does not match this repository"
+        )
+    actual_version, dirty = _migration_state(context, outputs)
+    policy.validate_application_rollback(
+        int(target["database"]["migrationVersion"]),
+        actual_version,
+        dirty,
+    )
+    if scope in {"frontend", "all"} and target["frontend"] is None:
+        raise CommandError("target release has no restorable frontend snapshot")
+
+    print(
+        "release_activation_plan "
+        f"operation={operation} scope={scope} "
+        f"active={current['releaseId']} target={target_release_id} "
+        f"database_current={actual_version} "
+        f"target_recorded_schema={target['database']['migrationVersion']} "
+        "database_action=none"
+    )
+    if scope in {"backend", "all"}:
+        for key, record in target["backend"].items():
+            if record is not None:
+                print(
+                    f"activate_lambda={key}:{record['functionName']}:{record['version']}"
+                )
+    if scope in {"frontend", "all"}:
+        print(f"activate_frontend_snapshot={target['frontend']['snapshotPrefix']}")
+    expected = f"{operation}-{target_release_id}"
+    _confirm(
+        f"Activate {scope} from exact release {target_release_id}? The database schema will not be downgraded.",
+        expected,
+    )
+    release_id, commit, created_at = repository_release_identity(context.repo_root)
+    candidate = _candidate(release_id, created_at, scope)
+    candidate["operation"] = operation
+    candidate["sourceReleaseId"] = target_release_id
+    store.put_candidate(candidate)
+
+    desired_backend = target["backend"] if scope in {"backend", "all"} else current["backend"]
+    desired_frontend = target["frontend"] if scope in {"frontend", "all"} else current["frontend"]
+    sender_name = str(outputs.get("sender_function_name", "")) or None
+    sender_concurrency: int | None = None
+    backend_promoted = False
+    frontend_attempted = False
+    try:
+        if scope in {"backend", "all"}:
+            sender_concurrency = context.aws.pause_sender(sender_name)
+            aliases.promote_backend(context.aws, desired_backend)
+            backend_promoted = True
+            verify_api(context.config)
+        if scope in {"frontend", "all"}:
+            frontend_attempted = True
+            restore_frontend(
+                context.aws,
+                outputs,
+                desired_frontend,
+            )
+            verify_frontend(context.config)
+        context.aws.restore_sender(sender_name, sender_concurrency)
+        manifest = _manifest(
+            release_id=release_id,
+            commit=commit,
+            created_at=created_at,
+            operation=operation,
+            changed_scopes=[scope],
+            source_release_id=target_release_id,
+            database={
+                "migrationVersion": actual_version,
+                "dirty": False,
+                "migrationManifestDigest": repository_migration_digest,
+            },
+            backend=desired_backend,
+            frontend=desired_frontend,
+        )
+        digest = store.put_release(manifest)
+        store.set_current(manifest, digest)
+        _delete_committed_candidate(store, release_id)
+    except BaseException as activation_error:
+        recovery_errors: list[str] = []
+        if frontend_attempted and current["frontend"] is not None:
+            try:
+                restore_frontend(
+                    context.aws,
+                    outputs,
+                    current["frontend"],
+                )
+            except Exception as recovery_error:
+                recovery_errors.append(f"frontend: {recovery_error}")
+        if backend_promoted:
+            try:
+                aliases.promote_backend(context.aws, current["backend"])
+            except Exception as recovery_error:
+                recovery_errors.append(f"backend: {recovery_error}")
+        try:
+            context.aws.restore_sender(sender_name, sender_concurrency)
+        except Exception as recovery_error:
+            recovery_errors.append(f"notification Sender concurrency: {recovery_error}")
+        try:
+            failed = _candidate(
+                release_id,
+                created_at,
+                scope,
+                status="failed",
+                error_type=type(activation_error).__name__,
+            )
+            failed["operation"] = operation
+            failed["sourceReleaseId"] = target_release_id
+            store.put_candidate(failed, overwrite=True)
+        except Exception as recovery_error:
+            recovery_errors.append(f"candidate status: {recovery_error}")
+        if recovery_errors:
+            raise CommandError(
+                "release activation failed and compensation was incomplete: "
+                + "; ".join(recovery_errors)
+            ) from activation_error
+        raise
+    _automatic_release_cleanup(context)
+    print(f"deployment_state=complete current_release={release_id}")
+
+
+def _automatic_release_cleanup(context: Context) -> None:
+    try:
+        cleanup_releases(
+            context,
+            apply=True,
+            require_confirmation=False,
+        )
+    except Exception as error:
+        raise CommandError(
+            "release is active, but automatic retention cleanup failed; "
+            "inspect ACTION=history and rerun ACTION=cleanup"
+        ) from error
+
+
+def cleanup_releases(
+    context: Context,
+    *,
+    apply: bool | None = None,
+    require_confirmation: bool = True,
+) -> None:
+    preflight(context, mutation=True)
+    outputs = _require_complete(context)
+    store = ReleaseStore(context.aws, context.config)
+    pointer = store.get_current()
+    if pointer is None:
+        raise CommandError("release cleanup requires managed release history")
+    releases = store.list_releases()
+    delete_releases = retention_deletions(releases, pointer)
+    delete_ids = {str(item["releaseId"]) for item in delete_releases}
+    retained = [item for item in releases if str(item["releaseId"]) not in delete_ids]
+    candidates = stale_candidates(store.list_candidates())
+    retained_snapshot_prefixes = {
+        str(manifest["frontend"]["snapshotPrefix"])
+        for manifest in retained
+        if manifest["frontend"] is not None
+    }
+    snapshot_prefix_deletions = sorted(
+        {
+            str(manifest["frontend"]["snapshotPrefix"])
+            for manifest in delete_releases
+            if manifest["frontend"] is not None
+        }
+        - retained_snapshot_prefixes
+    )
+
+    retained_versions: dict[str, set[str]] = {}
+    for manifest in retained:
+        for record in manifest["backend"].values():
+            if record is not None:
+                retained_versions.setdefault(str(record["functionName"]), set()).add(
+                    str(record["version"])
+                )
+    live_backend = aliases.current_backend(context.aws, outputs)
+    for record in live_backend.values():
+        if record is not None:
+            retained_versions.setdefault(str(record["functionName"]), set()).add(
+                str(record["version"])
+            )
+    lambda_deletions: list[tuple[str, str]] = []
+    for function_name in sorted(retained_versions):
+        if not context.aws.function_exists(function_name):
+            continue
+        protected = retained_versions[function_name]
+        for version in context.aws.list_versions(function_name):
+            number = str(version.get("Version", ""))
+            if number.isdigit() and number != "0" and number not in protected:
+                lambda_deletions.append((function_name, number))
+
+    bucket = str(outputs["frontend_bucket_name"])
+    retained_assets: set[str] = set()
+    current_manifest = next(
+        item for item in retained if item["releaseId"] == pointer["currentReleaseId"]
+    )
+    frontend_history_managed = current_manifest["frontend"] is not None
+    for manifest in retained:
+        frontend = manifest["frontend"]
+        if frontend is None:
+            continue
+        descriptor = load_snapshot_descriptor(
+            context.aws,
+            bucket,
+            frontend,
+        )
+        retained_assets.update(str(item["path"]) for item in descriptor["assets"])
+    objects = (
+        context.aws.json(
+            "s3api",
+            "list-objects-v2",
+            "--bucket",
+            bucket,
+            "--prefix",
+            "assets/",
+        ).get("Contents", [])
+        if frontend_history_managed
+        else []
+    )
+    asset_deletions = sorted(
+        str(item["Key"])
+        for item in objects
+        if isinstance(item, dict) and str(item.get("Key", "")) not in retained_assets
+    )
+
+    print(
+        "cleanup_plan "
+        f"releases={len(delete_releases)} "
+        f"lambda_versions={len(lambda_deletions)} "
+        f"frontend_snapshots={len(snapshot_prefix_deletions)} "
+        f"frontend_assets={len(asset_deletions)} "
+        f"candidates={len(candidates)}"
+    )
+    for manifest in delete_releases:
+        print(f"delete_release={manifest['releaseId']}")
+    for function_name, version in lambda_deletions:
+        print(f"delete_lambda_version={function_name}:{version}")
+    for prefix in snapshot_prefix_deletions:
+        print(f"delete_frontend_snapshot={prefix}")
+    for key in asset_deletions:
+        print(f"delete_frontend_asset={key}")
+    for candidate in candidates:
+        print(f"delete_candidate={candidate['releaseId']}")
+
+    should_apply = (
+        os.environ.get("SERVERLESS_CLEANUP_APPLY") == "true"
+        if apply is None
+        else apply
+    )
+    if not should_apply:
+        print("cleanup_mode=dry-run; set SERVERLESS_CLEANUP_APPLY=true to apply")
+        return
+    if require_confirmation:
+        _confirm(
+            "Apply the exact release cleanup plan shown above?",
+            f"cleanup-{context.config.deployment.name_prefix}",
+        )
+    for function_name, version in lambda_deletions:
+        context.aws.delete_version(function_name, version)
+    for prefix in snapshot_prefix_deletions:
+        context.aws.call(
+            "s3",
+            "rm",
+            f"s3://{bucket}/{prefix}",
+            "--recursive",
+            "--only-show-errors",
+        )
+    for key in asset_deletions:
+        context.aws.call(
+            "s3",
+            "rm",
+            f"s3://{bucket}/{key}",
+            "--only-show-errors",
+        )
+    for manifest in delete_releases:
+        context.aws.delete_parameter(store.release_path(str(manifest["releaseId"])))
+    for candidate in candidates:
+        store.delete_candidate(str(candidate["releaseId"]))
+    print("cleanup_status=complete")
 
 
 def _apply_backup_infrastructure(context: Context) -> dict[str, Any]:
@@ -842,6 +1624,14 @@ def destroy(context: Context) -> None:
         terraform = Terraform(context.terraform_root, variables)
         state, outputs = _state(context, terraform)
         if state == "absent":
+            store = ReleaseStore(context.aws, context.config)
+            if store.metadata_paths():
+                expected = f"destroy-{context.config.deployment.name_prefix}"
+                _confirm(
+                    "Delete stale release-history metadata for the absent deployment?",
+                    expected,
+                )
+                store.delete_all_metadata()
             print("deployment_state=absent")
             return
         if not outputs:
@@ -864,10 +1654,16 @@ def destroy(context: Context) -> None:
         if context.aws.function_exists(function):
             raise CommandError(f"owned Lambda still exists after destroy: {function}")
     _audit_absent(context, outputs)
+    ReleaseStore(context.aws, context.config).delete_all_metadata()
     print("deployment_state=absent")
 
 
-def execute(context: Context, action: str, scope: str) -> None:
+def execute(
+    context: Context,
+    action: str,
+    scope: str,
+    release_id: str | None = None,
+) -> None:
     with deployment_lock(context.repo_root):
         if action == "plan":
             plan(context)
@@ -877,6 +1673,20 @@ def execute(context: Context, action: str, scope: str) -> None:
             update(context, scope)
         elif action == "status":
             status(context)
+        elif action == "history":
+            history(context)
+        elif action == "show":
+            if release_id is None:
+                raise CommandError("ACTION=show requires RELEASE=<exact-release-id>")
+            show_release(context, release_id)
+        elif action in {"rollback", "promote"}:
+            if release_id is None:
+                raise CommandError(
+                    f"ACTION={action} requires RELEASE=<exact-release-id>"
+                )
+            activate_release(context, action, scope, release_id)
+        elif action == "cleanup":
+            cleanup_releases(context)
         elif action == "backup-configure":
             configure_backup(context)
         elif action == "restore-verify":

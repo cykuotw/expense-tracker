@@ -377,12 +377,16 @@ class ComponentTest(unittest.TestCase):
             "script-src 'self' https://accounts.google.com/gsi/client",
             "connect-src 'self' https://${var.api_hostname} https://accounts.google.com/gsi/",
             "frame-src https://accounts.google.com/gsi/",
-            "style-src 'self' https://accounts.google.com/gsi/style",
+            "style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/style",
             "font-src 'self' https://fonts.gstatic.com",
             "worker-src 'self'",
         ):
             self.assertIn(expected, csp)
-        self.assertNotIn("unsafe-inline", csp)
+        self.assertEqual(csp.count("'unsafe-inline'"), 1)
+        self.assertNotIn(
+            "script-src 'self' 'unsafe-inline'",
+            csp,
+        )
         self.assertNotIn("unsafe-eval", csp)
 
     def test_terraform_does_not_manage_lambda_runtime_updates(self) -> None:

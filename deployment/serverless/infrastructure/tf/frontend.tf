@@ -9,7 +9,7 @@ locals {
     "script-src 'self' https://accounts.google.com/gsi/client",
     "connect-src 'self' https://${var.api_hostname} https://accounts.google.com/gsi/",
     "frame-src https://accounts.google.com/gsi/",
-    "style-src 'self' https://accounts.google.com/gsi/style",
+    "style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/style",
     "font-src 'self' https://fonts.gstatic.com",
     "img-src 'self' data:",
     "manifest-src 'self'",

@@ -266,8 +266,11 @@ The existing CloudFront response headers policy enforces
 narrow `Content-Security-Policy-Report-Only` policy for observation before CSP
 enforcement. The report-only allowlist covers the configured API origin,
 same-origin application and PWA resources, Google Identity Services, and the
-Roboto font files used by the frontend. It intentionally contains no reporting
-endpoint, broad wildcard, `unsafe-eval`, or `unsafe-inline` exception.
+Roboto font files used by the frontend. Production observation found that both
+the application UI libraries and Google Identity Services require inline CSS,
+so `style-src` permits `unsafe-inline`. That exception applies only to styles;
+`script-src` remains free of `unsafe-inline` and `unsafe-eval`. The policy has
+no reporting endpoint or broad wildcard.
 
 After deploying a frontend infrastructure update, inspect the browser console
 for CSP violations while testing local and Google sign-in, authenticated API

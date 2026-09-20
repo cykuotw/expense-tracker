@@ -480,7 +480,11 @@ def _require_complete(context: Context) -> dict[str, Any]:
             require_google_register_authorizer=False,
             require_google_link_authorizer=False,
         )
-        verify_frontend(context.config, require_frontend_version=False)
+        verify_frontend(
+            context.config,
+            require_frontend_version=False,
+            require_security_headers=False,
+        )
     except CommandError as error:
         raise CommandError(f"updates require a healthy complete deployment: {error}") from error
     return outputs

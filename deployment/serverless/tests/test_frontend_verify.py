@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from common.command import CommandError
-from frontend.verify import verify
+from frontend.verify import _report_only_csp, verify
 
 
 def config() -> SimpleNamespace:
@@ -35,18 +35,74 @@ EXPECTED = {
 
 
 class FrontendVerifyTest(unittest.TestCase):
-    def verify_runtime(self, value: dict[str, object], **kwargs: object) -> None:
+    def verify_runtime(
+        self,
+        value: dict[str, object],
+        *,
+        document_headers: dict[str, str] | None = None,
+        **kwargs: object,
+    ) -> None:
+        headers = document_headers if document_headers is not None else {
+            "referrer-policy": "strict-origin-when-cross-origin",
+            "x-content-type-options": "nosniff",
+            "x-frame-options": "DENY",
+            "content-security-policy-report-only": _report_only_csp(
+                "https://api.example.com"
+            ),
+        }
         with mock.patch("frontend.verify._get", side_effect=[
-            (200, '<script src="/runtime-config.js"></script>'),
-            (200, runtime(value)),
+            (200, '<script src="/runtime-config.js"></script>', headers),
+            (200, runtime(value), {}),
         ]):
             verify(config(), **kwargs)
 
     def test_accepts_versioned_runtime_and_additive_fields(self) -> None:
         self.verify_runtime({**EXPECTED, "frontendVersion": "v-20260908-deadbeef", "futureField": True})
 
-    def test_upgrade_check_accepts_legacy_runtime_without_version(self) -> None:
-        self.verify_runtime(EXPECTED, require_frontend_version=False)
+    def test_upgrade_check_accepts_legacy_runtime_and_headers(self) -> None:
+        self.verify_runtime(
+            EXPECTED,
+            document_headers={},
+            require_frontend_version=False,
+            require_security_headers=False,
+        )
+
+    def test_post_publish_check_requires_security_headers(self) -> None:
+        expected_headers = {
+            "referrer-policy": "strict-origin-when-cross-origin",
+            "x-content-type-options": "nosniff",
+            "x-frame-options": "DENY",
+            "content-security-policy-report-only": _report_only_csp(
+                "https://api.example.com"
+            ),
+        }
+        for missing in expected_headers:
+            headers = dict(expected_headers)
+            del headers[missing]
+            with self.subTest(missing=missing), self.assertRaisesRegex(
+                CommandError, missing
+            ):
+                self.verify_runtime(
+                    {**EXPECTED, "frontendVersion": "v-20260908-deadbeef"},
+                    document_headers=headers,
+                )
+
+    def test_post_publish_check_rejects_csp_for_another_api_origin(self) -> None:
+        headers = {
+            "referrer-policy": "strict-origin-when-cross-origin",
+            "x-content-type-options": "nosniff",
+            "x-frame-options": "DENY",
+            "content-security-policy-report-only": _report_only_csp(
+                "https://wrong.example.com"
+            ),
+        }
+        with self.assertRaisesRegex(
+            CommandError, "content-security-policy-report-only"
+        ):
+            self.verify_runtime(
+                {**EXPECTED, "frontendVersion": "v-20260908-deadbeef"},
+                document_headers=headers,
+            )
 
     def test_post_publish_check_requires_valid_version(self) -> None:
         for version in (None, "v-development", "v-20260908-nothex"):

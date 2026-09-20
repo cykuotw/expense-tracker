@@ -9,22 +9,65 @@ from common.command import CommandError
 from config import Config
 
 
-def _get(url: str) -> tuple[int, str]:
+def _get(url: str) -> tuple[int, str, dict[str, str]]:
     try:
         with urllib.request.urlopen(url, timeout=30) as response:
-            return response.status, response.read().decode()
+            headers = {key.lower(): value for key, value in response.headers.items()}
+            return response.status, response.read().decode(), headers
     except urllib.error.HTTPError as error:
-        return error.code, error.read().decode()
+        headers = {key.lower(): value for key, value in error.headers.items()}
+        return error.code, error.read().decode(), headers
 
 
 FRONTEND_VERSION_PATTERN = re.compile(r"^v-\d{8}-[0-9a-f]{8}$")
 
 
-def verify(config: Config, *, require_frontend_version: bool = True) -> None:
-    status, document = _get(config.frontend_origin)
+def _report_only_csp(api_origin: str) -> str:
+    return "; ".join(
+        (
+            "default-src 'self'",
+            "base-uri 'self'",
+            "object-src 'none'",
+            "frame-ancestors 'none'",
+            "form-action 'self'",
+            "script-src 'self' https://accounts.google.com/gsi/client",
+            f"connect-src 'self' {api_origin} https://accounts.google.com/gsi/",
+            "frame-src https://accounts.google.com/gsi/",
+            "style-src 'self' https://accounts.google.com/gsi/style",
+            "font-src 'self' https://fonts.gstatic.com",
+            "img-src 'self' data:",
+            "manifest-src 'self'",
+            "worker-src 'self'",
+        )
+    ) + ";"
+
+
+def _security_headers(config: Config, headers: dict[str, str]) -> None:
+    expected = {
+        "referrer-policy": "strict-origin-when-cross-origin",
+        "x-content-type-options": "nosniff",
+        "x-frame-options": "DENY",
+        "content-security-policy-report-only": _report_only_csp(config.api_origin),
+    }
+    for name, value in expected.items():
+        if headers.get(name) != value:
+            raise CommandError(
+                f"deployed frontend security header does not match: {name}"
+            )
+
+
+def verify(
+    config: Config,
+    *,
+    require_frontend_version: bool = True,
+    require_security_headers: bool = True,
+) -> None:
+    status, document, headers = _get(config.frontend_origin)
     if status != 200 or "runtime-config.js" not in document:
         raise CommandError("deployed frontend document check failed")
-    status, runtime = _get(f"{config.frontend_origin}/runtime-config.js")
+    if require_security_headers:
+        _security_headers(config, headers)
+    status, runtime, _ = _get(f"{config.frontend_origin}/runtime-config.js")
     if status != 200:
         raise CommandError("deployed frontend runtime config is unavailable")
     match = re.search(r"Object\.freeze\((\{.*\})\);", runtime, re.DOTALL)

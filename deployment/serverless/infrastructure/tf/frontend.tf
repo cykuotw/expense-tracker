@@ -1,5 +1,20 @@
 locals {
   frontend_origin_id = "${local.resource_prefix}-frontend"
+  frontend_csp_report_only = "${join("; ", [
+    "default-src 'self'",
+    "base-uri 'self'",
+    "object-src 'none'",
+    "frame-ancestors 'none'",
+    "form-action 'self'",
+    "script-src 'self' https://accounts.google.com/gsi/client",
+    "connect-src 'self' https://${var.api_hostname} https://accounts.google.com/gsi/",
+    "frame-src https://accounts.google.com/gsi/",
+    "style-src 'self' https://accounts.google.com/gsi/style",
+    "font-src 'self' https://fonts.gstatic.com",
+    "img-src 'self' data:",
+    "manifest-src 'self'",
+    "worker-src 'self'",
+  ])};"
 }
 resource "aws_s3_bucket" "frontend" {
   bucket        = "${local.resource_prefix}-frontend-${data.aws_caller_identity.current.account_id}"
@@ -64,7 +79,22 @@ resource "aws_cloudfront_origin_access_control" "frontend" {
 resource "aws_cloudfront_response_headers_policy" "frontend_security" {
   name = "${local.resource_prefix}-frontend-security"
 
+  custom_headers_config {
+    items {
+      header   = "Content-Security-Policy-Report-Only"
+      override = true
+      value    = local.frontend_csp_report_only
+    }
+  }
+
   security_headers_config {
+    content_type_options {
+      override = true
+    }
+    frame_options {
+      frame_option = "DENY"
+      override     = true
+    }
     referrer_policy {
       override        = true
       referrer_policy = "strict-origin-when-cross-origin"

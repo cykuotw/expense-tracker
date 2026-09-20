@@ -346,7 +346,7 @@ class ComponentTest(unittest.TestCase):
         with self.assertRaisesRegex(Exception, "temporary database access"):
             backup.configure(config, {"postgres_backup_bucket_name": "backup-bucket"})
 
-    def test_frontend_referrer_policy_uses_cloudfront_security_header(self) -> None:
+    def test_frontend_uses_one_cloudfront_security_headers_policy(self) -> None:
         source = (ROOT / "infrastructure/tf/frontend.tf").read_text()
         policy = source.split(
             'resource "aws_cloudfront_response_headers_policy" "frontend_security" {',
@@ -355,8 +355,35 @@ class ComponentTest(unittest.TestCase):
 
         self.assertIn("security_headers_config", policy)
         self.assertIn("referrer_policy = \"strict-origin-when-cross-origin\"", policy)
-        self.assertNotIn("custom_headers_config", policy)
+        self.assertIn("content_type_options", policy)
+        self.assertIn('frame_option = "DENY"', policy)
+        self.assertIn("custom_headers_config", policy)
+        self.assertIn('header   = "Content-Security-Policy-Report-Only"', policy)
+        self.assertIn("value    = local.frontend_csp_report_only", policy)
         self.assertNotIn('header = "Referrer-Policy"', policy)
+        self.assertEqual(
+            source.count(
+                'resource "aws_cloudfront_response_headers_policy" "frontend_security" {'
+            ),
+            1,
+        )
+        csp = source.split("frontend_csp_report_only", maxsplit=1)[1].split(
+            "}\nresource", maxsplit=1
+        )[0]
+        for expected in (
+            "default-src 'self'",
+            "object-src 'none'",
+            "frame-ancestors 'none'",
+            "script-src 'self' https://accounts.google.com/gsi/client",
+            "connect-src 'self' https://${var.api_hostname} https://accounts.google.com/gsi/",
+            "frame-src https://accounts.google.com/gsi/",
+            "style-src 'self' https://accounts.google.com/gsi/style",
+            "font-src 'self' https://fonts.gstatic.com",
+            "worker-src 'self'",
+        ):
+            self.assertIn(expected, csp)
+        self.assertNotIn("unsafe-inline", csp)
+        self.assertNotIn("unsafe-eval", csp)
 
     def test_terraform_does_not_manage_lambda_runtime_updates(self) -> None:
         source = (ROOT / "infrastructure/tf/backend.tf").read_text()

@@ -258,6 +258,32 @@ existing Lambda, S3, and CloudFront resources and standard-tier SSM parameters.
 Cost remains an architecture and post-deployment billing review concern; the
 deployer does not print or enforce a static monthly estimate.
 
+## Frontend security headers
+
+The existing CloudFront response headers policy enforces
+`Referrer-Policy: strict-origin-when-cross-origin`,
+`X-Content-Type-Options: nosniff`, and `X-Frame-Options: DENY`. It also sends a
+narrow `Content-Security-Policy-Report-Only` policy for observation before CSP
+enforcement. The report-only allowlist covers the configured API origin,
+same-origin application and PWA resources, Google Identity Services, and the
+Roboto font files used by the frontend. It intentionally contains no reporting
+endpoint, broad wildcard, `unsafe-eval`, or `unsafe-inline` exception.
+
+After deploying a frontend infrastructure update, inspect the browser console
+for CSP violations while testing local and Google sign-in, authenticated API
+requests, PWA installation and updates, Web Push, and the supported Safari
+flows. Report-only violations do not block those operations. Do not convert the
+policy to enforced CSP until every required source is understood and the full
+browser flow passes.
+
+Security headers are Terraform-managed infrastructure, not application release
+artifacts. `ACTION=rollback` and `ACTION=promote` do not change them. To recover
+from a bad header update, restore the preceding reviewed
+`aws_cloudfront_response_headers_policy.frontend_security` configuration and
+run `make deploy ACTION=update SCOPE=frontend`; then verify the live response
+headers and affected browser flows again. HSTS is intentionally deferred until
+the complete hostname scope is proven HTTPS-only.
+
 The canonical [schema migration policy](../../backend/cmd/migrate/MIGRATION_POLICY.md)
 defines the `000035` metadata baseline, expand/contract sequence, online
 execution limits, and recovery rules. The `migrations`, `backend`, and `all`

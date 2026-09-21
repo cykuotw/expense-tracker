@@ -5,9 +5,7 @@ import { Toaster } from "react-hot-toast";
 import { AuthProvider } from "./contexts/AuthContext";
 import { useAuth } from "./hooks/AuthContextHooks";
 import NavbarLayout from "./layouts/NavbarLayout";
-import GuestGuard from "./components/auth/GuestGuard";
-import AuthGuard from "./components/auth/AuthGuard";
-import AdminGuard from "./components/auth/AdminGuard";
+import RouteGuard from "./components/auth/RouteGuard";
 import AppErrorBoundary from "./components/AppErrorBoundary";
 import MobileScrollToTop from "./components/MobileScrollToTop";
 import OfflineScreen from "./components/pwa/OfflineScreen";
@@ -59,12 +57,12 @@ function AppRoutes() {
     return (
         <Suspense fallback={<RouteFallback />}>
             <Routes>
-                <Route element={<GuestGuard />}>
+                <Route element={<RouteGuard mode="guest" />}>
                     <Route path="/register" element={<Register />} />
                     <Route path="/login" element={<Login />} />
                 </Route>
 
-                <Route element={<AuthGuard />}>
+                <Route element={<RouteGuard mode="authenticated" />}>
                     <Route element={<NavbarLayout />}>
                         <Route path="/" element={<Home />} />
 
@@ -90,7 +88,7 @@ function AppRoutes() {
                     </Route>
                 </Route>
 
-                <Route element={<AdminGuard />}>
+                <Route element={<RouteGuard mode="admin" />}>
                     <Route element={<NavbarLayout />}>
                         <Route path="/admin/users" element={<AdminUsers />} />
                     </Route>

@@ -8,6 +8,7 @@ import NavbarLayout from "./layouts/NavbarLayout";
 import GuestGuard from "./components/auth/GuestGuard";
 import AuthGuard from "./components/auth/AuthGuard";
 import AdminGuard from "./components/auth/AdminGuard";
+import AppErrorBoundary from "./components/AppErrorBoundary";
 import MobileScrollToTop from "./components/MobileScrollToTop";
 import OfflineScreen from "./components/pwa/OfflineScreen";
 import PWAUpdatePrompt from "./components/pwa/PWAUpdatePrompt";
@@ -100,16 +101,18 @@ function AppRoutes() {
 
 function App() {
     return (
-        <Router>
-            <MobileScrollToTop />
-            <PWAInstallProvider>
-                <AuthProvider>
-                    <Toaster position="bottom-center" />
-                    {import.meta.env.PROD ? <PWAUpdatePrompt /> : null}
-                    <AppRoutes />
-                </AuthProvider>
-            </PWAInstallProvider>
-        </Router>
+        <AppErrorBoundary>
+            <Router>
+                <MobileScrollToTop />
+                <PWAInstallProvider>
+                    <AuthProvider>
+                        <Toaster position="bottom-center" />
+                        {import.meta.env.PROD ? <PWAUpdatePrompt /> : null}
+                        <AppRoutes />
+                    </AuthProvider>
+                </PWAInstallProvider>
+            </Router>
+        </AppErrorBoundary>
     );
 }
 

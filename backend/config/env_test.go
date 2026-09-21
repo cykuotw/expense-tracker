@@ -1,6 +1,44 @@
 package config
 
-import "testing"
+import (
+	"os"
+	"path/filepath"
+	"slices"
+	"testing"
+)
+
+func TestLocalEnvCandidatesAreIndependentOfWorkingDirectory(t *testing.T) {
+	repositoryRoot := t.TempDir()
+	backendRoot := filepath.Join(repositoryRoot, "backend")
+	packageDirectory := filepath.Join(backendRoot, "config")
+	if err := os.MkdirAll(packageDirectory, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(repositoryRoot, "go.mod"), []byte("module example\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	want := []string{
+		filepath.Join(repositoryRoot, ".env.local"),
+		filepath.Join(repositoryRoot, ".env"),
+		filepath.Join(backendRoot, ".env.local"),
+		filepath.Join(backendRoot, ".env"),
+	}
+
+	for _, workingDirectory := range []string{repositoryRoot, backendRoot, packageDirectory} {
+		t.Run(filepath.Base(workingDirectory), func(t *testing.T) {
+			if got := localEnvCandidates(workingDirectory); !slices.Equal(got, want) {
+				t.Fatalf("localEnvCandidates(%q) = %q, want %q", workingDirectory, got, want)
+			}
+		})
+	}
+}
+
+func TestLocalEnvCandidatesWithoutProjectMarker(t *testing.T) {
+	if got := localEnvCandidates(t.TempDir()); got != nil {
+		t.Fatalf("localEnvCandidates() = %q, want nil", got)
+	}
+}
 
 func TestGetEnvBool(t *testing.T) {
 	t.Run("accepts lowercase true and false", func(t *testing.T) {

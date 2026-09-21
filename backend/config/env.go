@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -126,18 +127,54 @@ func effectiveMode(runtimeMode string) string {
 }
 
 func loadLocalEnv() {
-	candidates := []string{
-		".env.local",
-		".env",
-		"backend/.env.local",
-		"backend/.env",
+	workingDirectory, err := os.Getwd()
+	if err != nil {
+		return
 	}
 
-	for _, path := range candidates {
+	for _, path := range localEnvCandidates(workingDirectory) {
 		if err := godotenv.Load(path); err == nil {
 			return
 		}
 	}
+}
+
+func localEnvCandidates(workingDirectory string) []string {
+	repositoryRoot, backendRoot, ok := findProjectRoots(workingDirectory)
+	if !ok {
+		return nil
+	}
+
+	return []string{
+		filepath.Join(repositoryRoot, ".env.local"),
+		filepath.Join(repositoryRoot, ".env"),
+		filepath.Join(backendRoot, ".env.local"),
+		filepath.Join(backendRoot, ".env"),
+	}
+}
+
+func findProjectRoots(start string) (repositoryRoot, backendRoot string, ok bool) {
+	for directory := filepath.Clean(start); ; directory = filepath.Dir(directory) {
+		backendDirectory := filepath.Join(directory, "backend")
+		if isRegularFile(filepath.Join(directory, "go.mod")) && isDirectory(backendDirectory) {
+			return directory, backendDirectory, true
+		}
+
+		parent := filepath.Dir(directory)
+		if parent == directory {
+			return "", "", false
+		}
+	}
+}
+
+func isRegularFile(path string) bool {
+	info, err := os.Stat(path)
+	return err == nil && info.Mode().IsRegular()
+}
+
+func isDirectory(path string) bool {
+	info, err := os.Stat(path)
+	return err == nil && info.IsDir()
 }
 
 func getEnv(key string, fallback string) string {

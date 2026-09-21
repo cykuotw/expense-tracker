@@ -1,33 +1,21 @@
 package group
 
 import (
+	"database/sql"
+	"errors"
+
 	"expense-tracker/backend/services/user"
 	"expense-tracker/backend/types"
-
-	"github.com/google/uuid"
 )
 
 func (s *Store) GetGroupByID(id string) (*types.Group, error) {
 	query := "SELECT id, group_name, description, create_time_utc, is_active, create_by_user_id, currency, group_type FROM groups WHERE id = $1;"
-	rows, err := s.db.Query(query, id)
+	group, err := scanRowIntoGroup(s.db.QueryRow(query, id))
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, types.ErrGroupNotExist
+	}
 	if err != nil {
 		return nil, err
-	}
-	defer rows.Close()
-
-	group := new(types.Group)
-	for rows.Next() {
-		group, err = scanRowIntoGroup(rows)
-		if err != nil {
-			return nil, err
-		}
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-
-	if group.ID == uuid.Nil {
-		return nil, types.ErrGroupNotExist
 	}
 
 	return group, nil

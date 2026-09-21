@@ -961,20 +961,18 @@ func insertGroup(db *sql.DB, group types.Group) error {
 }
 
 func getGroup(db *sql.DB, groupId uuid.UUID) types.Group {
-	query := fmt.Sprintf("SELECT * FROM groups WHERE id='%s';", groupId.String())
-	rows, _ := db.Query(query)
-
+	query := fmt.Sprintf(`SELECT
+		id, group_name, description, create_time_utc, is_active, create_by_user_id
+		FROM groups WHERE id='%s';`, groupId.String())
 	group := types.Group{}
-	for rows.Next() {
-		rows.Scan(
-			&group.ID,
-			&group.GroupName,
-			&group.Description,
-			&group.CreateTime,
-			&group.IsActive,
-			&group.CreateByUser,
-		)
-	}
+	_ = db.QueryRow(query).Scan(
+		&group.ID,
+		&group.GroupName,
+		&group.Description,
+		&group.CreateTime,
+		&group.IsActive,
+		&group.CreateByUser,
+	)
 	return group
 }
 

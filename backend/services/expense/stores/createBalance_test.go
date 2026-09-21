@@ -81,47 +81,41 @@ func deleteBalances(db *sql.DB, balances []*types.Balance) {
 
 func checkBalanceExist(db *sql.DB, balanceId uuid.UUID) bool {
 	query := fmt.Sprintf("SELECT EXISTS (SELECT 1 FROM balance WHERE id = '%s')", balanceId)
-	rows, _ := db.Query(query)
-	defer rows.Close()
-
 	exist := false
-	for rows.Next() {
-		err := rows.Scan(&exist)
-		if err != nil {
-			return false
-		}
+	if err := db.QueryRow(query).Scan(&exist); err != nil {
+		return false
 	}
-
 	return exist
 }
 
 func selectBalance(db *sql.DB, balanceId uuid.UUID) types.Balance {
-	query := fmt.Sprintf("SELECT * FROM balance WHERE id='%s';", balanceId)
-	rows, _ := db.Query(query)
-	defer rows.Close()
+	query := fmt.Sprintf(`SELECT
+		id, sender_user_id, receiver_user_id, share, group_id,
+		create_time_utc, is_outdated, update_time_utc, is_settled, settle_time_utc
+		FROM balance WHERE id='%s';`, balanceId)
 
 	var balance types.Balance
-	for rows.Next() {
-		updateTime := new(time.Time)
-		settledTime := new(time.Time)
-		rows.Scan(
-			&balance.ID,
-			&balance.SenderUserID,
-			&balance.ReceiverUserID,
-			&balance.Share,
-			&balance.GroupID,
-			&balance.CreateTime,
-			&balance.IsOutdated,
-			updateTime,
-			&balance.IsSettled,
-			settledTime,
-		)
-		if !updateTime.IsZero() {
-			balance.UpdateTime = *updateTime
-		}
-		if !settledTime.IsZero() {
-			balance.SettledTime = *settledTime
-		}
+	updateTime := new(time.Time)
+	settledTime := new(time.Time)
+	if err := db.QueryRow(query).Scan(
+		&balance.ID,
+		&balance.SenderUserID,
+		&balance.ReceiverUserID,
+		&balance.Share,
+		&balance.GroupID,
+		&balance.CreateTime,
+		&balance.IsOutdated,
+		&updateTime,
+		&balance.IsSettled,
+		&settledTime,
+	); err != nil {
+		return types.Balance{}
+	}
+	if updateTime != nil && !updateTime.IsZero() {
+		balance.UpdateTime = *updateTime
+	}
+	if settledTime != nil && !settledTime.IsZero() {
+		balance.SettledTime = *settledTime
 	}
 
 	return balance

@@ -6,15 +6,15 @@ import (
 )
 
 func (s *Store) GetBalanceByGroupId(groupId string) ([]types.Balance, error) {
-	return s.getBalancesByGroupID(`
-		SELECT * FROM balance
+	return s.getBalancesByGroupID(`SELECT `+balanceSelectColumns+`
+		FROM balance
 		WHERE group_id = $1 AND is_outdated = FALSE AND is_settled = FALSE;
 	`, groupId)
 }
 
 func (s *Store) GetCurrentBalancesByGroupID(groupID string) ([]types.Balance, error) {
-	return s.getBalancesByGroupID(`
-		SELECT * FROM balance
+	return s.getBalancesByGroupID(`SELECT `+balanceSelectColumns+`
+		FROM balance
 		WHERE group_id = $1 AND is_outdated = FALSE;
 	`, groupID)
 }

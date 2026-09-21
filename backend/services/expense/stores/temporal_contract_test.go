@@ -84,6 +84,81 @@ func TestExpenseReadsUseExplicitColumnProjection(t *testing.T) {
 	}
 }
 
+func TestRelatedExpenseReadsUseExplicitColumnProjection(t *testing.T) {
+	tests := []struct {
+		name            string
+		read            func(*Store) error
+		requiredColumns []string
+	}{
+		{
+			name: "unsettled balances",
+			read: func(store *Store) error {
+				_, err := store.GetBalanceByGroupId(uuid.NewString())
+				return err
+			},
+			requiredColumns: []string{"sender_user_id", "settle_time_utc"},
+		},
+		{
+			name: "current balances",
+			read: func(store *Store) error {
+				_, err := store.GetCurrentBalancesByGroupID(uuid.NewString())
+				return err
+			},
+			requiredColumns: []string{"receiver_user_id", "update_time_utc"},
+		},
+		{
+			name: "items by expense",
+			read: func(store *Store) error {
+				_, err := store.GetItemsByExpenseID(uuid.NewString())
+				return err
+			},
+			requiredColumns: []string{"expense_id", "unit_price"},
+		},
+		{
+			name: "ledgers by expense",
+			read: func(store *Store) error {
+				_, err := store.GetLedgersByExpenseID(uuid.NewString())
+				return err
+			},
+			requiredColumns: []string{"lender_user_id", "borrower_user_id"},
+		},
+		{
+			name: "ledgers by expenses",
+			read: func(store *Store) error {
+				_, err := store.GetLedgersByExpenseIDs([]string{uuid.NewString()})
+				return err
+			},
+			requiredColumns: []string{"expense_id", "share"},
+		},
+		{
+			name: "unsettled ledgers by group",
+			read: func(store *Store) error {
+				_, err := store.GetLedgerUnsettledFromGroup(uuid.NewString())
+				return err
+			},
+			requiredColumns: []string{"l.id", "l.borrower_user_id"},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			queryErr := errors.New("stop after recording query")
+			executor := &recordingExecutor{queryErr: queryErr}
+			store := &Store{db: executor}
+
+			err := test.read(store)
+
+			require.ErrorIs(t, err, queryErr)
+			require.Len(t, executor.queryCalls, 1)
+			query := executor.queryCalls[0].statement
+			assert.NotRegexp(t, `(?i)\bSELECT\s+(?:[a-z_][a-z0-9_]*\.)?\*`, query)
+			for _, column := range test.requiredColumns {
+				assert.Contains(t, query, column)
+			}
+		})
+	}
+}
+
 func TestExpenseListOrdersByOccurrenceDateWithLegacyFallback(t *testing.T) {
 	for _, order := range []types.ExpenseListOrder{types.ExpenseListOrderNewest, types.ExpenseListOrderOldest} {
 		t.Run(string(order), func(t *testing.T) {

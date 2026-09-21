@@ -5,7 +5,7 @@ import (
 )
 
 func (s *Store) GetLedgersByExpenseID(expenseID string) ([]*types.Ledger, error) {
-	query := "SELECT * FROM ledger WHERE expense_id = $1 ORDER BY borrower_user_id ASC;"
+	query := "SELECT " + ledgerSelectColumns + " FROM ledger WHERE expense_id = $1 ORDER BY borrower_user_id ASC;"
 	rows, err := s.db.Query(query, expenseID)
 	if err != nil {
 		return nil, err
@@ -37,7 +37,7 @@ func (s *Store) GetLedgersByExpenseIDs(expenseIDs []string) (map[string][]*types
 	}
 
 	rows, err := s.db.Query(
-		"SELECT * FROM ledger WHERE expense_id = ANY($1::uuid[]) ORDER BY expense_id ASC, borrower_user_id ASC;",
+		"SELECT "+ledgerSelectColumns+" FROM ledger WHERE expense_id = ANY($1::uuid[]) ORDER BY expense_id ASC, borrower_user_id ASC;",
 		expenseIDs,
 	)
 	if err != nil {
@@ -62,7 +62,7 @@ func (s *Store) GetLedgersByExpenseIDs(expenseIDs []string) (map[string][]*types
 }
 
 func (s *Store) GetLedgerUnsettledFromGroup(groupID string) ([]*types.Ledger, error) {
-	query := "SELECT l.* " +
+	query := "SELECT " + qualifiedLedgerSelectColumns + " " +
 		"FROM expense AS e " +
 		"JOIN ledger AS l " +
 		"ON l.expense_id = e.id " +

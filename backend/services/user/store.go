@@ -2,15 +2,19 @@ package user
 
 import (
 	"database/sql"
-	"expense-tracker/backend/services/auth"
-	"expense-tracker/backend/types"
+	"errors"
 	"strings"
 
-	"github.com/google/uuid"
+	"expense-tracker/backend/services/auth"
+	"expense-tracker/backend/types"
 )
 
 type Store struct {
 	db *sql.DB
+}
+
+type rowScanner interface {
+	Scan(dest ...any) error
 }
 
 const userProjection = `
@@ -24,25 +28,12 @@ func NewStore(db *sql.DB) *Store {
 
 func (s *Store) GetUserByEmail(email string) (*types.User, error) {
 	query := "SELECT " + userProjection + " FROM users WHERE LOWER(BTRIM(email)) = $1;"
-	rows, err := s.db.Query(query, auth.NormalizeEmail(email))
+	user, err := scanRowIntoUser(s.db.QueryRow(query, auth.NormalizeEmail(email)))
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, types.ErrUserNotExist
+	}
 	if err != nil {
 		return nil, err
-	}
-	defer rows.Close()
-
-	user := new(types.User)
-	for rows.Next() {
-		user, err = scanRowIntoUser(rows)
-		if err != nil {
-			return nil, err
-		}
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-
-	if user.ID == uuid.Nil {
-		return nil, types.ErrUserNotExist
 	}
 
 	return user, nil
@@ -50,25 +41,12 @@ func (s *Store) GetUserByEmail(email string) (*types.User, error) {
 
 func (s *Store) GetUserByExternalIdentity(externalType string, externalID string) (*types.User, error) {
 	query := "SELECT " + userProjection + " FROM users WHERE external_type = $1 AND external_id = $2;"
-	rows, err := s.db.Query(query, externalType, externalID)
+	user, err := scanRowIntoUser(s.db.QueryRow(query, externalType, externalID))
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, types.ErrUserNotExist
+	}
 	if err != nil {
 		return nil, err
-	}
-	defer rows.Close()
-
-	user := new(types.User)
-	for rows.Next() {
-		user, err = scanRowIntoUser(rows)
-		if err != nil {
-			return nil, err
-		}
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-
-	if user.ID == uuid.Nil {
-		return nil, types.ErrUserNotExist
 	}
 
 	return user, nil
@@ -76,25 +54,12 @@ func (s *Store) GetUserByExternalIdentity(externalType string, externalID string
 
 func (s *Store) GetUserByID(id string) (*types.User, error) {
 	query := "SELECT " + userProjection + " FROM users WHERE id = $1;"
-	rows, err := s.db.Query(query, id)
+	user, err := scanRowIntoUser(s.db.QueryRow(query, id))
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, types.ErrUserNotExist
+	}
 	if err != nil {
 		return nil, err
-	}
-	defer rows.Close()
-
-	user := new(types.User)
-	for rows.Next() {
-		user, err = scanRowIntoUser(rows)
-		if err != nil {
-			return nil, err
-		}
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-
-	if user.ID == uuid.Nil {
-		return nil, types.ErrUserNotExist
 	}
 
 	return user, nil
@@ -106,25 +71,11 @@ func (s *Store) GetUsernameByID(userid string) (string, error) {
 		NULLIF(BTRIM(CONCAT_WS(' ', firstname, lastname)), ''),
 		username
 	) FROM users WHERE id = $1;`
-	rows, err := s.db.Query(query, userid)
-	if err != nil {
-		return "", err
-	}
-	defer rows.Close()
-
 	var username string
-	for rows.Next() {
-		err := rows.Scan(&username)
-		if err != nil {
-			return "", err
-		}
-	}
-	if err := rows.Err(); err != nil {
-		return "", err
-	}
-
-	if username == "" {
+	if err := s.db.QueryRow(query, userid).Scan(&username); errors.Is(err, sql.ErrNoRows) {
 		return "", types.ErrUserNotExist
+	} else if err != nil {
+		return "", err
 	}
 
 	return username, nil
@@ -166,25 +117,11 @@ func (s *Store) GetUsernamesByIDs(userIDs []string) (map[string]string, error) {
 	return usernames, nil
 }
 
-func (s *Store) checkUserExist(query string, args ...interface{}) (bool, error) {
-	rows, err := s.db.Query(query, args...)
-	if err != nil {
-		return false, err
-	}
-	defer rows.Close()
-
+func (s *Store) checkUserExist(query string, args ...any) (bool, error) {
 	exist := false
-	for rows.Next() {
-		err := rows.Scan(&exist)
-		if err != nil {
-			return false, err
-		}
-	}
-
-	if err := rows.Err(); err != nil {
+	if err := s.db.QueryRow(query, args...).Scan(&exist); err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return false, err
 	}
-
 	return exist, nil
 }
 func (s *Store) CheckUserExistByEmail(email string) (bool, error) {
@@ -207,24 +144,7 @@ func (s *Store) CheckUserExistByUsername(username string) (bool, error) {
 
 func (s *Store) CheckEmailExist(email string) (bool, error) {
 	query := "SELECT EXISTS (SELECT 1 FROM users WHERE LOWER(BTRIM(email)) = $1);"
-	rows, err := s.db.Query(query, auth.NormalizeEmail(email))
-	if err != nil {
-		return false, err
-	}
-	defer rows.Close()
-
-	exist := false
-	for rows.Next() {
-		err := rows.Scan(&exist)
-		if err != nil {
-			return false, err
-		}
-	}
-	if err := rows.Err(); err != nil {
-		return false, err
-	}
-
-	return exist, nil
+	return s.checkUserExist(query, auth.NormalizeEmail(email))
 }
 
 func (s *Store) CreateUser(user types.User) error {
@@ -248,12 +168,12 @@ func (s *Store) CreateUser(user types.User) error {
 	return nil
 }
 
-func scanRowIntoUser(rows *sql.Rows) (*types.User, error) {
+func scanRowIntoUser(row rowScanner) (*types.User, error) {
 	user := new(types.User)
 	var externalType sql.NullString
 	var externalID sql.NullString
 
-	err := rows.Scan(
+	err := row.Scan(
 		&user.ID,
 		&user.Username,
 		&user.Firstname,
@@ -276,7 +196,7 @@ func scanRowIntoUser(rows *sql.Rows) (*types.User, error) {
 	return user, nil
 }
 
-func nullableString(value string) interface{} {
+func nullableString(value string) any {
 	normalized := strings.TrimSpace(value)
 	if normalized == "" {
 		return nil

@@ -2,8 +2,9 @@ package store
 
 import (
 	"database/sql"
-	"expense-tracker/backend/types"
 	"time"
+
+	"expense-tracker/backend/types"
 )
 
 const expenseSelectColumns = `
@@ -12,6 +13,17 @@ const expenseSelectColumns = `
 	total, currency, invoice_pic_url, create_time_utc, update_time_utc,
 	expense_time_utc, allocation_mode, is_deleted, delete_time_utc,
 	settle_time_utc, occurred_on`
+
+const balanceSelectColumns = `
+	id, sender_user_id, receiver_user_id, share, group_id,
+	create_time_utc, is_outdated, update_time_utc, is_settled, settle_time_utc`
+
+const itemSelectColumns = `id, expense_id, name, amount, unit, unit_price`
+
+const ledgerSelectColumns = `id, expense_id, lender_user_id, borrower_user_id, share`
+
+const qualifiedLedgerSelectColumns = `
+	l.id, l.expense_id, l.lender_user_id, l.borrower_user_id, l.share`
 
 func scanRowIntoExpense(rows *sql.Rows) (*types.Expense, error) {
 	expense := new(types.Expense)

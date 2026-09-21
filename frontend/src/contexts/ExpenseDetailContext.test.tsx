@@ -3,12 +3,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ExpenseDetailProvider } from "./ExpenseDetailContext";
 import { useExpenseDetail } from "../hooks/ExpenseDetailContextHooks";
 
-const { apiFetchMock, toastErrorMock } = vi.hoisted(() => ({
+const { apiFetchMock, navigateMock, toastErrorMock } = vi.hoisted(() => ({
     apiFetchMock: vi.fn(),
+    navigateMock: vi.fn(),
     toastErrorMock: vi.fn(),
 }));
 
 vi.mock("react-router-dom", () => ({
+    useNavigate: () => navigateMock,
     useParams: () => ({ id: "expense-1" }),
 }));
 
@@ -93,8 +95,37 @@ describe("ExpenseDetailProvider error handling", () => {
         cleanup();
     });
 
+    it("navigates to the owning group after deletion", async () => {
+        apiFetchMock.mockImplementation(
+            (path: string, init: RequestInit = {}) => {
+                if (path === "/expense/expense-1") {
+                    return Promise.resolve(jsonResponse(expenseDetail));
+                }
+                if (
+                    path === "/delete_expense/expense-1" &&
+                    init.method === "PUT"
+                ) {
+                    return Promise.resolve(jsonResponse({}));
+                }
+                throw new Error(`Unexpected path: ${path}`);
+            }
+        );
+
+        render(
+            <ExpenseDetailProvider>
+                <ExpenseDetailHarness />
+            </ExpenseDetailProvider>
+        );
+        await screen.findByRole("form", { name: "delete form" });
+
+        fireEvent.submit(screen.getByRole("form", { name: "delete form" }));
+
+        await waitFor(() => {
+            expect(navigateMock).toHaveBeenCalledWith("/group/group-1");
+        });
+    });
+
     it("shows the delete error without redirecting", async () => {
-        const initialHref = window.location.href;
         render(
             <ExpenseDetailProvider>
                 <ExpenseDetailHarness />
@@ -109,7 +140,7 @@ describe("ExpenseDetailProvider error handling", () => {
                 "delete not permitted"
             );
         });
-        expect(window.location.href).toBe(initialHref);
+        expect(navigateMock).not.toHaveBeenCalled();
     });
 
     it("exposes an expense-load failure for the page to render", async () => {

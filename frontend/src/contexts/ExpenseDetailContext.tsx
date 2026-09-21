@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, ReactNode, FormEvent } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "react-hot-toast";
 import { apiFetch, asArray, getResponseErrorMessage } from "../lib/api";
 import { ExpenseDetailData } from "../types/expense";
@@ -15,6 +15,7 @@ export const ExpenseDetailProvider = ({
     children: ReactNode;
 }) => {
     const { id: expenseId = "" } = useParams();
+    const navigate = useNavigate();
     const [expenseDetail, setExpenseDetail] =
         useState<ExpenseDetailData | null>(null);
     const [loading, setLoading] = useState(Boolean(expenseId));
@@ -102,7 +103,7 @@ export const ExpenseDetailProvider = ({
                 return;
             }
 
-            window.location.href = `/group/${expenseDetail.groupId}`;
+            navigate(`/group/${expenseDetail.groupId}`);
         } catch {
             toast.error(DELETE_EXPENSE_FALLBACK);
         }

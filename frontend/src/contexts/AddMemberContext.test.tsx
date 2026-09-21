@@ -83,6 +83,9 @@ function AddMemberHarness() {
                 onChange={(event) => context.setEmail(event.target.value)}
             />
             <output data-testid="new-member">{context.newMember?.id ?? ""}</output>
+            <output data-testid="member-emails">
+                {context.relatedUserList.map((user) => user.email).join(",")}
+            </output>
             <output data-testid="loading">
                 {context.loading ? "loading" : "idle"}
             </output>
@@ -127,6 +130,7 @@ describe("AddMemberProvider error handling", () => {
                         {
                             userId: "user-1",
                             username: "Friend",
+                            email: "friend@example.com",
                             existInGroup: true,
                         },
                     ])
@@ -186,6 +190,7 @@ describe("AddMemberProvider error handling", () => {
                         {
                             userId: "user-1",
                             username: "Friend",
+                            email: "friend@example.com",
                             existInGroup: true,
                         },
                     ])
@@ -354,7 +359,11 @@ describe("AddMemberProvider error handling", () => {
             if (path.startsWith("/userInfo")) {
                 userLookupCount += 1;
                 return Promise.resolve(
-                    jsonResponse({ id: "new-user", username: "New User" })
+                    jsonResponse({
+                        id: "new-user",
+                        username: "New User",
+                        email: "person@example.com",
+                    })
                 );
             }
             throw new Error(`Unexpected path: ${path}`);
@@ -376,6 +385,9 @@ describe("AddMemberProvider error handling", () => {
         await waitFor(() => {
             expect(screen.getAllByRole("checkbox")).toHaveLength(1);
         });
+        expect(screen.getByTestId("member-emails")).toHaveTextContent(
+            "person@example.com"
+        );
         await act(async () => {
             await new Promise((resolve) => window.setTimeout(resolve, 0));
         });

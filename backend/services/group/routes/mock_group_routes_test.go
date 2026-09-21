@@ -9,7 +9,7 @@ import (
 // base group store
 
 type mockGroupStore struct {
-	CreateGroupFn             func(group types.Group) error
+	CreateGroupFn             func(group types.Group, memberIDs []string) error
 	ListCurrenciesFn          func() ([]types.Currency, error)
 	IsSupportedCurrencyFn     func(code string) (bool, error)
 	CanEditGroupCurrencyFn    func(groupID string, userID string) (bool, error)
@@ -27,9 +27,9 @@ type mockGroupStore struct {
 	CheckGroupUserPairExistFn func(groupId string, userId string) (bool, error)
 }
 
-func (m *mockGroupStore) CreateGroup(group types.Group) error {
+func (m *mockGroupStore) CreateGroup(group types.Group, memberIDs []string) error {
 	if m.CreateGroupFn != nil {
-		return m.CreateGroupFn(group)
+		return m.CreateGroupFn(group, memberIDs)
 	}
 	return nil
 }

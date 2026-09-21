@@ -1,4 +1,4 @@
-import { useState, useEffect, ReactNode, FormEvent } from "react";
+import { useState, ReactNode, FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-hot-toast";
 import { apiFetch, getResponseErrorMessage } from "../lib/api";
@@ -8,26 +8,31 @@ import { CreateGroupContext } from "../hooks/CreateGroupContextHooks";
 export const CreateGroupProvider = ({ children }: { children: ReactNode }) => {
     const navigate = useNavigate();
     const [indicator, setIndicator] = useState<boolean>(false);
-    const [dataOk, setDataOk] = useState<boolean>(false);
+    const [createdGroupId, setCreatedGroupId] = useState<string | null>(null);
 
     const [groupName, setGroupName] = useState<string>("");
     const [description, setDescription] = useState<string>("");
     const [currency, setCurrency] = useState<string>("");
     const [groupType, setGroupType] = useState<string>("home");
 
-    useEffect(() => {
-        const ok = groupName.length > 0 && currency.length > 0;
-        setDataOk(ok);
-    }, [groupName, description, currency]);
+    const dataOk =
+        createdGroupId === null &&
+        groupName.trim().length > 0 &&
+        currency.length > 0;
 
     const createGroup = async (e: FormEvent) => {
         e.preventDefault();
+        if (createdGroupId) return;
+
+        const formData = new FormData(e.currentTarget as HTMLFormElement);
+        const memberIds = formData.getAll("candidate[]") as string[];
 
         const payload: GroupNewData = {
             groupName: groupName,
             description: description,
             currency: currency,
             groupType,
+            memberIds,
         };
 
         try {
@@ -48,12 +53,12 @@ export const CreateGroupProvider = ({ children }: { children: ReactNode }) => {
                 return;
             }
 
-            const data = await response.json();
-            if (data?.groupId) {
+            const data = (await response.json()) as { groupId?: unknown };
+            if (typeof data.groupId === "string" && data.groupId) {
                 toast.success("Group created", { duration: 1000 });
-                navigate(`/group/${data.groupId}`);
+                setCreatedGroupId(data.groupId);
             } else {
-                toast.success("Group created", { duration: 1000 });
+                toast.error("Group created, but member setup is unavailable");
                 navigate("/");
             }
         } catch (err) {
@@ -75,6 +80,7 @@ export const CreateGroupProvider = ({ children }: { children: ReactNode }) => {
                 setCurrency,
                 groupType,
                 setGroupType,
+                createdGroupId,
                 indicator,
                 dataOk,
                 createGroup,

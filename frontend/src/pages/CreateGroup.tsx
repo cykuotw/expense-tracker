@@ -1,6 +1,7 @@
 import { mdiCheckBold } from "@mdi/js";
 import Icon from "@mdi/react";
 import { useEffect } from "react";
+import { Link } from "react-router-dom";
 import { CreateGroupProvider } from "../contexts/CreateGroupContext";
 import { useCreateGroup } from "../hooks/CreateGroupContextHooks";
 import { GroupTypePicker } from "../components/group/GroupTypePicker";
@@ -8,6 +9,8 @@ import { CurrencyPicker } from "../components/group/CurrencyPicker";
 import MobilePageHeader from "../components/MobilePageHeader";
 import DesktopBackLink from "../components/DesktopBackLink";
 import { useCurrencies } from "../hooks/useCurrencies";
+import { GroupMemberManager } from "../components/group/GroupMemberManager";
+import { AddMemberProvider } from "../contexts/AddMemberContext";
 
 const CreateGroupContent = () => {
     const {
@@ -19,6 +22,7 @@ const CreateGroupContent = () => {
         setCurrency,
         groupType,
         setGroupType,
+        createdGroupId,
         indicator,
         dataOk,
         createGroup,
@@ -31,15 +35,29 @@ const CreateGroupContent = () => {
         }
     }, [currencies, currenciesError, currenciesLoading, currency, setCurrency]);
 
+    useEffect(() => {
+        if (!createdGroupId) return;
+        document
+            .getElementById("create-group-members")
+            ?.scrollIntoView?.({ block: "start" });
+    }, [createdGroupId]);
+
     return (
         <div className="page-shell compact-mobile-page">
-            <div className="page-container max-w-4xl">
+            <div className="page-container max-w-5xl">
                 <MobilePageHeader
-                    title="Create group"
-                    backTo="/"
-                    backLabel="Back to groups"
+                    title={createdGroupId ? "Manage members" : "Create group"}
+                    backTo={createdGroupId ? `/group/${createdGroupId}` : "/"}
+                    backLabel={createdGroupId ? "View group" : "Back to groups"}
                     action={
-                        indicator ? (
+                        createdGroupId ? (
+                            <Link
+                                to={`/group/${createdGroupId}`}
+                                className="ui-button ui-button-primary min-h-12 px-4"
+                            >
+                                Done
+                            </Link>
+                        ) : indicator ? (
                             <span className="ui-spinner ui-spinner-sm" role="status" aria-label="Creating group" />
                         ) : (
                             <button
@@ -54,22 +72,49 @@ const CreateGroupContent = () => {
                         )
                     }
                 />
-                <DesktopBackLink to="/" label="Back to groups" />
+                <DesktopBackLink
+                    to={createdGroupId ? `/group/${createdGroupId}` : "/"}
+                    label={createdGroupId ? "View group" : "Back to groups"}
+                />
                 <div className="page-header desktop-page-header">
                     <div className="page-header__copy">
                         <div className="page-eyebrow">Groups</div>
-                        <h1 className="page-title">Create a new group</h1>
+                        <h1 className="page-title">
+                            {createdGroupId
+                                ? "Manage group members"
+                                : "Create a new group"}
+                        </h1>
                         <p className="page-copy">
-                            Set a name, choose its type, and pick the currency your group will use.
+                            {createdGroupId
+                                ? "Your group and selected members are saved. You can make further changes below."
+                                : "Set a name, choose its type, and pick the currency your group will use."}
                         </p>
                     </div>
                 </div>
 
-                <form
-                    id="create-group-form"
-                    className="panel-card rounded-[2rem] p-4 md:p-8"
-                    onSubmit={createGroup}
-                >
+                {createdGroupId ? (
+                    <div className="panel-card rounded-[2rem] p-4 md:p-6">
+                        <div className="page-eyebrow">Group created</div>
+                        <h2 className="mt-1 text-xl font-semibold text-foreground md:text-2xl">
+                            {groupName.trim()}
+                        </h2>
+                        <p className="mt-1 text-sm leading-6 text-foreground/65">
+                            The selected members were added with the group. You
+                            can review them below or continue to the group.
+                        </p>
+                        <Link
+                            to={`/group/${createdGroupId}`}
+                            className="ui-button ui-button-ghost mt-4 w-full sm:w-auto"
+                        >
+                            View group
+                        </Link>
+                    </div>
+                ) : (
+                    <form
+                        id="create-group-form"
+                        className="panel-card rounded-[2rem] p-4 md:p-8"
+                        onSubmit={createGroup}
+                    >
                         <div className="grid gap-3 md:gap-5">
                             <div>
                                 <div className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground/60">Group type</div>
@@ -141,7 +186,36 @@ const CreateGroupContent = () => {
                                 <span className="ui-spinner ui-spinner-sm" role="status" aria-label="Creating group"></span>
                             )}
                         </div>
-                </form>
+                    </form>
+                )}
+
+                <section
+                    id="create-group-members"
+                    className="mt-4 scroll-mt-4 md:mt-6 md:scroll-mt-6"
+                    aria-labelledby="create-group-members-heading"
+                >
+                    <div className="mb-3 md:mb-4">
+                        <div className="page-eyebrow">Members</div>
+                        <h2
+                            id="create-group-members-heading"
+                            className="mt-1 text-xl font-semibold text-foreground md:text-2xl"
+                        >
+                            Manage members
+                        </h2>
+                        <p className="mt-1 text-sm leading-6 text-foreground/65">
+                            {createdGroupId
+                                ? "Select existing friends or find a registered user by email, then update members."
+                                : "Select existing friends or find a registered user by email. They will be added when you create the group."}
+                        </p>
+                    </div>
+                    <AddMemberProvider
+                        groupId={createdGroupId}
+                        returnToGroupAfterSave={false}
+                        allowPreCreate
+                    >
+                        <GroupMemberManager creationMode={!createdGroupId} />
+                    </AddMemberProvider>
+                </section>
             </div>
         </div>
     );

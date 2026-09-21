@@ -64,7 +64,35 @@ func (h *Handler) handleCreateGroup(c *gin.Context) {
 		CreateByUser: user.ID,
 	}
 
-	err = h.store.CreateGroup(group)
+	memberIDs := make([]string, 0, len(payload.MemberIDs))
+	seenMemberIDs := make(map[string]struct{}, len(payload.MemberIDs))
+	for _, memberID := range payload.MemberIDs {
+		parsedMemberID, err := uuid.Parse(memberID)
+		if err != nil {
+			utils.WriteError(c, http.StatusBadRequest, types.ErrUserNotExist)
+			return
+		}
+		normalizedMemberID := parsedMemberID.String()
+		if normalizedMemberID == user.ID.String() {
+			continue
+		}
+		if _, exists := seenMemberIDs[normalizedMemberID]; exists {
+			continue
+		}
+		exists, err := h.userStore.CheckUserExistByID(normalizedMemberID)
+		if err != nil {
+			utils.WriteError(c, http.StatusInternalServerError, err)
+			return
+		}
+		if !exists {
+			utils.WriteError(c, http.StatusBadRequest, types.ErrUserNotExist)
+			return
+		}
+		seenMemberIDs[normalizedMemberID] = struct{}{}
+		memberIDs = append(memberIDs, normalizedMemberID)
+	}
+
+	err = h.store.CreateGroup(group, memberIDs)
 	if err != nil {
 		utils.WriteError(c, http.StatusInternalServerError, err)
 		return

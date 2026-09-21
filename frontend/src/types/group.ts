@@ -31,6 +31,7 @@ export interface GroupInfo {
 export interface RelatedUser {
     userId: string;
     username: string;
+    email: string;
     existInGroup: boolean;
 }
 
@@ -47,4 +48,5 @@ export interface GroupNewData {
     description: string;
     currency: string;
     groupType: string;
+    memberIds: string[];
 }

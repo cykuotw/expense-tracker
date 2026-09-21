@@ -23,12 +23,14 @@ interface AddMemberProviderProps {
     children: ReactNode;
     groupId?: string | null;
     returnToGroupAfterSave?: boolean;
+    allowPreCreate?: boolean;
 }
 
 export const AddMemberProvider = ({
     children,
     groupId: providedGroupId,
     returnToGroupAfterSave = true,
+    allowPreCreate = false,
 }: AddMemberProviderProps) => {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
@@ -56,27 +58,39 @@ export const AddMemberProvider = ({
     };
 
     useEffect(() => {
+        let ignoreResult = false;
+
         const fetchRelatedUsers = async () => {
-            if (!groupId) {
+            if (!groupId && !allowPreCreate) {
                 setRelatedUserList([]);
                 return;
             }
             try {
-                const response = await apiFetch(`/related_member?g=${groupId}`, {
+                const path = groupId
+                    ? `/related_member?g=${groupId}`
+                    : "/related_member";
+                const response = await apiFetch(path, {
                     method: "GET",
                     headers: {
                         "Content-Type": "application/json",
                     },
                 });
                 const data = await response.json();
-                setRelatedUserList(asArray<RelatedUser>(data));
+                if (!ignoreResult) {
+                    setRelatedUserList(asArray<RelatedUser>(data));
+                }
             } catch (error) {
-                console.log(error);
+                if (!ignoreResult) {
+                    console.log(error);
+                }
             }
         };
 
-        fetchRelatedUsers();
-    }, [groupId]);
+        void fetchRelatedUsers();
+        return () => {
+            ignoreResult = true;
+        };
+    }, [allowPreCreate, groupId]);
 
     useEffect(() => {
         relatedUserListRef.current = relatedUserList;
@@ -243,6 +257,7 @@ export const AddMemberProvider = ({
             {
                 userId: newMember.id,
                 username: newMember.username,
+                email: newMember.email,
                 existInGroup: true,
             },
         ]);

@@ -20,12 +20,13 @@ func (s *Store) GetRelatedUser(currentUser string, groupId string) ([]*types.Rel
 				NULLIF(BTRIM(CONCAT_WS(' ', u.firstname, u.lastname)), ''),
 				u.username
 			) AS display_name,
+			u.email,
 			CASE
 				WHEN EXISTS (
 					SELECT 1 
 					FROM group_member as gm
 					WHERE gm.user_id = u.id
-						AND gm.group_id = $2
+						AND gm.group_id = NULLIF($2, '')::uuid
 				) THEN TRUE
 				ELSE FALSE
 			END AS exist_in_group
@@ -43,7 +44,12 @@ func (s *Store) GetRelatedUser(currentUser string, groupId string) ([]*types.Rel
 	members := make([]*types.RelatedMember, 0)
 	for rows.Next() {
 		member := new(types.RelatedMember)
-		err := rows.Scan(&member.UserID, &member.Username, &member.ExistInGroup)
+		err := rows.Scan(
+			&member.UserID,
+			&member.Username,
+			&member.Email,
+			&member.ExistInGroup,
+		)
 		if err != nil {
 			return nil, err
 		}

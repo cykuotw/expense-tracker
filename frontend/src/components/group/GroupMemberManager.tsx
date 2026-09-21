@@ -1,6 +1,12 @@
 import { useAddMember } from "../../hooks/AddMemberContextHooks";
 
-export function GroupMemberManager() {
+interface GroupMemberManagerProps {
+    creationMode?: boolean;
+}
+
+export function GroupMemberManager({
+    creationMode = false,
+}: GroupMemberManagerProps) {
     const {
         loading,
         relatedUserList,
@@ -25,7 +31,7 @@ export function GroupMemberManager() {
                     {relatedUserList.length !== 0 ? (
                         relatedUserList.map((user) => (
                             <label
-                                className="flex min-h-12 items-center gap-3 rounded-2xl border border-border bg-background px-4 py-3"
+                                className="grid min-h-12 cursor-pointer grid-cols-[auto_minmax(0,1fr)] items-center gap-3 rounded-2xl border border-border bg-background px-4 py-3"
                                 key={user.userId}
                             >
                                 <input
@@ -34,9 +40,16 @@ export function GroupMemberManager() {
                                     className="ui-checkbox"
                                     name="candidate[]"
                                     value={user.userId}
+                                    form={creationMode ? "create-group-form" : undefined}
                                 />
-                                <span className="text-sm font-medium">
-                                    {user.username}
+                                <span className="min-w-0">
+                                    <span className="block text-sm font-medium leading-5 text-foreground">
+                                        {user.username}
+                                    </span>
+                                    {" "}
+                                    <span className="block [overflow-wrap:anywhere] text-sm leading-5 text-foreground/65">
+                                        {user.email}
+                                    </span>
                                 </span>
                             </label>
                         ))
@@ -46,22 +59,28 @@ export function GroupMemberManager() {
                         </div>
                     )}
                 </div>
-                <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <button
-                        type="submit"
-                        className="ui-button ui-button-primary w-full sm:w-auto"
-                        disabled={loading}
-                    >
-                        {loading ? "Updating…" : "Update members"}
-                    </button>
-                    {loading ? (
-                        <span
-                            className="ui-spinner ui-spinner-sm"
-                            role="status"
-                            aria-label="Updating members"
-                        />
-                    ) : null}
-                </div>
+                {creationMode ? (
+                    <p className="mt-6 text-sm leading-6 text-foreground/65">
+                        Selected members will be added when you create the group.
+                    </p>
+                ) : (
+                    <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <button
+                            type="submit"
+                            className="ui-button ui-button-primary w-full sm:w-auto"
+                            disabled={loading}
+                        >
+                            {loading ? "Updating…" : "Update members"}
+                        </button>
+                        {loading ? (
+                            <span
+                                className="ui-spinner ui-spinner-sm"
+                                role="status"
+                                aria-label="Updating members"
+                            />
+                        ) : null}
+                    </div>
+                )}
             </form>
 
             <div className="panel-card rounded-[2rem] p-4 md:p-6 lg:col-span-2">
@@ -91,8 +110,9 @@ export function GroupMemberManager() {
                         Add to selection
                     </button>
                     <p className="text-xs text-foreground/60">
-                        Registered users can be added to the selection, then
-                        saved with Update members.
+                        {creationMode
+                            ? "Registered users can be added now and saved when you create the group."
+                            : "Registered users can be added to the selection, then saved with Update members."}
                     </p>
                 </div>
             </div>

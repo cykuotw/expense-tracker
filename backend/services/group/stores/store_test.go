@@ -24,10 +24,12 @@ func TestCreateGroup(t *testing.T) {
 	type testcase struct {
 		name        string
 		mockGroup   types.Group
+		memberIDs   []string
 		expectFail  bool
 		expectError error
 	}
 
+	memberID := uuid.New()
 	subtests := []testcase{
 		{
 			name: "valid",
@@ -42,19 +44,55 @@ func TestCreateGroup(t *testing.T) {
 			},
 			expectFail:  false,
 			expectError: nil,
+			memberIDs:   []string{memberID.String()},
 		},
 	}
 
 	for _, test := range subtests {
 		t.Run(test.name, func(t *testing.T) {
 			assert.NoError(t, ensureTestUser(db, test.mockGroup.CreateByUser))
-			err := store.CreateGroup(test.mockGroup)
+			assert.NoError(t, ensureTestUser(db, memberID))
+			defer cleanUser(db, test.mockGroup.CreateByUser)
+			defer cleanUser(db, memberID)
+			err := store.CreateGroup(test.mockGroup, test.memberIDs)
 			defer deleteGroup(db, test.mockGroup.ID)
-			defer deleteGroupMember(db, test.mockGroup.ID, []uuid.UUID{test.mockGroup.CreateByUser})
+			defer deleteGroupMember(db, test.mockGroup.ID, []uuid.UUID{test.mockGroup.CreateByUser, memberID})
 
 			assert.Equal(t, test.expectError, err)
+			var memberCount int
+			assert.NoError(t, db.QueryRow(
+				"SELECT COUNT(*) FROM group_member WHERE group_id = $1",
+				test.mockGroup.ID,
+			).Scan(&memberCount))
+			assert.Equal(t, 2, memberCount)
 		})
 	}
+}
+
+func TestCreateGroupRollsBackWhenMemberInsertFails(t *testing.T) {
+	db := openTestDB(t)
+	store := group.NewStore(db)
+	creatorID := uuid.New()
+	groupID := uuid.New()
+	assert.NoError(t, ensureTestUser(db, creatorID))
+	defer cleanUser(db, creatorID)
+
+	err := store.CreateGroup(types.Group{
+		ID:           groupID,
+		GroupName:    "rollback test",
+		CreateTime:   time.Now(),
+		IsActive:     true,
+		Currency:     "CAD",
+		CreateByUser: creatorID,
+	}, []string{uuid.NewString()})
+
+	assert.Error(t, err)
+	var groupCount int
+	assert.NoError(t, db.QueryRow(
+		"SELECT COUNT(*) FROM groups WHERE id = $1",
+		groupID,
+	).Scan(&groupCount))
+	assert.Zero(t, groupCount)
 }
 
 func TestGetGroupByID(t *testing.T) {
@@ -594,11 +632,34 @@ func TestGetRelatedUser(t *testing.T) {
 				{
 					UserID:       mockUserID.String(),
 					Username:     "First member",
+					Email:        "first-member@example.test",
 					ExistInGroup: true,
 				},
 				{
 					UserID:       mockUserID2.String(),
 					Username:     "Second Member",
+					Email:        "second-member@example.test",
+					ExistInGroup: false,
+				},
+			},
+			expectError: nil,
+		},
+		{
+			name:        "pre-create candidates",
+			mockUserID:  mockCurrentUserID.String(),
+			mockgroupID: "",
+			expectFail:  false,
+			expectGroupMembers: []*types.RelatedMember{
+				{
+					UserID:       mockUserID.String(),
+					Username:     "First member",
+					Email:        "first-member@example.test",
+					ExistInGroup: false,
+				},
+				{
+					UserID:       mockUserID2.String(),
+					Username:     "Second Member",
+					Email:        "second-member@example.test",
 					ExistInGroup: false,
 				},
 			},
@@ -630,6 +691,8 @@ func TestGetRelatedUser(t *testing.T) {
 						if tm.UserID == m.UserID {
 							exist = true
 							assert.Equal(t, tm.Username, m.Username)
+							assert.Equal(t, tm.Email, m.Email)
+							assert.Equal(t, tm.ExistInGroup, m.ExistInGroup)
 							break
 						}
 					}

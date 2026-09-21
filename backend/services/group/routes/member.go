@@ -208,14 +208,16 @@ func (h *Handler) handleGetRelatedMember(c *gin.Context) {
 		return
 	}
 
-	exist, err := h.store.CheckGroupUserPairExist(groupId, userID)
-	if err != nil {
-		utils.WriteError(c, http.StatusInternalServerError, err)
-		return
-	}
-	if !exist {
-		utils.WriteError(c, http.StatusNotFound, types.ErrGroupNotExist)
-		return
+	if groupId != "" {
+		exist, err := h.store.CheckGroupUserPairExist(groupId, userID)
+		if err != nil {
+			utils.WriteError(c, http.StatusInternalServerError, err)
+			return
+		}
+		if !exist {
+			utils.WriteError(c, http.StatusNotFound, types.ErrGroupNotExist)
+			return
+		}
 	}
 
 	members, err := h.store.GetRelatedUser(userID, groupId)

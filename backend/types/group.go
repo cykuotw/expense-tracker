@@ -8,7 +8,7 @@ import (
 )
 
 type GroupStore interface {
-	CreateGroup(group Group) error
+	CreateGroup(group Group, memberIDs []string) error
 	ListCurrencies() ([]Currency, error)
 	IsSupportedCurrency(code string) (bool, error)
 	CanEditGroupCurrency(groupID string, userID string) (bool, error)
@@ -48,10 +48,11 @@ type Group struct {
 }
 
 type CreateGroupPayload struct {
-	GroupName   string `json:"groupName"`
-	Description string `json:"description"`
-	Currency    string `json:"currency"`
-	GroupType   string `json:"groupType"`
+	GroupName   string   `json:"groupName"`
+	Description string   `json:"description"`
+	Currency    string   `json:"currency"`
+	GroupType   string   `json:"groupType"`
+	MemberIDs   []string `json:"memberIds"`
 }
 
 type UpdateGroupPayload struct {
@@ -96,6 +97,7 @@ type GroupMember struct {
 type RelatedMember struct {
 	UserID       string `json:"userId"`
 	Username     string `json:"username"` // current profile display name; field name retained for API compatibility
+	Email        string `json:"email"`
 	ExistInGroup bool   `json:"existInGroup"`
 }
 

@@ -38,6 +38,7 @@ export interface CreateExpenseContextType {
     markMainFormVisited: () => void;
 
     indicatorShow: boolean;
+    submissionError: string | null;
     dataOk: boolean;
 
     groupList: GroupListItem[];

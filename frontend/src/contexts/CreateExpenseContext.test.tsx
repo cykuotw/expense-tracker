@@ -90,6 +90,9 @@ function CreateExpenseHarness() {
             <output data-testid="indicator">
                 {context.indicatorShow ? "loading" : "idle"}
             </output>
+            <output data-testid="submission-error">
+                {context.submissionError}
+            </output>
             <button type="submit">Create</button>
         </form>
     );
@@ -204,12 +207,14 @@ describe("CreateExpenseProvider error handling", () => {
 
         fireEvent.submit(screen.getByRole("form", { name: "expense form" }));
 
-        await waitFor(() => {
-            expect(toastErrorMock).toHaveBeenCalledWith(
-                "Failed to create expense."
-            );
-        });
+        await waitFor(() =>
+            expect(screen.getByTestId("submission-error")).toHaveTextContent(
+                "We couldn't save this expense. Check your connection and try again."
+            )
+        );
         expect(screen.getByTestId("indicator")).toHaveTextContent("idle");
+		expect(screen.getByLabelText("amount")).toHaveValue(10);
+		expect(screen.getByLabelText("description")).toHaveValue("Dinner");
 		const createRequest = apiFetchMock.mock.calls.find(
 			([path]) => path === "/create_expense"
 		)?.[1] as RequestInit;
@@ -217,6 +222,7 @@ describe("CreateExpenseProvider error handling", () => {
 			occurredOn: "2026-08-31",
 		});
         expect(toastSuccessMock).not.toHaveBeenCalled();
+        expect(toastErrorMock).not.toHaveBeenCalled();
         expect(navigateMock).not.toHaveBeenCalled();
     });
 
@@ -333,7 +339,9 @@ describe("CreateExpenseProvider error handling", () => {
         });
 
         const form = screen.getByRole("form", { name: "expense form" });
-        fireEvent.change(screen.getByLabelText("amount"), { target: { value: "10" } });
+        fireEvent.change(screen.getByLabelText("amount"), {
+            target: { value: "10" },
+        });
         fireEvent.change(screen.getByLabelText("description"), {
             target: { value: "Dinner" },
         });
@@ -352,17 +360,65 @@ describe("CreateExpenseProvider error handling", () => {
             /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
         );
 
-        await waitFor(() => expect(screen.getByTestId("indicator")).toHaveTextContent("idle"));
+        await waitFor(() =>
+            expect(screen.getByTestId("indicator")).toHaveTextContent("idle")
+        );
         fireEvent.submit(form);
         await waitFor(() => {
             expect(
-                apiFetchMock.mock.calls.filter(([path]) => path === "/create_expense")
+                apiFetchMock.mock.calls.filter(
+                    ([path]) => path === "/create_expense"
+                )
             ).toHaveLength(2);
         });
         const retryHeaders = apiFetchMock.mock.calls.filter(
             ([path]) => path === "/create_expense"
         )[1][1]?.headers as Record<string, string>;
         expect(retryHeaders["Idempotency-Key"]).toBe(firstHeaders["Idempotency-Key"]);
+    });
+
+    it("uses a new idempotency key when the visible values change before retry", async () => {
+        render(
+            <CreateExpenseProvider>
+                <CreateExpenseHarness />
+            </CreateExpenseProvider>
+        );
+        await waitFor(() => {
+            expect(screen.getByTestId("members")).toHaveTextContent("1");
+        });
+
+        const form = screen.getByRole("form", { name: "expense form" });
+        fireEvent.change(screen.getByLabelText("amount"), { target: { value: "10" } });
+        fireEvent.change(screen.getByLabelText("description"), {
+            target: { value: "Dinner" },
+        });
+        fireEvent.submit(form);
+        await waitFor(() => expect(screen.getByTestId("indicator")).toHaveTextContent("idle"));
+
+        fireEvent.change(screen.getByLabelText("description"), {
+            target: { value: "Updated dinner" },
+        });
+        fireEvent.submit(form);
+        await waitFor(() => {
+            expect(
+                apiFetchMock.mock.calls.filter(([path]) => path === "/create_expense")
+            ).toHaveLength(2);
+        });
+
+        const createRequests = apiFetchMock.mock.calls.filter(
+            ([path]) => path === "/create_expense"
+        );
+        const firstHeaders = createRequests[0][1]?.headers as Record<
+            string,
+            string
+        >;
+        const retryHeaders = createRequests[1][1]?.headers as Record<
+            string,
+            string
+        >;
+        expect(retryHeaders["Idempotency-Key"]).not.toBe(
+            firstHeaders["Idempotency-Key"]
+        );
     });
 
     it("keeps the amount input editable when it is cleared or replaced", async () => {

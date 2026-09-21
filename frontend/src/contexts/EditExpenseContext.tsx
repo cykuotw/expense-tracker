@@ -5,6 +5,7 @@ import {
     useCallback,
     useEffect,
     useMemo,
+    useRef,
     useState,
 } from "react";
 import { useNavigate, useParams } from "react-router-dom";
@@ -18,6 +19,10 @@ import {
     asArray,
     getResponseErrorMessage,
 } from "../lib/api";
+import {
+    getExpenseSubmissionErrorMessage,
+    getExpenseSubmissionFallback,
+} from "../lib/expenseSubmissionError";
 import { calculateExpenseAllocation } from "../lib/expenseAllocation";
 import { isDateOnly } from "../lib/dateOnly";
 import {
@@ -48,7 +53,6 @@ const EMPTY_FORM_DATA: expenseFormData = {
     allocation: { mode: "equal", participants: [] },
     payerUserId: "",
 };
-const UPDATE_EXPENSE_FALLBACK = "Error updating expense";
 const LOAD_EXPENSE_FALLBACK = "Failed to load expense.";
 
 function cloneExpenseFormData(formData: expenseFormData): expenseFormData {
@@ -74,6 +78,8 @@ export const EditExpenseProvider = ({ children }: { children: ReactNode }) => {
     const navigate = useNavigate();
     const { id: expenseId = "" } = useParams();
     const [indicatorShow, setIndicatorShow] = useState(false);
+    const [submissionError, setSubmissionError] = useState<string | null>(null);
+    const submissionInFlightRef = useRef(false);
     const [mainFormVisited, setMainFormVisited] = useState(false);
     const [formData, setFormData] =
         useState<expenseFormData>(EMPTY_FORM_DATA);
@@ -130,6 +136,7 @@ export const EditExpenseProvider = ({ children }: { children: ReactNode }) => {
     const handleUpdateExpense = async (event: FormEvent) => {
         event.preventDefault();
         if (
+            submissionInFlightRef.current ||
             !dataOk ||
             !hasChanges ||
             amountDigits === null ||
@@ -138,8 +145,10 @@ export const EditExpenseProvider = ({ children }: { children: ReactNode }) => {
             return;
         }
 
+        submissionInFlightRef.current = true;
+        setSubmissionError(null);
+        setIndicatorShow(true);
         try {
-            setIndicatorShow(true);
             const payload: ExpenseUpdateData = {
                 description: formData.description,
                 occurredOn: formData.occurredOn,
@@ -155,11 +164,8 @@ export const EditExpenseProvider = ({ children }: { children: ReactNode }) => {
                 body: JSON.stringify(payload),
             });
             if (!response.ok) {
-                toast.error(
-                    await getResponseErrorMessage(
-                        response,
-                        UPDATE_EXPENSE_FALLBACK
-                    )
+                setSubmissionError(
+                    await getExpenseSubmissionErrorMessage(response, "update")
                 );
                 return;
             }
@@ -168,10 +174,10 @@ export const EditExpenseProvider = ({ children }: { children: ReactNode }) => {
             window.setTimeout(() => {
                 navigate(`/expense/${expenseId}`);
             }, 1000);
-        } catch (error) {
-            console.error("Error updating expense:", error);
-            toast.error(UPDATE_EXPENSE_FALLBACK);
+        } catch {
+            setSubmissionError(getExpenseSubmissionFallback("update"));
         } finally {
+            submissionInFlightRef.current = false;
             setIndicatorShow(false);
         }
     };
@@ -309,6 +315,7 @@ export const EditExpenseProvider = ({ children }: { children: ReactNode }) => {
                 groupMembersLoadStatus,
                 reloadGroupMembers,
                 indicatorShow,
+                submissionError,
                 dataOk,
                 hasChanges,
                 allocationCalculation,

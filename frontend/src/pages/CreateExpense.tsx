@@ -2,10 +2,7 @@ import { useEffect } from "react";
 import { Route, Routes } from "react-router-dom";
 
 import Icon from "@mdi/react";
-import {
-    mdiCamera,
-    mdiCheckBold,
-} from "@mdi/js";
+import { mdiCamera } from "@mdi/js";
 
 import { CreateExpenseProvider } from "../contexts/CreateExpenseContext";
 import { useCreateExpense } from "../hooks/CreateExpenseContextHooks";
@@ -17,6 +14,8 @@ import { ExpenseDateInput } from "../components/expense/ExpenseDateInput";
 import { moneyInputPlaceholder, moneyInputStep } from "../lib/money";
 import SplitExpensePage from "../components/expense/SplitExpensePage";
 import ExpenseSimpleSplitControl from "../components/expense/ExpenseSimpleSplitControl";
+import ExpenseSubmissionFeedback from "../components/expense/ExpenseSubmissionFeedback";
+import ExpenseSubmitButton from "../components/expense/ExpenseSubmitButton";
 import DesktopBackLink from "../components/DesktopBackLink";
 
 const CreateExpenseContent = () => {
@@ -40,6 +39,7 @@ const CreateExpenseContent = () => {
         setAllocation,
         allocationCalculation,
         indicatorShow,
+        submissionError,
         dataOk,
         groupList,
         expenseTypes,
@@ -67,19 +67,15 @@ const CreateExpenseContent = () => {
                     backTo={groupId ? `/group/${groupId}` : "/"}
                     backLabel="Back to group"
                     action={
-                        indicatorShow ? (
-                            <span className="ui-spinner ui-spinner-sm" role="status" aria-label="Saving expense" />
-                        ) : (
-                            <button
-                                type="submit"
-                                form="create-expense-form"
-                                className="ui-button ui-button-primary min-h-12 min-w-12 px-3"
-                                aria-label="Save expense"
-                                disabled={!dataOk}
-                            >
-                                <Icon path={mdiCheckBold} size={1} />
-                            </button>
-                        )
+                        <ExpenseSubmitButton
+                            form="create-expense-form"
+                            className="ui-button ui-button-primary min-h-12 min-w-12 px-3"
+                            disabled={!dataOk}
+                            iconOnly
+                            idleLabel="Save expense"
+                            saving={indicatorShow}
+                            savingLabel="Saving expense"
+                        />
                     }
                 />
                 <DesktopBackLink to={`/group/${groupId}`} label="Back to group" />
@@ -97,7 +93,16 @@ const CreateExpenseContent = () => {
                     id="create-expense-form"
                     className="panel-card expense-form-panel rounded-[2rem] p-4 sm:p-6 md:p-8"
                     onSubmit={handleCreateExpense}
+                    aria-busy={indicatorShow}
                 >
+                        <ExpenseSubmissionFeedback
+                            error={submissionError}
+                            errorTitle="We couldn't save this expense"
+                            idPrefix="create-expense"
+                            retryDisabled={!dataOk}
+                            saving={indicatorShow}
+                            savingLabel="Saving expense"
+                        />
                         <div className="grid grid-cols-2 gap-3 md:gap-5">
                             <div className="col-span-2">
                                 <label className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground/60">
@@ -270,21 +275,14 @@ const CreateExpenseContent = () => {
                         </div>
 
                         <div className="mt-5 hidden flex-col gap-3 md:flex md:flex-row md:items-center md:justify-between">
-                            <button
-                                type="submit"
+                            <ExpenseSubmitButton
                                 className="ui-button ui-button-primary w-full sm:w-auto"
-                                {...(dataOk ? {} : { disabled: true })}
-                            >
-                                <Icon path={mdiCheckBold} size={1} />
-                                Save Expense
-                            </button>
+                                disabled={!dataOk}
+                                idleLabel="Save Expense"
+                                saving={indicatorShow}
+                                savingLabel="Saving…"
+                            />
                         </div>
-
-                        {indicatorShow && (
-                            <div className="hidden justify-center pt-4 md:flex">
-                                <span className="ui-spinner ui-spinner-sm"></span>
-                            </div>
-                        )}
                 </form>
             </div>
         </div>

@@ -1,10 +1,7 @@
 import Icon from "@mdi/react";
 import { useEffect } from "react";
 import { Route, Routes, useParams } from "react-router-dom";
-import {
-    mdiCamera,
-    mdiCheckBold,
-} from "@mdi/js";
+import { mdiCamera } from "@mdi/js";
 
 import { EditExpenseProvider } from "../contexts/EditExpenseContext";
 import { useEditExpense } from "../hooks/EditExpenseContextHooks";
@@ -14,6 +11,8 @@ import { ExpenseDateInput } from "../components/expense/ExpenseDateInput";
 import { moneyInputPlaceholder, moneyInputStep } from "../lib/money";
 import SplitExpensePage from "../components/expense/SplitExpensePage";
 import ExpenseSimpleSplitControl from "../components/expense/ExpenseSimpleSplitControl";
+import ExpenseSubmissionFeedback from "../components/expense/ExpenseSubmissionFeedback";
+import ExpenseSubmitButton from "../components/expense/ExpenseSubmitButton";
 import DesktopBackLink from "../components/DesktopBackLink";
 
 const EditExpenseContent = () => {
@@ -28,6 +27,7 @@ const EditExpenseContent = () => {
         groupMembersLoadStatus,
         reloadGroupMembers,
         indicatorShow,
+        submissionError,
         dataOk,
         hasChanges,
         allocationCalculation,
@@ -48,19 +48,15 @@ const EditExpenseContent = () => {
                     backTo={`/expense/${expenseId}`}
                     backLabel="Back to expense"
                     action={
-                        indicatorShow ? (
-                            <span className="ui-spinner ui-spinner-sm" role="status" aria-label="Saving changes" />
-                        ) : (
-                            <button
-                                type="submit"
-                                form="edit-expense-form"
-                                className="ui-button ui-button-primary min-h-12 min-w-12 px-3"
-                                aria-label="Save changes"
-                                disabled={!dataOk || !hasChanges}
-                            >
-                                <Icon path={mdiCheckBold} size={1} />
-                            </button>
-                        )
+                        <ExpenseSubmitButton
+                            form="edit-expense-form"
+                            className="ui-button ui-button-primary min-h-12 min-w-12 px-3"
+                            disabled={!dataOk || !hasChanges}
+                            iconOnly
+                            idleLabel="Save changes"
+                            saving={indicatorShow}
+                            savingLabel="Saving changes"
+                        />
                     }
                 />
                 <DesktopBackLink to={`/expense/${expenseId}`} label="Back to expense" />
@@ -78,7 +74,16 @@ const EditExpenseContent = () => {
                     id="edit-expense-form"
                     className="panel-card expense-form-panel rounded-[2rem] p-4 sm:p-6 md:p-8"
                     onSubmit={handleUpdateExpense}
+                    aria-busy={indicatorShow}
                 >
+                        <ExpenseSubmissionFeedback
+                            error={submissionError}
+                            errorTitle="We couldn't save your changes"
+                            idPrefix="edit-expense"
+                            retryDisabled={!dataOk || !hasChanges}
+                            saving={indicatorShow}
+                            savingLabel="Saving changes"
+                        />
                         <div className="grid grid-cols-2 gap-3 md:gap-5">
                             <div className="col-span-2">
                                 <label className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground/60">
@@ -236,17 +241,13 @@ const EditExpenseContent = () => {
                         </div>
 
                         <div className="mt-5 hidden flex-col gap-3 md:flex md:flex-row md:items-center md:justify-between">
-                            <button
-                                type="submit"
+                            <ExpenseSubmitButton
                                 className="ui-button ui-button-primary w-full sm:w-auto"
-                                {...(dataOk && hasChanges ? {} : { disabled: true })}
-                            >
-                                <Icon path={mdiCheckBold} size={1} />
-                                Save changes
-                            </button>
-                            {indicatorShow && (
-                                <span className="ui-spinner ui-spinner-sm" role="status" aria-label="Saving changes"></span>
-                            )}
+                                disabled={!dataOk || !hasChanges}
+                                idleLabel="Save changes"
+                                saving={indicatorShow}
+                                savingLabel="Saving…"
+                            />
                         </div>
                 </form>
             </div>

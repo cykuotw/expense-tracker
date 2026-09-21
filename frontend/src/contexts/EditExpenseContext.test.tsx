@@ -128,6 +128,12 @@ function EditExpenseHarness() {
             <output data-testid="has-changes">
                 {context.hasChanges ? "changed" : "unchanged"}
             </output>
+            <output data-testid="description">
+                {context.formData.description}
+            </output>
+            <output data-testid="submission-error">
+                {context.submissionError}
+            </output>
             <button
                 type="button"
                 onClick={() =>
@@ -162,7 +168,13 @@ describe("EditExpenseProvider error handling", () => {
             (path: string, init: RequestInit = {}) => {
                 if (path === "/expense/expense-1" && init.method === "PUT") {
                     return Promise.resolve(
-                        jsonResponse({ error: "user not permitted" }, 403)
+                        jsonResponse(
+                            {
+                                error: "database-password-secret",
+                                code: "user_not_permitted",
+                            },
+                            403
+                        )
                     );
                 }
                 if (path === "/expense/expense-1/edit-options") {
@@ -209,7 +221,7 @@ describe("EditExpenseProvider error handling", () => {
         expect(initialReads[0][0]).toBe("/expense/expense-1/edit-options");
     });
 
-    it("shows the parsed update error without success behavior", async () => {
+    it("shows a safe update error without exposing the backend message", async () => {
         render(
             <EditExpenseProvider>
                 <EditExpenseHarness />
@@ -226,9 +238,17 @@ describe("EditExpenseProvider error handling", () => {
 
         fireEvent.submit(screen.getByRole("form", { name: "edit form" }));
 
-        await waitFor(() => {
-            expect(toastErrorMock).toHaveBeenCalledWith("user not permitted");
-        });
+        await waitFor(() =>
+            expect(screen.getByTestId("submission-error")).toHaveTextContent(
+                "You no longer have permission to save expenses in this group."
+            )
+        );
+		expect(screen.getByTestId("submission-error")).not.toHaveTextContent(
+			"database-password-secret"
+		);
+		expect(screen.getByTestId("description")).toHaveTextContent(
+			"Updated dinner"
+		);
 		const updateRequest = apiFetchMock.mock.calls.find(
 			([path, init]) =>
 				path === "/expense/expense-1" && init?.method === "PUT"
@@ -238,7 +258,55 @@ describe("EditExpenseProvider error handling", () => {
 		});
         expect(screen.getByTestId("indicator")).toHaveTextContent("idle");
         expect(toastSuccessMock).not.toHaveBeenCalled();
+        expect(toastErrorMock).not.toHaveBeenCalled();
         expect(navigateMock).not.toHaveBeenCalled();
+    });
+
+    it("blocks duplicate update requests while one is in flight", async () => {
+        let resolveUpdate: ((response: Response) => void) | undefined;
+        apiFetchMock.mockImplementation(
+            (path: string, init: RequestInit = {}) => {
+                if (path === "/expense/expense-1/edit-options") {
+                    return Promise.resolve(jsonResponse(editOptions()));
+                }
+                if (path === "/expense/expense-1" && init.method === "PUT") {
+                    return new Promise<Response>((resolve) => {
+                        resolveUpdate = resolve;
+                    });
+                }
+                throw new Error(`Unexpected path: ${path}`);
+            }
+        );
+        render(
+            <EditExpenseProvider>
+                <EditExpenseHarness />
+            </EditExpenseProvider>
+        );
+        await waitFor(() => {
+            expect(screen.getByTestId("member-load-status")).toHaveTextContent(
+                "ready"
+            );
+        });
+        fireEvent.click(
+            screen.getByRole("button", { name: "Change description" })
+        );
+
+        const form = screen.getByRole("form", { name: "edit form" });
+        fireEvent.submit(form);
+        fireEvent.submit(form);
+
+        expect(
+            apiFetchMock.mock.calls.filter(
+                ([path, init]) =>
+                    path === "/expense/expense-1" && init?.method === "PUT"
+            )
+        ).toHaveLength(1);
+        resolveUpdate?.(
+            jsonResponse({ code: "user_not_permitted", error: "raw" }, 403)
+        );
+        await waitFor(() =>
+            expect(screen.getByTestId("indicator")).toHaveTextContent("idle")
+        );
     });
 
     it("tracks edits relative to the loaded expense", async () => {

@@ -13,8 +13,11 @@ import { CreateExpenseContext } from "../hooks/CreateExpenseContextHooks";
 import {
     apiFetch,
     asArray,
-    getResponseErrorMessage,
 } from "../lib/api";
+import {
+    getExpenseSubmissionErrorMessage,
+    getExpenseSubmissionFallback,
+} from "../lib/expenseSubmissionError";
 import { calculateExpenseAllocation } from "../lib/expenseAllocation";
 import { isDateOnly, todayDateOnly } from "../lib/dateOnly";
 import {
@@ -35,7 +38,6 @@ import {
     GroupMembersLoadStatus,
 } from "../types/group";
 
-const CREATE_EXPENSE_FALLBACK = "Failed to create expense.";
 const EMPTY_ALLOCATION: ExpenseAllocation = {
     mode: "equal",
     participants: [],
@@ -50,6 +52,7 @@ export const CreateExpenseProvider = ({
     const [searchParams] = useSearchParams();
     const groupId = searchParams.get("g");
     const [indicatorShow, setIndicatorShow] = useState(false);
+    const [submissionError, setSubmissionError] = useState<string | null>(null);
     const submissionInFlightRef = useRef(false);
     const submissionIntentRef = useRef<{
         key: string;
@@ -122,6 +125,7 @@ export const CreateExpenseProvider = ({
         }
 
         submissionInFlightRef.current = true;
+        setSubmissionError(null);
         setIndicatorShow(true);
         try {
             const normalizedTotal = unitsToDecimal(totalUnits, amountDigits);
@@ -152,11 +156,8 @@ export const CreateExpenseProvider = ({
                 body: fingerprint,
             });
             if (!response.ok) {
-                toast.error(
-                    await getResponseErrorMessage(
-                        response,
-                        CREATE_EXPENSE_FALLBACK
-                    )
+                setSubmissionError(
+                    await getExpenseSubmissionErrorMessage(response, "create")
                 );
                 return;
             }
@@ -167,7 +168,7 @@ export const CreateExpenseProvider = ({
                 navigate(`/group/${selectedGroupId}`);
             }
         } catch {
-            toast.error(CREATE_EXPENSE_FALLBACK);
+            setSubmissionError(getExpenseSubmissionFallback("create"));
         } finally {
             submissionInFlightRef.current = false;
             setIndicatorShow(false);
@@ -299,6 +300,7 @@ export const CreateExpenseProvider = ({
                 mainFormVisited,
                 markMainFormVisited,
                 indicatorShow,
+                submissionError,
                 dataOk,
                 groupList,
                 expenseTypes,

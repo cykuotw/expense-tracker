@@ -38,6 +38,7 @@ export interface EditExpenseContextType {
     groupMembersLoadStatus: GroupMembersLoadStatus;
     reloadGroupMembers: () => void;
     indicatorShow: boolean;
+    submissionError: string | null;
     dataOk: boolean;
     hasChanges: boolean;
     allocationCalculation: AllocationCalculation;

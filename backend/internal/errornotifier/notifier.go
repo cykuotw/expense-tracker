@@ -33,6 +33,7 @@ var (
 	routePattern        = regexp.MustCompile(`^(?:unmatched|/[A-Za-z0-9_./:{}*-]*)$`)
 	codePattern         = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
 	correlationPattern  = regexp.MustCompile(`^[A-Za-z0-9_.:/+=-]+$`)
+	uuidPattern         = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`)
 )
 
 type webhookSource interface {
@@ -92,6 +93,7 @@ type alert struct {
 	requestID  string
 	apiRequest string
 	awsRequest string
+	occurrence string
 }
 
 type logAlert struct {
@@ -103,6 +105,7 @@ type logAlert struct {
 	RequestID           string `json:"request_id"`
 	APIGatewayRequestID string `json:"api_gateway_request_id"`
 	AWSRequestID        string `json:"aws_request_id"`
+	OccurrenceID        string `json:"occurrence_id"`
 }
 
 func selectAlerts(events []events.CloudwatchLogsLogEvent) ([]alert, int) {
@@ -131,7 +134,7 @@ func parseAlert(event events.CloudwatchLogsLogEvent) (alert, bool) {
 	if err := json.Unmarshal([]byte(event.Message), &value); err != nil || !value.Alertable {
 		return alert{}, false
 	}
-	if value.Event != "unexpected_http_error" && value.Event != "panic_recovered" {
+	if value.Event != "unexpected_http_error" && value.Event != "panic_recovered" && value.Event != "frontend_render_error" {
 		return alert{}, false
 	}
 	if value.Status < 500 || value.Status > 599 ||
@@ -144,16 +147,24 @@ func parseAlert(event events.CloudwatchLogsLogEvent) (alert, bool) {
 			return alert{}, false
 		}
 	}
+	occurrenceID := ""
+	if value.Event == "frontend_render_error" {
+		if !validSafeField(value.OccurrenceID, 36, uuidPattern) {
+			return alert{}, false
+		}
+		occurrenceID = value.OccurrenceID
+	}
 	return alert{
 		eventID: event.ID, timestamp: time.UnixMilli(event.Timestamp).UTC(), event: value.Event,
 		route: value.Route, status: value.Status, errorCode: value.ErrorCode,
 		requestID: value.RequestID, apiRequest: value.APIGatewayRequestID, awsRequest: value.AWSRequestID,
+		occurrence: occurrenceID,
 	}, true
 }
 
 func (h *Handler) message(alerts []alert, skipped int) string {
 	var message strings.Builder
-	fmt.Fprintf(&message, "[%s] %s: %d backend alert(s)\n", h.environment, h.function, len(alerts))
+	fmt.Fprintf(&message, "[%s] %s: %d application alert(s)\n", h.environment, h.function, len(alerts))
 	displayed := 0
 	for _, item := range alerts[:min(len(alerts), maxDiscordSamples)] {
 		line := formatAlert(item)
@@ -175,6 +186,8 @@ func formatAlert(value alert) string {
 	summary := "unexpected server failure"
 	if value.event == "panic_recovered" {
 		summary = "recovered application panic"
+	} else if value.event == "frontend_render_error" {
+		summary = "frontend render failure"
 	}
 	lookup := "lookup=event_id:" + value.eventID
 	switch {
@@ -184,6 +197,9 @@ func formatAlert(value alert) string {
 		lookup = "aws_request_id=" + value.awsRequest
 	case value.apiRequest != "":
 		lookup = "api_gateway_request_id=" + value.apiRequest
+	}
+	if value.occurrence != "" {
+		lookup += " occurrence_id=" + value.occurrence
 	}
 	return fmt.Sprintf("- %s %s route=%s status=%d code=%s %s event_id=%s\n",
 		value.timestamp.Format(time.RFC3339), summary, value.route, value.status,

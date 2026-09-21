@@ -88,6 +88,21 @@ async function csrfFetch(input: string, init: RequestInit = {}) {
     });
 }
 
+export async function submitFrontendRenderError(
+    occurrenceId: string,
+): Promise<void> {
+    try {
+        await csrfFetch(`${API_URL}/observability/frontend-render-error`, {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ occurrenceId }),
+        });
+    } catch {
+        // Reporting is best-effort and must not affect application recovery.
+    }
+}
+
 export async function apiFetch(
     path: string,
     init: RequestInit = {},

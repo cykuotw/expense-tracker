@@ -497,6 +497,7 @@ def _infrastructure_targets(scope: str) -> tuple[str, ...]:
         targets.append("aws_lambda_permission.api_gateway")
         targets.append("aws_apigatewayv2_route.google_register")
         targets.append("aws_apigatewayv2_route.google_link")
+        targets.append("aws_apigatewayv2_route.frontend_render_error")
         targets.append("aws_apigatewayv2_route.invitation_lookup")
         targets.append("aws_apigatewayv2_route.authenticated_mutation")
         targets.append(

@@ -71,6 +71,7 @@ class UpdateCompatibilityTest(unittest.TestCase):
         plan_path = terraform.plan.call_args.args[0]
         targets = terraform.plan.call_args.kwargs["targets"]
         self.assertIn("aws_apigatewayv2_route.google_register", targets)
+        self.assertIn("aws_apigatewayv2_route.frontend_render_error", targets)
         self.assertIn("aws_apigatewayv2_route.invitation_lookup", targets)
         self.assertIn(
             'aws_apigatewayv2_route.authenticated_mutation["expire_invitation"]',

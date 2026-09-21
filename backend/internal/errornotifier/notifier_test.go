@@ -62,7 +62,7 @@ func compressedEvent(t *testing.T, value []byte) events.CloudwatchLogsEvent {
 
 func canonicalLogEvent(t *testing.T, index int, eventType string) events.CloudwatchLogsLogEvent {
 	t.Helper()
-	message, err := json.Marshal(map[string]any{
+	payload := map[string]any{
 		"timestamp":               "2026-09-11T12:00:00Z",
 		"level":                   "ERROR",
 		"event":                   eventType,
@@ -78,7 +78,11 @@ func canonicalLogEvent(t *testing.T, index int, eventType string) events.Cloudwa
 		"api_gateway_request_id":  fmt.Sprintf("gateway-%03d", index),
 		"aws_request_id":          fmt.Sprintf("lambda-%03d", index),
 		"unknown_sensitive_field": "CANARY_UNKNOWN_SECRET",
-	})
+	}
+	if eventType == "frontend_render_error" {
+		payload["occurrence_id"] = "4f64807d-f824-4d3b-9cb9-2cd206548639"
+	}
+	message, err := json.Marshal(payload)
 	require.NoError(t, err)
 	return events.CloudwatchLogsLogEvent{
 		ID:        fmt.Sprintf("event-%03d", index),
@@ -111,7 +115,7 @@ func TestHandlerSendsBoundedSanitizedDeterministicMessage(t *testing.T) {
 	require.Equal(t, 1, webhook.calls)
 	require.Equal(t, 1, discord.calls)
 	require.LessOrEqual(t, len(discord.message), maxDiscordMessageBytes)
-	require.Contains(t, discord.message, "[production] expense-worker-errors: 12 backend alert(s)")
+	require.Contains(t, discord.message, "[production] expense-worker-errors: 12 application alert(s)")
 	require.Contains(t, discord.message, "request_id=request-000")
 	require.Contains(t, discord.message, "Suppressed input/sample count: 4")
 	require.Less(t, strings.Index(discord.message, "event-000"), strings.Index(discord.message, "event-001"))
@@ -217,6 +221,34 @@ func TestAlertLookupUsesOnlyBoundedCorrelationFields(t *testing.T) {
 	require.Contains(t, formatAlert(base), "aws_request_id=lambda-id")
 	base.requestID = "request-id"
 	require.Contains(t, formatAlert(base), "request_id=request-id")
+}
+
+func TestFrontendRenderAlertRequiresOccurrenceAndUsesSafeSummary(t *testing.T) {
+	valid := canonicalLogEvent(t, 1, "frontend_render_error")
+	alerts, skipped := selectAlerts([]events.CloudwatchLogsLogEvent{valid})
+	require.Zero(t, skipped)
+	require.Len(t, alerts, 1)
+	require.Contains(t, formatAlert(alerts[0]), "frontend render failure")
+	require.Contains(t, formatAlert(alerts[0]), "occurrence_id=4f64807d-f824-4d3b-9cb9-2cd206548639")
+
+	var payload map[string]any
+	require.NoError(t, json.Unmarshal([]byte(valid.Message), &payload))
+	delete(payload, "occurrence_id")
+	message, err := json.Marshal(payload)
+	require.NoError(t, err)
+	valid.Message = string(message)
+	alerts, _ = selectAlerts([]events.CloudwatchLogsLogEvent{valid})
+	require.Empty(t, alerts)
+
+	backend := canonicalLogEvent(t, 2, "unexpected_http_error")
+	require.NoError(t, json.Unmarshal([]byte(backend.Message), &payload))
+	payload["occurrence_id"] = "@everyone unsafe"
+	message, err = json.Marshal(payload)
+	require.NoError(t, err)
+	backend.Message = string(message)
+	alerts, _ = selectAlerts([]events.CloudwatchLogsLogEvent{backend})
+	require.Len(t, alerts, 1)
+	require.NotContains(t, formatAlert(alerts[0]), "@everyone")
 }
 
 func TestDecodeRejectsOversizedAndDeepPayloads(t *testing.T) {

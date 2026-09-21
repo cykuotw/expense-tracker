@@ -449,6 +449,32 @@ fields @timestamp, request_id, route, error_category, diagnostic_message
 | limit 100
 ```
 
+Frontend render failures (the occurrence ID is random correlation metadata;
+the browser does not send exception messages, stacks, URLs, or form data):
+
+```text
+fields @timestamp, request_id, occurrence_id, route, error_category
+| filter event = "frontend_render_error"
+| sort @timestamp desc
+| limit 100
+```
+
+The frontend submits this event only for authenticated production sessions.
+The endpoint uses the normal CSRF and trusted-origin boundary, accepts only a
+bounded UUID occurrence ID, suppresses same-user bursts and replayed IDs, and
+has a dedicated API Gateway throttle. Reporting is best-effort and never
+changes authentication or recovery behavior. Pre-authentication render errors
+are intentionally not reported because the application does not expose an
+anonymous alert-producing endpoint.
+
+For an authorized smoke check, use a dedicated test account in a production
+browser session and submit only a newly generated UUID through the normal
+CSRF-protected endpoint. Confirm the first request returns `202`, an immediate
+repeat returns `204`, and the Logs Insights query above finds exactly one
+sanitized event. Then confirm Discord includes the occurrence ID but no browser
+exception text, stack, URL, account identity, or request payload. Do not use a
+real production exception or paste diagnostic content into the request.
+
 Correlate an API Gateway or Lambda request ID:
 
 ```text

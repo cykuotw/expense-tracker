@@ -155,6 +155,11 @@ resource "aws_apigatewayv2_route" "default" {
   target             = "integrations/${aws_apigatewayv2_integration.worker.id}"
   authorization_type = "NONE"
 }
+resource "aws_apigatewayv2_route" "frontend_render_error" {
+  api_id    = aws_apigatewayv2_api.worker.id
+  route_key = "POST ${local.api_path}/observability/frontend-render-error"
+  target    = "integrations/${aws_apigatewayv2_integration.worker.id}"
+}
 resource "aws_apigatewayv2_stage" "default" {
   api_id      = aws_apigatewayv2_api.worker.id
   name        = "$default"
@@ -162,6 +167,11 @@ resource "aws_apigatewayv2_stage" "default" {
   default_route_settings {
     throttling_burst_limit = 40
     throttling_rate_limit  = 20
+  }
+  route_settings {
+    route_key              = aws_apigatewayv2_route.frontend_render_error.route_key
+    throttling_burst_limit = 2
+    throttling_rate_limit  = 1
   }
   route_settings {
     route_key              = aws_apigatewayv2_route.login.route_key

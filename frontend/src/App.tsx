@@ -13,6 +13,7 @@ import MobileScrollToTop from "./components/MobileScrollToTop";
 import OfflineScreen from "./components/pwa/OfflineScreen";
 import PWAUpdatePrompt from "./components/pwa/PWAUpdatePrompt";
 import { PWAInstallProvider } from "./contexts/PWAInstallProvider";
+import { reportFrontendRenderError } from "./lib/frontendErrorReporting";
 
 const Login = lazy(() => import("./pages/Login"));
 const Register = lazy(() => import("./pages/Register"));
@@ -101,7 +102,7 @@ function AppRoutes() {
 
 function App() {
     return (
-        <AppErrorBoundary>
+        <AppErrorBoundary onError={reportFrontendRenderError}>
             <Router>
                 <MobileScrollToTop />
                 <PWAInstallProvider>

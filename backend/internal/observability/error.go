@@ -11,6 +11,7 @@ import (
 
 const (
 	EventUnexpectedHTTPError   = "unexpected_http_error"
+	EventFrontendRenderError   = "frontend_render_error"
 	EventHandlerReturnedError  = "handler_returned_error"
 	defaultErrorCategory       = "unclassified_error"
 	defaultDiagnosticMessage   = "unexpected internal failure"

@@ -46,19 +46,21 @@ class ObservabilityInfrastructureTest(unittest.TestCase):
                     and event["status"] >= 500
                 )
                 or event.get("event") == "panic_recovered"
+                or event.get("event") == "frontend_render_error"
             )
         ]
 
         self.assertEqual(
             {event["event"] for event in selected},
-            {"unexpected_http_error", "panic_recovered"},
+            {"unexpected_http_error", "panic_recovered", "frontend_render_error"},
         )
-        self.assertEqual(len(selected), 2)
+        self.assertEqual(len(selected), 3)
         source = (ROOT / "infrastructure/tf/error_alerting.tf").read_text()
         self.assertIn('$.alertable IS TRUE', source)
         self.assertIn('$.event = \\"unexpected_http_error\\"', source)
         self.assertIn('$.status >= 500', source)
         self.assertIn('$.event = \\"panic_recovered\\"', source)
+        self.assertIn('$.event = \\"frontend_render_error\\"', source)
         self.assertNotIn("error_notifier.name", source)
 
     def test_worker_retention_is_configurable_validated_and_defaults_to_three_days(self) -> None:
@@ -115,6 +117,7 @@ class ObservabilityInfrastructureTest(unittest.TestCase):
             "event",
             "level",
             "method",
+            "occurrence_id",
             "request_id",
             "route",
             "status",
@@ -128,6 +131,7 @@ class ObservabilityInfrastructureTest(unittest.TestCase):
             'filter event = "unexpected_http_error" and status >= 500',
             'stats count(*) as failures by route, error_code',
             'filter event = "panic_recovered"',
+            'filter event = "frontend_render_error"',
             'filter api_gateway_request_id = "REPLACE_WITH_API_GATEWAY_REQUEST_ID"',
             'or aws_request_id = "REPLACE_WITH_AWS_REQUEST_ID"',
         ):
@@ -140,7 +144,7 @@ class ObservabilityInfrastructureTest(unittest.TestCase):
 
         self.assertEqual(
             {event["event"] for event in alertable},
-            {"unexpected_http_error", "panic_recovered"},
+            {"unexpected_http_error", "panic_recovered", "frontend_render_error"},
         )
         self.assertFalse(canary["alertable"])
         serialized_alertable = json.dumps(alertable)

@@ -436,6 +436,8 @@ class ComponentTest(unittest.TestCase):
 
         self.assertIn("throttling_burst_limit = 40", source)
         self.assertIn("throttling_rate_limit  = 20", source)
+        self.assertIn('route_key = "POST ${local.api_path}/observability/frontend-render-error"', source)
+        self.assertIn("throttling_burst_limit = 2", source)
         self.assertIn("resource \"aws_apigatewayv2_route\" \"authenticated_mutation\"", source)
         self.assertIn("for_each = local.authenticated_mutation_routes", source)
         self.assertIn("dynamic \"route_settings\"", source)

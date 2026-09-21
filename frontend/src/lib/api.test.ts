@@ -1,12 +1,17 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
     asArray,
     getResponseError,
     getResponseErrorMessage,
+    submitFrontendRenderError,
 } from "./api";
 
 const fallback = "Fallback message";
+
+afterEach(() => {
+    vi.unstubAllGlobals();
+});
 
 function jsonResponse(body: unknown, status = 400) {
     return new Response(JSON.stringify(body), {
@@ -105,5 +110,32 @@ describe("asArray", () => {
         expect(asArray<string>(["member"])).toEqual(["member"]);
         expect(asArray<string>(null)).toEqual([]);
         expect(asArray<string>({ members: [] })).toEqual([]);
+    });
+});
+
+describe("submitFrontendRenderError", () => {
+    it("sends only the occurrence ID through the CSRF-protected client", async () => {
+        const fetchMock = vi
+            .fn()
+            .mockResolvedValueOnce(
+                jsonResponse({ csrfToken: "csrf-token" }, 200),
+            )
+            .mockResolvedValueOnce(new Response(null, { status: 202 }));
+        vi.stubGlobal("fetch", fetchMock);
+
+        await submitFrontendRenderError(
+            "4f64807d-f824-4d3b-9cb9-2cd206548639",
+        );
+
+        expect(fetchMock).toHaveBeenCalledTimes(2);
+        const [, request] = fetchMock.mock.calls[1];
+        expect(request).toMatchObject({
+            method: "POST",
+            credentials: "include",
+            body: '{"occurrenceId":"4f64807d-f824-4d3b-9cb9-2cd206548639"}',
+        });
+        expect(new Headers(request.headers).get("X-CSRF-Token")).toBe(
+            "csrf-token",
+        );
     });
 });

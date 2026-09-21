@@ -75,7 +75,7 @@ resource "aws_cloudwatch_log_subscription_filter" "worker_error_notifier" {
   count           = var.enable_error_alerting ? 1 : 0
   name            = "${local.resource_prefix}-unexpected-server-errors"
   log_group_name  = aws_cloudwatch_log_group.worker.name
-  filter_pattern  = "{ ($.alertable IS TRUE) && (($.event = \"unexpected_http_error\" && $.status >= 500) || $.event = \"panic_recovered\") }"
+  filter_pattern  = "{ ($.alertable IS TRUE) && (($.event = \"unexpected_http_error\" && $.status >= 500) || $.event = \"panic_recovered\" || $.event = \"frontend_render_error\") }"
   destination_arn = var.use_lambda_aliases ? local.error_notifier_live_arn : aws_lambda_function.error_notifier[0].arn
   depends_on      = [aws_lambda_permission.worker_logs_error_notifier]
 }

@@ -262,22 +262,22 @@ deployer does not print or enforce a static monthly estimate.
 
 The existing CloudFront response headers policy enforces
 `Referrer-Policy: strict-origin-when-cross-origin`,
-`X-Content-Type-Options: nosniff`, and `X-Frame-Options: DENY`. It also sends a
-narrow `Content-Security-Policy-Report-Only` policy for observation before CSP
-enforcement. The report-only allowlist covers the configured API origin,
-same-origin application and PWA resources, Google Identity Services, and the
-Roboto font files used by the frontend. Production observation found that both
-the application UI libraries and Google Identity Services require inline CSS,
-so `style-src` permits `unsafe-inline`. That exception applies only to styles;
-`script-src` remains free of `unsafe-inline` and `unsafe-eval`. The policy has
-no reporting endpoint or broad wildcard.
+`X-Content-Type-Options: nosniff`, and `X-Frame-Options: DENY`. It also enforces
+a narrow `Content-Security-Policy` that was first validated in report-only mode
+across the supported Chromium and Safari flows. The allowlist covers the
+configured API origin, same-origin application and PWA resources, Google
+Identity Services, and the Roboto font files used by the frontend. Production
+observation found that both the application UI libraries and Google Identity
+Services require inline CSS, so `style-src` permits `unsafe-inline`. That
+exception applies only to styles; `script-src` remains free of `unsafe-inline`
+and `unsafe-eval`. The policy has no reporting endpoint or broad wildcard.
 
 After deploying a frontend infrastructure update, inspect the browser console
 for CSP violations while testing local and Google sign-in, authenticated API
 requests, PWA installation and updates, Web Push, and the supported Safari
-flows. Report-only violations do not block those operations. Do not convert the
-policy to enforced CSP until every required source is understood and the full
-browser flow passes.
+flows. Enforced-policy violations can block those operations, so treat any new
+violation as a failed deployment verification and restore the preceding
+report-only configuration through Terraform.
 
 Security headers are Terraform-managed infrastructure, not application release
 artifacts. `ACTION=rollback` and `ACTION=promote` do not change them. To recover

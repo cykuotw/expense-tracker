@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from common.command import CommandError
-from frontend.verify import _report_only_csp, verify
+from frontend.verify import _csp, verify
 
 
 def config() -> SimpleNamespace:
@@ -46,7 +46,7 @@ class FrontendVerifyTest(unittest.TestCase):
             "referrer-policy": "strict-origin-when-cross-origin",
             "x-content-type-options": "nosniff",
             "x-frame-options": "DENY",
-            "content-security-policy-report-only": _report_only_csp(
+            "content-security-policy": _csp(
                 "https://api.example.com"
             ),
         }
@@ -72,7 +72,7 @@ class FrontendVerifyTest(unittest.TestCase):
             "referrer-policy": "strict-origin-when-cross-origin",
             "x-content-type-options": "nosniff",
             "x-frame-options": "DENY",
-            "content-security-policy-report-only": _report_only_csp(
+            "content-security-policy": _csp(
                 "https://api.example.com"
             ),
         }
@@ -92,12 +92,12 @@ class FrontendVerifyTest(unittest.TestCase):
             "referrer-policy": "strict-origin-when-cross-origin",
             "x-content-type-options": "nosniff",
             "x-frame-options": "DENY",
-            "content-security-policy-report-only": _report_only_csp(
+            "content-security-policy": _csp(
                 "https://wrong.example.com"
             ),
         }
         with self.assertRaisesRegex(
-            CommandError, "content-security-policy-report-only"
+            CommandError, "content-security-policy"
         ):
             self.verify_runtime(
                 {**EXPECTED, "frontendVersion": "v-20260908-deadbeef"},

@@ -357,9 +357,10 @@ class ComponentTest(unittest.TestCase):
         self.assertIn("referrer_policy = \"strict-origin-when-cross-origin\"", policy)
         self.assertIn("content_type_options", policy)
         self.assertIn('frame_option = "DENY"', policy)
-        self.assertIn("custom_headers_config", policy)
-        self.assertIn('header   = "Content-Security-Policy-Report-Only"', policy)
-        self.assertIn("value    = local.frontend_csp_report_only", policy)
+        self.assertIn("content_security_policy {", policy)
+        self.assertIn("content_security_policy = local.frontend_csp", policy)
+        self.assertNotIn("custom_headers_config", policy)
+        self.assertNotIn("Content-Security-Policy-Report-Only", policy)
         self.assertNotIn('header = "Referrer-Policy"', policy)
         self.assertEqual(
             source.count(
@@ -367,7 +368,7 @@ class ComponentTest(unittest.TestCase):
             ),
             1,
         )
-        csp = source.split("frontend_csp_report_only", maxsplit=1)[1].split(
+        csp = source.split("frontend_csp", maxsplit=1)[1].split(
             "}\nresource", maxsplit=1
         )[0]
         for expected in (

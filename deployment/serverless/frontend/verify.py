@@ -22,7 +22,7 @@ def _get(url: str) -> tuple[int, str, dict[str, str]]:
 FRONTEND_VERSION_PATTERN = re.compile(r"^v-\d{8}-[0-9a-f]{8}$")
 
 
-def _report_only_csp(api_origin: str) -> str:
+def _csp(api_origin: str) -> str:
     return "; ".join(
         (
             "default-src 'self'",
@@ -47,7 +47,7 @@ def _security_headers(config: Config, headers: dict[str, str]) -> None:
         "referrer-policy": "strict-origin-when-cross-origin",
         "x-content-type-options": "nosniff",
         "x-frame-options": "DENY",
-        "content-security-policy-report-only": _report_only_csp(config.api_origin),
+        "content-security-policy": _csp(config.api_origin),
     }
     for name, value in expected.items():
         if headers.get(name) != value:

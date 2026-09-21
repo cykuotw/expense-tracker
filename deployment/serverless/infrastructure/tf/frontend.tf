@@ -1,6 +1,6 @@
 locals {
   frontend_origin_id = "${local.resource_prefix}-frontend"
-  frontend_csp_report_only = "${join("; ", [
+  frontend_csp = "${join("; ", [
     "default-src 'self'",
     "base-uri 'self'",
     "object-src 'none'",
@@ -79,15 +79,11 @@ resource "aws_cloudfront_origin_access_control" "frontend" {
 resource "aws_cloudfront_response_headers_policy" "frontend_security" {
   name = "${local.resource_prefix}-frontend-security"
 
-  custom_headers_config {
-    items {
-      header   = "Content-Security-Policy-Report-Only"
-      override = true
-      value    = local.frontend_csp_report_only
-    }
-  }
-
   security_headers_config {
+    content_security_policy {
+      content_security_policy = local.frontend_csp
+      override                = true
+    }
     content_type_options {
       override = true
     }

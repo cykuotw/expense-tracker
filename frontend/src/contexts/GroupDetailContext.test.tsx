@@ -108,7 +108,8 @@ describe("GroupDetailProvider error handling", () => {
 
         expect(screen.getByTestId("expense-order")).toHaveTextContent("newest");
         expect(apiFetchMock).toHaveBeenCalledWith(
-            "/group_overview/group-1/0?order=newest&status=unsettled"
+            "/group_overview/group-1/0?order=newest&status=unsettled",
+            expect.objectContaining({ signal: expect.any(AbortSignal) }),
         );
 
         fireEvent.click(screen.getByRole("button", { name: "Settle" }));
@@ -260,7 +261,8 @@ describe("GroupDetailProvider error handling", () => {
         await waitFor(() => {
             expect(screen.getByTestId("expense-order")).toHaveTextContent("oldest");
             expect(apiFetchMock).toHaveBeenCalledWith(
-                "/group_overview/group-1/0?order=oldest&status=unsettled"
+                "/group_overview/group-1/0?order=oldest&status=unsettled",
+                expect.objectContaining({ signal: expect.any(AbortSignal) }),
             );
         });
     });

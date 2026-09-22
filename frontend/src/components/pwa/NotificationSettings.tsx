@@ -43,7 +43,7 @@ export default function NotificationSettings() {
     const [currentBrowserEnabled, setCurrentBrowserEnabled] = useState(false);
     const [currentBrowserShowDetails, setCurrentBrowserShowDetails] = useState(false);
 
-    const load = useCallback(async () => {
+    const load = useCallback(async (signal?: AbortSignal) => {
         setLoading(true);
         setError("");
         try {
@@ -51,6 +51,7 @@ export default function NotificationSettings() {
                 if (!subscription) return { registered: false, showDetails: false };
                 const response = await apiFetch("/notifications/subscriptions/status", {
                     method: "POST",
+                    signal,
                     body: JSON.stringify({ endpoint: subscription.endpoint }),
                 });
                 if (!response.ok) throw new Error(await getResponseErrorMessage(response, "Unable to check this browser's notification status"));
@@ -58,14 +59,18 @@ export default function NotificationSettings() {
                 return { registered: status.registered === true, showDetails: status.showDetails === true };
             });
             const [settingsResponse, groupsResponse, browserStatus] = await Promise.all([
-                apiFetch("/notifications/settings"),
-                apiFetch("/groups"),
+                apiFetch("/notifications/settings", { signal }),
+                apiFetch("/groups", { signal }),
                 subscriptionStatus,
             ]);
             if (!settingsResponse.ok) {
                 throw new Error(await getResponseErrorMessage(settingsResponse, "Unable to load notification settings"));
             }
             const settingsData = (await settingsResponse.json()) as Partial<Settings>;
+            const groupData = groupsResponse.ok
+                ? await groupsResponse.json()
+                : null;
+            if (signal?.aborted) return;
             setSettings({
                 subscriptionCount: typeof settingsData.subscriptionCount === "number"
                     ? settingsData.subscriptionCount
@@ -79,13 +84,14 @@ export default function NotificationSettings() {
             });
             setCurrentBrowserEnabled(browserStatus.registered);
             setCurrentBrowserShowDetails(browserStatus.showDetails);
-            if (groupsResponse.ok) {
-                setGroups(asArray<GroupListItem>(await groupsResponse.json()));
+            if (groupData !== null) {
+                setGroups(asArray<GroupListItem>(groupData));
             }
         } catch (reason) {
+            if (signal?.aborted) return;
             setError(reason instanceof Error ? reason.message : "Unable to load notification settings");
         } finally {
-            setLoading(false);
+            if (!signal?.aborted) setLoading(false);
         }
     }, []);
 
@@ -94,7 +100,9 @@ export default function NotificationSettings() {
             setLoading(false);
             return;
         }
-        void load();
+        const abortController = new AbortController();
+        void load(abortController.signal);
+        return () => abortController.abort();
     }, [load]);
 
     const requestEnable = async () => {

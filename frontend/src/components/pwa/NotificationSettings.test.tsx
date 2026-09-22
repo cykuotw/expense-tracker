@@ -103,7 +103,11 @@ describe("NotificationSettings", () => {
         expect(screen.getByRole("checkbox", { name: /Show notification details in this browser/ })).toBeChecked();
         expect(apiFetchMock).toHaveBeenCalledWith(
             "/notifications/subscriptions/status",
-            { method: "POST", body: JSON.stringify({ endpoint: "https://fcm.googleapis.com/fcm/send/current" }) },
+            expect.objectContaining({
+                method: "POST",
+                signal: expect.any(AbortSignal),
+                body: JSON.stringify({ endpoint: "https://fcm.googleapis.com/fcm/send/current" }),
+            }),
         );
     });
 

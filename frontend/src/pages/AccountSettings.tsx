@@ -232,11 +232,11 @@ export default function AccountSettings() {
             profile.lastname !== account.lastname ||
             profile.nickname !== account.nickname);
 
-    const load = useCallback(async () => {
+    const load = useCallback(async (signal?: AbortSignal) => {
         setLoading(true);
         setLoadError("");
         try {
-            const response = await apiFetch("/account");
+            const response = await apiFetch("/account", { signal });
             if (!response.ok) {
                 throw new Error(
                     await getResponseErrorMessage(
@@ -246,6 +246,7 @@ export default function AccountSettings() {
                 );
             }
             const data = (await response.json()) as AccountSettingsData;
+            if (signal?.aborted) return;
             setAccount(data);
             setProfile({
                 firstname: data.firstname,
@@ -253,18 +254,21 @@ export default function AccountSettings() {
                 nickname: data.nickname,
             });
         } catch (error) {
+            if (signal?.aborted) return;
             setLoadError(
                 error instanceof Error
                     ? error.message
                     : "Unable to load account settings",
             );
         } finally {
-            setLoading(false);
+            if (!signal?.aborted) setLoading(false);
         }
     }, []);
 
     useEffect(() => {
-        void load();
+        const abortController = new AbortController();
+        void load(abortController.signal);
+        return () => abortController.abort();
     }, [load]);
 
     const updateProfile = async (event: FormEvent<HTMLFormElement>) => {

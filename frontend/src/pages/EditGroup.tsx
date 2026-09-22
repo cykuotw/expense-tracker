@@ -40,20 +40,37 @@ export default function EditGroup() {
 
     useEffect(() => {
         if (!id) return;
-        void apiFetch(`/group/${id}`).then(async (response) => {
-            if (!response.ok) return;
-            const data = await response.json();
-            const nextForm: GroupForm = {
-                groupName: data.groupName ?? "",
-                description: data.description ?? "",
-                currency: data.currency ?? "CAD",
-                groupType: data.groupType ?? "home",
-            };
-            setForm(nextForm);
-            setInitialForm(nextForm);
-            setCurrencyEditable(data.currencyEditable === true);
-            setDetailsEditable(data.detailsEditable === true);
-        });
+        const abortController = new AbortController();
+        let active = true;
+
+        const loadGroup = async () => {
+            try {
+                const response = await apiFetch(`/group/${id}`, {
+                    signal: abortController.signal,
+                });
+                if (!response.ok) return;
+                const data = await response.json();
+                if (!active) return;
+                const nextForm: GroupForm = {
+                    groupName: data.groupName ?? "",
+                    description: data.description ?? "",
+                    currency: data.currency ?? "CAD",
+                    groupType: data.groupType ?? "home",
+                };
+                setForm(nextForm);
+                setInitialForm(nextForm);
+                setCurrencyEditable(data.currencyEditable === true);
+                setDetailsEditable(data.detailsEditable === true);
+            } catch {
+                // Group loading remains silent; aborts are expected cleanup.
+            }
+        };
+
+        void loadGroup();
+        return () => {
+            active = false;
+            abortController.abort();
+        };
     }, [id]);
 
     useEffect(() => {

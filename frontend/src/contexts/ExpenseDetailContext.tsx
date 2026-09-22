@@ -32,6 +32,7 @@ export const ExpenseDetailProvider = ({
             return;
         }
 
+        const abortController = new AbortController();
         let active = true;
 
         const fetchExpenseDetail = async () => {
@@ -40,6 +41,7 @@ export const ExpenseDetailProvider = ({
             try {
                 const response = await apiFetch(`/expense/${expenseId}`, {
                     method: "GET",
+                    signal: abortController.signal,
                     headers: {
                         "Content-Type": "application/json",
                     },
@@ -80,6 +82,7 @@ export const ExpenseDetailProvider = ({
         fetchExpenseDetail();
         return () => {
             active = false;
+            abortController.abort();
         };
     }, [expenseId]);
 

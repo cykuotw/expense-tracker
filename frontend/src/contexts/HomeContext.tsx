@@ -8,24 +8,38 @@ export const HomeProvider = ({ children }: { children: ReactNode }) => {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
+        const abortController = new AbortController();
+        let active = true;
+
         const fetchGroups = async () => {
             try {
                 const response = await apiFetch("/groups", {
                     method: "GET",
+                    signal: abortController.signal,
                     headers: {
                         "Content-Type": "application/json",
                     },
                 });
                 const groups = await response.json();
-                setGroupCards(asArray<GroupCardData>(groups));
+                if (active) {
+                    setGroupCards(asArray<GroupCardData>(groups));
+                }
             } catch (error) {
-                console.log(error);
+                if (active && !abortController.signal.aborted) {
+                    console.log(error);
+                }
             } finally {
-                setLoading(false);
+                if (active) {
+                    setLoading(false);
+                }
             }
         };
 
-        fetchGroups();
+        void fetchGroups();
+        return () => {
+            active = false;
+            abortController.abort();
+        };
     }, []);
 
     return (

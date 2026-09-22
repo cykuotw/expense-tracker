@@ -324,38 +324,60 @@ export default function MonthlyReview() {
     const validMonth = parseReviewMonth(month) !== null;
     const amountDigitsFor = useCallback((currency: string) => currencyAmountDigits(currencies, currency), [currencies]);
 
-    const load = useCallback(async () => {
+    const load = useCallback(async (signal?: AbortSignal) => {
         if (!id || !validMonth) { setError("Choose a valid review month."); setLoading(false); return; }
         setLoading(true);
         setError("");
         try {
-            const response = await apiFetch(`/group/${encodeURIComponent(id)}/monthly-review/${month}`);
+            const response = await apiFetch(
+                `/group/${encodeURIComponent(id)}/monthly-review/${month}`,
+                { signal },
+            );
             if (!response.ok) throw new Error(await getResponseErrorMessage(response, "Monthly review could not be loaded."));
             const data = (await response.json()) as MonthlyReviewData;
+            if (signal?.aborted) return;
             setReview({ ...data, currencies: asArray<MonthlyReviewCurrency>(data.currencies) });
         } catch (loadError) {
+            if (signal?.aborted) return;
             setReview(null);
             setError(loadError instanceof Error ? loadError.message : "Monthly review could not be loaded.");
-        } finally { setLoading(false); }
+        } finally {
+            if (!signal?.aborted) setLoading(false);
+        }
     }, [id, month, validMonth]);
 
-    const loadTrend = useCallback(async () => {
+    const loadTrend = useCallback(async (signal?: AbortSignal) => {
         if (!id) return;
         setTrendLoading(true);
         setTrendError("");
         try {
-            const response = await apiFetch(`/group/${encodeURIComponent(id)}/monthly-review-trend/${trendEndMonth}`);
+            const response = await apiFetch(
+                `/group/${encodeURIComponent(id)}/monthly-review-trend/${trendEndMonth}`,
+                { signal },
+            );
             if (!response.ok) throw new Error(await getResponseErrorMessage(response, "Spending trend could not be loaded."));
             const data = (await response.json()) as MonthlyReviewTrendData;
+            if (signal?.aborted) return;
             setTrend({ ...data, currencies: asArray<MonthlyReviewTrendCurrency>(data.currencies) });
         } catch (loadError) {
+            if (signal?.aborted) return;
             setTrend(null);
             setTrendError(loadError instanceof Error ? loadError.message : "Spending trend could not be loaded.");
-        } finally { setTrendLoading(false); }
+        } finally {
+            if (!signal?.aborted) setTrendLoading(false);
+        }
     }, [id, trendEndMonth]);
 
-    useEffect(() => { void load(); }, [load]);
-    useEffect(() => { void loadTrend(); }, [loadTrend]);
+    useEffect(() => {
+        const abortController = new AbortController();
+        void load(abortController.signal);
+        return () => abortController.abort();
+    }, [load]);
+    useEffect(() => {
+        const abortController = new AbortController();
+        void loadTrend(abortController.signal);
+        return () => abortController.abort();
+    }, [loadTrend]);
 
     const goToMonth = (delta: number) => navigate(`/group/${id}/monthly-review/${shiftReviewMonth(month, delta)}`);
     const latestReportMonth = trend?.latestReportMonth;

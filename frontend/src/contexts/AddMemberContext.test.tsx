@@ -53,11 +53,13 @@ function jsonResponse(body: unknown, status = 200) {
 
 function deferred<T>() {
     let resolve: (value: T) => void;
-    const promise = new Promise<T>((resolvePromise) => {
+    let reject: (reason?: unknown) => void;
+    const promise = new Promise<T>((resolvePromise, rejectPromise) => {
         resolve = resolvePromise;
+        reject = rejectPromise;
     });
 
-    return { promise, resolve: resolve! };
+    return { promise, reject: reject!, resolve: resolve! };
 }
 
 function AddMemberHarness() {
@@ -294,8 +296,10 @@ describe("AddMemberProvider error handling", () => {
         const firstUserLookup = deferred<Response>();
         const secondUserLookup = deferred<Response>();
         let userLookupCount = 0;
+        let firstLookupSignal: AbortSignal | undefined;
+        let secondLookupSignal: AbortSignal | undefined;
 
-        apiFetchMock.mockImplementation((path: string) => {
+        apiFetchMock.mockImplementation((path: string, init: RequestInit = {}) => {
             if (path.startsWith("/related_member")) {
                 return Promise.resolve(jsonResponse([]));
             }
@@ -304,6 +308,11 @@ describe("AddMemberProvider error handling", () => {
             }
             if (path.startsWith("/userInfo")) {
                 userLookupCount += 1;
+                if (userLookupCount === 1) {
+                    firstLookupSignal = init.signal as AbortSignal;
+                } else {
+                    secondLookupSignal = init.signal as AbortSignal;
+                }
                 return userLookupCount === 1
                     ? firstUserLookup.promise
                     : secondUserLookup.promise;
@@ -321,11 +330,11 @@ describe("AddMemberProvider error handling", () => {
             target: { value: "second@example.com" },
         });
         await waitFor(() => expect(userLookupCount).toBe(2));
+        expect(firstLookupSignal?.aborted).toBe(true);
+        expect(secondLookupSignal?.aborted).toBe(false);
 
         await act(async () => {
-            firstUserLookup.resolve(
-                jsonResponse({ id: "first-user", username: "First" })
-            );
+            firstUserLookup.reject(new DOMException("Aborted", "AbortError"));
         });
 
         expect(screen.getByTestId("new-member")).toBeEmptyDOMElement();

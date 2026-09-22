@@ -41,6 +41,7 @@ export const AddMemberProvider = ({
     const [relatedUserList, setRelatedUserList] = useState<RelatedUser[]>([]);
     const relatedUserListRef = useRef<RelatedUser[]>([]);
     const lookupGenerationRef = useRef(0);
+    const lookupAbortControllerRef = useRef<AbortController | null>(null);
 
     const [email, setEmail] = useState("");
     const debouncedEmail = useDebounce(email, 300);
@@ -48,6 +49,8 @@ export const AddMemberProvider = ({
     const loading = savingMembers || checkingEmail;
 
     const invalidateEmailLookup = () => {
+        lookupAbortControllerRef.current?.abort();
+        lookupAbortControllerRef.current = null;
         lookupGenerationRef.current += 1;
         setCheckingEmail(false);
     };
@@ -58,6 +61,7 @@ export const AddMemberProvider = ({
     };
 
     useEffect(() => {
+        const abortController = new AbortController();
         let ignoreResult = false;
 
         const fetchRelatedUsers = async () => {
@@ -71,6 +75,7 @@ export const AddMemberProvider = ({
                     : "/related_member";
                 const response = await apiFetch(path, {
                     method: "GET",
+                    signal: abortController.signal,
                     headers: {
                         "Content-Type": "application/json",
                     },
@@ -80,7 +85,7 @@ export const AddMemberProvider = ({
                     setRelatedUserList(asArray<RelatedUser>(data));
                 }
             } catch (error) {
-                if (!ignoreResult) {
+                if (!ignoreResult && !abortController.signal.aborted) {
                     console.log(error);
                 }
             }
@@ -89,6 +94,7 @@ export const AddMemberProvider = ({
         void fetchRelatedUsers();
         return () => {
             ignoreResult = true;
+            abortController.abort();
         };
     }, [allowPreCreate, groupId]);
 
@@ -140,8 +146,6 @@ export const AddMemberProvider = ({
 
     useEffect(() => {
         const lookupGeneration = ++lookupGenerationRef.current;
-        const isCurrentLookup = () =>
-            lookupGenerationRef.current === lookupGeneration;
 
         if (!debouncedEmail) {
             setNewMember(null);
@@ -156,6 +160,12 @@ export const AddMemberProvider = ({
             return;
         }
 
+        const abortController = new AbortController();
+        lookupAbortControllerRef.current = abortController;
+        const isCurrentLookup = () =>
+            !abortController.signal.aborted &&
+            lookupGenerationRef.current === lookupGeneration;
+
         const checkEmailValid = async () => {
             setCheckingEmail(true);
             let requestFallback = CHECK_EMAIL_FALLBACK;
@@ -165,6 +175,7 @@ export const AddMemberProvider = ({
                     "/checkEmail",
                     {
                         method: "POST",
+                        signal: abortController.signal,
                         body: JSON.stringify({ email: debouncedEmail }),
                     },
                     { authMode: "none" }
@@ -198,6 +209,7 @@ export const AddMemberProvider = ({
                     `/userInfo?email=${debouncedEmail}`,
                     {
                         method: "POST",
+                        signal: abortController.signal,
                         body: JSON.stringify({
                             email: debouncedEmail,
                         }),
@@ -245,7 +257,13 @@ export const AddMemberProvider = ({
             }
         };
 
-        checkEmailValid();
+        void checkEmailValid();
+        return () => {
+            abortController.abort();
+            if (lookupAbortControllerRef.current === abortController) {
+                lookupAbortControllerRef.current = null;
+            }
+        };
     }, [debouncedEmail]);
 
     const handleAddNewMember = () => {

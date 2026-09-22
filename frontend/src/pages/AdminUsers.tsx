@@ -382,11 +382,14 @@ export default function AdminUsers() {
         }
     }
 
-    const load = useCallback(async (showLoading = true) => {
+    const load = useCallback(async (
+        showLoading = true,
+        signal?: AbortSignal,
+    ) => {
         if (showLoading) setLoading(true);
         setError("");
         try {
-            const response = await apiFetch("/admin/users");
+            const response = await apiFetch("/admin/users", { signal });
             if (!response.ok) {
                 throw new Error(
                     await getResponseErrorMessage(
@@ -396,23 +399,27 @@ export default function AdminUsers() {
                 );
             }
             const responseData = (await response.json()) as AdminManagementData;
+            if (signal?.aborted) return;
             setData({
                 users: asArray(responseData.users),
                 invitations: asArray(responseData.invitations),
             });
         } catch (loadError) {
+            if (signal?.aborted) return;
             setError(
                 loadError instanceof Error
                     ? loadError.message
                     : "Unable to load user management data",
             );
         } finally {
-            if (showLoading) setLoading(false);
+            if (showLoading && !signal?.aborted) setLoading(false);
         }
     }, []);
 
     useEffect(() => {
-        void load();
+        const abortController = new AbortController();
+        void load(true, abortController.signal);
+        return () => abortController.abort();
     }, [load]);
 
     const performStatusUpdate = async (user: AdminUser) => {

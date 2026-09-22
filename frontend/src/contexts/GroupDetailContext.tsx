@@ -52,15 +52,20 @@ export const GroupDetailProvider = ({ children }: { children: ReactNode }) => {
     const settledExpenseListGenerationRef = useRef(0);
     const settlementInFlightRef = useRef(false);
 
-    const refreshGroupSummary = useCallback(async (): Promise<GroupOverviewSnapshot | null> => {
+    const refreshGroupSummary = useCallback(async (
+        signal?: AbortSignal,
+    ): Promise<GroupOverviewSnapshot | null> => {
         if (!groupId) return null;
         setLoading(true);
         try {
-            const response = await apiFetch(
-                `/group_overview/${groupId}/0?order=${expenseOrder}&status=unsettled`
-            );
+            const path =
+                `/group_overview/${groupId}/0?order=${expenseOrder}&status=unsettled`;
+            const response = signal
+                ? await apiFetch(path, { signal })
+                : await apiFetch(path);
             if (!response.ok) return null;
             const data = (await response.json()) as GroupOverviewSnapshot;
+            if (signal?.aborted) return null;
             if (data.group) {
                 setGroupInfo({ ...data.group, members: asArray(data.group.members) });
             }
@@ -83,15 +88,20 @@ export const GroupDetailProvider = ({ children }: { children: ReactNode }) => {
             }
             return data;
         } catch (error) {
+            if (signal?.aborted) return null;
             console.error(error);
             return null;
         } finally {
-            setLoading(false);
+            if (!signal?.aborted) {
+                setLoading(false);
+            }
         }
     }, [expenseOrder, groupId]);
 
     useEffect(() => {
-        void refreshGroupSummary();
+        const abortController = new AbortController();
+        void refreshGroupSummary(abortController.signal);
+        return () => abortController.abort();
     }, [refreshGroupSummary]);
 
     const fetchExpensePage = useCallback(async (

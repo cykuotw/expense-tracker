@@ -95,6 +95,21 @@ describe("EditGroup member anchor", () => {
         saveButtons.forEach((button) => expect(button).toBeDisabled());
     });
 
+    it("keeps the group type picker above the currency card", () => {
+        render(
+            <MemoryRouter initialEntries={["/group/group-1/edit"]}>
+                <Routes>
+                    <Route path="/group/:id/edit" element={<EditGroup />} />
+                </Routes>
+            </MemoryRouter>
+        );
+
+        expect(document.getElementById("edit-group-form")).toHaveClass(
+            "relative",
+            "z-10",
+        );
+    });
+
     it("saves currency through the dedicated endpoint", async () => {
         apiFetchMock.mockImplementation((path: string) => Promise.resolve(new Response(
             JSON.stringify(path === "/currencies" ? [

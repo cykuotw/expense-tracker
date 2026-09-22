@@ -176,7 +176,7 @@ export default function EditGroup() {
                 </div>
                 <form
                     id="edit-group-form"
-                    className="panel-card grid gap-3 rounded-[2rem] p-4 md:gap-5 md:p-8"
+                    className="panel-card relative z-10 grid gap-3 rounded-[2rem] p-4 md:gap-5 md:p-8"
                     onSubmit={save}
                 >
                     {!detailsEditable ? (

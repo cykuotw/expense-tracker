@@ -31,7 +31,7 @@ def _csp(api_origin: str) -> str:
             "frame-ancestors 'none'",
             "form-action 'self'",
             "script-src 'self' https://accounts.google.com/gsi/client",
-            f"connect-src 'self' {api_origin} https://accounts.google.com/gsi/",
+            f"connect-src 'self' {api_origin} https://api.frankfurter.dev https://accounts.google.com/gsi/",
             "frame-src https://accounts.google.com/gsi/",
             "style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/style",
             "font-src 'self' https://fonts.gstatic.com",

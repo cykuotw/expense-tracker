@@ -20,6 +20,8 @@ Browser
   |
   +-- static application --> CloudFront --> S3
   |
+  +-- public rate recommendations -------------> Frankfurter
+  |
   +-- API requests ------> API Gateway --> Worker Lambda
                                              |
                                              v
@@ -203,8 +205,11 @@ and `frontend/src/lib/api.ts`. Do not duplicate endpoint details here.
   each current balance with the group's user-saved exact-decimal rate, rounds
   that contribution to the preview currency's minor unit, and only then
   aggregates it. Missing rates make the aggregate explicitly unavailable.
-  Provider recommendations are fetched on demand through the backend and are
-  never persisted or applied until a member copies and saves one. Settlement
+  Provider recommendations are fetched on demand by the browser directly from
+  the public Frankfurter API without credentials or application identifiers.
+  They are untrusted, ephemeral UI inputs and are never persisted or applied
+  until a member copies and saves one; backend validation remains authoritative
+  for saved rates. Settlement
   continues to act on original-currency balances.
 - The backend, not the browser, is responsible for validating trusted actor
   identity, resource membership, currency and amount rules, and the final

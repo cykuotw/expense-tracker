@@ -26,6 +26,7 @@ export interface GroupCardData {
     balanceStatus: GroupBalanceStatus;
     balanceAmount: string;
     settlementPreviewComplete?: boolean;
+    usesSettlementPreview?: boolean;
 }
 
 export interface GroupMember {

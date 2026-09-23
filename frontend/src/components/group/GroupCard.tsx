@@ -6,14 +6,17 @@ import { getGroupTypePresentation } from "../../lib/groupTypePresentation";
 export default function GroupCard(groupData: GroupCardData) {
     const hasDescription = Boolean(groupData.description?.trim());
     const type = getGroupTypePresentation(groupData.groupType);
+    const estimatePrefix = groupData.usesSettlementPreview ? "Estimated · " : "";
+    const approximatePrefix = groupData.usesSettlementPreview ? "≈ " : "";
+    const balanceSubject = groupData.usesSettlementPreview ? "you" : "You";
     const balanceLabel =
         groupData.balanceStatus === "settled"
             ? "Settled"
             : groupData.balanceStatus === "preview_unavailable"
               ? "Settlement preview unavailable"
             : groupData.balanceStatus === "owed"
-              ? `Estimated · you are owed ≈ ${groupData.balanceAmount} ${groupData.currency}`
-              : `Estimated · you owe ≈ ${groupData.balanceAmount} ${groupData.currency}`;
+              ? `${estimatePrefix}${balanceSubject} are owed ${approximatePrefix}${groupData.balanceAmount} ${groupData.currency}`
+              : `${estimatePrefix}${balanceSubject} owe ${approximatePrefix}${groupData.balanceAmount} ${groupData.currency}`;
 
     const balanceClass =
         groupData.balanceStatus === "settled"

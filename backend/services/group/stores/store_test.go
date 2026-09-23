@@ -469,6 +469,59 @@ func TestGetGroupCurrency(t *testing.T) {
 	}
 }
 
+func TestGetGroupListUsesPreviewOnlyForMultipleBalanceCurrencies(t *testing.T) {
+	db := openTestDB(t)
+	store := group.NewStore(db)
+	groupID := uuid.New()
+	currentUserID := uuid.New()
+	otherUserID := uuid.New()
+
+	assert.NoError(t, insertGroup(db, types.Group{
+		ID: groupID, Currency: "CAD", CreateByUser: currentUserID, IsActive: true,
+	}))
+	assert.NoError(t, insertGroupMember(db, groupID, []uuid.UUID{currentUserID}))
+	defer cleanUser(db, currentUserID)
+	defer cleanUser(db, otherUserID)
+	defer deleteGroupMember(db, groupID, []uuid.UUID{currentUserID})
+	defer deleteGroup(db, groupID)
+
+	cadBalance := &types.Balance{
+		ID: uuid.New(), SenderUserID: otherUserID, ReceiverUserID: currentUserID,
+		Share: decimal.RequireFromString("25.50"), GroupID: groupID,
+		CreateTime: time.Now(), Currency: "CAD",
+	}
+	assert.NoError(t, insertBalance(db, cadBalance))
+	defer deleteBalances(db, []*types.Balance{cadBalance})
+
+	groups, err := store.GetGroupListByUser(currentUserID.String())
+	assert.NoError(t, err)
+	if assert.Len(t, groups, 1) {
+		assert.False(t, groups[0].UsesSettlementPreview)
+		assert.Equal(t, "CAD", groups[0].Currency)
+		assert.True(t, groups[0].BalanceAmount.Equal(decimal.RequireFromString("25.50")))
+	}
+
+	_, err = db.Exec(`INSERT INTO group_currency (
+		group_id, currency, enabled_for_new_expenses, preview_rate
+	) VALUES ($1, 'TWD', TRUE, 0.04)`, groupID)
+	assert.NoError(t, err)
+	twdBalance := &types.Balance{
+		ID: uuid.New(), SenderUserID: otherUserID, ReceiverUserID: currentUserID,
+		Share: decimal.RequireFromString("1000"), GroupID: groupID,
+		CreateTime: time.Now(), Currency: "TWD",
+	}
+	assert.NoError(t, insertBalance(db, twdBalance))
+	defer deleteBalances(db, []*types.Balance{twdBalance})
+
+	groups, err = store.GetGroupListByUser(currentUserID.String())
+	assert.NoError(t, err)
+	if assert.Len(t, groups, 1) {
+		assert.True(t, groups[0].UsesSettlementPreview)
+		assert.Equal(t, "CAD", groups[0].Currency)
+		assert.True(t, groups[0].BalanceAmount.Equal(decimal.RequireFromString("65.50")))
+	}
+}
+
 func TestGetGroupCardBalanceSummary(t *testing.T) {
 	db := openTestDB(t)
 	store := group.NewStore(db)
@@ -523,13 +576,16 @@ func insertBalance(db *sql.DB, balance *types.Balance) error {
 	if err := ensureTestUser(db, balance.ReceiverUserID); err != nil {
 		return err
 	}
+	if balance.Currency == "" {
+		balance.Currency = "CAD"
+	}
 	createTime := balance.CreateTime.UTC().Format("2006-01-02 15:04:05-0700")
 	updateTime := balance.UpdateTime.UTC().Format("2006-01-02 15:04:05-0700")
 	settleTime := balance.SettledTime.UTC().Format("2006-01-02 15:04:05-0700")
 	query := fmt.Sprintf(
 		"INSERT INTO balance ("+
-			"id, sender_user_id, receiver_user_id, share, group_id, create_time_utc, is_outdated, update_time_utc, is_settled, settle_time_utc"+
-			") VALUES ('%s', '%s', '%s', %s, '%s', '%s', %t, '%s', %t, '%s')",
+			"id, sender_user_id, receiver_user_id, share, group_id, create_time_utc, is_outdated, update_time_utc, is_settled, settle_time_utc, currency"+
+			") VALUES ('%s', '%s', '%s', %s, '%s', '%s', %t, '%s', %t, '%s', '%s')",
 		balance.ID,
 		balance.SenderUserID,
 		balance.ReceiverUserID,
@@ -540,6 +596,7 @@ func insertBalance(db *sql.DB, balance *types.Balance) error {
 		updateTime,
 		balance.IsSettled,
 		settleTime,
+		balance.Currency,
 	)
 	_, err := db.Exec(query)
 	return err

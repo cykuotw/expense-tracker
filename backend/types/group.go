@@ -141,4 +141,5 @@ type GetGroupListResponse struct {
 	BalanceStatus             GroupBalanceStatus `json:"balanceStatus"`
 	BalanceAmount             decimal.Decimal    `json:"balanceAmount"`
 	SettlementPreviewComplete bool               `json:"settlementPreviewComplete"`
+	UsesSettlementPreview     bool               `json:"usesSettlementPreview"`
 }

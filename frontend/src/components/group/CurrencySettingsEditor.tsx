@@ -5,27 +5,21 @@ import Icon from "@mdi/react";
 import { Input } from "@/components/ui/input";
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
-import { apiFetch } from "../../lib/api";
 import { CurrencyMetadata } from "../../lib/money";
 import {
     GroupCurrencySetting,
     GroupCurrencySettings,
 } from "../../types/group";
 import { CurrencyPicker } from "./CurrencyPicker";
-import { compactRate, divideRates, reciprocalRate, validPositiveRate } from "../../lib/currencySettings";
-
-interface Recommendation {
-    sourceCurrency: string;
-    settlementPreviewCurrency: string;
-    recommendedRate: string;
-    rateSnapshotAt: string;
-}
-
-interface RecommendationResponse {
-    providerName: string;
-    attributionUrl: string;
-    recommendations: Recommendation[];
-}
+import {
+    compactRate,
+    divideRates,
+    fetchRateRecommendations,
+    reciprocalRate,
+    validPositiveRate,
+    type Recommendation,
+    type RecommendationResponse,
+} from "../../lib/currencySettings";
 
 type RateDirection = "source-to-preview" | "preview-to-source";
 
@@ -120,17 +114,7 @@ export function CurrencySettingsEditor({
         const requestKey = `${refreshVersion}|${baseCurrency}|${requestedCodes.join(",")}`;
         let request = recommendationRequestsRef.current.get(requestKey);
         if (!request) {
-            request = apiFetch("/currency-recommendations", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    sourceCurrencies: requestedCodes,
-                    settlementPreviewCurrency: baseCurrency,
-                }),
-            }).then(async (response) => {
-                if (!response.ok) throw new Error("recommendations unavailable");
-                return response.json() as Promise<RecommendationResponse>;
-            });
+            request = fetchRateRecommendations(requestedCodes, baseCurrency);
             recommendationRequestsRef.current.set(requestKey, request);
         }
 

@@ -92,6 +92,116 @@ export function reciprocalRate(value: string | null): string | null {
     );
 }
 
+function providerRateText(value: number): string | null {
+    const fixed = value.toFixed(RATE_FRACTION_DIGITS).replace(/\.?0+$/, "");
+    return validPositiveRate(fixed) ? fixed : null;
+}
+
+export interface Recommendation {
+    sourceCurrency: string;
+    settlementPreviewCurrency: string;
+    recommendedRate: string;
+    rateSnapshotAt: string;
+}
+
+export interface RecommendationResponse {
+    providerName: string;
+    attributionUrl: string;
+    recommendations: Recommendation[];
+}
+
+interface FrankfurterRate {
+    date: string;
+    base: string;
+    quote: string;
+    rate: number;
+}
+
+const FRANKFURTER_RATES_URL = "https://api.frankfurter.dev/v2/rates";
+const CURRENCY_CODE = /^[A-Z]{3}$/;
+const SNAPSHOT_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+export async function fetchRateRecommendations(
+    sourceCurrencies: string[],
+    targetCurrency: string
+): Promise<RecommendationResponse> {
+    const sources = Array.from(new Set(sourceCurrencies)).sort();
+    if (
+        !CURRENCY_CODE.test(targetCurrency) ||
+        !sources.includes(targetCurrency) ||
+        sources.some((currency) => !CURRENCY_CODE.test(currency))
+    ) {
+        throw new Error("invalid recommendation currencies");
+    }
+
+    const quotes = sources.filter((currency) => currency !== targetCurrency);
+    if (quotes.length === 0) {
+        throw new Error("recommendations require another currency");
+    }
+
+    const query = new URLSearchParams({
+        base: targetCurrency,
+        quotes: quotes.join(","),
+    });
+    const response = await fetch(`${FRANKFURTER_RATES_URL}?${query}`, {
+        credentials: "omit",
+        headers: { Accept: "application/json" },
+    });
+    if (!response.ok) throw new Error("recommendations unavailable");
+
+    const payload: unknown = await response.json();
+    if (!Array.isArray(payload)) throw new Error("invalid recommendation response");
+
+    const rows = payload.filter((value): value is FrankfurterRate => {
+        if (!value || typeof value !== "object") return false;
+        const row = value as Partial<FrankfurterRate>;
+        return (
+            typeof row.date === "string" &&
+            SNAPSHOT_DATE.test(row.date) &&
+            row.base === targetCurrency &&
+            typeof row.quote === "string" &&
+            typeof row.rate === "number" &&
+            Number.isFinite(row.rate) &&
+            row.rate > 0
+        );
+    });
+    const byQuote = new Map(rows.map((row) => [row.quote, row]));
+    const snapshotAt = rows.reduce(
+        (latest, row) => row.date > latest ? row.date : latest,
+        ""
+    );
+    if (!snapshotAt) throw new Error("missing recommendation snapshot");
+
+    const recommendations = sources.map((sourceCurrency): Recommendation => {
+        if (sourceCurrency === targetCurrency) {
+            return {
+                sourceCurrency,
+                settlementPreviewCurrency: targetCurrency,
+                recommendedRate: "1",
+                rateSnapshotAt: snapshotAt,
+            };
+        }
+        const row = byQuote.get(sourceCurrency);
+        const rateText = row ? providerRateText(row.rate) : null;
+        const recommendedRate = reciprocalRate(rateText);
+        if (!row || !recommendedRate) {
+            throw new Error(`missing recommendation for ${sourceCurrency}`);
+        }
+        return {
+            sourceCurrency,
+            settlementPreviewCurrency: targetCurrency,
+            recommendedRate,
+            rateSnapshotAt: row.date,
+        };
+    });
+
+    return {
+        providerName: "Frankfurter",
+        attributionUrl: "https://frankfurter.dev",
+        recommendations,
+    };
+}
+
 export function currencySettingsAreValid(settings: GroupCurrencySettings) {
     const preview = settings.currencies.find(
         ({ currency }) => currency === settings.settlementPreviewCurrency

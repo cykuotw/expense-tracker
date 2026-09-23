@@ -5,13 +5,6 @@ import { CurrencyMetadata } from "../../lib/money";
 import { GroupCurrencySettings } from "../../types/group";
 import { CurrencySettingsEditor } from "./CurrencySettingsEditor";
 
-const { apiFetchMock } = vi.hoisted(() => ({ apiFetchMock: vi.fn() }));
-
-vi.mock("../../lib/api", async () => {
-    const actual = await vi.importActual<typeof import("../../lib/api")>("../../lib/api");
-    return { ...actual, apiFetch: (...args: unknown[]) => apiFetchMock(...args) };
-});
-
 const currencies: CurrencyMetadata[] = [
     { code: "CAD", displayName: "Canadian Dollar", minorUnitDigits: 2, amountDigits: 2 },
     { code: "TWD", displayName: "New Taiwan Dollar", minorUnitDigits: 2, amountDigits: 2 },
@@ -62,36 +55,34 @@ function currentSettings() {
 }
 
 describe("CurrencySettingsEditor", () => {
+    const fetchMock = vi.fn();
+
     beforeEach(() => {
         vi.clearAllMocks();
-        apiFetchMock.mockImplementation((_path: string, init?: RequestInit) => {
-            const payload = JSON.parse(String(init?.body)) as {
-                sourceCurrencies: string[];
-                settlementPreviewCurrency: string;
-            };
-            const cadRates: Record<string, string> = { CAD: "1", TWD: "0.043", USD: "1.35" };
-            const targetRate = cadRates[payload.settlementPreviewCurrency];
-            const recommendations = payload.sourceCurrencies.map((sourceCurrency) => ({
-                sourceCurrency,
-                settlementPreviewCurrency: payload.settlementPreviewCurrency,
-                recommendedRate: sourceCurrency === payload.settlementPreviewCurrency
-                    ? "1"
-                    : payload.settlementPreviewCurrency === "CAD"
-                        ? cadRates[sourceCurrency]
-                        : sourceCurrency === "CAD"
-                            ? "23.255813953488372"
-                            : String(Number(cadRates[sourceCurrency]) / Number(targetRate)),
-                rateSnapshotAt: "2026-09-22",
+        fetchMock.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+            const url = new URL(String(input));
+            const base = url.searchParams.get("base") ?? "";
+            const quotes = (url.searchParams.get("quotes") ?? "").split(",").filter(Boolean);
+            const canonicalCadRates: Record<string, number> = { TWD: 0.043, USD: 1.35 };
+            const rows = quotes.map((quote) => ({
+                date: "2026-09-22",
+                base,
+                quote,
+                rate: 1 / canonicalCadRates[quote],
             }));
-            return Promise.resolve(new Response(JSON.stringify({
-                providerName: "Frankfurter",
-                attributionUrl: "https://frankfurter.dev",
-                recommendations,
-            }), { status: 200, headers: { "Content-Type": "application/json" } }));
+            expect(init?.credentials).toBe("omit");
+            return Promise.resolve(new Response(JSON.stringify(rows), {
+                status: 200,
+                headers: { "Content-Type": "application/json" },
+            }));
         });
+        vi.stubGlobal("fetch", fetchMock);
     });
 
-    afterEach(cleanup);
+    afterEach(() => {
+        cleanup();
+        vi.unstubAllGlobals();
+    });
 
     it("disables without removing and removes only through the trash action", () => {
         render(<Harness />);
@@ -148,7 +139,7 @@ describe("CurrencySettingsEditor", () => {
         }} />);
 
         await screen.findByText("1 TWD = 0.043 CAD");
-        expect(apiFetchMock).toHaveBeenCalledTimes(1);
+        expect(fetchMock).toHaveBeenCalledTimes(1);
         fireEvent.click(screen.getByRole("button", { name: "Currency" }));
         fireEvent.click(screen.getByRole("option", { name: /TWD — New Taiwan Dollar/ }));
 
@@ -161,7 +152,7 @@ describe("CurrencySettingsEditor", () => {
             ]);
         });
         expect(await screen.findByText("1 CAD = 23.255814 TWD")).toBeVisible();
-        expect(apiFetchMock).toHaveBeenCalledTimes(1);
+        expect(fetchMock).toHaveBeenCalledTimes(1);
     });
 
     it("requests only a newly selected currency and merges it into the cache", async () => {
@@ -176,12 +167,16 @@ describe("CurrencySettingsEditor", () => {
 
         await waitFor(() => expect(screen.getByRole("button", { name: "Add currency" })).toBeEnabled());
         fireEvent.click(screen.getByRole("button", { name: "Add currency" }));
-        await waitFor(() => expect(apiFetchMock).toHaveBeenCalledTimes(1));
-        expect(JSON.parse(String(apiFetchMock.mock.calls[0][1].body)).sourceCurrencies).toEqual(["CAD", "TWD"]);
+        await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+        const firstRequest = new URL(String(fetchMock.mock.calls[0][0]));
+        expect(firstRequest.searchParams.get("base")).toBe("CAD");
+        expect(firstRequest.searchParams.get("quotes")).toBe("TWD");
 
         await waitFor(() => expect(screen.getByRole("button", { name: "Add currency" })).toBeEnabled());
         fireEvent.click(screen.getByRole("button", { name: "Add currency" }));
-        await waitFor(() => expect(apiFetchMock).toHaveBeenCalledTimes(2));
-        expect(JSON.parse(String(apiFetchMock.mock.calls[1][1].body)).sourceCurrencies).toEqual(["CAD", "USD"]);
+        await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+        const secondRequest = new URL(String(fetchMock.mock.calls[1][0]));
+        expect(secondRequest.searchParams.get("base")).toBe("CAD");
+        expect(secondRequest.searchParams.get("quotes")).toBe("USD");
     });
 });

@@ -50,6 +50,7 @@ describe("Home mobile summary", () => {
                     currency: "CAD",
                     balanceStatus: "owed",
                     balanceAmount: "10",
+                    usesSettlementPreview: false,
                 },
                 {
                     id: "group-2",
@@ -58,6 +59,7 @@ describe("Home mobile summary", () => {
                     currency: "USD",
                     balanceStatus: "owing",
                     balanceAmount: "20",
+                    usesSettlementPreview: true,
                 },
                 {
                     id: "group-3",
@@ -66,6 +68,7 @@ describe("Home mobile summary", () => {
                     currency: "TWD",
                     balanceStatus: "owed",
                     balanceAmount: "30",
+                    usesSettlementPreview: false,
                 },
             ],
         });
@@ -92,7 +95,11 @@ describe("Home mobile summary", () => {
             "hidden",
             "sm:block"
         );
-        expect(within(screen.getByTestId("group-card-list")).getAllByRole("link")).toHaveLength(3);
+        const groupCards = within(screen.getByTestId("group-card-list"));
+        expect(groupCards.getAllByRole("link")).toHaveLength(3);
+        expect(groupCards.getByText("You are owed 10 CAD")).toBeVisible();
+        expect(groupCards.getByText("Estimated · you owe ≈ 20 USD")).toBeVisible();
+        expect(groupCards.queryByText("Estimated · you are owed ≈ 10 CAD")).toBeNull();
 
         fireEvent.click(screen.getByRole("button", { name: "View all 3 balances" }));
 

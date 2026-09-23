@@ -4,8 +4,9 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import EditGroup from "./EditGroup";
 
-const { apiFetchMock, scrollIntoViewMock } = vi.hoisted(() => ({
+const { apiFetchMock, providerFetchMock, scrollIntoViewMock } = vi.hoisted(() => ({
     apiFetchMock: vi.fn(),
+    providerFetchMock: vi.fn(),
     scrollIntoViewMock: vi.fn(),
 }));
 
@@ -38,6 +39,10 @@ describe("EditGroup member anchor", () => {
             configurable: true,
             value: scrollIntoViewMock,
         });
+        providerFetchMock.mockResolvedValue(new Response(JSON.stringify([
+            { date: "2026-09-22", base: "CAD", quote: "USD", rate: 0.7407407407407407 },
+        ]), { status: 200, headers: { "Content-Type": "application/json" } }));
+        vi.stubGlobal("fetch", providerFetchMock);
         apiFetchMock.mockImplementation((path: string) => Promise.resolve(new Response(
             JSON.stringify(path === "/currencies" ? [
                 { code: "CAD", displayName: "Canadian Dollar", minorUnitDigits: 2, amountDigits: 2 },
@@ -54,7 +59,10 @@ describe("EditGroup member anchor", () => {
         )));
     });
 
-    afterEach(cleanup);
+    afterEach(() => {
+        cleanup();
+        vi.unstubAllGlobals();
+    });
 
     it("scrolls member management into view when opened from the group summary", () => {
         render(
@@ -132,13 +140,6 @@ describe("EditGroup member anchor", () => {
                 groupType: "trip",
                 currencyEditable: true,
                 detailsEditable: true,
-            } : path === "/currency-recommendations" ? {
-                providerName: "Frankfurter",
-                attributionUrl: "https://frankfurter.dev",
-                recommendations: [
-                    { sourceCurrency: "CAD", settlementPreviewCurrency: "CAD", recommendedRate: "1", rateSnapshotAt: "2026-09-22" },
-                    { sourceCurrency: "USD", settlementPreviewCurrency: "CAD", recommendedRate: "1.35", rateSnapshotAt: "2026-09-22" },
-                ],
             } : {}),
             { status: 200, headers: { "Content-Type": "application/json" } },
         )));

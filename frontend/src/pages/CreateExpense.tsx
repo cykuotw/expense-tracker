@@ -17,6 +17,7 @@ import ExpenseSimpleSplitControl from "../components/expense/ExpenseSimpleSplitC
 import ExpenseSubmissionFeedback from "../components/expense/ExpenseSubmissionFeedback";
 import ExpenseSubmitButton from "../components/expense/ExpenseSubmitButton";
 import DesktopBackLink from "../components/DesktopBackLink";
+import { CurrencyPicker } from "../components/group/CurrencyPicker";
 
 const CreateExpenseContent = () => {
     const {
@@ -32,6 +33,8 @@ const CreateExpenseContent = () => {
         occurredOn,
         setOccurredOn,
         currency,
+        currencies,
+        setCurrency,
         amountDigits,
         payer,
         setPayer,
@@ -183,9 +186,14 @@ const CreateExpenseContent = () => {
                                 <label className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground/60">
                                     Currency
                                 </label>
-                                <output className="ui-input-shell mt-2 flex min-h-12 items-center bg-background px-4 text-foreground/70">
-                                    {currency || "Select a group"}
-                                </output>
+                                <div className="mt-2">
+                                    <CurrencyPicker
+                                        value={currency}
+                                        currencies={currencies}
+                                        onChange={setCurrency}
+                                        disabled={currencies.length === 0}
+                                    />
+                                </div>
                             </div>
 
                             <div>

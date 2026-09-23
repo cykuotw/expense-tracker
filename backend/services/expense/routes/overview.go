@@ -64,8 +64,16 @@ func (h *Handler) handleGetGroupOverview(c *gin.Context) {
 	if current != nil {
 		groupMembers = append(groupMembers, *current)
 	}
+	currencySettings := types.GroupCurrencySettings{}
+	if settingsStore, ok := h.groupStore.(types.GroupCurrencySettingsStore); ok {
+		currencySettings, err = settingsStore.GetGroupCurrencySettings(groupID, userID)
+		if err != nil {
+			utils.WriteError(c, http.StatusInternalServerError, err)
+			return
+		}
+	}
 	utils.WriteJSON(c, http.StatusOK, types.GroupOverviewResponse{
-		Group:    types.GetGroupResponse{CurrentUserID: userID, GroupName: group.GroupName, Description: group.Description, Currency: group.Currency, GroupType: group.GroupType, Members: groupMembers},
+		Group:    types.GetGroupResponse{CurrentUserID: userID, GroupName: group.GroupName, Description: group.Description, Currency: group.Currency, CurrencySettings: currencySettings, GroupType: group.GroupType, Members: groupMembers},
 		Balance:  balances,
 		Expenses: expenses,
 	})
@@ -86,9 +94,13 @@ func (h *Handler) balanceResponse(groupID, userID, currency string) (types.Balan
 	}
 	balances := make([]types.BalanceRsp, 0, len(items))
 	for _, item := range items {
-		balances = append(balances, types.BalanceRsp{ID: item.ID, SenderUserID: item.SenderUserID, SenderUesrname: names[item.SenderUserID.String()], ReceiverUserID: item.ReceiverUserID, ReceiverUsername: names[item.ReceiverUserID.String()], Balance: item.Share})
+		balances = append(balances, types.BalanceRsp{ID: item.ID, SenderUserID: item.SenderUserID, SenderUesrname: names[item.SenderUserID.String()], ReceiverUserID: item.ReceiverUserID, ReceiverUsername: names[item.ReceiverUserID.String()], Balance: item.Share, Currency: item.Currency})
 	}
-	return types.BalanceResponse{Currency: currency, CurrentUser: userID, Balances: balances}, nil
+	preview, err := h.settlementPreview(groupID, userID, items, currency)
+	if err != nil {
+		return types.BalanceResponse{}, err
+	}
+	return types.BalanceResponse{Currency: currency, CurrentUser: userID, Balances: balances, SettlementPreview: preview}, nil
 }
 
 func (h *Handler) expenseListResponse(groupID string, page int64, order types.ExpenseListOrder, status types.ExpenseListStatus, userID string) (types.ExpenseResponsePage, error) {

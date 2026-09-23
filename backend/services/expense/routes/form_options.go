@@ -33,6 +33,13 @@ func (h *Handler) expenseFormGroup(groupID, userID string) (types.GetGroupRespon
 	if err != nil {
 		return types.GetGroupResponse{}, err
 	}
+	currencySettings := types.GroupCurrencySettings{}
+	if settingsStore, ok := h.groupStore.(types.GroupCurrencySettingsStore); ok {
+		currencySettings, err = settingsStore.GetGroupCurrencySettings(groupID, userID)
+		if err != nil {
+			return types.GetGroupResponse{}, err
+		}
+	}
 
 	groupMembers := make([]types.GroupMember, 0, len(members))
 	var current *types.GroupMember
@@ -53,6 +60,7 @@ func (h *Handler) expenseFormGroup(groupID, userID string) (types.GetGroupRespon
 		GroupName:        group.GroupName,
 		Description:      group.Description,
 		Currency:         group.Currency,
+		CurrencySettings: currencySettings,
 		CurrencyEditable: currencyEditable,
 		DetailsEditable:  group.CreateByUser.String() == userID,
 		GroupType:        group.GroupType,

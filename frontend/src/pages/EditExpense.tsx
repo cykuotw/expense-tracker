@@ -14,11 +14,13 @@ import ExpenseSimpleSplitControl from "../components/expense/ExpenseSimpleSplitC
 import ExpenseSubmissionFeedback from "../components/expense/ExpenseSubmissionFeedback";
 import ExpenseSubmitButton from "../components/expense/ExpenseSubmitButton";
 import DesktopBackLink from "../components/DesktopBackLink";
+import { CurrencyPicker } from "../components/group/CurrencyPicker";
 
 const EditExpenseContent = () => {
     const {
         formData,
         amountDigits,
+        currencies,
         setFormData,
         groupList,
         expenseTypes,
@@ -149,9 +151,16 @@ const EditExpenseContent = () => {
                                 <label className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground/60">
                                     Currency
                                 </label>
-                                <output className="ui-input-shell mt-2 flex min-h-12 items-center bg-background px-4 text-foreground/70">
-                                    {formData.currency}
-                                </output>
+                                <div className="mt-2">
+                                    <CurrencyPicker
+                                        value={formData.currency}
+                                        currencies={currencies}
+                                        onChange={(currency) =>
+                                            setFormData((current) => ({ ...current, currency }))
+                                        }
+                                        disabled={currencies.length === 0}
+                                    />
+                                </div>
                             </div>
                             <div>
                                 <label className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground/60">

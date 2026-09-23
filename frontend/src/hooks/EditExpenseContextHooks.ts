@@ -14,6 +14,7 @@ import {
     GroupMembersLoadStatus,
 } from "../types/group";
 import { ExpenseTypeItem } from "../types/expense";
+import { CurrencyMetadata } from "../lib/money";
 
 export interface expenseFormData {
     groupId: string;
@@ -30,6 +31,7 @@ export interface expenseFormData {
 export interface EditExpenseContextType {
     formData: expenseFormData;
     amountDigits: number | null;
+    currencies: CurrencyMetadata[];
     setFormData: Dispatch<SetStateAction<expenseFormData>>;
     groupList: GroupListItem[];
     expenseTypes: ExpenseTypeItem[];

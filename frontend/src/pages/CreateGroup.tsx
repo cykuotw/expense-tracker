@@ -5,7 +5,7 @@ import { Link } from "react-router-dom";
 import { CreateGroupProvider } from "../contexts/CreateGroupContext";
 import { useCreateGroup } from "../hooks/CreateGroupContextHooks";
 import { GroupTypePicker } from "../components/group/GroupTypePicker";
-import { CurrencyPicker } from "../components/group/CurrencyPicker";
+import { CurrencySettingsEditor } from "../components/group/CurrencySettingsEditor";
 import MobilePageHeader from "../components/MobilePageHeader";
 import DesktopBackLink from "../components/DesktopBackLink";
 import { useCurrencies } from "../hooks/useCurrencies";
@@ -20,6 +20,8 @@ const CreateGroupContent = () => {
         setDescription,
         currency,
         setCurrency,
+        currencySettings,
+        setCurrencySettings,
         groupType,
         setGroupType,
         createdGroupId,
@@ -32,8 +34,18 @@ const CreateGroupContent = () => {
     useEffect(() => {
         if (!currenciesLoading && !currenciesError && !currency && currencies.some(({ code }) => code === "CAD")) {
             setCurrency("CAD");
+            setCurrencySettings({
+                settlementPreviewCurrency: "CAD",
+                currencies: [{
+                    currency: "CAD",
+                    enabledForNewExpenses: true,
+                    historical: false,
+                    hasCurrentBalance: false,
+                    previewRate: "1",
+                }],
+            });
         }
-    }, [currencies, currenciesError, currenciesLoading, currency, setCurrency]);
+    }, [currencies, currenciesError, currenciesLoading, currency, setCurrency, setCurrencySettings]);
 
     useEffect(() => {
         if (!createdGroupId) return;
@@ -155,15 +167,16 @@ const CreateGroupContent = () => {
                                 </label>
                             </div>
                             <div>
-                                <div className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground/60">
-                                    Currency
-                                </div>
+                                <div className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground/60">Currencies</div>
                                 <div className="mt-2">
-                                    <CurrencyPicker
-                                    value={currency}
-                                    currencies={currencies}
-                                    onChange={setCurrency}
-                                    disabled={currenciesLoading || Boolean(currenciesError)}
+                                    <CurrencySettingsEditor
+                                        settings={currencySettings}
+                                        currencies={currencies}
+                                        onChange={(settings) => {
+                                            setCurrencySettings(settings);
+                                            setCurrency(settings.settlementPreviewCurrency);
+                                        }}
+                                        disabled={currenciesLoading || Boolean(currenciesError)}
                                     />
                                 </div>
                                 {currenciesError ? (

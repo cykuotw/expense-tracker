@@ -15,7 +15,10 @@ func TestRepositoryManifestMatchesCurrentMigrations(t *testing.T) {
 	manifest, err := LoadDirectory(directory)
 	require.NoError(t, err)
 	assert.Equal(t, BaselineVersion, manifest.BaselineVersion)
-	assert.Empty(t, manifest.Migrations)
+	require.Len(t, manifest.Migrations, 1)
+	assert.Equal(t, uint(36), manifest.Migrations[0].Version)
+	assert.Equal(t, "add_multi_currency_accounting", manifest.Migrations[0].Name)
+	assert.NoError(t, manifest.ValidatePending(BaselineVersion, false))
 }
 
 func TestSharedValidFixture(t *testing.T) {

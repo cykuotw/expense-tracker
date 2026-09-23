@@ -37,6 +37,7 @@ import {
     GroupMember,
     GroupMembersLoadStatus,
 } from "../types/group";
+import { legacyCurrencySettings } from "../lib/currencySettings";
 
 const EMPTY_ALLOCATION: ExpenseAllocation = {
     mode: "equal",
@@ -69,6 +70,7 @@ export const CreateExpenseProvider = ({
     const [occurredOn, setOccurredOn] = useState(todayDateOnly);
     const [currency, setCurrency] = useState("CAD");
     const [currencies, setCurrencies] = useState<CurrencyMetadata[]>([]);
+    const [enabledCurrencies, setEnabledCurrencies] = useState<CurrencyMetadata[]>([]);
     const [payer, setPayer] = useState("");
     const [allocation, setAllocation] =
         useState<ExpenseAllocation>(EMPTY_ALLOCATION);
@@ -182,6 +184,7 @@ export const CreateExpenseProvider = ({
             setCurrentUserId("");
             setPayer("");
             setAllocation(EMPTY_ALLOCATION);
+            setEnabledCurrencies([]);
         }
 
         const abortController = new AbortController();
@@ -215,6 +218,9 @@ export const CreateExpenseProvider = ({
                     options.currencies
                 );
                 const group = options.group;
+                const groupCurrencySettings = group
+                    ? group.currencySettings ?? legacyCurrencySettings(group.currency)
+                    : null;
                 const members = asArray<GroupMember>(group?.members);
                 if (
                     selectedGroupId &&
@@ -229,10 +235,10 @@ export const CreateExpenseProvider = ({
                 }
                 if (
                     selectedGroupId &&
-                    (!group?.currency ||
+                    (!groupCurrencySettings?.settlementPreviewCurrency ||
                         currencyAmountDigits(
                             currencyOptions,
-                            group.currency
+                            groupCurrencySettings.settlementPreviewCurrency
                         ) === null)
                 ) {
                     throw new Error("group currency metadata is unavailable");
@@ -250,12 +256,23 @@ export const CreateExpenseProvider = ({
                         (current) => current || generalId
                     );
                 }
-                if (!selectedGroupId || !group) return;
+                if (!selectedGroupId || !group || !groupCurrencySettings) return;
 
                 setGroupMembers(members);
                 setCurrentUserId(group.currentUserId);
                 setGroupMembersLoadStatus("ready");
-                setCurrency(group.currency);
+                const enabledCodes = new Set(
+                    groupCurrencySettings.currencies
+                        .filter(({ enabledForNewExpenses }) => enabledForNewExpenses)
+                        .map(({ currency: code }) => code)
+                );
+                const nextCurrencies = currencyOptions.filter(({ code }) => enabledCodes.has(code));
+                setEnabledCurrencies(nextCurrencies);
+                setCurrency(
+                    enabledCodes.has(groupCurrencySettings.settlementPreviewCurrency)
+                        ? groupCurrencySettings.settlementPreviewCurrency
+                        : nextCurrencies[0]?.code ?? ""
+                );
                 setPayer(group.currentUserId);
                 setAllocation({
                     mode: "equal",
@@ -291,6 +308,8 @@ export const CreateExpenseProvider = ({
                 occurredOn,
                 setOccurredOn,
                 currency,
+                currencies: enabledCurrencies,
+                setCurrency,
                 amountDigits,
                 payer,
                 setPayer,

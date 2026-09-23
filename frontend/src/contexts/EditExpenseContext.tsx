@@ -42,6 +42,7 @@ import {
     GroupMember,
     GroupMembersLoadStatus,
 } from "../types/group";
+import { legacyCurrencySettings } from "../lib/currencySettings";
 
 const EMPTY_FORM_DATA: expenseFormData = {
     groupId: "",
@@ -84,6 +85,7 @@ export const EditExpenseProvider = ({ children }: { children: ReactNode }) => {
     const [formData, setFormData] =
         useState<expenseFormData>(EMPTY_FORM_DATA);
     const [currencies, setCurrencies] = useState<CurrencyMetadata[]>([]);
+    const [enabledCurrencies, setEnabledCurrencies] = useState<CurrencyMetadata[]>([]);
     const [initialFormData, setInitialFormData] =
         useState<expenseFormData | null>(null);
     const [groupList, setGroupList] = useState<GroupListItem[]>([]);
@@ -275,6 +277,17 @@ export const EditExpenseProvider = ({ children }: { children: ReactNode }) => {
                     asArray<ExpenseTypeItem>(options.expenseTypes)
                 );
                 setCurrencies(currencyOptions);
+                const groupCurrencySettings =
+                    group.currencySettings ?? legacyCurrencySettings(group.currency);
+                const enabledCodes = new Set(
+                    groupCurrencySettings.currencies
+                        .filter(({ enabledForNewExpenses }) => enabledForNewExpenses)
+                        .map(({ currency }) => currency)
+                );
+                enabledCodes.add(expenseDetail.currency);
+                setEnabledCurrencies(
+                    currencyOptions.filter(({ code }) => enabledCodes.has(code))
+                );
                 setGroupMembers(members);
                 setCurrentUserId(group.currentUserId);
                 setGroupMembersLoadStatus("ready");
@@ -307,6 +320,7 @@ export const EditExpenseProvider = ({ children }: { children: ReactNode }) => {
             value={{
                 formData,
                 amountDigits,
+                currencies: enabledCurrencies,
                 setFormData,
                 groupList,
                 expenseTypes,

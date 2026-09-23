@@ -1,4 +1,5 @@
 import { createContext, useContext, FormEvent } from "react";
+import { GroupCurrencySettings } from "../types/group";
 
 export interface CreateGroupContextType {
     groupName: string;
@@ -7,6 +8,8 @@ export interface CreateGroupContextType {
     setDescription: (desc: string) => void;
     currency: string;
     setCurrency: (curr: string) => void;
+    currencySettings: GroupCurrencySettings;
+    setCurrencySettings: (settings: GroupCurrencySettings) => void;
     groupType: string;
     setGroupType: (type: string) => void;
     createdGroupId: string | null;

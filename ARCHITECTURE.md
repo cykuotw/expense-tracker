@@ -193,6 +193,19 @@ and `frontend/src/lib/api.ts`. Do not duplicate endpoint details here.
   targets. Ambiguous outcomes are reconciled from authoritative unsettled
   ledgers and current balances; see the
   [settlement recovery procedure](backend/services/expense/SETTLEMENT_RECOVERY.md).
+- Expenses, ledgers, and balances carry their original currency. Balance
+  rebuilding and reconciliation partition accounting by currency, so debts in
+  different currencies are never netted or linked together in persisted state.
+  A group's normalized currency settings determine which currencies new
+  expenses may use; currencies with historical expenses or current balances
+  remain retained even after being disabled.
+- The settlement preview is a derived display projection. The backend converts
+  each current balance with the group's user-saved exact-decimal rate, rounds
+  that contribution to the preview currency's minor unit, and only then
+  aggregates it. Missing rates make the aggregate explicitly unavailable.
+  Provider recommendations are fetched on demand through the backend and are
+  never persisted or applied until a member copies and saves one. Settlement
+  continues to act on original-currency balances.
 - The backend, not the browser, is responsible for validating trusted actor
   identity, resource membership, currency and amount rules, and the final
   consistency of split amounts and derived balances. Create and update requests

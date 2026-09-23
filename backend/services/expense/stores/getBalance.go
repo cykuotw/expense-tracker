@@ -42,6 +42,7 @@ func (s *Store) getBalancesByGroupID(query, groupID string) ([]types.Balance, er
 			&updateTime,
 			&bal.IsSettled,
 			&settledTime,
+			&bal.Currency,
 		)
 		if err != nil {
 			return nil, err

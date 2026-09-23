@@ -52,7 +52,20 @@ func ReconcileGroupSettlement(store SettlementReconciliationStore, controller ty
 	if err != nil {
 		return SettlementReconciliation{}, err
 	}
-	expectedBalances := controller.DebtSimplify(ledgers)
+	ledgersByCurrency := make(map[string][]*types.Ledger)
+	for _, ledger := range ledgers {
+		ledgersByCurrency[ledger.Currency] = append(ledgersByCurrency[ledger.Currency], ledger)
+	}
+	expectedBalances := make([]*types.Balance, 0)
+	expectedLinkCount := 0
+	for currency, currencyLedgers := range ledgersByCurrency {
+		currencyBalances := controller.DebtSimplify(currencyLedgers)
+		for _, balance := range currencyBalances {
+			balance.Currency = currency
+		}
+		expectedBalances = append(expectedBalances, currencyBalances...)
+		expectedLinkCount += len(currencyBalances) * len(currencyLedgers)
+	}
 
 	result := SettlementReconciliation{
 		UnsettledExpenseCount:         expenseCount,
@@ -77,7 +90,7 @@ func ReconcileGroupSettlement(store SettlementReconciliationStore, controller ty
 	}
 	if expensesWithoutLedger == 0 &&
 		balancesMatch(expectedBalances, currentBalances) &&
-		linkCount == len(currentBalances)*len(ledgers) {
+		linkCount == expectedLinkCount {
 		result.State = SettlementNotStarted
 		return result, nil
 	}
@@ -96,6 +109,7 @@ func balancesMatch(expected []*types.Balance, current []types.Balance) bool {
 	for index := range expectedCopy {
 		if expectedCopy[index].SenderUserID != currentCopy[index].SenderUserID ||
 			expectedCopy[index].ReceiverUserID != currentCopy[index].ReceiverUserID ||
+			expectedCopy[index].Currency != currentCopy[index].Currency ||
 			!expectedCopy[index].Share.Equal(currentCopy[index].Share) {
 			return false
 		}
@@ -108,6 +122,9 @@ func compareBalancePointers(left, right *types.Balance) int {
 }
 
 func compareBalances(left, right types.Balance) int {
+	if order := cmp.Compare(left.Currency, right.Currency); order != 0 {
+		return order
+	}
 	if order := cmp.Compare(left.SenderUserID.String(), right.SenderUserID.String()); order != 0 {
 		return order
 	}

@@ -2,6 +2,7 @@ package expense
 
 import (
 	"fmt"
+	"slices"
 
 	"expense-tracker/backend/types"
 
@@ -34,33 +35,50 @@ func (h *Handler) updateBalanceWithStore(store balanceRebuildStore, groupId stri
 	if err != nil {
 		return &balanceRebuildError{stage: "ledger_read", err: err}
 	}
-	ledgerIds := []uuid.UUID{}
-	for _, ledger := range ledgers {
-		ledgerIds = append(ledgerIds, ledger.ID)
-	}
-
 	// outdate previous non-settled balances
 	err = store.OutdateBalanceByGroupId(groupId)
 	if err != nil {
 		return &balanceRebuildError{stage: "balance_outdate", err: err}
 	}
 
-	// create balances
-	balances := h.controller.DebtSimplify(ledgers)
-	balanceIds := []uuid.UUID{}
-	for i := 0; i < len(balances); i++ {
-		balances[i].ID = uuid.New()
-		balanceIds = append(balanceIds, balances[i].ID)
+	ledgersByCurrency := make(map[string][]*types.Ledger)
+	for _, ledger := range ledgers {
+		ledgersByCurrency[ledger.Currency] = append(ledgersByCurrency[ledger.Currency], ledger)
 	}
-	err = store.CreateBalances(groupId, balances)
-	if err != nil {
-		return &balanceRebuildError{stage: "balance_create", err: err}
+	currencies := make([]string, 0, len(ledgersByCurrency))
+	for currency := range ledgersByCurrency {
+		currencies = append(currencies, currency)
+	}
+	slices.Sort(currencies)
+	if len(currencies) == 0 {
+		if err := store.CreateBalances(groupId, nil); err != nil {
+			return &balanceRebuildError{stage: "balance_create", err: err}
+		}
+		if err := store.CreateBalanceLedger(nil, nil); err != nil {
+			return &balanceRebuildError{stage: "balance_ledger_create", err: err}
+		}
+		return nil
 	}
 
-	// create balance_ledger
-	err = store.CreateBalanceLedger(balanceIds, ledgerIds)
-	if err != nil {
-		return &balanceRebuildError{stage: "balance_ledger_create", err: err}
+	for _, currency := range currencies {
+		currencyLedgers := ledgersByCurrency[currency]
+		ledgerIDs := make([]uuid.UUID, 0, len(currencyLedgers))
+		for _, ledger := range currencyLedgers {
+			ledgerIDs = append(ledgerIDs, ledger.ID)
+		}
+		balances := h.controller.DebtSimplify(currencyLedgers)
+		balanceIDs := make([]uuid.UUID, 0, len(balances))
+		for _, balance := range balances {
+			balance.ID = uuid.New()
+			balance.Currency = currency
+			balanceIDs = append(balanceIDs, balance.ID)
+		}
+		if err := store.CreateBalances(groupId, balances); err != nil {
+			return &balanceRebuildError{stage: "balance_create", err: err}
+		}
+		if err := store.CreateBalanceLedger(balanceIDs, ledgerIDs); err != nil {
+			return &balanceRebuildError{stage: "balance_ledger_create", err: err}
+		}
 	}
 
 	return nil

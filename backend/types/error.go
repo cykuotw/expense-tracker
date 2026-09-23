@@ -47,12 +47,14 @@ var (
 	ErrInvalidToken = errors.New("invalid token")
 
 	// group
-	ErrGroupNotExist        = errors.New("invalid group")
-	ErrInvalidAction        = errors.New("invalid actions")
-	ErrUserNotPermitted     = errors.New("user has no permission")
-	ErrProtectedGroupMember = errors.New("group creator and final member cannot be removed")
-	ErrUnsupportedCurrency  = errors.New("unsupported currency")
-	ErrGroupCurrencyLocked  = errors.New("group currency is locked after the first expense")
+	ErrGroupNotExist           = errors.New("invalid group")
+	ErrInvalidAction           = errors.New("invalid actions")
+	ErrUserNotPermitted        = errors.New("user has no permission")
+	ErrProtectedGroupMember    = errors.New("group creator and final member cannot be removed")
+	ErrUnsupportedCurrency     = errors.New("unsupported currency")
+	ErrGroupCurrencyLocked     = errors.New("group currency is locked after the first expense")
+	ErrInvalidCurrencySettings = errors.New("invalid group currency settings")
+	ErrCurrencyDisabled        = errors.New("expense currency is not enabled for new expenses")
 
 	// expense
 	ErrExpenseNotExist            = errors.New("expense not exist")

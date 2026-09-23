@@ -29,10 +29,6 @@ func (h *Handler) handleUpdateExpense(c *gin.Context) {
 		utils.WriteError(c, http.StatusBadRequest, err)
 		return
 	}
-	if payload.Currency != "" && payload.Currency != expense.Currency {
-		utils.WriteError(c, http.StatusBadRequest, types.ErrCurrencyMismatch)
-		return
-	}
 	if payload.GroupID != expense.GroupID {
 		utils.WriteError(c, http.StatusNotFound, types.ErrExpenseNotExist)
 		return
@@ -85,17 +81,20 @@ func (h *Handler) handleUpdateExpense(c *gin.Context) {
 	updatedExpense.SubTotal = payload.SubTotal
 	updatedExpense.TaxFeeTip = payload.TaxFeeTip
 	updatedExpense.Total = payload.Total
-	updatedExpense.Currency = expense.Currency
+	updatedExpense.Currency = payload.Currency
+	if updatedExpense.Currency == "" {
+		updatedExpense.Currency = expense.Currency
+	}
 	updatedExpense.InvoicePicUrl = payload.InvoicePicUrl
 	updatedExpense.AllocationMode = payload.Allocation.Mode
 	updatedExpense.OccurredOn = expense.OccurredOn
 
 	err = h.store.RunInTransaction(func(store types.ExpenseTransactionStore) error {
-		groupCurrency, err := store.LockGroupCurrency(expense.GroupID.String())
+		groupCurrency, err := lockExpenseCurrency(store, expense.GroupID.String(), updatedExpense.Currency, updatedExpense.Currency == expense.Currency)
 		if err != nil {
 			return err
 		}
-		if groupCurrency != expense.Currency {
+		if groupCurrency != updatedExpense.Currency {
 			return types.ErrCurrencyMismatch
 		}
 		if err := store.CheckGroupParticipants(expense.GroupID.String(), expenseParticipantIDs(actorID, updatedExpense, allocations)); err != nil {
@@ -137,7 +136,7 @@ func (h *Handler) handleUpdateExpense(c *gin.Context) {
 			utils.WriteError(c, http.StatusNotFound, err)
 			return
 		}
-		if errors.Is(err, types.ErrInvalidMoney) || errors.Is(err, types.ErrInvalidAction) || errors.Is(err, types.ErrUnsupportedCurrency) || errors.Is(err, types.ErrCurrencyMismatch) || errors.Is(err, types.ErrGroupParticipantNotAllowed) {
+		if errors.Is(err, types.ErrInvalidMoney) || errors.Is(err, types.ErrInvalidAction) || errors.Is(err, types.ErrUnsupportedCurrency) || errors.Is(err, types.ErrCurrencyDisabled) || errors.Is(err, types.ErrCurrencyMismatch) || errors.Is(err, types.ErrGroupParticipantNotAllowed) {
 			utils.WriteError(c, http.StatusBadRequest, err)
 			return
 		}

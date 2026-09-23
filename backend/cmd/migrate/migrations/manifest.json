@@ -1,5 +1,27 @@
 {
   "schemaVersion": 1,
   "baselineVersion": 35,
-  "migrations": []
+  "migrations": [
+    {
+      "version": 36,
+      "name": "add_multi_currency_accounting",
+      "categories": ["additive", "backfill", "constraint_tightening", "index"],
+      "deployment": "online",
+      "backfill": {
+        "mode": "bounded",
+        "resumable": true,
+        "notes": "Each idempotent backfill visits only the finite set of pre-existing groups, expenses, ledgers, balances, or links and writes rows whose new value is missing. A failed transactional attempt can be retried without duplicating settings."
+      },
+      "locking": {
+        "risk": "medium",
+        "notes": "ALTER TABLE and foreign-key validation take bounded locks; existing-row scans and index builds must complete within the normal migration timeouts."
+      },
+      "rollback": {
+        "application": "compatible",
+        "schema": "manual_only",
+        "dataLossRisk": true,
+        "notes": "The previous application continues using the retained groups.currency field. Reversing the schema discards multi-currency settings and explicit accounting currencies."
+      }
+    }
+  ]
 }

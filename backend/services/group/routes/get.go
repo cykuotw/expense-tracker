@@ -42,12 +42,21 @@ func (h *Handler) handleGetGroup(c *gin.Context) {
 		utils.WriteError(c, http.StatusInternalServerError, err)
 		return
 	}
+	currencySettings := types.GroupCurrencySettings{}
+	if settingsStore, ok := h.store.(types.GroupCurrencySettingsStore); ok {
+		currencySettings, err = settingsStore.GetGroupCurrencySettings(groupId, userID)
+		if err != nil {
+			utils.WriteError(c, http.StatusInternalServerError, err)
+			return
+		}
+	}
 
 	response := types.GetGroupResponse{
 		CurrentUserID:    userID,
 		GroupName:        group.GroupName,
 		Description:      group.Description,
 		Currency:         group.Currency,
+		CurrencySettings: currencySettings,
 		CurrencyEditable: currencyEditable,
 		DetailsEditable:  group.CreateByUser.String() == userID,
 		GroupType:        group.GroupType,

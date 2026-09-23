@@ -141,6 +141,7 @@ func DeriveLedgers(expense types.Expense, allocations []types.ExpenseAllocation,
 			ID: uuid.New(), ExpenseID: expense.ID, LenderUserID: expense.PayByUserId,
 			BorrowerUesrID: allocation.UserID,
 			Share:          decimal.NewFromInt(shares[index]).Shift(-amountDigits),
+			Currency:       expense.Currency,
 		})
 	}
 	return ledgers, nil

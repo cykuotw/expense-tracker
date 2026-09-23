@@ -6,12 +6,12 @@ import (
 
 func (s *Store) CreateLedger(ledger types.Ledger) error {
 	query := "INSERT INTO ledger (" +
-		"id, expense_id, lender_user_id, borrower_user_id, share" +
-		") VALUES ($1, $2, $3, $4, $5);"
+		"id, expense_id, lender_user_id, borrower_user_id, share, currency" +
+		") VALUES ($1, $2, $3, $4, $5, $6);"
 
 	_, err := s.db.Exec(query,
 		ledger.ID, ledger.ExpenseID, ledger.LenderUserID,
-		ledger.BorrowerUesrID, ledger.Share.String())
+		ledger.BorrowerUesrID, ledger.Share.String(), ledger.Currency)
 	if err != nil {
 		return err
 	}

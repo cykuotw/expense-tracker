@@ -43,15 +43,22 @@ func (h *Handler) handleGetUnsettledBalance(c *gin.Context) {
 			ReceiverUserID:   balance.ReceiverUserID,
 			ReceiverUsername: usernames[balance.ReceiverUserID.String()],
 			Balance:          balance.Share,
+			Currency:         balance.Currency,
 		}
 
 		balances = append(balances, res)
 	}
 
+	preview, err := h.settlementPreview(groupID, userID, balanceSimplified, groupCurrency)
+	if err != nil {
+		utils.WriteError(c, http.StatusInternalServerError, err)
+		return
+	}
 	response := types.BalanceResponse{
-		Currency:    groupCurrency,
-		CurrentUser: userID,
-		Balances:    balances,
+		Currency:          groupCurrency,
+		CurrentUser:       userID,
+		Balances:          balances,
+		SettlementPreview: preview,
 	}
 
 	utils.WriteJSON(c, http.StatusOK, response)

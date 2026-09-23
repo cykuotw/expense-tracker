@@ -21,12 +21,14 @@ import {
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
 import { GroupDetailProvider } from "../contexts/GroupDetailContext";
 import { useGroupDetail } from "../hooks/GroupDetailContextHooks";
 import { getGroupTypePresentation } from "../lib/groupTypePresentation";
 import { formatReviewMonth, previousClosedUTCMonth } from "../lib/reviewMonth";
 import MobilePageHeader from "../components/MobilePageHeader";
 import DesktopBackLink from "../components/DesktopBackLink";
+import { buildEstimatedSettlementEntries } from "../lib/settlementPreview";
 
 const GroupDetailContent = () => {
     const {
@@ -79,9 +81,15 @@ const GroupDetailContent = () => {
               return [];
           })
         : [];
+    const estimatedSettlementEntries = balance
+        ? buildEstimatedSettlementEntries(balance)
+        : [];
     const visibleMobileBalances = showAllBalances
         ? balanceEntries
         : balanceEntries.slice(0, 2);
+    const isMultiCurrencyPreview = balance?.settlementPreview?.contributions.some(
+        ({ sourceCurrency }) => sourceCurrency !== balance.settlementPreview?.currency
+    );
 
     useEffect(() => {
         if (!showSettled) return;
@@ -247,6 +255,66 @@ const GroupDetailContent = () => {
                             )}
                         </div>
 
+                        {balance?.settlementPreview && balanceEntries.length > 0 && isMultiCurrencyPreview ? (
+                            balance.settlementPreview.complete ? (
+                                <section
+                                    className="mt-3 rounded-2xl bg-primary/5 p-3 sm:p-4"
+                                    data-testid="settlement-preview"
+                                >
+                                    <div className="flex items-center justify-between gap-3">
+                                        <div className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">
+                                            Settlement preview
+                                        </div>
+                                        <span className="shrink-0 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">
+                                            Estimated · {balance.settlementPreview.currency}
+                                        </span>
+                                    </div>
+                                    <div className="mt-2 grid gap-2">
+                                        {estimatedSettlementEntries.map((entry) => (
+                                            <BalanceEntry
+                                                key={entry.counterpartyUserId}
+                                                label={entry.label}
+                                                amount={entry.amount}
+                                                currency={entry.currency}
+                                                tone={entry.tone}
+                                                compact
+                                                approximate
+                                            />
+                                        ))}
+                                    </div>
+                                    <div className="mt-2 flex items-center justify-between gap-3 px-1 text-xs text-foreground/60">
+                                        <span>Net preview</span>
+                                        <span className="font-semibold text-foreground/75">
+                                            ≈ {balance.settlementPreview.netAmount} {balance.settlementPreview.currency}
+                                        </span>
+                                    </div>
+                                    <p className="mt-1 px-1 text-xs text-foreground/60">
+                                        Estimate only; original balances remain below.
+                                    </p>
+                                </section>
+                            ) : (
+                                <div className="mt-3 rounded-2xl border border-destructive/25 bg-destructive/5 p-4 text-sm">
+                                    <p>Settlement preview needs rates for {balance.settlementPreview.missingRateCurrencies.join(", ")}.</p>
+                                    <Link className="mt-2 inline-block font-semibold text-primary underline" to={`/group/${groupId}/edit`}>
+                                        Update currency settings
+                                    </Link>
+                                </div>
+                            )
+                        ) : null}
+
+                        {balance?.settlementPreview && balanceEntries.length > 0 && isMultiCurrencyPreview ? (
+                            <div
+                                className="mt-4 flex items-center gap-3"
+                                data-testid="original-balances-separator"
+                            >
+                                <Separator className="flex-1" />
+                                <span className="shrink-0 text-xs font-semibold uppercase tracking-[0.14em] text-foreground/55">
+                                    Original balances
+                                </span>
+                                <Separator className="flex-1" />
+                            </div>
+                        ) : null}
+
                         {balanceEntries.length === 0 ? (
                             <div className="metric-card mt-3 rounded-2xl p-3 text-sm text-foreground/70 xl:mt-4 xl:p-4">
                                 All balanced. No one owes anything.
@@ -262,7 +330,7 @@ const GroupDetailContent = () => {
                                             key={entry.id}
                                             label={entry.label}
                                             amount={entry.balance}
-                                            currency={balance?.currency ?? ""}
+                                            currency={entry.currency}
                                             tone={entry.tone}
                                             compact
                                         />
@@ -288,7 +356,7 @@ const GroupDetailContent = () => {
                                             key={entry.id}
                                             label={entry.label}
                                             amount={entry.balance}
-                                            currency={balance?.currency ?? ""}
+                                            currency={entry.currency}
                                             tone={entry.tone}
                                         />
                                     ))}
@@ -444,9 +512,34 @@ const GroupDetailContent = () => {
                     <AlertDialogHeader>
                         <AlertDialogTitle>Settle all expenses?</AlertDialogTitle>
                         <AlertDialogDescription>
-                            This marks the current group balances as settled.
+                            This marks each original-currency balance below as settled. The preview is an estimate only.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
+                    <div className="max-h-64 space-y-3 overflow-y-auto text-sm">
+                        {balanceEntries.map((entry) => {
+                            const contribution = balance?.settlementPreview?.contributions.find(
+                                ({ balanceId }) => balanceId === entry.id
+                            );
+                            return (
+                                <div key={entry.id} className="rounded-xl border border-border p-3">
+                                    <div className="flex justify-between gap-3 font-medium">
+                                        <span>{entry.label}</span>
+                                        <span>{entry.balance} {entry.currency}</span>
+                                    </div>
+                                    {contribution?.rate && contribution.previewAmount ? (
+                                        <p className="mt-1 text-xs text-foreground/60">
+                                            Rate {contribution.rate} · ≈ {contribution.previewAmount} {balance?.settlementPreview?.currency}
+                                        </p>
+                                    ) : null}
+                                </div>
+                            );
+                        })}
+                        {balance?.settlementPreview?.complete ? (
+                            <p className="font-semibold">Net settlement preview: ≈ {balance.settlementPreview.netAmount} {balance.settlementPreview.currency}</p>
+                        ) : balanceEntries.length > 0 ? (
+                            <p className="text-destructive">No complete preview is available; original balances will still be settled.</p>
+                        ) : null}
+                    </div>
                     <AlertDialogFooter>
                         <AlertDialogCancel disabled={settlementPending}>
                             Cancel
@@ -476,12 +569,14 @@ const BalanceEntry = ({
     currency,
     tone,
     compact = false,
+    approximate = false,
 }: {
     label: string;
     amount: string;
     currency: string;
     tone: string;
     compact?: boolean;
+    approximate?: boolean;
 }) => (
     <div
         className={`metric-card rounded-2xl text-sm ${
@@ -494,7 +589,7 @@ const BalanceEntry = ({
                 compact ? "text-base" : "mt-1 text-lg"
             } ${tone}`}
         >
-            {amount} {currency}
+            {approximate ? "≈ " : ""}{amount} {currency}
         </div>
     </div>
 );

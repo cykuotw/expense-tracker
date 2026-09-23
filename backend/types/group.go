@@ -29,6 +29,11 @@ type GroupStore interface {
 	CheckGroupUserPairExist(groupId string, userId string) (bool, error)
 }
 
+type GroupCurrencySettingsStore interface {
+	GetGroupCurrencySettings(groupID string, userID string) (GroupCurrencySettings, error)
+	UpdateGroupCurrencySettings(groupID string, userID string, settings GroupCurrencySettings) error
+}
+
 type Currency struct {
 	Code            string `json:"code"`
 	DisplayName     string `json:"displayName"`
@@ -37,22 +42,25 @@ type Currency struct {
 }
 
 type Group struct {
-	ID           uuid.UUID `json:"id"`
-	GroupName    string    `json:"groupName"`
-	Description  string    `json:"description"`
-	CreateTime   time.Time `json:"createTime"`
-	IsActive     bool      `json:"isActive"`
-	Currency     string    `json:"currency"`
-	GroupType    string    `json:"groupType"`
-	CreateByUser uuid.UUID `json:"createByUser"`
+	ID                        uuid.UUID             `json:"id"`
+	GroupName                 string                `json:"groupName"`
+	Description               string                `json:"description"`
+	CreateTime                time.Time             `json:"createTime"`
+	IsActive                  bool                  `json:"isActive"`
+	Currency                  string                `json:"currency"`
+	SettlementPreviewCurrency string                `json:"settlementPreviewCurrency"`
+	CurrencySettings          GroupCurrencySettings `json:"currencySettings"`
+	GroupType                 string                `json:"groupType"`
+	CreateByUser              uuid.UUID             `json:"createByUser"`
 }
 
 type CreateGroupPayload struct {
-	GroupName   string   `json:"groupName"`
-	Description string   `json:"description"`
-	Currency    string   `json:"currency"`
-	GroupType   string   `json:"groupType"`
-	MemberIDs   []string `json:"memberIds"`
+	GroupName        string                 `json:"groupName"`
+	Description      string                 `json:"description"`
+	Currency         string                 `json:"currency"`
+	GroupType        string                 `json:"groupType"`
+	MemberIDs        []string               `json:"memberIds"`
+	CurrencySettings *GroupCurrencySettings `json:"currencySettings,omitempty"`
 }
 
 type UpdateGroupPayload struct {
@@ -79,14 +87,28 @@ type ReplaceGroupMembersPayload struct {
 }
 
 type GetGroupResponse struct {
-	CurrentUserID    string        `json:"currentUserId"`
-	GroupName        string        `json:"groupName"`
-	Description      string        `json:"description"`
-	Currency         string        `json:"currency"`
-	CurrencyEditable bool          `json:"currencyEditable"`
-	DetailsEditable  bool          `json:"detailsEditable"`
-	GroupType        string        `json:"groupType"`
-	Members          []GroupMember `json:"members"`
+	CurrentUserID    string                `json:"currentUserId"`
+	GroupName        string                `json:"groupName"`
+	Description      string                `json:"description"`
+	Currency         string                `json:"currency"`
+	CurrencySettings GroupCurrencySettings `json:"currencySettings"`
+	CurrencyEditable bool                  `json:"currencyEditable"`
+	DetailsEditable  bool                  `json:"detailsEditable"`
+	GroupType        string                `json:"groupType"`
+	Members          []GroupMember         `json:"members"`
+}
+
+type GroupCurrencySetting struct {
+	Currency              string           `json:"currency"`
+	EnabledForNewExpenses bool             `json:"enabledForNewExpenses"`
+	Historical            bool             `json:"historical"`
+	HasCurrentBalance     bool             `json:"hasCurrentBalance"`
+	PreviewRate           *decimal.Decimal `json:"previewRate"`
+}
+
+type GroupCurrencySettings struct {
+	SettlementPreviewCurrency string                 `json:"settlementPreviewCurrency"`
+	Currencies                []GroupCurrencySetting `json:"currencies"`
 }
 
 type GroupMember struct {
@@ -104,17 +126,19 @@ type RelatedMember struct {
 type GroupBalanceStatus string
 
 const (
-	GroupBalanceStatusSettled GroupBalanceStatus = "settled"
-	GroupBalanceStatusOwed    GroupBalanceStatus = "owed"
-	GroupBalanceStatusOwing   GroupBalanceStatus = "owing"
+	GroupBalanceStatusSettled            GroupBalanceStatus = "settled"
+	GroupBalanceStatusOwed               GroupBalanceStatus = "owed"
+	GroupBalanceStatusOwing              GroupBalanceStatus = "owing"
+	GroupBalanceStatusPreviewUnavailable GroupBalanceStatus = "preview_unavailable"
 )
 
 type GetGroupListResponse struct {
-	ID            string             `json:"id"`
-	GroupName     string             `json:"groupName"`
-	Description   string             `json:"description"`
-	Currency      string             `json:"currency"`
-	GroupType     string             `json:"groupType"`
-	BalanceStatus GroupBalanceStatus `json:"balanceStatus"`
-	BalanceAmount decimal.Decimal    `json:"balanceAmount"`
+	ID                        string             `json:"id"`
+	GroupName                 string             `json:"groupName"`
+	Description               string             `json:"description"`
+	Currency                  string             `json:"currency"`
+	GroupType                 string             `json:"groupType"`
+	BalanceStatus             GroupBalanceStatus `json:"balanceStatus"`
+	BalanceAmount             decimal.Decimal    `json:"balanceAmount"`
+	SettlementPreviewComplete bool               `json:"settlementPreviewComplete"`
 }

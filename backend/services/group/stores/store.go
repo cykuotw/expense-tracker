@@ -29,6 +29,7 @@ func scanRowIntoGroup(row rowScanner) (*types.Group, error) {
 		&group.IsActive,
 		&group.CreateByUser,
 		&group.Currency,
+		&group.SettlementPreviewCurrency,
 		&group.GroupType,
 	)
 	if err != nil {

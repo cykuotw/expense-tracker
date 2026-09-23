@@ -52,16 +52,31 @@ func (h *Handler) handleCreateGroup(c *gin.Context) {
 		utils.WriteError(c, http.StatusBadRequest, types.ErrUnsupportedCurrency)
 		return
 	}
+	currencySettings := types.GroupCurrencySettings{
+		SettlementPreviewCurrency: payload.Currency,
+		Currencies: []types.GroupCurrencySetting{{
+			Currency: payload.Currency, EnabledForNewExpenses: true,
+		}},
+	}
+	if payload.CurrencySettings != nil {
+		currencySettings = *payload.CurrencySettings
+		if err := validateCurrencySettings(h.store, currencySettings); err != nil {
+			utils.WriteError(c, http.StatusBadRequest, err)
+			return
+		}
+	}
 
 	group := types.Group{
-		ID:           uuid.New(),
-		GroupName:    payload.GroupName,
-		Description:  payload.Description,
-		CreateTime:   time.Now(),
-		IsActive:     true,
-		Currency:     payload.Currency,
-		GroupType:    payload.GroupType,
-		CreateByUser: user.ID,
+		ID:                        uuid.New(),
+		GroupName:                 payload.GroupName,
+		Description:               payload.Description,
+		CreateTime:                time.Now(),
+		IsActive:                  true,
+		Currency:                  payload.Currency,
+		SettlementPreviewCurrency: currencySettings.SettlementPreviewCurrency,
+		CurrencySettings:          currencySettings,
+		GroupType:                 payload.GroupType,
+		CreateByUser:              user.ID,
 	}
 
 	memberIDs := make([]string, 0, len(payload.MemberIDs))

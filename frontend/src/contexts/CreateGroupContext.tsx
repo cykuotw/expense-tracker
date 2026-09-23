@@ -2,7 +2,7 @@ import { useState, ReactNode, FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-hot-toast";
 import { apiFetch, getResponseErrorMessage } from "../lib/api";
-import { GroupNewData } from "../types/group";
+import { GroupCurrencySettings, GroupNewData } from "../types/group";
 import { CreateGroupContext } from "../hooks/CreateGroupContextHooks";
 
 export const CreateGroupProvider = ({ children }: { children: ReactNode }) => {
@@ -13,12 +13,25 @@ export const CreateGroupProvider = ({ children }: { children: ReactNode }) => {
     const [groupName, setGroupName] = useState<string>("");
     const [description, setDescription] = useState<string>("");
     const [currency, setCurrency] = useState<string>("");
+    const [currencySettings, setCurrencySettings] = useState<GroupCurrencySettings>({
+        settlementPreviewCurrency: "",
+        currencies: [],
+    });
     const [groupType, setGroupType] = useState<string>("home");
 
     const dataOk =
         createdGroupId === null &&
         groupName.trim().length > 0 &&
-        currency.length > 0;
+        currency.length > 0 &&
+        currencySettings.currencies.some(
+            ({ currency: code, enabledForNewExpenses, previewRate }) =>
+                code === currencySettings.settlementPreviewCurrency &&
+                enabledForNewExpenses &&
+                previewRate === "1"
+        ) &&
+        currencySettings.currencies.every(
+            ({ previewRate }) => previewRate !== null && Number(previewRate) > 0
+        );
 
     const createGroup = async (e: FormEvent) => {
         e.preventDefault();
@@ -33,6 +46,7 @@ export const CreateGroupProvider = ({ children }: { children: ReactNode }) => {
             currency: currency,
             groupType,
             memberIds,
+            currencySettings,
         };
 
         try {
@@ -78,6 +92,8 @@ export const CreateGroupProvider = ({ children }: { children: ReactNode }) => {
                 setDescription,
                 currency,
                 setCurrency,
+                currencySettings,
+                setCurrencySettings,
                 groupType,
                 setGroupType,
                 createdGroupId,

@@ -91,6 +91,7 @@ func (c *Controller) DebtSimplify(ledgers []*types.Ledger) []*types.Balance {
 			SenderUserID:   d.id,
 			ReceiverUserID: cr.id,
 			Share:          amt,
+			Currency:       ledgers[0].Currency,
 			CreateTime:     now,
 			UpdateTime:     now,
 			IsOutdated:     false,

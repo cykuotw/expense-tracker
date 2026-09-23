@@ -95,12 +95,9 @@ func (h *Handler) handleCreateExpense(c *gin.Context) {
 	resultExpenseID := expenseID
 
 	err = h.store.RunInTransaction(func(store types.ExpenseTransactionStore) error {
-		groupCurrency, err := store.LockGroupCurrency(payload.GroupID)
+		groupCurrency, err := lockExpenseCurrency(store, payload.GroupID, payload.Currency, false)
 		if err != nil {
 			return err
-		}
-		if payload.Currency != "" && payload.Currency != groupCurrency {
-			return types.ErrCurrencyMismatch
 		}
 		expense.Currency = groupCurrency
 		if err := store.CheckGroupParticipants(payload.GroupID, expenseParticipantIDs(creatorID, expense, allocations)); err != nil {
@@ -168,7 +165,7 @@ func (h *Handler) handleCreateExpense(c *gin.Context) {
 			utils.WriteError(c, http.StatusBadRequest, err)
 			return
 		}
-		if errors.Is(err, types.ErrInvalidMoney) || errors.Is(err, types.ErrInvalidAction) || errors.Is(err, types.ErrUnsupportedCurrency) || errors.Is(err, types.ErrGroupParticipantNotAllowed) {
+		if errors.Is(err, types.ErrInvalidMoney) || errors.Is(err, types.ErrInvalidAction) || errors.Is(err, types.ErrUnsupportedCurrency) || errors.Is(err, types.ErrCurrencyDisabled) || errors.Is(err, types.ErrGroupParticipantNotAllowed) {
 			utils.WriteError(c, http.StatusBadRequest, err)
 			return
 		}

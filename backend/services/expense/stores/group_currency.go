@@ -6,6 +6,36 @@ import (
 	"github.com/google/uuid"
 )
 
+func (s *Store) LockGroupCurrencyForExpense(groupID string, requestedCurrency string, allowDisabled bool) (string, error) {
+	if requestedCurrency == "" {
+		return s.LockGroupCurrency(groupID)
+	}
+	rows, err := s.db.Query(`SELECT btrim(group_currency.currency), group_currency.enabled_for_new_expenses
+		FROM groups
+		JOIN group_currency ON group_currency.group_id = groups.id
+		WHERE groups.id = $1 AND groups.is_active = TRUE AND group_currency.currency = $2
+		FOR UPDATE OF groups, group_currency`, groupID, requestedCurrency)
+	if err != nil {
+		return "", err
+	}
+	defer rows.Close()
+	if !rows.Next() {
+		if err := rows.Err(); err != nil {
+			return "", err
+		}
+		return "", types.ErrUnsupportedCurrency
+	}
+	var currency string
+	var enabled bool
+	if err := rows.Scan(&currency, &enabled); err != nil {
+		return "", err
+	}
+	if !enabled && !allowDisabled {
+		return "", types.ErrCurrencyDisabled
+	}
+	return currency, rows.Err()
+}
+
 func (s *Store) LockGroupCurrency(groupID string) (string, error) {
 	rows, err := s.db.Query(`SELECT btrim(currency) FROM groups WHERE id = $1 AND is_active = TRUE FOR UPDATE`, groupID)
 	if err != nil {

@@ -86,6 +86,7 @@ func (h *Handler) expenseDetailResponse(c *gin.Context, expenseTypes []*types.Ex
 			BorrowerUserId:   led.BorrowerUesrID.String(),
 			BorrowerUsername: usernames[led.BorrowerUesrID.String()],
 			Share:            led.Share,
+			Currency:         led.Currency,
 		}
 		ledgerRsp = append(ledgerRsp, ledger)
 	}

@@ -13,6 +13,7 @@ import {
     GroupMembersLoadStatus,
 } from "../types/group";
 import { ExpenseTypeItem } from "../types/expense";
+import { CurrencyMetadata } from "../lib/money";
 
 export interface CreateExpenseContextType {
     groupId: string | null;
@@ -28,6 +29,8 @@ export interface CreateExpenseContextType {
     occurredOn: string;
     setOccurredOn: Dispatch<SetStateAction<string>>;
     currency: string;
+    currencies: CurrencyMetadata[];
+    setCurrency: Dispatch<SetStateAction<string>>;
     amountDigits: number | null;
     payer: string;
     setPayer: Dispatch<SetStateAction<string>>;

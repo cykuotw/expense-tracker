@@ -11,6 +11,7 @@ type Ledger struct {
 	LenderUserID   uuid.UUID
 	BorrowerUesrID uuid.UUID
 	Share          decimal.Decimal
+	Currency       string
 }
 
 // payload
@@ -32,4 +33,5 @@ type LedgerResponse struct {
 	BorrowerUserId   string          `json:"borrowerUserId"`
 	BorrowerUsername string          `json:"borrowerUsername"`
 	Share            decimal.Decimal `json:"share"`
+	Currency         string          `json:"currency"`
 }

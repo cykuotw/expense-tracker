@@ -1,4 +1,21 @@
-export type GroupBalanceStatus = "settled" | "owed" | "owing";
+export type GroupBalanceStatus =
+    | "settled"
+    | "owed"
+    | "owing"
+    | "preview_unavailable";
+
+export interface GroupCurrencySetting {
+    currency: string;
+    enabledForNewExpenses: boolean;
+    historical: boolean;
+    hasCurrentBalance: boolean;
+    previewRate: string | null;
+}
+
+export interface GroupCurrencySettings {
+    settlementPreviewCurrency: string;
+    currencies: GroupCurrencySetting[];
+}
 
 export interface GroupCardData {
     id: string;
@@ -8,6 +25,7 @@ export interface GroupCardData {
     groupType: string;
     balanceStatus: GroupBalanceStatus;
     balanceAmount: string;
+    settlementPreviewComplete?: boolean;
 }
 
 export interface GroupMember {
@@ -22,6 +40,7 @@ export interface GroupInfo {
     groupName: string;
     description: string;
     currency: string;
+    currencySettings: GroupCurrencySettings;
     currencyEditable: boolean;
     detailsEditable: boolean;
     groupType: string;
@@ -49,4 +68,5 @@ export interface GroupNewData {
     currency: string;
     groupType: string;
     memberIds: string[];
+    currencySettings: GroupCurrencySettings;
 }

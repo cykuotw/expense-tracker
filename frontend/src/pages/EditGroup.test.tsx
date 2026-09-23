@@ -119,9 +119,26 @@ describe("EditGroup member anchor", () => {
                 groupName: "Trip",
                 description: "",
                 currency: "CAD",
+                currencySettings: {
+                    settlementPreviewCurrency: "CAD",
+                    currencies: [{
+                        currency: "CAD",
+                        enabledForNewExpenses: true,
+                        historical: false,
+                        hasCurrentBalance: false,
+                        previewRate: "1",
+                    }],
+                },
                 groupType: "trip",
                 currencyEditable: true,
                 detailsEditable: true,
+            } : path === "/currency-recommendations" ? {
+                providerName: "Frankfurter",
+                attributionUrl: "https://frankfurter.dev",
+                recommendations: [
+                    { sourceCurrency: "CAD", settlementPreviewCurrency: "CAD", recommendedRate: "1", rateSnapshotAt: "2026-09-22" },
+                    { sourceCurrency: "USD", settlementPreviewCurrency: "CAD", recommendedRate: "1.35", rateSnapshotAt: "2026-09-22" },
+                ],
             } : {}),
             { status: 200, headers: { "Content-Type": "application/json" } },
         )));
@@ -133,14 +150,37 @@ describe("EditGroup member anchor", () => {
             </MemoryRouter>
         );
 
-        await waitFor(() => expect(screen.getByRole("button", { name: "Save currency" })).toBeDisabled());
-        fireEvent.click(screen.getByRole("button", { name: "Currency" }));
-        fireEvent.click(screen.getByRole("option", { name: /USD — US Dollar/ }));
-        fireEvent.click(screen.getByRole("button", { name: "Save currency" }));
+        const saveButton = await screen.findByRole("button", { name: "Save currency settings" });
+        expect(saveButton).toBeDisabled();
+        const addButton = screen.getByRole("button", { name: "Add currency" });
+        expect(addButton).toHaveAttribute("data-variant", "default");
+        expect(addButton).toHaveClass(
+            "min-h-12",
+            "w-full",
+            "whitespace-nowrap",
+            "md:w-auto",
+            "md:min-w-36",
+            "md:justify-self-end",
+        );
+        await waitFor(() => expect(addButton).toBeEnabled());
+        fireEvent.click(addButton);
+        fireEvent.change(await screen.findByLabelText(/1 USD = … CAD/), {
+            target: { value: "1.35" },
+        });
+        fireEvent.click(saveButton);
 
         await waitFor(() => expect(apiFetchMock).toHaveBeenCalledWith(
-            "/group/group-1/currency",
-            expect.objectContaining({ method: "PUT", body: JSON.stringify({ currency: "USD" }) }),
+            "/group/group-1/currency-settings",
+            expect.objectContaining({
+                method: "PUT",
+                body: JSON.stringify({
+                    settlementPreviewCurrency: "CAD",
+                    currencies: [
+                        { currency: "CAD", enabledForNewExpenses: true, historical: false, hasCurrentBalance: false, previewRate: "1" },
+                        { currency: "USD", enabledForNewExpenses: true, historical: false, hasCurrentBalance: false, previewRate: "1.35" },
+                    ],
+                }),
+            }),
         ));
         expect(apiFetchMock).not.toHaveBeenCalledWith(
             "/group/group-1",

@@ -287,6 +287,70 @@ describe("GroupDetail mobile balance summary", () => {
         ).toBeNull();
     });
 
+    it("shows one estimated settlement row per counterparty", () => {
+        groupDetailMock.mockReturnValue({
+            groupinfo: {
+                groupName: "FX trip",
+                description: "",
+                currency: "CAD",
+                groupType: "trip",
+                members: [],
+            },
+            balance: {
+                currency: "CAD",
+                currentUser: "current-user",
+                balances: [
+                    { id: "cad-tttt", senderUserId: "tttt", senderUsername: "ttttttttt", receiverUserId: "current-user", receiverUsername: "You", balance: "60", currency: "CAD" },
+                    { id: "usd-tttt", senderUserId: "current-user", senderUsername: "You", receiverUserId: "tttt", receiverUsername: "ttttttttt", balance: "30", currency: "USD" },
+                    { id: "cad-test", senderUserId: "test-user", senderUsername: "testuser2", receiverUserId: "current-user", receiverUsername: "You", balance: "60", currency: "CAD" },
+                    { id: "twd-test", senderUserId: "current-user", senderUsername: "You", receiverUserId: "test-user", receiverUsername: "testuser2", balance: "1000", currency: "TWD" },
+                ],
+                settlementPreview: {
+                    currency: "CAD",
+                    complete: true,
+                    netAmount: "36.5",
+                    contributions: [
+                        { balanceId: "cad-tttt", sourceCurrency: "CAD", sourceAmount: "60", rate: "1", previewAmount: "60" },
+                        { balanceId: "usd-tttt", sourceCurrency: "USD", sourceAmount: "-30", rate: "1.35", previewAmount: "-40.5" },
+                        { balanceId: "cad-test", sourceCurrency: "CAD", sourceAmount: "60", rate: "1", previewAmount: "60" },
+                        { balanceId: "twd-test", sourceCurrency: "TWD", sourceAmount: "-1000", rate: "0.043", previewAmount: "-43" },
+                    ],
+                    missingRateCurrencies: [],
+                },
+            },
+            unsettledExpenses: [],
+            unsettledLoading: false,
+            unsettledHasMore: false,
+            expenseOrder: "newest",
+            expenseListRefreshVersion: 0,
+            setExpenseOrder: vi.fn(),
+            settledExpenses: [],
+            settledLoading: false,
+            settledHasMore: false,
+            loading: false,
+            settlementPending: false,
+            groupId: "group-1",
+            handleSettle: vi.fn(),
+            loadMoreUnsettledExpenses: vi.fn(),
+            loadSettledExpenses: vi.fn(),
+            loadMoreSettledExpenses: vi.fn(),
+        });
+
+        renderGroupDetail();
+
+        const preview = screen.getByTestId("settlement-preview");
+        expect(preview).toHaveClass("bg-primary/5");
+        expect(within(preview).getByText("ttttttttt owes you")).toBeVisible();
+        expect(within(preview).getByText("≈ 19.5 CAD")).toBeVisible();
+        expect(within(preview).getByText("testuser2 owes you")).toBeVisible();
+        expect(within(preview).getByText("≈ 17 CAD")).toBeVisible();
+        expect(within(preview).getByText("≈ 36.5 CAD")).toBeVisible();
+
+        const separator = screen.getByTestId("original-balances-separator");
+        expect(within(separator).getByText("Original balances")).toBeVisible();
+        expect(separator.querySelectorAll('[data-slot="separator"]')).toHaveLength(2);
+    });
+
     it("keeps the settlement dialog busy and non-dismissible while submitting", () => {
         const state = {
             groupinfo: {

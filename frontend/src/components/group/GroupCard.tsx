@@ -9,13 +9,17 @@ export default function GroupCard(groupData: GroupCardData) {
     const balanceLabel =
         groupData.balanceStatus === "settled"
             ? "Settled"
+            : groupData.balanceStatus === "preview_unavailable"
+              ? "Settlement preview unavailable"
             : groupData.balanceStatus === "owed"
-              ? `You are owed ${groupData.balanceAmount} ${groupData.currency}`
-              : `You owe ${groupData.balanceAmount} ${groupData.currency}`;
+              ? `Estimated · you are owed ≈ ${groupData.balanceAmount} ${groupData.currency}`
+              : `Estimated · you owe ≈ ${groupData.balanceAmount} ${groupData.currency}`;
 
     const balanceClass =
         groupData.balanceStatus === "settled"
             ? "bg-muted text-foreground/70"
+            : groupData.balanceStatus === "preview_unavailable"
+              ? "bg-muted text-foreground/70"
             : groupData.balanceStatus === "owed"
               ? "bg-success/12 text-success"
               : "bg-destructive/12 text-destructive";

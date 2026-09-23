@@ -4,13 +4,17 @@ import { toast } from "react-hot-toast";
 import { mdiCheckBold } from "@mdi/js";
 import Icon from "@mdi/react";
 import { GroupTypePicker } from "../components/group/GroupTypePicker";
-import { CurrencyPicker } from "../components/group/CurrencyPicker";
+import {
+    CurrencySettingsEditor,
+} from "../components/group/CurrencySettingsEditor";
 import { GroupMemberManager } from "../components/group/GroupMemberManager";
 import MobilePageHeader from "../components/MobilePageHeader";
 import DesktopBackLink from "../components/DesktopBackLink";
 import { AddMemberProvider } from "../contexts/AddMemberContext";
 import { apiFetch, getResponseErrorMessage } from "../lib/api";
 import { useCurrencies } from "../hooks/useCurrencies";
+import { GroupCurrencySettings, GroupInfo } from "../types/group";
+import { currencySettingsAreValid, legacyCurrencySettings } from "../lib/currencySettings";
 
 interface GroupForm {
     groupName: string;
@@ -26,6 +30,11 @@ const EMPTY_GROUP_FORM: GroupForm = {
     groupType: "home",
 };
 
+const EMPTY_CURRENCY_SETTINGS: GroupCurrencySettings = {
+    settlementPreviewCurrency: "",
+    currencies: [],
+};
+
 export default function EditGroup() {
     const { id } = useParams();
     const { hash } = useLocation();
@@ -34,7 +43,8 @@ export default function EditGroup() {
     const [initialForm, setInitialForm] = useState<GroupForm | null>(null);
     const [saving, setSaving] = useState(false);
     const [currencySaving, setCurrencySaving] = useState(false);
-    const [currencyEditable, setCurrencyEditable] = useState(false);
+    const [currencySettings, setCurrencySettings] = useState<GroupCurrencySettings>(EMPTY_CURRENCY_SETTINGS);
+    const [initialCurrencySettings, setInitialCurrencySettings] = useState<GroupCurrencySettings | null>(null);
     const [detailsEditable, setDetailsEditable] = useState(false);
     const { currencies, loading: currenciesLoading, error: currenciesError, reload } = useCurrencies();
 
@@ -49,7 +59,7 @@ export default function EditGroup() {
                     signal: abortController.signal,
                 });
                 if (!response.ok) return;
-                const data = await response.json();
+                const data = (await response.json()) as GroupInfo;
                 if (!active) return;
                 const nextForm: GroupForm = {
                     groupName: data.groupName ?? "",
@@ -59,7 +69,10 @@ export default function EditGroup() {
                 };
                 setForm(nextForm);
                 setInitialForm(nextForm);
-                setCurrencyEditable(data.currencyEditable === true);
+                const nextCurrencySettings =
+                    data.currencySettings ?? legacyCurrencySettings(nextForm.currency);
+                setCurrencySettings(nextCurrencySettings);
+                setInitialCurrencySettings(nextCurrencySettings);
                 setDetailsEditable(data.detailsEditable === true);
             } catch {
                 // Group loading remains silent; aborts are expected cleanup.
@@ -85,7 +98,8 @@ export default function EditGroup() {
             form.description !== initialForm.description ||
             form.groupType !== initialForm.groupType);
     const isCurrencyDirty =
-        initialForm !== null && form.currency !== initialForm.currency;
+        initialCurrencySettings !== null &&
+        JSON.stringify(currencySettings) !== JSON.stringify(initialCurrencySettings);
 
     const save = async (event: React.FormEvent) => {
         event.preventDefault();
@@ -118,14 +132,14 @@ export default function EditGroup() {
 
     const saveCurrency = async (event: React.FormEvent) => {
         event.preventDefault();
-        if (!id || !currencyEditable || !isCurrencyDirty) return;
+        if (!id || !isCurrencyDirty || !currencySettingsAreValid(currencySettings)) return;
 
         setCurrencySaving(true);
         try {
-            const response = await apiFetch(`/group/${id}/currency`, {
+            const response = await apiFetch(`/group/${id}/currency-settings`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ currency: form.currency }),
+                body: JSON.stringify(currencySettings),
             });
             if (!response.ok) {
                 toast.error(
@@ -133,10 +147,12 @@ export default function EditGroup() {
                 );
                 return;
             }
-            setInitialForm((current) =>
-                current ? { ...current, currency: form.currency } : current
-            );
-            toast.success("Currency updated");
+            setInitialCurrencySettings(currencySettings);
+            setForm((current) => ({
+                ...current,
+                currency: currencySettings.settlementPreviewCurrency,
+            }));
+            toast.success("Currency settings updated");
         } catch {
             toast.error("Failed to update currency");
         } finally {
@@ -232,35 +248,30 @@ export default function EditGroup() {
                     className="panel-card mt-4 rounded-[2rem] p-4 md:mt-6 md:p-8"
                     onSubmit={saveCurrency}
                 >
-                    <div className="page-eyebrow">Currency</div>
+                    <div className="page-eyebrow">Currencies</div>
                     <h2 className="mt-1 text-xl font-semibold text-foreground md:text-2xl">
-                        Group currency
+                        Currency settings
                     </h2>
                     <p className="mt-1 text-sm text-foreground/65">
-                        Any current member can change this before the first expense is created.
+                        Any current member can choose expense currencies and maintain the shared settlement preview rates.
                     </p>
                     <div className="mt-4">
-                        <CurrencyPicker
-                            value={form.currency}
+                        <CurrencySettingsEditor
+                            settings={currencySettings}
                             currencies={currencies}
-                            disabled={!currencyEditable || currenciesLoading || currenciesError || currencySaving}
-                            onChange={(currency) =>
-                                setForm((current) => ({ ...current, currency }))
-                            }
+                            disabled={currenciesLoading || Boolean(currenciesError) || currencySaving}
+                            onChange={setCurrencySettings}
                         />
                     </div>
-                    {!currencyEditable ? <span className="mt-2 block text-sm text-foreground/65">Currency is locked after the first expense.</span> : null}
                     {currenciesLoading ? <span className="mt-2 block text-sm text-foreground/65">Loading currencies…</span> : null}
                     {currenciesError ? <span className="mt-2 block text-sm text-destructive">Could not load currencies. <button className="underline" type="button" onClick={() => void reload()}>Try again</button></span> : null}
-                    {currencyEditable ? (
-                        <button
-                            type="submit"
-                            className="ui-button ui-button-primary mt-5"
-                            disabled={currencySaving || currenciesLoading || currenciesError || !isCurrencyDirty}
-                        >
-                            {currencySaving ? "Saving…" : "Save currency"}
-                        </button>
-                    ) : null}
+                    <button
+                        type="submit"
+                        className="ui-button ui-button-primary mt-5"
+                        disabled={currencySaving || currenciesLoading || Boolean(currenciesError) || !isCurrencyDirty || !currencySettingsAreValid(currencySettings)}
+                    >
+                        {currencySaving ? "Saving…" : "Save currency settings"}
+                    </button>
                 </form>
                 <section id="members" className="mt-4 scroll-mt-4 md:mt-6 md:scroll-mt-6">
                     <div className="mb-3 md:mb-4">

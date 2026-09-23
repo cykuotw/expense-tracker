@@ -16,14 +16,14 @@ const expenseSelectColumns = `
 
 const balanceSelectColumns = `
 	id, sender_user_id, receiver_user_id, share, group_id,
-	create_time_utc, is_outdated, update_time_utc, is_settled, settle_time_utc`
+	create_time_utc, is_outdated, update_time_utc, is_settled, settle_time_utc, currency`
 
 const itemSelectColumns = `id, expense_id, name, amount, unit, unit_price`
 
-const ledgerSelectColumns = `id, expense_id, lender_user_id, borrower_user_id, share`
+const ledgerSelectColumns = `id, expense_id, lender_user_id, borrower_user_id, share, currency`
 
 const qualifiedLedgerSelectColumns = `
-	l.id, l.expense_id, l.lender_user_id, l.borrower_user_id, l.share`
+	l.id, l.expense_id, l.lender_user_id, l.borrower_user_id, l.share, l.currency`
 
 func scanRowIntoExpense(rows *sql.Rows) (*types.Expense, error) {
 	expense := new(types.Expense)
@@ -104,6 +104,7 @@ func scanRowIntoLedger(rows *sql.Rows) (*types.Ledger, error) {
 		&ledger.LenderUserID,
 		&ledger.BorrowerUesrID,
 		&ledger.Share,
+		&ledger.Currency,
 	)
 	if err != nil {
 		return nil, err

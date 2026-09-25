@@ -305,6 +305,15 @@ describe("AdminUsers", () => {
         const receiptOCR = within(userCard!).getByRole("switch", {
             name: "Receipt OCR",
         });
+        expect(
+            within(userCard!).getByRole("group", { name: "Feature management" }),
+        ).toBeInTheDocument();
+        expect(
+            within(userCard!).queryByText(
+                "Allow this account to scan receipts into editable drafts.",
+            ),
+        ).not.toBeInTheDocument();
+        expect(within(userCard!).queryByText("Enabled")).not.toBeInTheDocument();
         expect(receiptOCR).not.toBeChecked();
         fireEvent.click(receiptOCR);
 
@@ -351,7 +360,11 @@ describe("AdminUsers", () => {
         fireEvent.click(receiptOCR);
         expect(receiptOCR).toBeChecked();
         expect(receiptOCR).toBeDisabled();
-        expect(within(userCard!).getByText("Updating…")).toBeInTheDocument();
+        expect(
+            within(userCard!).getByRole("status", {
+                name: "Updating Receipt OCR access",
+            }),
+        ).toBeInTheDocument();
 
         resolveUpdate(response({}, 500));
 
@@ -372,7 +385,7 @@ describe("AdminUsers", () => {
         expect(
             within(userCard!).getByRole("switch", { name: "Receipt OCR" }),
         ).toBeDisabled();
-        expect(userCard).toHaveTextContent(
+        expect(userCard).not.toHaveTextContent(
             "Activate this account before enabling Receipt OCR.",
         );
     });

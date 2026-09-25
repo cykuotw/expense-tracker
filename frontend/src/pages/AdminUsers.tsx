@@ -7,10 +7,17 @@ import ConfirmationDialog from "../components/ConfirmationDialog";
 import MobilePageHeader from "../components/MobilePageHeader";
 import DesktopBackLink from "../components/DesktopBackLink";
 import {
+    Card,
+    CardContent,
+    CardHeader,
+    CardTitle,
+} from "../components/ui/card";
+import {
     Field,
-    FieldContent,
-    FieldDescription,
+    FieldGroup,
     FieldLabel,
+    FieldLegend,
+    FieldSet,
 } from "../components/ui/field";
 import { Spinner } from "../components/ui/spinner";
 import { Switch } from "../components/ui/switch";
@@ -165,35 +172,22 @@ function ReceiptOCRAccess({
     onChange,
 }: ReceiptOCRAccessProps) {
     const switchID = `receipt-ocr-${user.id}`;
-    const descriptionID = `${switchID}-description`;
     const disabled = busy || updating || !user.isActive;
 
     return (
         <Field
             orientation="horizontal"
-            className="min-h-14 flex-col items-stretch sm:flex-row sm:items-center"
+            className="min-h-10 items-center justify-between py-1"
             data-disabled={disabled || undefined}
             aria-busy={updating}
         >
-            <FieldContent>
-                <FieldLabel htmlFor={switchID}>Receipt OCR</FieldLabel>
-                <FieldDescription id={descriptionID}>
-                    {user.isActive
-                        ? "Allow this account to scan receipts into editable drafts."
-                        : "Activate this account before enabling Receipt OCR."}
-                </FieldDescription>
-            </FieldContent>
-            <div className="flex w-full shrink-0 items-center justify-between gap-3 sm:w-auto sm:justify-end">
-                <span
-                    className="min-w-16 text-right text-xs font-semibold text-foreground/60"
-                    aria-live="polite"
-                >
-                    {updating
-                        ? "Updating…"
-                        : user.capabilities.receiptOcr
-                          ? "Enabled"
-                          : "Disabled"}
-                </span>
+            <FieldLabel
+                htmlFor={switchID}
+                className="min-w-0 flex-1 cursor-pointer group-data-[disabled=true]/field:cursor-not-allowed"
+            >
+                Receipt OCR
+            </FieldLabel>
+            <div className="flex shrink-0 items-center gap-3">
                 <span className="flex size-4 items-center justify-center">
                     {updating ? (
                         <Spinner
@@ -206,7 +200,6 @@ function ReceiptOCRAccess({
                     id={switchID}
                     checked={user.capabilities.receiptOcr}
                     disabled={disabled}
-                    aria-describedby={descriptionID}
                     onCheckedChange={(enabled) => void onChange(user, enabled)}
                 />
             </div>
@@ -262,14 +255,28 @@ function UserCard(props: UserCardProps) {
             <p className="mt-3 text-xs text-foreground/55">
                 Joined {formatDate(user.createTime)}
             </p>
-            <div className="mt-5 border-y border-border py-4">
-                <ReceiptOCRAccess
-                    user={user}
-                    busy={busy}
-                    updating={featureBusy}
-                    onChange={onReceiptOCRChange}
-                />
-            </div>
+            <Card size="sm" className="mt-5 gap-0 py-0 ring-border/60">
+                <CardHeader className="border-b border-border/60 py-2.5">
+                    <CardTitle>
+                        <h4>Feature management</h4>
+                    </CardTitle>
+                </CardHeader>
+                <CardContent className="py-1">
+                    <FieldSet>
+                        <FieldLegend className="sr-only">
+                            Feature management
+                        </FieldLegend>
+                        <FieldGroup className="gap-0">
+                            <ReceiptOCRAccess
+                                user={user}
+                                busy={busy}
+                                updating={featureBusy}
+                                onChange={onReceiptOCRChange}
+                            />
+                        </FieldGroup>
+                    </FieldSet>
+                </CardContent>
+            </Card>
             <div className="mt-5">
                 <UserActions {...props} busy={busy || featureBusy} />
             </div>

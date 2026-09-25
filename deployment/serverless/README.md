@@ -1,6 +1,6 @@
 # Unified Serverless Deployment
 
-This directory is the complete serverless deployment implementation. It owns the database host, Worker and Bootstrap Lambdas, API custom domain, and frontend infrastructure/publication through one Python entrypoint and one Terraform state.
+This directory is the complete serverless deployment implementation. It owns the database host, Worker, OCR, and Bootstrap Lambdas, API custom domain, and frontend infrastructure/publication through one Python entrypoint and one Terraform state.
 
 ## Operator configuration
 
@@ -69,6 +69,7 @@ Complete example—replace every `REPLACE` value before deployment:
         "jwt_exp": 900,
         "refresh_jwt_secret": "REPLACE_WITH_AT_LEAST_32_RANDOM_CHARACTERS",
         "refresh_jwt_exp": 604800,
+        "ocr_capability_secret": "REPLACE_WITH_A_DISTINCT_RANDOM_32_BYTE_SECRET",
         "expenses_per_page": 25,
         "db_conn_max_lifetime_seconds": 300,
         "db_conn_max_idle_time_seconds": 60,
@@ -117,7 +118,8 @@ shared free-tier allowances, so an absolute zero bill cannot be guaranteed.
 
 The access-token lifetime must be between 60 and 86,400 seconds. The refresh
 lifetime must be between 300 and 31,536,000 seconds and greater than the access
-lifetime. The two JWT secrets must be different and at least 32 bytes;
+lifetime. The two JWT secrets and `ocr_capability_secret` must be pairwise
+different and at least 32 bytes;
 length is a minimum safeguard, not proof of entropy. `expenses_per_page` is
 limited to 1–1,000. Database connection lifetime and idle-time values are
 limited to 0–86,400 seconds, where `0` disables the corresponding expiration.
@@ -211,7 +213,11 @@ combination without a second event-log subsystem.
 Activation changes application artifacts only. It rejects a backend target
 whose optional Error Notifier enabled/disabled topology differs from the
 current release, because that transition requires a normal reviewed Terraform
-deployment.
+deployment. It also rejects activation across the pre-OCR/OCR infrastructure
+boundary. The first reviewed backend or all-scope update creates the OCR
+resources without aliases, publishes the numbered OCR version and `live`
+alias, then reapplies the route against that alias; later releases promote OCR
+with the rest of the backend.
 
 Database schema is forward-only during application rollback. The deployer
 reads the current migration state and rejects dirty state, unknown migration
@@ -520,9 +526,17 @@ allowances.
 ## Safety boundary
 
 - Terraform never receives database/JWT/first-admin/webhook secrets and never manages Lambda environments.
+- The protected deploy config owns a dedicated OCR capability secret. The
+  deployer projects it only to Worker and OCR runtime environments; Terraform
+  and release manifests never receive it.
 - The Worker begins at reserved concurrency `0`; Python publishes runtime configuration and activates it at `5`. With the deployed `DB_MAX_OPEN_CONNS=2`, the Worker has a maximum application-side database pool budget of 10 connections.
+- The OCR Lambda begins at reserved concurrency `0`; Python publishes its
+  minimal environment and activates it at `1`. It has no VPC attachment,
+  database variables, Textract permission, NAT Gateway, or paid VPC endpoint.
+  Its only data-plane permission in Phase 2 is the conditional DynamoDB replay
+  claim. The route returns `providerInvoked: false`.
 - The raw execute-api endpoint is disabled only after custom-domain and frontend checks pass.
 - Normal updates use narrowly targeted Terraform plans for supported API, CloudFront, notification, and database-support infrastructure changes; Lambda code and runtime environments remain owned by the deployment runtime after initial creation. Deletions are limited to the two retired invitation routes, the obsolete notification HTTPS egress rule, and the six conditional alerting resources when alerting is explicitly disabled; replacements and unrelated deletions are rejected.
-- Before an update, the deployer removes only unmanaged Worker/Bootstrap/Sender/Delivery/Error Notifier runtime environments if an AWS provider response persisted them into local state, then verifies that no configured protected value remains anywhere in Terraform artifacts.
+- Before an update, the deployer removes only unmanaged Worker/OCR/Bootstrap/Sender/Delivery/Error Notifier runtime environments if an AWS provider response persisted them into local state, then verifies that no configured protected value remains anywhere in Terraform artifacts.
 - Destroy deletes Lambdas first, waits for their owned ENIs, then runs `terraform destroy -refresh=false`.
 - A deployment failure keeps persistent resources for an explicit resume; it never performs automatic rollback or destroy.

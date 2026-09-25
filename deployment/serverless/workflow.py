@@ -103,7 +103,7 @@ def preflight(context: Context, *, mutation: bool) -> None:
         if not zones.get("HostedZones") or zones["HostedZones"][0]["Name"].rstrip(".") != context.config.aws.hosted_zone_name:
             raise CommandError("public Route 53 hosted zone was not found")
         limit = int(context.aws.json("lambda", "get-account-settings")["AccountLimit"]["ConcurrentExecutions"])
-        required_concurrency = 8 if context.config.error_alerting_enabled else 7
+        required_concurrency = 9 if context.config.error_alerting_enabled else 8
         if limit < required_concurrency:
             raise CommandError(
                 f"Lambda account concurrency must be at least {required_concurrency}"
@@ -145,10 +145,10 @@ def _print_plan(actions: dict[str, list[str]]) -> None:
 
 def _assert_no_conflicts(context: Context) -> None:
     prefix = f"{context.config.deployment.name_prefix}-{context.config.deployment.environment}"
-    for function in (f"{prefix}-worker", f"{prefix}-bootstrap", f"{prefix}-sender", f"{prefix}-delivery", f"{prefix}-error-notifier"):
+    for function in (f"{prefix}-worker", f"{prefix}-ocr", f"{prefix}-bootstrap", f"{prefix}-sender", f"{prefix}-delivery", f"{prefix}-error-notifier"):
         if context.aws.function_exists(function):
             raise CommandError(f"unexpected existing Lambda conflicts with fresh deployment: {function}")
-    for role in (f"{prefix}-worker-role", f"{prefix}-bootstrap-role", f"{prefix}-sender-role", f"{prefix}-delivery-role", f"{prefix}-error-notifier-role"):
+    for role in (f"{prefix}-worker-role", f"{prefix}-ocr-role", f"{prefix}-bootstrap-role", f"{prefix}-sender-role", f"{prefix}-delivery-role", f"{prefix}-error-notifier-role"):
         if context.aws.resource_exists("iam", "get-role", "--role-name", role, missing=("NoSuchEntity",)):
             raise CommandError(f"unexpected existing IAM role conflicts with fresh deployment: {role}")
     bucket = f"{prefix}-frontend-{context.config.deployment.account_id}"
@@ -362,6 +362,15 @@ def deploy(context: Context) -> None:
                     context.terraform_root,
                     release_id,
                 )
+                step("OCR runtime and activation")
+                ocr = runtime.publish_ocr_release(
+                    context.aws,
+                    built["ocr"],
+                    context.config,
+                    outputs,
+                    context.terraform_root,
+                    release_id,
+                )
                 step("push sender runtime and activation")
                 sender, delivery = runtime.publish_notification_releases(
                     context.aws,
@@ -375,6 +384,7 @@ def deploy(context: Context) -> None:
                 )
                 candidate_backend = {
                     "worker": worker,
+                    "ocr": ocr,
                     "bootstrap": bootstrap,
                     "sender": sender,
                     "delivery": delivery,
@@ -494,10 +504,14 @@ def _infrastructure_targets(scope: str) -> tuple[str, ...]:
     targets: list[str] = []
     if scope in {"backend", "all"}:
         targets.append("aws_apigatewayv2_integration.worker")
+        targets.append("aws_apigatewayv2_integration.ocr")
         targets.append("aws_lambda_permission.api_gateway")
+        targets.append("aws_lambda_permission.api_gateway_ocr")
         targets.append("aws_apigatewayv2_route.google_register")
         targets.append("aws_apigatewayv2_route.google_link")
         targets.append("aws_apigatewayv2_route.frontend_render_error")
+        targets.append("aws_apigatewayv2_route.ocr_capability")
+        targets.append("aws_apigatewayv2_route.ocr_draft")
         targets.append("aws_apigatewayv2_route.invitation_lookup")
         targets.append("aws_apigatewayv2_route.authenticated_mutation")
         targets.append(
@@ -505,6 +519,14 @@ def _infrastructure_targets(scope: str) -> tuple[str, ...]:
         )
         targets.append("aws_apigatewayv2_stage.default")
         targets.extend((
+            "aws_dynamodb_table.ocr_replay",
+            "aws_iam_role.ocr",
+            "aws_iam_role_policy.ocr",
+            "aws_cloudwatch_log_group.ocr",
+            "aws_lambda_function.ocr",
+            "aws_cloudwatch_metric_alarm.ocr_runtime",
+            "aws_lambda_permission.ocr_logs_error_notifier",
+            "aws_cloudwatch_log_subscription_filter.ocr_error_notifier",
             "aws_iam_role.error_notifier",
             "aws_iam_role_policy.error_notifier",
             "aws_cloudwatch_log_group.error_notifier",
@@ -640,13 +662,22 @@ def _ensure_postgres_backup_profile(context: Context, outputs: dict[str, Any]) -
     raise CommandError("database backup IAM instance profile did not become associated")
 
 
-def _apply_infrastructure_updates(context: Context, scope: str) -> dict[str, Any] | None:
+def _apply_infrastructure_updates(
+    context: Context,
+    scope: str,
+    *,
+    use_lambda_aliases: bool = True,
+) -> dict[str, Any] | None:
     targets = _infrastructure_targets(scope)
     if not targets:
         return None
 
     step("infrastructure")
-    with tempfile.TemporaryDirectory(prefix="expense-serverless-update-") as temporary, _terraform(context, False) as variables:
+    with tempfile.TemporaryDirectory(prefix="expense-serverless-update-") as temporary, _terraform(
+        context,
+        False,
+        use_lambda_aliases=use_lambda_aliases,
+    ) as variables:
         terraform = Terraform(context.terraform_root, variables)
         terraform.init()
         terraform.validate()
@@ -666,9 +697,11 @@ def _apply_infrastructure_updates(context: Context, scope: str) -> dict[str, Any
             allowed_replacements=frozenset(
                 {
                     "aws_lambda_permission.api_gateway",
+                    "aws_lambda_permission.api_gateway_ocr",
                     "aws_lambda_permission.sender_eventbridge",
                     "aws_lambda_permission.monthly_review_publisher_eventbridge",
                     "aws_lambda_permission.worker_logs_error_notifier[0]",
+                    "aws_lambda_permission.ocr_logs_error_notifier[0]",
                     "aws_cloudwatch_log_subscription_filter.worker_error_notifier[0]",
                 }
             ),
@@ -916,7 +949,17 @@ def update(context: Context, scope: str) -> None:
         if scope in {"migrations", "backend", "all"}:
             policy.validate_application_rollback(current_schema, expected_schema, False)
 
-        infrastructure_outputs = _apply_infrastructure_updates(context, scope)
+        adding_ocr_boundary = scope in {"backend", "all"} and "ocr" not in current_manifest[
+            "backend"
+        ]
+        if adding_ocr_boundary:
+            infrastructure_outputs = _apply_infrastructure_updates(
+                context,
+                scope,
+                use_lambda_aliases=False,
+            )
+        else:
+            infrastructure_outputs = _apply_infrastructure_updates(context, scope)
         if infrastructure_outputs is not None:
             outputs = infrastructure_outputs
         if scope == "all" and infrastructure_outputs is not None:
@@ -957,6 +1000,14 @@ def update(context: Context, scope: str) -> None:
                 context.terraform_root,
                 release_id,
             )
+            target_backend["ocr"] = runtime.publish_ocr_release(
+                context.aws,
+                built["ocr"],
+                context.config,
+                outputs,
+                context.terraform_root,
+                release_id,
+            )
             sender, delivery = runtime.publish_notification_releases(
                 context.aws,
                 built["sender"],
@@ -971,8 +1022,19 @@ def update(context: Context, scope: str) -> None:
             target_backend["delivery"] = delivery
 
         if scope in {"migrations", "backend", "all"}:
+            if adding_ocr_boundary:
+                aliases.ensure_live_aliases(
+                    context.aws,
+                    outputs,
+                    release_id,
+                    preferred=target_backend,
+                )
             aliases.promote_backend(context.aws, target_backend)
             promoted = True
+            if adding_ocr_boundary:
+                alias_outputs = _apply_infrastructure_updates(context, "backend")
+                if alias_outputs is not None:
+                    outputs = alias_outputs
         if scope in {"backend", "all"}:
             context.aws.activate_notification_function(
                 str(outputs["delivery_function_name"])
@@ -1021,7 +1083,10 @@ def update(context: Context, scope: str) -> None:
                 recovery_errors.append(f"frontend: {recovery_error}")
         if promoted and current_manifest is not None:
             try:
-                aliases.promote_backend(context.aws, current_manifest["backend"])
+                recovery_backend = dict(current_manifest["backend"])
+                if "ocr" not in recovery_backend and "ocr" in target_backend:
+                    recovery_backend["ocr"] = target_backend["ocr"]
+                aliases.promote_backend(context.aws, recovery_backend)
             except Exception as recovery_error:
                 recovery_errors.append(f"backend: {recovery_error}")
         if sender_pause_attempted:
@@ -1079,6 +1144,13 @@ def activate_release(
         raise CommandError(
             "release activation cannot change the Error Notifier infrastructure "
             "topology; use a reviewed deployment"
+        )
+    if scope in {"backend", "all"} and (
+        ("ocr" in current["backend"]) != ("ocr" in target["backend"])
+    ):
+        raise CommandError(
+            "release activation cannot cross the OCR infrastructure boundary; "
+            "use a reviewed deployment"
         )
 
     policy = migration_policy.validate_repository(context.repo_root)

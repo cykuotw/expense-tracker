@@ -30,6 +30,10 @@ Browser
                                              v
                                       PostgreSQL on EC2
 
+  +-- OCR draft bytes ---> API Gateway --> OCR Lambda (outside VPC)
+                                             |
+                                             +-- capability replay claim --> DynamoDB
+
 Deployment workflow --> Bootstrap Lambda --> migrations and bootstrap work
 
 EventBridge --> Push Sender Lambda (outside VPC) --> public Web Push providers
@@ -46,6 +50,18 @@ Daily EventBridge -------------------------> Delivery Lambda (VPC)
 - **Worker Lambda:** runs the Go/Gin HTTP application. API Gateway is the
   public API entry point; the Worker is activated only after deployment
   configuration is published.
+- **OCR boundary:** the authenticated Worker checks the account's
+  `receipt_ocr` grant and mints a 60-second capability using a dedicated secret.
+  The capability binds issuer `expense-tracker-worker`, audience
+  `expense-tracker-ocr`, account, grant, request UUID, JPEG/PNG media type, and
+  the 3.5 MiB byte limit; it carries no group or expense authority. API Gateway
+  sends the raw receipt body to a separate 512 MB, 12-second OCR Lambda outside
+  the VPC. That Lambda has no database configuration and rejects duplicate
+  capabilities with a conditional, TTL-backed DynamoDB claim. Phase 2 returns
+  a provider-free stub only: it has no Textract permission and performs no OCR
+  or receipt storage. Both capability minting and draft routes are throttled to
+  1 request/second with burst 1, and OCR reserved concurrency is one after
+  deployment activation.
 - **Bootstrap Lambda:** performs explicit migration and bootstrap work before
   Worker releases that depend on it. Migrations are never a request-time
   responsibility.

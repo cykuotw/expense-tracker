@@ -22,6 +22,7 @@ def _protected_values(config: Config) -> tuple[bytes, ...]:
         config.database.admin_password, config.database.migration_password,
         config.database.runtime_password, config.backend.jwt_secret,
         config.backend.refresh_jwt_secret,
+        getattr(config.backend, "ocr_capability_secret", ""),
         config.backend.web_push_vapid_public_key,
         config.backend.web_push_vapid_private_key,
         config.backend.web_push_vapid_subject,
@@ -96,7 +97,7 @@ def repair_secret_boundary(terraform_root: Path, config: Config) -> int:
             if (
                 resource.get("mode", "managed") != "managed"
                 or resource.get("type") != "aws_lambda_function"
-                or resource.get("name") not in {"worker", "bootstrap", "sender", "delivery", "error_notifier"}
+                or resource.get("name") not in {"worker", "ocr", "bootstrap", "sender", "delivery", "error_notifier"}
             ):
                 continue
             for instance in resource.get("instances", []):
@@ -154,6 +155,19 @@ def configure_worker(client: AWSClient, config: Config, outputs: dict[str, Any],
         raise CommandError("Terraform state changed while publishing worker runtime")
 
 
+def configure_ocr(client: AWSClient, config: Config, outputs: dict[str, Any], terraform_root: Path) -> None:
+    before = _state_digest(terraform_root)
+    with protected_json(
+        config.ocr_environment(str(outputs["ocr_replay_table_name"])),
+        prefix="expense-ocr-env-",
+    ) as path:
+        client.publish_environment(str(outputs["ocr_function_name"]), path)
+    client.activate_ocr(str(outputs["ocr_function_name"]))
+    assert_secret_boundary(terraform_root, config)
+    if _state_digest(terraform_root) != before:
+        raise CommandError("Terraform state changed while publishing OCR runtime")
+
+
 def configure_notifications(
     client: AWSClient,
     config: Config,
@@ -203,6 +217,11 @@ def update_bootstrap(client: AWSClient, artifact: Path, config: Config, outputs:
 def update_worker(client: AWSClient, artifact: Path, config: Config, outputs: dict[str, Any], terraform_root: Path) -> None:
     client.publish_code(str(outputs["worker_function_name"]), artifact)
     configure_worker(client, config, outputs, terraform_root)
+
+
+def update_ocr(client: AWSClient, artifact: Path, config: Config, outputs: dict[str, Any], terraform_root: Path) -> None:
+    client.publish_code(str(outputs["ocr_function_name"]), artifact)
+    configure_ocr(client, config, outputs, terraform_root)
 
 
 def update_notifications(client: AWSClient, artifact: Path, delivery_artifact: Path, config: Config, outputs: dict[str, Any], terraform_root: Path) -> None:
@@ -312,6 +331,27 @@ def publish_worker_release(
         terraform_root,
     )
     client.activate_worker(record["functionName"])
+    return record
+
+
+def publish_ocr_release(
+    client: AWSClient,
+    artifact: Path,
+    config: Config,
+    outputs: dict[str, Any],
+    terraform_root: Path,
+    release_id: str,
+) -> dict[str, str]:
+    record = _publish_configured_function(
+        client,
+        str(outputs["ocr_function_name"]),
+        artifact,
+        config.ocr_environment(str(outputs["ocr_replay_table_name"])),
+        release_id,
+        config,
+        terraform_root,
+    )
+    client.activate_ocr(record["functionName"])
     return record
 
 

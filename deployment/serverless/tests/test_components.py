@@ -33,7 +33,7 @@ class ComponentTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary, mock.patch("backend.artifacts._go_build", side_effect=fake_build):
             output = Path(temporary)
             first = build(REPO, output)
-            self.assertEqual(set(first), {"worker", "bootstrap", "sender", "delivery", "notifier"})
+            self.assertEqual(set(first), {"worker", "ocr", "bootstrap", "sender", "delivery", "notifier"})
             hashes = {name: hashlib.sha256(path.read_bytes()).hexdigest() for name, path in first.items()}
             second = build(REPO, output)
             self.assertEqual(hashes, {name: hashlib.sha256(path.read_bytes()).hexdigest() for name, path in second.items()})
@@ -46,6 +46,7 @@ class ComponentTest(unittest.TestCase):
             self.assertIn("config.BuildMode=release", flags["./backend/cmd/tracker-serverless"])
             for package in (
                 "./backend/cmd/bootstrap-serverless",
+                "./backend/cmd/ocr-serverless",
                 "./backend/cmd/push-sender-serverless",
                 "./backend/cmd/push-delivery-serverless",
                 "./backend/cmd/error-notifier-serverless",
@@ -459,3 +460,22 @@ class ComponentTest(unittest.TestCase):
         self.assertIn("limit_req zone=expense_tracker_mutations burst=10 nodelay;", source)
         self.assertIn("limit_req zone=expense_tracker_reads burst=40 nodelay;", source)
         self.assertIn("Retry-After 60", source)
+
+    def test_ocr_runtime_is_isolated_throttled_and_provider_free(self) -> None:
+        api = (ROOT / "infrastructure/tf/api.tf").read_text()
+        ocr = (ROOT / "infrastructure/tf/ocr.tf").read_text()
+
+        self.assertIn('route_key = "POST ${local.api_path}/ocr/capabilities"', api)
+        self.assertIn('route_key          = "POST ${local.api_path}/ocr/drafts"', api)
+        self.assertEqual(api.count("aws_apigatewayv2_route.ocr_"), 2)
+        self.assertIn("throttling_burst_limit = 1", api)
+        self.assertIn("throttling_rate_limit  = 1", api)
+        self.assertIn("memory_size                    = 512", ocr)
+        self.assertIn("timeout                        = 12", ocr)
+        self.assertIn("reserved_concurrent_executions = 0", ocr)
+        self.assertIn('billing_mode = "PAY_PER_REQUEST"', ocr)
+        self.assertIn('Action = ["dynamodb:PutItem"]', ocr)
+        self.assertNotIn("vpc_config", ocr)
+        self.assertNotIn("textract:", ocr.lower())
+        self.assertNotIn("DB_", ocr)
+        self.assertNotIn("aws_nat_gateway", ocr)

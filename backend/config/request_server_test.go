@@ -13,7 +13,7 @@ func validReleaseConfig(profile RequestServerProfile) Config {
 		"DB_PASSWORD", "DB_NAME", "DB_SSLMODE", "DB_MAX_OPEN_CONNS",
 		"DB_MAX_IDLE_CONNS", "DB_CONN_MAX_LIFETIME_SECONDS",
 		"DB_CONN_MAX_IDLE_TIME_SECONDS", "JWT_SECRET", "JWT_EXP",
-		"REFRESH_JWT_SECRET", "REFRESH_JWT_EXP", "EXPENSES_PER_PAGE",
+		"REFRESH_JWT_SECRET", "REFRESH_JWT_EXP", "OCR_CAPABILITY_SECRET", "EXPENSES_PER_PAGE",
 		"CORS_ALLOWED_ORIGINS", "CORS_ALLOW_CREDENTIALS", "AUTH_COOKIE_SECURE",
 		"AUTH_COOKIE_SAME_SITE", "GOOGLE_OAUTH_ENABLED", "GOOGLE_EXCHANGE_MODE",
 	} {
@@ -41,6 +41,7 @@ func validReleaseConfig(profile RequestServerProfile) Config {
 		JWTExpirationInSeconds:        900,
 		RefreshJWTSecret:              strings.Repeat("b", 32),
 		RefreshJWTExpirationInSeconds: 604_800,
+		OCRCapabilitySecret:           strings.Repeat("c", 32),
 		GoogleOAuthEnabled:            true,
 		GoogleClientId:                "client.apps.googleusercontent.com",
 		GoogleExchangeMode:            mode,
@@ -125,6 +126,8 @@ func TestValidateRequestServerRejectsInvalidReleaseConfiguration(t *testing.T) {
 		{"placeholder access secret", "JWT_SECRET", func(cfg *Config) { cfg.JWTSecret = "secretstring" }},
 		{"short refresh secret", "REFRESH_JWT_SECRET", func(cfg *Config) { cfg.RefreshJWTSecret = "short" }},
 		{"identical secrets", "JWT_SECRET", func(cfg *Config) { cfg.RefreshJWTSecret = cfg.JWTSecret }},
+		{"short OCR secret", "OCR_CAPABILITY_SECRET", func(cfg *Config) { cfg.OCRCapabilitySecret = "short" }},
+		{"OCR secret reuses access secret", "OCR_CAPABILITY_SECRET", func(cfg *Config) { cfg.OCRCapabilitySecret = cfg.JWTSecret }},
 		{"short access lifetime", "JWT_EXP", func(cfg *Config) { cfg.JWTExpirationInSeconds = MinAccessTokenLifetimeSeconds - 1 }},
 		{"long access lifetime", "JWT_EXP", func(cfg *Config) { cfg.JWTExpirationInSeconds = MaxAccessTokenLifetimeSeconds + 1 }},
 		{"short refresh lifetime", "REFRESH_JWT_EXP", func(cfg *Config) { cfg.RefreshJWTExpirationInSeconds = MinRefreshTokenLifetimeSeconds - 1 }},
@@ -160,7 +163,7 @@ func TestValidateRequestServerRejectsInvalidReleaseConfiguration(t *testing.T) {
 				t.Fatalf("expected error containing %s, got %v", test.key, err)
 			}
 			if strings.Contains(err.Error(), cfg.DBPassword) || strings.Contains(err.Error(), cfg.JWTSecret) ||
-				strings.Contains(err.Error(), cfg.RefreshJWTSecret) {
+				strings.Contains(err.Error(), cfg.RefreshJWTSecret) || strings.Contains(err.Error(), cfg.OCRCapabilitySecret) {
 				t.Fatalf("validation error exposed secret material: %v", err)
 			}
 		})
@@ -218,7 +221,8 @@ func TestLoadedServerlessWorkerEnvironmentPassesRuntimeValidation(t *testing.T) 
 		"DB_CONN_MAX_IDLE_TIME_SECONDS": "60",
 		"JWT_SECRET":                    strings.Repeat("a", 32), "JWT_EXP": "900",
 		"REFRESH_JWT_SECRET": strings.Repeat("b", 32), "REFRESH_JWT_EXP": "604800",
-		"EXPENSES_PER_PAGE": "25", "GOOGLE_OAUTH_ENABLED": "true",
+		"OCR_CAPABILITY_SECRET": strings.Repeat("c", 32),
+		"EXPENSES_PER_PAGE":     "25", "GOOGLE_OAUTH_ENABLED": "true",
 		"GOOGLE_CLIENT_ID":     "client.apps.googleusercontent.com",
 		"GOOGLE_EXCHANGE_MODE": "upstream_verified",
 	}

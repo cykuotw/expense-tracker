@@ -21,7 +21,8 @@ SHA256_PATTERN = re.compile(r"^sha256:[0-9a-f]{64}$")
 COMMIT_PATTERN = re.compile(r"^[0-9a-f]{40}$")
 VERSION_PATTERN = re.compile(r"^[1-9][0-9]*$")
 ALLOWED_SCOPES = frozenset({"migrations", "backend", "frontend", "all"})
-FUNCTION_KEYS = ("worker", "bootstrap", "sender", "delivery", "errorNotifier")
+LEGACY_FUNCTION_KEYS = ("worker", "bootstrap", "sender", "delivery", "errorNotifier")
+FUNCTION_KEYS = ("worker", "ocr", "bootstrap", "sender", "delivery", "errorNotifier")
 
 
 def canonical_json(value: Any) -> str:
@@ -179,8 +180,10 @@ def validate_manifest(value: Any) -> dict[str, Any]:
         raise CommandError("database.migrationManifestDigest is invalid")
 
     backend = _object(manifest["backend"], "backend")
-    _exact_fields(backend, set(FUNCTION_KEYS), "backend")
-    for key in FUNCTION_KEYS:
+    backend_keys = set(backend)
+    if backend_keys != set(LEGACY_FUNCTION_KEYS) and backend_keys != set(FUNCTION_KEYS):
+        raise CommandError("backend fields are invalid")
+    for key in backend:
         if key == "errorNotifier" and backend[key] is None:
             continue
         _function_record(backend[key], f"backend.{key}")
@@ -257,6 +260,7 @@ def _protected_values(config: Config) -> tuple[str, ...]:
         config.database.runtime_password,
         config.backend.jwt_secret,
         config.backend.refresh_jwt_secret,
+        getattr(config.backend, "ocr_capability_secret", ""),
         config.backend.web_push_vapid_public_key,
         config.backend.web_push_vapid_private_key,
         config.backend.web_push_vapid_subject,

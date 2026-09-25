@@ -17,6 +17,7 @@ import (
 	"expense-tracker/backend/services/middleware"
 	"expense-tracker/backend/services/monthlyreview"
 	"expense-tracker/backend/services/notification"
+	"expense-tracker/backend/services/ocr"
 	"expense-tracker/backend/services/user"
 	"log/slog"
 	"net/http"
@@ -100,6 +101,7 @@ func registerRoutes(router *gin.Engine, db *sql.DB) {
 
 	userProtectedHandler := user.NewProtectedHandler(userStore)
 	userProtectedHandler.RegisterRoutes(protected)
+	ocr.NewCapabilityHandler(userStore, []byte(config.Envs.OCRCapabilitySecret)).RegisterRoutes(protected)
 
 	groupStore := groupStore.NewStore(db)
 	groupHandler := groupRoute.NewHandler(groupStore, userStore)

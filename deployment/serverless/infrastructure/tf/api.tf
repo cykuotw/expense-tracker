@@ -60,6 +60,14 @@ resource "aws_apigatewayv2_integration" "worker" {
   payload_format_version = "2.0"
   timeout_milliseconds   = 15000
 }
+resource "aws_apigatewayv2_integration" "ocr" {
+  api_id                 = aws_apigatewayv2_api.worker.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = var.use_lambda_aliases ? local.ocr_live_invoke_arn : aws_lambda_function.ocr.invoke_arn
+  integration_method     = "POST"
+  payload_format_version = "2.0"
+  timeout_milliseconds   = 12000
+}
 resource "aws_apigatewayv2_authorizer" "google" {
   api_id           = aws_apigatewayv2_api.worker.id
   authorizer_type  = "JWT"
@@ -160,6 +168,17 @@ resource "aws_apigatewayv2_route" "frontend_render_error" {
   route_key = "POST ${local.api_path}/observability/frontend-render-error"
   target    = "integrations/${aws_apigatewayv2_integration.worker.id}"
 }
+resource "aws_apigatewayv2_route" "ocr_capability" {
+  api_id    = aws_apigatewayv2_api.worker.id
+  route_key = "POST ${local.api_path}/ocr/capabilities"
+  target    = "integrations/${aws_apigatewayv2_integration.worker.id}"
+}
+resource "aws_apigatewayv2_route" "ocr_draft" {
+  api_id             = aws_apigatewayv2_api.worker.id
+  route_key          = "POST ${local.api_path}/ocr/drafts"
+  target             = "integrations/${aws_apigatewayv2_integration.ocr.id}"
+  authorization_type = "NONE"
+}
 resource "aws_apigatewayv2_stage" "default" {
   api_id      = aws_apigatewayv2_api.worker.id
   name        = "$default"
@@ -171,6 +190,16 @@ resource "aws_apigatewayv2_stage" "default" {
   route_settings {
     route_key              = aws_apigatewayv2_route.frontend_render_error.route_key
     throttling_burst_limit = 2
+    throttling_rate_limit  = 1
+  }
+  route_settings {
+    route_key              = aws_apigatewayv2_route.ocr_capability.route_key
+    throttling_burst_limit = 1
+    throttling_rate_limit  = 1
+  }
+  route_settings {
+    route_key              = aws_apigatewayv2_route.ocr_draft.route_key
+    throttling_burst_limit = 1
     throttling_rate_limit  = 1
   }
   route_settings {
@@ -245,4 +274,12 @@ resource "aws_lambda_permission" "api_gateway" {
   qualifier     = var.use_lambda_aliases ? "live" : null
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.worker.execution_arn}/*/*"
+}
+resource "aws_lambda_permission" "api_gateway_ocr" {
+  statement_id  = "AllowHTTPAPIOCRInvoke"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.ocr.function_name
+  qualifier     = var.use_lambda_aliases ? "live" : null
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.worker.execution_arn}/*/POST${local.api_path}/ocr/drafts"
 }

@@ -330,6 +330,22 @@ class AWSClient:
         if self.concurrency(function_name) != 1:
             raise CommandError("notification function activation did not reach reserved concurrency 1")
 
+    def activate_ocr(self, function_name: str) -> None:
+        current = self.concurrency(function_name)
+        if current not in (0, 1):
+            raise CommandError(f"unexpected OCR function reserved concurrency: {current}")
+        limits = self.json("lambda", "get-account-settings")["AccountLimit"]
+        if int(limits["ConcurrentExecutions"]) < 5:
+            raise CommandError("Lambda account concurrency must be at least 5")
+        if current == 0:
+            self.call(
+                "lambda", "put-function-concurrency",
+                "--function-name", function_name,
+                "--reserved-concurrent-executions", "1",
+            )
+        if self.concurrency(function_name) != 1:
+            raise CommandError("OCR activation did not reach reserved concurrency 1")
+
     def pause_sender(self, function_name: str) -> int | None:
         if not self.function_exists(function_name):
             return None

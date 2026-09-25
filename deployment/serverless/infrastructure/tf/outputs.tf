@@ -46,6 +46,15 @@ output "bootstrap_security_group_id" {
 output "worker_function_name" {
   value = aws_lambda_function.worker.function_name
 }
+output "ocr_function_name" {
+  value = aws_lambda_function.ocr.function_name
+}
+output "ocr_replay_table_name" {
+  value = aws_dynamodb_table.ocr_replay.name
+}
+output "ocr_log_group_name" {
+  value = aws_cloudwatch_log_group.ocr.name
+}
 output "bootstrap_function_name" {
   value = aws_lambda_function.bootstrap.function_name
 }

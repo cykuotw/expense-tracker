@@ -22,6 +22,7 @@ variable "database_ami_id" {
   nullable = true
 }
 variable "worker_artifact_path" { type = string }
+variable "ocr_artifact_path" { type = string }
 variable "notifier_artifact_path" { type = string }
 variable "enable_error_alerting" {
   type        = bool

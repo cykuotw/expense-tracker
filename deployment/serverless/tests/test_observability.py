@@ -13,7 +13,7 @@ class ObservabilityInfrastructureTest(unittest.TestCase):
     def test_optional_notifier_has_narrow_runtime_and_no_fixed_cost_dependencies(self) -> None:
         source = (ROOT / "infrastructure/tf/error_alerting.tf").read_text()
 
-        self.assertEqual(source.count("var.enable_error_alerting ? 1 : 0"), 6)
+        self.assertEqual(source.count("var.enable_error_alerting ? 1 : 0"), 8)
         self.assertIn("memory_size                    = 128", source)
         self.assertIn("timeout                        = 10", source)
         self.assertIn("reserved_concurrent_executions = 0", source)

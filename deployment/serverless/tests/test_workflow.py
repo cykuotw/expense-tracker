@@ -33,6 +33,7 @@ def managed_manifest() -> dict[str, object]:
         },
         "backend": {
             "worker": function("worker"),
+            "ocr": function("ocr"),
             "bootstrap": function("bootstrap"),
             "sender": function("sender"),
             "delivery": function("delivery"),
@@ -121,7 +122,7 @@ class WorkflowTest(unittest.TestCase):
         context.aws.identity.return_value = {"Account": "123"}
         context.aws.json.side_effect = [
             {"HostedZones": [{"Name": "example.com."}]},
-            {"AccountLimit": {"ConcurrentExecutions": 7}},
+            {"AccountLimit": {"ConcurrentExecutions": 8}},
         ]
         with mock.patch.object(workflow, "require_tools"), \
              mock.patch.object(workflow, "require_node_22"), \
@@ -197,6 +198,8 @@ class WorkflowTest(unittest.TestCase):
             "database_temporary_public_ipv4": "203.0.113.5",
             "database_host": "10.0.0.5",
             "worker_function_name": "worker",
+            "ocr_function_name": "ocr",
+            "ocr_replay_table_name": "ocr-replay",
             "bootstrap_function_name": "bootstrap",
             "sender_function_name": "sender",
             "delivery_function_name": "delivery",
@@ -226,7 +229,7 @@ class WorkflowTest(unittest.TestCase):
             for patcher in (
                 mock.patch.object(workflow, "preflight"),
                 mock.patch.object(workflow, "_migration_preflight", side_effect=lambda *args: events.append("migration-policy")),
-                mock.patch.object(workflow.artifacts, "build", side_effect=lambda *args: events.append("artifacts") or {"bootstrap": Path("b"), "worker": Path("w"), "sender": Path("s"), "delivery": Path("d"), "notifier": Path("n")}),
+                mock.patch.object(workflow.artifacts, "build", side_effect=lambda *args: events.append("artifacts") or {"bootstrap": Path("b"), "worker": Path("w"), "ocr": Path("o"), "sender": Path("s"), "delivery": Path("d"), "notifier": Path("n")}),
                 mock.patch.object(workflow, "_terraform", side_effect=lambda *args, **kwargs: contextlib.nullcontext(Path("/tmp/vars"))),
                 mock.patch.object(workflow, "Terraform", FakeTerraform),
                 mock.patch.object(workflow, "require_create_only", return_value={}),
@@ -239,8 +242,9 @@ class WorkflowTest(unittest.TestCase):
                 mock.patch.object(workflow.runtime, "publish_bootstrap_release", side_effect=lambda *args: (events.append("bootstrap") or ({"functionName": "bootstrap", "version": "1"}, {}))),
                 mock.patch.object(workflow.runtime, "publish_error_notifier_release", side_effect=lambda *args: events.append("notifier")),
                 mock.patch.object(workflow.runtime, "publish_worker_release", side_effect=lambda *args: events.append("worker") or {"functionName": "worker", "version": "1"}),
+                mock.patch.object(workflow.runtime, "publish_ocr_release", side_effect=lambda *args: events.append("ocr") or {"functionName": "ocr", "version": "1"}),
                 mock.patch.object(workflow.runtime, "publish_notification_releases", side_effect=lambda *args, **kwargs: events.append("sender") or ({"functionName": "sender", "version": "1"}, {"functionName": "delivery", "version": "1"})),
-                mock.patch.object(workflow.aliases, "ensure_live_aliases", return_value=({"worker": {}, "bootstrap": {}, "sender": {}, "delivery": {}, "errorNotifier": None}, True)),
+                mock.patch.object(workflow.aliases, "ensure_live_aliases", return_value=({"worker": {}, "ocr": {}, "bootstrap": {}, "sender": {}, "delivery": {}, "errorNotifier": None}, True)),
                 mock.patch.object(workflow.aliases, "promote_backend"),
                 mock.patch.object(workflow, "_apply_infrastructure_updates", return_value=outputs),
                 mock.patch.object(workflow, "_database_record", return_value={"migrationVersion": 35, "dirty": False, "migrationManifestDigest": "sha256:" + "0" * 64}),
@@ -259,6 +263,7 @@ class WorkflowTest(unittest.TestCase):
         self.assertLess(events.index("database"), events.index("bootstrap"))
         self.assertLess(events.index("bootstrap"), events.index("notifier"))
         self.assertLess(events.index("notifier"), events.index("worker"))
+        self.assertLess(events.index("worker"), events.index("ocr"))
         self.assertLess(events.index("bootstrap"), events.index("worker"))
         self.assertLess(events.index("worker"), events.index("sender"))
         self.assertLess(events.index("worker"), events.index("frontend"))
@@ -321,19 +326,23 @@ class WorkflowTest(unittest.TestCase):
              mock.patch.object(workflow.migration_policy, "validate_repository", return_value=policy), \
              mock.patch.object(workflow, "_database_record", return_value=managed_manifest()["database"]), \
              mock.patch.object(workflow, "_automatic_release_cleanup"), \
-             mock.patch.object(workflow.artifacts, "build", return_value={"bootstrap": Path("bootstrap.zip"), "worker": Path("worker.zip"), "sender": Path("sender.zip"), "delivery": Path("delivery.zip"), "notifier": Path("notifier.zip")}), \
+             mock.patch.object(workflow.artifacts, "build", return_value={"bootstrap": Path("bootstrap.zip"), "worker": Path("worker.zip"), "ocr": Path("ocr.zip"), "sender": Path("sender.zip"), "delivery": Path("delivery.zip"), "notifier": Path("notifier.zip")}), \
              mock.patch.object(context.aws, "pause_sender", side_effect=lambda *args: events.append("pause-sender") or 1), \
              mock.patch.object(workflow.runtime, "publish_bootstrap_release", side_effect=lambda *args: (events.append("migrations") or ({"functionName": "bootstrap"}, {}))), \
              mock.patch.object(workflow, "_apply_infrastructure_updates", side_effect=lambda *args: events.append("infrastructure")), \
              mock.patch.object(workflow.runtime, "publish_error_notifier_release", side_effect=lambda *args: events.append("notifier")), \
-             mock.patch.object(workflow.runtime, "publish_worker_release", side_effect=lambda *args: events.append("backend") or {"functionName": "worker"}), \
+             mock.patch.multiple(
+                 workflow.runtime,
+                 publish_worker_release=mock.Mock(side_effect=lambda *args: events.append("backend") or {"functionName": "worker"}),
+                 publish_ocr_release=mock.Mock(side_effect=lambda *args: events.append("ocr") or {"functionName": "ocr"}),
+             ), \
              mock.patch.object(workflow.runtime, "publish_notification_releases", side_effect=lambda *args, **kwargs: events.append("sender") or ({"functionName": "sender"}, {"functionName": "delivery"})) as publish_notifications, \
              mock.patch.object(workflow.aliases, "promote_backend"), \
              mock.patch.object(workflow, "verify_api"), \
              mock.patch.object(workflow, "publish_frontend", side_effect=lambda *args: events.append("frontend") or {"snapshotPrefix": "p"}), \
              mock.patch.object(workflow, "verify_frontend"):
             workflow.update(context, "all")
-        self.assertEqual(events, ["migration-policy", "state-repair", "infrastructure", "migrations", "pause-sender", "notifier", "backend", "sender", "frontend"])
+        self.assertEqual(events, ["migration-policy", "state-repair", "infrastructure", "migrations", "pause-sender", "notifier", "backend", "ocr", "sender", "frontend"])
         self.assertFalse(publish_notifications.call_args.kwargs["activate"])
         context.aws.activate_notification_function.assert_called_once_with("delivery")
         context.aws.restore_sender.assert_called_once_with("sender", 1)
@@ -365,11 +374,15 @@ class WorkflowTest(unittest.TestCase):
              mock.patch.object(workflow.migration_policy, "validate_repository", return_value=policy), \
              mock.patch.object(workflow, "_database_record", return_value=managed_manifest()["database"]), \
              mock.patch.object(workflow, "_automatic_release_cleanup"), \
-             mock.patch.object(workflow.artifacts, "build", return_value={"bootstrap": Path("b"), "worker": Path("w"), "sender": Path("s"), "delivery": Path("d"), "notifier": Path("n")}), \
+             mock.patch.object(workflow.artifacts, "build", return_value={"bootstrap": Path("b"), "worker": Path("w"), "ocr": Path("o"), "sender": Path("s"), "delivery": Path("d"), "notifier": Path("n")}), \
              mock.patch.object(workflow, "_apply_infrastructure_updates", return_value=None), \
              mock.patch.object(workflow.runtime, "publish_bootstrap_release", side_effect=lambda *args: (events.append("migrations") or ({"functionName": "bootstrap"}, {}))), \
              mock.patch.object(workflow.runtime, "publish_error_notifier_release", side_effect=lambda *args: events.append("notifier")), \
-             mock.patch.object(workflow.runtime, "publish_worker_release", side_effect=lambda *args: events.append("backend") or {"functionName": "worker"}), \
+             mock.patch.multiple(
+                 workflow.runtime,
+                 publish_worker_release=mock.Mock(side_effect=lambda *args: events.append("backend") or {"functionName": "worker"}),
+                 publish_ocr_release=mock.Mock(side_effect=lambda *args: events.append("ocr") or {"functionName": "ocr"}),
+             ), \
              mock.patch.object(workflow.runtime, "publish_notification_releases", side_effect=lambda *args, **kwargs: events.append("sender") or ({"functionName": "sender"}, {"functionName": "delivery"})) as publish_notifications, \
              mock.patch.object(workflow.aliases, "promote_backend"), \
              mock.patch.object(workflow, "verify_api"), \
@@ -392,7 +405,7 @@ class WorkflowTest(unittest.TestCase):
                 "sender_function_name": "sender",
             },
         )
-        self.assertEqual(events, ["migrations", "notifier", "backend", "sender"])
+        self.assertEqual(events, ["migrations", "notifier", "backend", "ocr", "sender"])
 
     def test_first_release_history_cutover_requires_all_scope(self) -> None:
         context = mock.MagicMock()

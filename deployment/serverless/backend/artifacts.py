@@ -35,6 +35,7 @@ def build(repo_root: Path, output_dir: Path) -> dict[str, Path]:
     with tempfile.TemporaryDirectory(prefix="expense-tracker-artifacts-") as temporary:
         staging = Path(temporary)
         worker_binary = staging / "worker-bootstrap"
+        ocr_binary = staging / "ocr-bootstrap"
         bootstrap_binary = staging / "admin-bootstrap"
         sender_binary = staging / "push-sender"
         delivery_binary = staging / "push-delivery"
@@ -45,6 +46,7 @@ def build(repo_root: Path, output_dir: Path) -> dict[str, Path]:
             worker_binary,
             "-s -w -X expense-tracker/backend/config.BuildMode=release",
         )
+        _go_build(repo_root, "./backend/cmd/ocr-serverless", ocr_binary)
         _go_build(repo_root, "./backend/cmd/bootstrap-serverless", bootstrap_binary)
         _go_build(repo_root, "./backend/cmd/push-sender-serverless", sender_binary)
         _go_build(repo_root, "./backend/cmd/push-delivery-serverless", delivery_binary)
@@ -52,6 +54,7 @@ def build(repo_root: Path, output_dir: Path) -> dict[str, Path]:
 
         artifacts = {
             "worker": output_dir / "worker.zip",
+            "ocr": output_dir / "ocr.zip",
             "bootstrap": output_dir / "bootstrap.zip",
             "sender": output_dir / "sender.zip",
             "delivery": output_dir / "delivery.zip",
@@ -60,6 +63,9 @@ def build(repo_root: Path, output_dir: Path) -> dict[str, Path]:
         worker_data = worker_binary.read_bytes()
         with zipfile.ZipFile(artifacts["worker"], "w") as archive:
             archive.writestr(_entry("bootstrap", worker_data, 0o100755), worker_data)
+        ocr_data = ocr_binary.read_bytes()
+        with zipfile.ZipFile(artifacts["ocr"], "w") as archive:
+            archive.writestr(_entry("bootstrap", ocr_data, 0o100755), ocr_data)
         migrations = sorted((repo_root / "backend/cmd/migrate/migrations").glob("*.sql"))
         manifest = repo_root / "backend/cmd/migrate/migrations" / MANIFEST_NAME
         if not any(path.name.endswith(".up.sql") for path in migrations):

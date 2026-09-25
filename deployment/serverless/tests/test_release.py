@@ -114,6 +114,16 @@ class ReleaseTest(unittest.TestCase):
         with self.assertRaisesRegex(CommandError, "must not be dirty"):
             release.validate_manifest(value)
 
+    def test_manifest_accepts_versioned_ocr_and_legacy_backend_sets(self) -> None:
+        legacy = manifest()
+        self.assertIs(release.validate_manifest(legacy), legacy)
+
+        current = manifest()
+        backend = current["backend"]
+        assert isinstance(backend, dict)
+        backend["ocr"] = function("ocr", 14)
+        self.assertIs(release.validate_manifest(current), current)
+
     def test_manifest_accepts_carried_snapshot_and_rejects_mismatched_path(self) -> None:
         value = manifest()
         frontend = value["frontend"]

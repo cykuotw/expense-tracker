@@ -8,17 +8,20 @@ from common.command import CommandError
 
 OUTPUT_KEYS = {
     "worker": "worker_function_name",
+    "ocr": "ocr_function_name",
     "bootstrap": "bootstrap_function_name",
     "sender": "sender_function_name",
     "delivery": "delivery_function_name",
     "errorNotifier": "error_notifier_function_name",
 }
-PROMOTION_ORDER = ("bootstrap", "errorNotifier", "worker", "delivery", "sender")
+PROMOTION_ORDER = ("bootstrap", "errorNotifier", "ocr", "worker", "delivery", "sender")
 
 
 def function_names(outputs: dict[str, Any]) -> dict[str, str | None]:
     result: dict[str, str | None] = {}
     for key, output_key in OUTPUT_KEYS.items():
+        if key == "ocr" and output_key not in outputs:
+            continue
         value = str(outputs.get(output_key, ""))
         result[key] = value or None
     return result
@@ -60,7 +63,8 @@ def ensure_live_aliases(
     release_id: str,
     preferred: dict[str, Any] | None = None,
 ) -> tuple[dict[str, dict[str, str] | None], bool]:
-    if preferred is not None and set(preferred) != set(OUTPUT_KEYS):
+    expected_keys = set(function_names(outputs))
+    if preferred is not None and set(preferred) != expected_keys:
         raise CommandError("preferred backend function set is invalid")
     backend: dict[str, dict[str, str] | None] = {}
     created = False
@@ -93,9 +97,10 @@ def validate_backend_versions(
     client: AWSClient,
     backend: dict[str, Any],
 ) -> None:
-    if set(backend) != set(OUTPUT_KEYS):
+    backend_keys = set(backend)
+    if backend_keys != set(OUTPUT_KEYS) and backend_keys != set(OUTPUT_KEYS) - {"ocr"}:
         raise CommandError("target release backend function set is invalid")
-    for key in OUTPUT_KEYS:
+    for key in backend:
         record = backend[key]
         if key == "errorNotifier" and record is None:
             continue
@@ -118,6 +123,8 @@ def promote_backend(
     changed: list[tuple[str, str]] = []
     try:
         for key in PROMOTION_ORDER:
+            if key not in backend:
+                continue
             target = backend[key]
             if target is None:
                 previous[key] = None
@@ -150,6 +157,6 @@ def promote_backend(
                 + "; ".join(recovery_errors)
             ) from promotion_error
         raise
-    for key in OUTPUT_KEYS:
+    for key in backend:
         previous.setdefault(key, None)
     return previous

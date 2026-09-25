@@ -33,6 +33,7 @@ class ConfigTest(unittest.TestCase):
             "google_client_id": "client.apps.googleusercontent.com",
             "jwt_secret": "j" * 32,
             "refresh_jwt_secret": "r" * 32,
+            "ocr_capability_secret": "o" * 32,
             "web_push_vapid_public_key": "p" * 43,
             "web_push_vapid_private_key": "k" * 43,
             "web_push_vapid_subject": "mailto:ops@example.com",
@@ -55,6 +56,7 @@ class ConfigTest(unittest.TestCase):
         self.assertNotIn("web_push_vapid_public_key", variables)
         self.assertNotIn("web_push_vapid_private_key", variables)
         self.assertNotIn("web_push_vapid_subject", variables)
+        self.assertNotIn("ocr_capability_secret", variables)
         self.assertTrue(variables["enable_temporary_public_access"])
         self.assertFalse(variables["enable_restore_verification"])
         self.assertEqual(config.backup.time, "03:17:00")
@@ -68,6 +70,17 @@ class ConfigTest(unittest.TestCase):
         self.assertEqual(worker["WEB_PUSH_VAPID_PUBLIC_KEY"], "p" * 43)
         self.assertEqual(worker["DB_MAX_OPEN_CONNS"], "2")
         self.assertEqual(worker["DB_MAX_IDLE_CONNS"], "1")
+        self.assertEqual(worker["OCR_CAPABILITY_SECRET"], "o" * 32)
+        ocr = config.ocr_environment("ocr-replay-table")["Variables"]
+        self.assertEqual(ocr, {
+            "MODE": "release",
+            "FRONTEND_ORIGIN": "https://expense.example.com",
+            "OCR_CAPABILITY_SECRET": "o" * 32,
+            "OCR_REPLAY_TABLE": "ocr-replay-table",
+        })
+        self.assertFalse(any(key.startswith("DB_") for key in ocr))
+        self.assertNotIn("JWT_SECRET", ocr)
+        self.assertNotIn("REFRESH_JWT_SECRET", ocr)
         sender = config.sender_environment("delivery-function")["Variables"]
         delivery = config.delivery_environment("10.0.0.2")["Variables"]
         self.assertEqual(sender["WEB_PUSH_VAPID_PRIVATE_KEY"], "k" * 43)
@@ -133,6 +146,7 @@ class ConfigTest(unittest.TestCase):
             ("jwt_exp", 86_401, "backend.jwt_exp"),
             ("refresh_jwt_exp", 300, "greater than backend.jwt_exp"),
             ("refresh_jwt_exp", 31_536_001, "backend.refresh_jwt_exp"),
+            ("ocr_capability_secret", "short", "backend.ocr_capability_secret"),
             ("expenses_per_page", 1_001, "backend.expenses_per_page"),
             ("db_conn_max_lifetime_seconds", -1, "backend.db_conn_max_lifetime_seconds"),
             ("db_conn_max_idle_time_seconds", 86_401, "backend.db_conn_max_idle_time_seconds"),
@@ -148,6 +162,12 @@ class ConfigTest(unittest.TestCase):
                     load(self.path, Path("/unrelated/repository"))
                 self.value["backend"][key] = original
                 self.value["backend"]["refresh_jwt_secret"] = "r" * 32
+
+    def test_ocr_capability_secret_is_distinct(self) -> None:
+        self.value["backend"]["ocr_capability_secret"] = self.value["backend"]["jwt_secret"]
+        self.write()
+        with self.assertRaisesRegex(ConfigError, "ocr_capability_secret"):
+            load(self.path, Path("/unrelated/repository"))
 
     def test_accepts_disabled_database_connection_durations(self) -> None:
         self.value["backend"]["db_conn_max_lifetime_seconds"] = 0

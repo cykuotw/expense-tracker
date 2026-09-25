@@ -72,6 +72,7 @@ func loadFromLookup(lookup func(string) (string, bool)) (Config, error) {
 		JWTExpirationInSeconds:        604_800,
 		RefreshJWTSecret:              "secretstring",
 		RefreshJWTExpirationInSeconds: 2_592_000,
+		OCRCapabilitySecret:           "development-ocr-capability-secret",
 		GoogleExchangeMode:            GoogleExchangeInProcess,
 		ExpensesPerPage:               25,
 		CORSAllowedOrigins:            []string{"http://localhost:5173"},
@@ -93,6 +94,7 @@ func loadFromLookup(lookup func(string) (string, bool)) (Config, error) {
 	setString("DB_NAME", &cfg.DBName)
 	setString("DB_SSLMODE", &cfg.DBSSLMode)
 	setString("JWT_SECRET", &cfg.JWTSecret)
+	setString("OCR_CAPABILITY_SECRET", &cfg.OCRCapabilitySecret)
 	if value, ok := lookup("REFRESH_JWT_SECRET"); ok {
 		cfg.RefreshJWTSecret = strings.TrimSpace(value)
 	} else {
@@ -121,7 +123,7 @@ func loadFromLookup(lookup func(string) (string, bool)) (Config, error) {
 	for _, key := range []string{
 		"MODE", "BACKEND_URL", "FRONTEND_ORIGIN", "API_URL", "DB_PUBLIC_HOST",
 		"DB_PORT", "DB_USER", "DB_PASSWORD", "DB_NAME", "DB_SSLMODE",
-		"JWT_SECRET", "REFRESH_JWT_SECRET", "GOOGLE_CLIENT_ID",
+		"JWT_SECRET", "REFRESH_JWT_SECRET", "OCR_CAPABILITY_SECRET", "GOOGLE_CLIENT_ID",
 		"GOOGLE_EXCHANGE_MODE", "CORS_ALLOWED_ORIGINS", "AUTH_COOKIE_DOMAIN",
 		"AUTH_COOKIE_SAME_SITE",
 	} {
@@ -198,7 +200,7 @@ func ValidateRequestServer(cfg Config, profile RequestServerProfile) error {
 		"DB_PUBLIC_HOST", "DB_PORT", "DB_USER", "DB_PASSWORD", "DB_NAME", "DB_SSLMODE",
 		"DB_MAX_OPEN_CONNS", "DB_MAX_IDLE_CONNS", "DB_CONN_MAX_LIFETIME_SECONDS",
 		"DB_CONN_MAX_IDLE_TIME_SECONDS", "JWT_SECRET", "JWT_EXP", "REFRESH_JWT_SECRET",
-		"REFRESH_JWT_EXP", "EXPENSES_PER_PAGE", "FRONTEND_ORIGIN", "CORS_ALLOWED_ORIGINS",
+		"REFRESH_JWT_EXP", "OCR_CAPABILITY_SECRET", "EXPENSES_PER_PAGE", "FRONTEND_ORIGIN", "CORS_ALLOWED_ORIGINS",
 		"CORS_ALLOW_CREDENTIALS", "AUTH_COOKIE_SECURE", "AUTH_COOKIE_SAME_SITE",
 		"GOOGLE_OAUTH_ENABLED", "GOOGLE_EXCHANGE_MODE",
 	}
@@ -255,6 +257,12 @@ func ValidateRequestServer(cfg Config, profile RequestServerProfile) error {
 	}
 	if cfg.JWTSecret == cfg.RefreshJWTSecret {
 		return fmt.Errorf("JWT_SECRET and REFRESH_JWT_SECRET must be different")
+	}
+	if err := validateSecret("OCR_CAPABILITY_SECRET", cfg.OCRCapabilitySecret); err != nil {
+		return err
+	}
+	if cfg.OCRCapabilitySecret == cfg.JWTSecret || cfg.OCRCapabilitySecret == cfg.RefreshJWTSecret {
+		return fmt.Errorf("OCR_CAPABILITY_SECRET must differ from JWT_SECRET and REFRESH_JWT_SECRET")
 	}
 	if err := validateRange("JWT_EXP", cfg.JWTExpirationInSeconds, MinAccessTokenLifetimeSeconds, MaxAccessTokenLifetimeSeconds); err != nil {
 		return err

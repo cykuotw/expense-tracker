@@ -79,3 +79,23 @@ resource "aws_cloudwatch_log_subscription_filter" "worker_error_notifier" {
   destination_arn = var.use_lambda_aliases ? local.error_notifier_live_arn : aws_lambda_function.error_notifier[0].arn
   depends_on      = [aws_lambda_permission.worker_logs_error_notifier]
 }
+
+resource "aws_lambda_permission" "ocr_logs_error_notifier" {
+  count          = var.enable_error_alerting ? 1 : 0
+  statement_id   = "AllowOCRCloudWatchLogs"
+  action         = "lambda:InvokeFunction"
+  function_name  = aws_lambda_function.error_notifier[0].function_name
+  qualifier      = var.use_lambda_aliases ? "live" : null
+  principal      = "logs.${var.aws_region}.amazonaws.com"
+  source_account = var.expected_account_id
+  source_arn     = "${aws_cloudwatch_log_group.ocr.arn}:*"
+}
+
+resource "aws_cloudwatch_log_subscription_filter" "ocr_error_notifier" {
+  count           = var.enable_error_alerting ? 1 : 0
+  name            = "${local.resource_prefix}-ocr-server-errors"
+  log_group_name  = aws_cloudwatch_log_group.ocr.name
+  filter_pattern  = "{ ($.alertable IS TRUE) && ($.event = \"ocr_request_failed\") && ($.status >= 500) }"
+  destination_arn = var.use_lambda_aliases ? local.error_notifier_live_arn : aws_lambda_function.error_notifier[0].arn
+  depends_on      = [aws_lambda_permission.ocr_logs_error_notifier]
+}

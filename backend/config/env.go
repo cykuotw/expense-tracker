@@ -36,6 +36,7 @@ type Config struct {
 	JWTExpirationInSeconds        int64
 	RefreshJWTSecret              string
 	RefreshJWTExpirationInSeconds int64
+	OCRCapabilitySecret           string
 
 	GoogleOAuthEnabled bool
 	GoogleClientId     string
@@ -98,6 +99,7 @@ func legacyConfig() Config {
 		JWTExpirationInSeconds:        getEnvInt("JWT_EXP", 3600*24*7),
 		RefreshJWTSecret:              getEnv("REFRESH_JWT_SECRET", getEnv("JWT_SECRET", "secretstring")),
 		RefreshJWTExpirationInSeconds: getEnvInt("REFRESH_JWT_EXP", 3600*24*30),
+		OCRCapabilitySecret:           getEnv("OCR_CAPABILITY_SECRET", "development-ocr-capability-secret"),
 
 		GoogleOAuthEnabled: getEnvBool("GOOGLE_OAUTH_ENABLED", false),
 		GoogleClientId:     getEnv("GOOGLE_CLIENT_ID", ""),

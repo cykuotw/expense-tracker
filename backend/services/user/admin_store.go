@@ -50,10 +50,17 @@ func validateRoleChange(actorID, targetID, currentRole, nextRole string, active 
 
 func (s *Store) GetAdminUsers() ([]types.AdminUserResponse, error) {
 	rows, err := s.db.Query(`
-		SELECT id, firstname, lastname, email, nickname, role, is_active, is_protected_admin, create_time_utc
+		SELECT users.id, users.firstname, users.lastname, users.email, users.nickname,
+			users.role, users.is_active, users.is_protected_admin, users.create_time_utc,
+			users.is_active AND EXISTS (
+				SELECT 1
+				FROM user_feature_grant
+				WHERE user_feature_grant.user_id = users.id
+				  AND user_feature_grant.feature_key = $1
+			)
 		FROM users
 		ORDER BY create_time_utc DESC, email ASC;
-	`)
+	`, types.UserFeatureReceiptOCR)
 	if err != nil {
 		return nil, err
 	}
@@ -65,6 +72,7 @@ func (s *Store) GetAdminUsers() ([]types.AdminUserResponse, error) {
 		if err := rows.Scan(
 			&user.ID, &user.Firstname, &user.Lastname, &user.Email,
 			&user.Nickname, &user.Role, &user.IsActive, &user.IsProtectedAdmin, &user.CreateTime,
+			&user.Capabilities.ReceiptOCR,
 		); err != nil {
 			return nil, err
 		}

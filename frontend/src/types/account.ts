@@ -1,3 +1,5 @@
+import { UserCapabilities } from "./capabilities";
+
 export interface AccountSettingsData {
     nickname: string;
     firstname: string;
@@ -5,4 +7,5 @@ export interface AccountSettingsData {
     email: string;
     googleConnected: boolean;
     passwordChangeAllowed: boolean;
+    capabilities: UserCapabilities;
 }

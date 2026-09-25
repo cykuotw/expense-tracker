@@ -94,7 +94,12 @@ func (h *HandlerProtected) finishGoogleLink(c *gin.Context, claims *types.Verifi
 		writeGoogleLinkError(c, err)
 		return
 	}
-	utils.WriteJSON(c, http.StatusOK, accountResponse(user))
+	response, err := h.loadAccountResponse(c.Request.Context(), user)
+	if err != nil {
+		writeGoogleLinkError(c, err)
+		return
+	}
+	utils.WriteJSON(c, http.StatusOK, response)
 }
 
 func writeGoogleLinkError(c *gin.Context, err error) {

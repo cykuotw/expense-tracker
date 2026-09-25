@@ -9,6 +9,8 @@ import (
 	"github.com/google/uuid"
 )
 
+const UserFeatureReceiptOCR = "receipt_ocr"
+
 type UserStore interface {
 	GetUserByEmail(email string) (*User, error)
 	GetUserByExternalIdentity(externalType string, externalID string) (*User, error)
@@ -100,12 +102,17 @@ type LoginResponse struct {
 }
 
 type AccountResponse struct {
-	Nickname              string `json:"nickname"`
-	Firstname             string `json:"firstname"`
-	Lastname              string `json:"lastname"`
-	Email                 string `json:"email"`
-	GoogleConnected       bool   `json:"googleConnected"`
-	PasswordChangeAllowed bool   `json:"passwordChangeAllowed"`
+	Nickname              string           `json:"nickname"`
+	Firstname             string           `json:"firstname"`
+	Lastname              string           `json:"lastname"`
+	Email                 string           `json:"email"`
+	GoogleConnected       bool             `json:"googleConnected"`
+	PasswordChangeAllowed bool             `json:"passwordChangeAllowed"`
+	Capabilities          UserCapabilities `json:"capabilities"`
+}
+
+type UserCapabilities struct {
+	ReceiptOCR bool `json:"receiptOcr"`
 }
 
 type UpdateOwnProfilePayload struct {
@@ -124,15 +131,16 @@ type LinkGoogleAccountPayload struct {
 }
 
 type AdminUserResponse struct {
-	ID               uuid.UUID `json:"id"`
-	Firstname        string    `json:"firstname"`
-	Lastname         string    `json:"lastname"`
-	Email            string    `json:"email"`
-	Nickname         string    `json:"nickname"`
-	Role             string    `json:"role"`
-	IsActive         bool      `json:"isActive"`
-	IsProtectedAdmin bool      `json:"isProtectedAdmin"`
-	CreateTime       time.Time `json:"createTime"`
+	ID               uuid.UUID        `json:"id"`
+	Firstname        string           `json:"firstname"`
+	Lastname         string           `json:"lastname"`
+	Email            string           `json:"email"`
+	Nickname         string           `json:"nickname"`
+	Role             string           `json:"role"`
+	IsActive         bool             `json:"isActive"`
+	IsProtectedAdmin bool             `json:"isProtectedAdmin"`
+	CreateTime       time.Time        `json:"createTime"`
+	Capabilities     UserCapabilities `json:"capabilities"`
 }
 
 type UpdateUserStatusPayload struct {
@@ -141,4 +149,8 @@ type UpdateUserStatusPayload struct {
 
 type UpdateUserRolePayload struct {
 	Role string `json:"role" validate:"required,oneof=admin user"`
+}
+
+type UpdateReceiptOCRGrantPayload struct {
+	Enabled *bool `json:"enabled" validate:"required"`
 }

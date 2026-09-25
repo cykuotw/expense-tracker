@@ -52,6 +52,7 @@ const managementData = {
             isActive: true,
             isProtectedAdmin: true,
             createTime: "2025-12-31T00:00:00Z",
+            capabilities: { receiptOcr: true },
         },
         {
             id: "admin-self",
@@ -63,6 +64,7 @@ const managementData = {
             isActive: true,
             isProtectedAdmin: false,
             createTime: "2026-01-01T00:00:00Z",
+            capabilities: { receiptOcr: false },
         },
         {
             id: "user-1",
@@ -74,6 +76,19 @@ const managementData = {
             isActive: true,
             isProtectedAdmin: false,
             createTime: "2026-01-02T00:00:00Z",
+            capabilities: { receiptOcr: false },
+        },
+        {
+            id: "user-inactive",
+            firstname: "Inactive",
+            lastname: "User",
+            nickname: "",
+            email: "inactive@example.com",
+            role: "user",
+            isActive: false,
+            isProtectedAdmin: false,
+            createTime: "2026-01-03T00:00:00Z",
+            capabilities: { receiptOcr: false },
         },
     ],
     invitations: [
@@ -120,10 +135,16 @@ describe("AdminUsers", () => {
         });
         clipboardWriteMock.mockResolvedValue(undefined);
         getResponseErrorMock.mockResolvedValue({ message: "request failed", code: null });
-        apiFetchMock.mockImplementation((path: string) => {
+        apiFetchMock.mockImplementation((path: string, init?: RequestInit) => {
             if (path === "/admin/users") return Promise.resolve(response(managementData));
             if (path === "/admin/invitations/invite-1/link") {
                 return Promise.resolve(response({ token: "invite-token" }));
+            }
+            if (path.endsWith("/features/receipt-ocr")) {
+                const body = JSON.parse(String(init?.body));
+                return Promise.resolve(
+                    response({ capabilities: { receiptOcr: body.enabled } }),
+                );
             }
             return Promise.resolve(response({}));
         });
@@ -270,6 +291,89 @@ describe("AdminUsers", () => {
                     body: JSON.stringify({ isActive: false }),
                 },
             ),
+        );
+    });
+
+    it("updates Receipt OCR access without reloading the page", async () => {
+        renderPage();
+        await showSection("Regular users");
+        const userCard = (await screen.findByText("user@example.com")).closest(
+            "article",
+        );
+        expect(userCard).not.toBeNull();
+
+        const receiptOCR = within(userCard!).getByRole("switch", {
+            name: "Receipt OCR",
+        });
+        expect(receiptOCR).not.toBeChecked();
+        fireEvent.click(receiptOCR);
+
+        await waitFor(() =>
+            expect(apiFetchMock).toHaveBeenCalledWith(
+                "/admin/users/user-1/features/receipt-ocr",
+                {
+                    method: "PATCH",
+                    body: JSON.stringify({ enabled: true }),
+                },
+            ),
+        );
+        await waitFor(() => expect(receiptOCR).toBeChecked());
+        expect(toastSuccessMock).toHaveBeenCalledWith("Receipt OCR enabled");
+    });
+
+    it("rolls back Receipt OCR access when the update fails", async () => {
+        let resolveUpdate!: (value: Response) => void;
+        const pendingUpdate = new Promise<Response>((resolve) => {
+            resolveUpdate = resolve;
+        });
+        apiFetchMock.mockImplementation((path: string) => {
+            if (path === "/admin/users") {
+                return Promise.resolve(response(managementData));
+            }
+            if (path === "/admin/users/user-1/features/receipt-ocr") {
+                return pendingUpdate;
+            }
+            return Promise.resolve(response({}));
+        });
+        getResponseErrorMessageMock.mockResolvedValue(
+            "Unable to save Receipt OCR access",
+        );
+
+        renderPage();
+        await showSection("Regular users");
+        const userCard = (await screen.findByText("user@example.com")).closest(
+            "article",
+        );
+        const receiptOCR = within(userCard!).getByRole("switch", {
+            name: "Receipt OCR",
+        });
+
+        fireEvent.click(receiptOCR);
+        expect(receiptOCR).toBeChecked();
+        expect(receiptOCR).toBeDisabled();
+        expect(within(userCard!).getByText("Updating…")).toBeInTheDocument();
+
+        resolveUpdate(response({}, 500));
+
+        await waitFor(() => expect(receiptOCR).not.toBeChecked());
+        expect(receiptOCR).toBeEnabled();
+        expect(toastErrorMock).toHaveBeenCalledWith(
+            "Unable to save Receipt OCR access",
+        );
+    });
+
+    it("does not allow Receipt OCR to be enabled for an inactive account", async () => {
+        renderPage();
+        await showSection("Regular users");
+        const userCard = (await screen.findByText("inactive@example.com")).closest(
+            "article",
+        );
+        expect(userCard).not.toBeNull();
+        expect(
+            within(userCard!).getByRole("switch", { name: "Receipt OCR" }),
+        ).toBeDisabled();
+        expect(userCard).toHaveTextContent(
+            "Activate this account before enabling Receipt OCR.",
         );
     });
 

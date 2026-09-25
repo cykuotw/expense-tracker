@@ -6,6 +6,14 @@ import { mdiChevronDown } from "@mdi/js";
 import ConfirmationDialog from "../components/ConfirmationDialog";
 import MobilePageHeader from "../components/MobilePageHeader";
 import DesktopBackLink from "../components/DesktopBackLink";
+import {
+    Field,
+    FieldContent,
+    FieldDescription,
+    FieldLabel,
+} from "../components/ui/field";
+import { Spinner } from "../components/ui/spinner";
+import { Switch } from "../components/ui/switch";
 import { useAuth } from "../hooks/AuthContextHooks";
 import { apiFetch, asArray, getResponseError, getResponseErrorMessage } from "../lib/api";
 import {
@@ -143,12 +151,77 @@ function UserActions({
     );
 }
 
+interface ReceiptOCRAccessProps {
+    user: AdminUser;
+    busy: boolean;
+    updating: boolean;
+    onChange: (user: AdminUser, enabled: boolean) => Promise<void>;
+}
+
+function ReceiptOCRAccess({
+    user,
+    busy,
+    updating,
+    onChange,
+}: ReceiptOCRAccessProps) {
+    const switchID = `receipt-ocr-${user.id}`;
+    const descriptionID = `${switchID}-description`;
+    const disabled = busy || updating || !user.isActive;
+
+    return (
+        <Field
+            orientation="horizontal"
+            className="min-h-14 flex-col items-stretch sm:flex-row sm:items-center"
+            data-disabled={disabled || undefined}
+            aria-busy={updating}
+        >
+            <FieldContent>
+                <FieldLabel htmlFor={switchID}>Receipt OCR</FieldLabel>
+                <FieldDescription id={descriptionID}>
+                    {user.isActive
+                        ? "Allow this account to scan receipts into editable drafts."
+                        : "Activate this account before enabling Receipt OCR."}
+                </FieldDescription>
+            </FieldContent>
+            <div className="flex w-full shrink-0 items-center justify-between gap-3 sm:w-auto sm:justify-end">
+                <span
+                    className="min-w-16 text-right text-xs font-semibold text-foreground/60"
+                    aria-live="polite"
+                >
+                    {updating
+                        ? "Updating…"
+                        : user.capabilities.receiptOcr
+                          ? "Enabled"
+                          : "Disabled"}
+                </span>
+                <span className="flex size-4 items-center justify-center">
+                    {updating ? (
+                        <Spinner
+                            className="size-3.5 text-primary"
+                            aria-label="Updating Receipt OCR access"
+                        />
+                    ) : null}
+                </span>
+                <Switch
+                    id={switchID}
+                    checked={user.capabilities.receiptOcr}
+                    disabled={disabled}
+                    aria-describedby={descriptionID}
+                    onCheckedChange={(enabled) => void onChange(user, enabled)}
+                />
+            </div>
+        </Field>
+    );
+}
+
 interface UserCardProps extends Omit<UserActionsProps, "busy"> {
     busy: boolean;
+    featureBusy: boolean;
+    onReceiptOCRChange: (user: AdminUser, enabled: boolean) => Promise<void>;
 }
 
 function UserCard(props: UserCardProps) {
-    const { user } = props;
+    const { user, busy, featureBusy, onReceiptOCRChange } = props;
     return (
         <article
             className={`rounded-3xl border bg-background p-5 ${
@@ -189,8 +262,16 @@ function UserCard(props: UserCardProps) {
             <p className="mt-3 text-xs text-foreground/55">
                 Joined {formatDate(user.createTime)}
             </p>
+            <div className="mt-5 border-y border-border py-4">
+                <ReceiptOCRAccess
+                    user={user}
+                    busy={busy}
+                    updating={featureBusy}
+                    onChange={onReceiptOCRChange}
+                />
+            </div>
             <div className="mt-5">
-                <UserActions {...props} />
+                <UserActions {...props} busy={busy || featureBusy} />
             </div>
         </article>
     );
@@ -265,8 +346,10 @@ interface UserSectionProps {
     onToggle: () => void;
     currentUserID: string | null;
     busyID: string | null;
+    featureBusyID: string | null;
     onStatusChange: (user: AdminUser) => Promise<void>;
     onRoleChange: (user: AdminUser, role: UserRole) => Promise<void>;
+    onReceiptOCRChange: (user: AdminUser, enabled: boolean) => Promise<void>;
 }
 
 function UserSection({
@@ -278,8 +361,10 @@ function UserSection({
     onToggle,
     currentUserID,
     busyID,
+    featureBusyID,
     onStatusChange,
     onRoleChange,
+    onReceiptOCRChange,
 }: UserSectionProps) {
     return (
         <CollapsibleSection
@@ -302,8 +387,10 @@ function UserSection({
                             user={user}
                             currentUserID={currentUserID}
                             busy={busyID === user.id}
+                            featureBusy={featureBusyID === user.id}
                             onStatusChange={onStatusChange}
                             onRoleChange={onRoleChange}
+                            onReceiptOCRChange={onReceiptOCRChange}
                         />
                     ))}
                 </div>
@@ -362,6 +449,7 @@ export default function AdminUsers() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
     const [busyID, setBusyID] = useState<string | null>(null);
+    const [featureBusyID, setFeatureBusyID] = useState<string | null>(null);
     const [inviteEmail, setInviteEmail] = useState("");
     const [creatingInvite, setCreatingInvite] = useState(false);
     const [confirmation, setConfirmation] =
@@ -541,6 +629,95 @@ export default function AdminUsers() {
         });
     };
 
+    const updateReceiptOCRGrant = async (user: AdminUser, enabled: boolean) => {
+        if (!user.isActive || enabled === user.capabilities.receiptOcr) return;
+
+        const previousEnabled = user.capabilities.receiptOcr;
+        setFeatureBusyID(user.id);
+        setData((current) => ({
+            ...current,
+            users: current.users.map((entry) =>
+                entry.id === user.id
+                    ? {
+                          ...entry,
+                          capabilities: {
+                              ...entry.capabilities,
+                              receiptOcr: enabled,
+                          },
+                      }
+                    : entry,
+            ),
+        }));
+
+        try {
+            const response = await apiFetch(
+                `/admin/users/${user.id}/features/receipt-ocr`,
+                {
+                    method: "PATCH",
+                    body: JSON.stringify({ enabled }),
+                },
+            );
+            if (!response.ok) {
+                throw new Error(
+                    await getResponseErrorMessage(
+                        response,
+                        "Unable to update Receipt OCR access",
+                    ),
+                );
+            }
+            const result = (await response.json()) as {
+                capabilities?: { receiptOcr?: boolean };
+            };
+            const receiptOCREnabled = result.capabilities?.receiptOcr;
+            if (typeof receiptOCREnabled !== "boolean") {
+                throw new Error(
+                    "The server returned an invalid Receipt OCR access state",
+                );
+            }
+            setData((current) => ({
+                ...current,
+                users: current.users.map((entry) =>
+                    entry.id === user.id
+                        ? {
+                              ...entry,
+                              capabilities: {
+                                  ...entry.capabilities,
+                                  receiptOcr: receiptOCREnabled,
+                              },
+                          }
+                        : entry,
+                ),
+            }));
+            toast.success(
+                receiptOCREnabled
+                    ? "Receipt OCR enabled"
+                    : "Receipt OCR disabled",
+            );
+        } catch (updateError) {
+            setData((current) => ({
+                ...current,
+                users: current.users.map((entry) =>
+                    entry.id === user.id
+                        ? {
+                              ...entry,
+                              capabilities: {
+                                  ...entry.capabilities,
+                                  receiptOcr: previousEnabled,
+                              },
+                          }
+                        : entry,
+                ),
+            }));
+            toast.error(
+                updateError instanceof Error
+                    ? updateError.message
+                    : "Unable to update Receipt OCR access",
+            );
+        } finally {
+            setFeatureBusyID(null);
+        }
+    };
+
     const createInvitation = async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
         setCreatingInvite(true);
@@ -715,8 +892,10 @@ export default function AdminUsers() {
                             }
                             currentUserID={userID}
                             busyID={busyID}
+                            featureBusyID={featureBusyID}
                             onStatusChange={requestStatusUpdate}
                             onRoleChange={requestRoleUpdate}
+                            onReceiptOCRChange={updateReceiptOCRGrant}
                         />
 
                         <UserSection
@@ -733,8 +912,10 @@ export default function AdminUsers() {
                             }
                             currentUserID={userID}
                             busyID={busyID}
+                            featureBusyID={featureBusyID}
                             onStatusChange={requestStatusUpdate}
                             onRoleChange={requestRoleUpdate}
+                            onReceiptOCRChange={updateReceiptOCRGrant}
                         />
 
                         <CollapsibleSection

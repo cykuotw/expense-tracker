@@ -60,6 +60,7 @@ const localAccount = {
     email: "local@example.com",
     googleConnected: false,
     passwordChangeAllowed: true,
+    capabilities: { receiptOcr: false },
 };
 
 function response(body: unknown, status = 200) {

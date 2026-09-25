@@ -1,4 +1,5 @@
 import { UserRole } from "./role";
+import { UserCapabilities } from "./capabilities";
 
 export interface AdminUser {
     id: string;
@@ -10,6 +11,7 @@ export interface AdminUser {
     isActive: boolean;
     isProtectedAdmin: boolean;
     createTime: string;
+    capabilities: UserCapabilities;
 }
 
 export type InvitationStatus = "invited" | "expired" | "used";

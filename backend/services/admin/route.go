@@ -1,10 +1,13 @@
 package admin
 
 import (
+	"context"
 	"errors"
+	"expense-tracker/backend/internal/observability"
 	"expense-tracker/backend/services/auth"
 	"expense-tracker/backend/types"
 	"expense-tracker/backend/utils"
+	"log/slog"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -16,6 +19,7 @@ type UserStore interface {
 	GetAdminUsers() ([]types.AdminUserResponse, error)
 	SetUserActive(actorID string, targetID string, active bool) error
 	SetUserRole(actorID string, targetID string, role string) error
+	SetReceiptOCRGrant(ctx context.Context, actorID string, targetID string, enabled bool) error
 }
 
 type InvitationStore interface {
@@ -37,6 +41,7 @@ func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 	router.GET("/admin/users", h.handleList)
 	router.PATCH("/admin/users/:id/status", h.handleUpdateStatus)
 	router.PATCH("/admin/users/:id/role", h.handleUpdateRole)
+	router.PATCH("/admin/users/:id/features/receipt-ocr", h.handleUpdateReceiptOCRGrant)
 	router.POST("/admin/invitations/:id/link", h.handleInvitationLink)
 	router.POST("/admin/invitations/:id/expire", h.handleExpireInvitation)
 }
@@ -81,8 +86,11 @@ func writeMutationError(c *gin.Context, err error) {
 	case errors.Is(err, types.ErrProtectedAdmin),
 		errors.Is(err, types.ErrCannotDeactivateSelf),
 		errors.Is(err, types.ErrCannotChangeOwnRole),
-		errors.Is(err, types.ErrLastActiveAdmin):
+		errors.Is(err, types.ErrLastActiveAdmin),
+		errors.Is(err, types.ErrAccountInactive):
 		utils.WriteError(c, http.StatusConflict, err)
+	case errors.Is(err, types.ErrPermissionDenied):
+		utils.WriteError(c, http.StatusForbidden, err)
 	case errors.Is(err, types.ErrUserNotExist):
 		utils.WriteError(c, http.StatusNotFound, err)
 	case errors.Is(err, types.ErrInvalidAction), errors.Is(err, types.ErrInvalidUserRole):
@@ -90,6 +98,57 @@ func writeMutationError(c *gin.Context, err error) {
 	default:
 		utils.WriteError(c, http.StatusInternalServerError, err)
 	}
+}
+
+func (h *Handler) handleUpdateReceiptOCRGrant(c *gin.Context) {
+	var payload types.UpdateReceiptOCRGrantPayload
+	if err := utils.ParseJSON(c, &payload); err != nil {
+		utils.WriteError(c, http.StatusBadRequest, err)
+		return
+	}
+	if err := utils.Validate.Struct(payload); err != nil {
+		utils.WriteError(c, http.StatusBadRequest, utils.NewValidationError(err.(validator.ValidationErrors)))
+		return
+	}
+	target, err := targetID(c)
+	if err != nil {
+		writeMutationError(c, err)
+		return
+	}
+	actor, err := actorID(c)
+	if err != nil {
+		utils.WriteError(c, http.StatusUnauthorized, err)
+		return
+	}
+
+	if err := h.users.SetReceiptOCRGrant(c.Request.Context(), actor, target, *payload.Enabled); err != nil {
+		logReceiptOCRGrantChange(c, actor, target, *payload.Enabled, grantMutationOutcome(err))
+		writeMutationError(c, err)
+		return
+	}
+	logReceiptOCRGrantChange(c, actor, target, *payload.Enabled, "updated")
+	utils.WriteJSON(c, http.StatusOK, gin.H{
+		"capabilities": types.UserCapabilities{ReceiptOCR: *payload.Enabled},
+	})
+}
+
+func grantMutationOutcome(err error) string {
+	if errors.Is(err, types.ErrUserNotExist) ||
+		errors.Is(err, types.ErrAccountInactive) ||
+		errors.Is(err, types.ErrPermissionDenied) {
+		return "rejected"
+	}
+	return "failed"
+}
+
+func logReceiptOCRGrantChange(c *gin.Context, actorID, targetID string, enabled bool, outcome string) {
+	observability.Logger(c).Info("user_feature_grant_change",
+		slog.String("actor_id", actorID),
+		slog.String("target_user_id", targetID),
+		slog.String("feature", types.UserFeatureReceiptOCR),
+		slog.Bool("enabled", enabled),
+		slog.String("outcome", outcome),
+	)
 }
 
 func (h *Handler) handleUpdateStatus(c *gin.Context) {

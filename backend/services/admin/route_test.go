@@ -2,8 +2,10 @@ package admin
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"expense-tracker/backend/config"
+	"expense-tracker/backend/internal/observability"
 	"expense-tracker/backend/services/auth"
 	"expense-tracker/backend/types"
 	"net/http"
@@ -17,9 +19,10 @@ import (
 )
 
 type userStoreMock struct {
-	getUsersFn  func() ([]types.AdminUserResponse, error)
-	setActiveFn func(string, string, bool) error
-	setRoleFn   func(string, string, string) error
+	getUsersFn      func() ([]types.AdminUserResponse, error)
+	setActiveFn     func(string, string, bool) error
+	setRoleFn       func(string, string, string) error
+	setReceiptOCRFn func(context.Context, string, string, bool) error
 }
 
 func (m *userStoreMock) GetAdminUsers() ([]types.AdminUserResponse, error) {
@@ -30,6 +33,12 @@ func (m *userStoreMock) SetUserActive(actorID string, targetID string, active bo
 }
 func (m *userStoreMock) SetUserRole(actorID string, targetID string, role string) error {
 	return m.setRoleFn(actorID, targetID, role)
+}
+func (m *userStoreMock) SetReceiptOCRGrant(ctx context.Context, actorID string, targetID string, enabled bool) error {
+	if m.setReceiptOCRFn == nil {
+		return nil
+	}
+	return m.setReceiptOCRFn(ctx, actorID, targetID, enabled)
 }
 
 type invitationStoreMock struct {
@@ -51,6 +60,14 @@ func (m *invitationStoreMock) ExpireInvitationByID(id string) error {
 func adminTestRouter(users UserStore, invitations InvitationStore) *gin.Engine {
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.New()
+	NewHandler(users, invitations).RegisterRoutes(router.Group(""))
+	return router
+}
+
+func adminTestRouterWithMiddleware(users UserStore, invitations InvitationStore, middleware gin.HandlerFunc) *gin.Engine {
+	gin.SetMode(gin.ReleaseMode)
+	router := gin.New()
+	router.Use(middleware)
 	NewHandler(users, invitations).RegisterRoutes(router.Group(""))
 	return router
 }
@@ -78,7 +95,10 @@ func TestListReturnsSafeManagementData(t *testing.T) {
 	invitationID := uuid.New()
 	users := &userStoreMock{
 		getUsersFn: func() ([]types.AdminUserResponse, error) {
-			return []types.AdminUserResponse{{ID: userID, Email: "user@example.com", IsActive: true, Role: "admin", IsProtectedAdmin: true}}, nil
+			return []types.AdminUserResponse{{
+				ID: userID, Email: "user@example.com", IsActive: true, Role: "admin", IsProtectedAdmin: true,
+				Capabilities: types.UserCapabilities{ReceiptOCR: true},
+			}}, nil
 		},
 		setActiveFn: func(string, string, bool) error { return nil },
 		setRoleFn:   func(string, string, string) error { return nil },
@@ -95,6 +115,7 @@ func TestListReturnsSafeManagementData(t *testing.T) {
 	assert.NotContains(t, response.Body.String(), "token")
 	assert.Contains(t, response.Body.String(), "invite@example.com")
 	assert.Contains(t, response.Body.String(), `"isProtectedAdmin":true`)
+	assert.Contains(t, response.Body.String(), `"capabilities":{"receiptOcr":true}`)
 }
 
 func TestListReturnsEmptyArraysForNilStoreResults(t *testing.T) {
@@ -198,6 +219,90 @@ func TestUpdateRoleRejectsUnknownRole(t *testing.T) {
 
 	response := httptest.NewRecorder()
 	request := authenticatedRequest(t, http.MethodPatch, "/admin/users/"+target.String()+"/role", []byte(`{"role":"owner"}`), actor)
+	adminTestRouter(users, baseInvitationMock()).ServeHTTP(response, request)
+
+	assert.Equal(t, http.StatusBadRequest, response.Code)
+}
+
+func TestUpdateReceiptOCRGrantPassesActorAndReturnsCapability(t *testing.T) {
+	actor := uuid.New()
+	target := uuid.New()
+	called := false
+	users := &userStoreMock{
+		getUsersFn:  func() ([]types.AdminUserResponse, error) { return nil, nil },
+		setActiveFn: func(string, string, bool) error { return nil },
+		setRoleFn:   func(string, string, string) error { return nil },
+		setReceiptOCRFn: func(ctx context.Context, actorID string, targetID string, enabled bool) error {
+			called = true
+			assert.Equal(t, actor.String(), actorID)
+			assert.Equal(t, target.String(), targetID)
+			assert.True(t, enabled)
+			assert.NotNil(t, ctx)
+			return nil
+		},
+	}
+
+	var logs bytes.Buffer
+	router := adminTestRouterWithMiddleware(users, baseInvitationMock(), observability.RequestLogging(observability.RequestLoggingConfig{
+		Logger:       observability.NewLogger(gin.ReleaseMode, &logs),
+		NewRequestID: func() string { return "grant-test" },
+	}))
+	response := httptest.NewRecorder()
+	request := authenticatedRequest(t, http.MethodPatch,
+		"/admin/users/"+target.String()+"/features/receipt-ocr",
+		[]byte(`{"enabled":true}`), actor)
+	router.ServeHTTP(response, request)
+
+	assert.Equal(t, http.StatusOK, response.Code)
+	assert.True(t, called)
+	assert.JSONEq(t, `{"capabilities":{"receiptOcr":true}}`, response.Body.String())
+	assert.Contains(t, logs.String(), `"event":"user_feature_grant_change"`)
+	assert.Contains(t, logs.String(), `"actor_id":"`+actor.String()+`"`)
+	assert.Contains(t, logs.String(), `"target_user_id":"`+target.String()+`"`)
+	assert.Contains(t, logs.String(), `"feature":"receipt_ocr"`)
+	assert.Contains(t, logs.String(), `"outcome":"updated"`)
+	assert.NotContains(t, logs.String(), "email")
+}
+
+func TestUpdateReceiptOCRGrantRejectsInactiveTarget(t *testing.T) {
+	actor := uuid.New()
+	target := uuid.New()
+	users := &userStoreMock{
+		getUsersFn:  func() ([]types.AdminUserResponse, error) { return nil, nil },
+		setActiveFn: func(string, string, bool) error { return nil },
+		setRoleFn:   func(string, string, string) error { return nil },
+		setReceiptOCRFn: func(context.Context, string, string, bool) error {
+			return types.ErrAccountInactive
+		},
+	}
+
+	response := httptest.NewRecorder()
+	request := authenticatedRequest(t, http.MethodPatch,
+		"/admin/users/"+target.String()+"/features/receipt-ocr",
+		[]byte(`{"enabled":true}`), actor)
+	adminTestRouter(users, baseInvitationMock()).ServeHTTP(response, request)
+
+	assert.Equal(t, http.StatusConflict, response.Code)
+	assert.Contains(t, response.Body.String(), "account_inactive")
+}
+
+func TestUpdateReceiptOCRGrantRequiresEnabledField(t *testing.T) {
+	actor := uuid.New()
+	target := uuid.New()
+	users := &userStoreMock{
+		getUsersFn:  func() ([]types.AdminUserResponse, error) { return nil, nil },
+		setActiveFn: func(string, string, bool) error { return nil },
+		setRoleFn:   func(string, string, string) error { return nil },
+		setReceiptOCRFn: func(context.Context, string, string, bool) error {
+			t.Fatal("store must not receive an invalid payload")
+			return nil
+		},
+	}
+
+	response := httptest.NewRecorder()
+	request := authenticatedRequest(t, http.MethodPatch,
+		"/admin/users/"+target.String()+"/features/receipt-ocr",
+		[]byte(`{}`), actor)
 	adminTestRouter(users, baseInvitationMock()).ServeHTTP(response, request)
 
 	assert.Equal(t, http.StatusBadRequest, response.Code)

@@ -22,6 +22,27 @@
         "dataLossRisk": true,
         "notes": "The previous application continues using the retained groups.currency field. Reversing the schema discards multi-currency settings and explicit accounting currencies."
       }
+    },
+    {
+      "version": 37,
+      "name": "add_user_feature_grants",
+      "categories": ["additive", "constraint_tightening", "index"],
+      "deployment": "online",
+      "backfill": {
+        "mode": "none",
+        "resumable": false,
+        "notes": "All users begin without grants, so the additive table requires no backfill."
+      },
+      "locking": {
+        "risk": "low",
+        "notes": "Creating an empty table and its index does not rewrite existing user rows."
+      },
+      "rollback": {
+        "application": "compatible",
+        "schema": "manual_only",
+        "dataLossRisk": true,
+        "notes": "The previous application ignores the additive table. Reversing the schema discards feature-grant state."
+      }
     }
   ]
 }

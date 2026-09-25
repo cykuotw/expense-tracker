@@ -18,6 +18,8 @@ import (
 
 type accountStoreMock struct {
 	user             *types.User
+	receiptOCR       bool
+	receiptOCRErr    error
 	updateProfileFn  func(string, types.UpdateOwnProfilePayload) error
 	changePasswordFn func(string, string, string, string) error
 	linkGoogleFn     func(context.Context, string, string, string, string, string) error
@@ -25,6 +27,10 @@ type accountStoreMock struct {
 
 func (m *accountStoreMock) GetUserByID(string) (*types.User, error) {
 	return m.user, nil
+}
+
+func (m *accountStoreMock) HasReceiptOCRGrant(context.Context, string) (bool, error) {
+	return m.receiptOCR, m.receiptOCRErr
 }
 
 func (m *accountStoreMock) UpdateOwnProfile(userID string, payload types.UpdateOwnProfilePayload) error {
@@ -72,7 +78,7 @@ func accountTestRouter(store AccountStore) *gin.Engine {
 
 func TestAccountReturnsSafeCapabilityData(t *testing.T) {
 	userID := uuid.New()
-	store := &accountStoreMock{user: &types.User{
+	store := &accountStoreMock{receiptOCR: true, user: &types.User{
 		ID: userID, Firstname: "Local", Lastname: "User", Email: "local@example.com",
 		PasswordHashed: "must-not-leak", HasLocalPassword: true, IsActive: true,
 	}}
@@ -83,6 +89,7 @@ func TestAccountReturnsSafeCapabilityData(t *testing.T) {
 	assert.NotContains(t, response.Body.String(), "must-not-leak")
 	assert.Contains(t, response.Body.String(), `"passwordChangeAllowed":true`)
 	assert.Contains(t, response.Body.String(), `"googleConnected":false`)
+	assert.Contains(t, response.Body.String(), `"capabilities":{"receiptOcr":true}`)
 }
 
 func TestAccountRequiresAuthentication(t *testing.T) {

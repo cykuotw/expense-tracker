@@ -17,6 +17,7 @@ import (
 
 type AccountStore interface {
 	GetUserByID(id string) (*types.User, error)
+	HasReceiptOCRGrant(ctx context.Context, userID string) (bool, error)
 	UpdateOwnProfile(userID string, payload types.UpdateOwnProfilePayload) error
 	ChangeOwnPassword(userID string, currentPassword string, newPassword string, preserveRefreshID string) error
 	LinkGoogleIdentity(ctx context.Context, userID string, currentPassword string, externalID string, verifiedEmail string, preserveRefreshID string) error
@@ -47,7 +48,7 @@ func (h *HandlerProtected) RegisterRoutes(router *gin.RouterGroup) {
 	}
 }
 
-func accountResponse(user *types.User) types.AccountResponse {
+func accountResponse(user *types.User, receiptOCR bool) types.AccountResponse {
 	return types.AccountResponse{
 		Nickname:              user.Nickname,
 		Firstname:             user.Firstname,
@@ -55,7 +56,16 @@ func accountResponse(user *types.User) types.AccountResponse {
 		Email:                 user.Email,
 		GoogleConnected:       user.ExternalType == "google",
 		PasswordChangeAllowed: user.HasLocalPassword,
+		Capabilities:          types.UserCapabilities{ReceiptOCR: receiptOCR},
 	}
+}
+
+func (h *HandlerProtected) loadAccountResponse(ctx context.Context, user *types.User) (types.AccountResponse, error) {
+	receiptOCR, err := h.store.HasReceiptOCRGrant(ctx, user.ID.String())
+	if err != nil {
+		return types.AccountResponse{}, err
+	}
+	return accountResponse(user, receiptOCR), nil
 }
 
 func accountUserID(c *gin.Context) (string, bool) {
@@ -105,7 +115,12 @@ func (h *HandlerProtected) handleAccount(c *gin.Context) {
 		writeAccountError(c, types.ErrAccountInactive)
 		return
 	}
-	utils.WriteJSON(c, http.StatusOK, accountResponse(user))
+	response, err := h.loadAccountResponse(c.Request.Context(), user)
+	if err != nil {
+		writeAccountError(c, err)
+		return
+	}
+	utils.WriteJSON(c, http.StatusOK, response)
 }
 
 func (h *HandlerProtected) handleUpdateProfile(c *gin.Context) {
@@ -138,7 +153,12 @@ func (h *HandlerProtected) handleUpdateProfile(c *gin.Context) {
 		writeAccountError(c, err)
 		return
 	}
-	utils.WriteJSON(c, http.StatusOK, accountResponse(user))
+	response, err := h.loadAccountResponse(c.Request.Context(), user)
+	if err != nil {
+		writeAccountError(c, err)
+		return
+	}
+	utils.WriteJSON(c, http.StatusOK, response)
 }
 
 func currentRefreshID(c *gin.Context, userID string) string {

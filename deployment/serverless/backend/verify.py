@@ -19,8 +19,8 @@ class Response:
     body: bytes
 
 
-PREFLIGHT_PROPAGATION_TIMEOUT_SECONDS = 60
-PREFLIGHT_RETRY_INTERVAL_SECONDS = 3
+API_PROPAGATION_TIMEOUT_SECONDS = 60
+API_PROPAGATION_RETRY_INTERVAL_SECONDS = 3
 
 
 def _request(url: str, *, method: str = "GET", headers: dict[str, str] | None = None, body: object | None = None, opener: urllib.request.OpenerDirector | None = None) -> Response:
@@ -39,6 +39,26 @@ def _cors_values(response: Response, name: str) -> set[str]:
         for value in response.headers.get(name, "").split(",")
         if value.strip()
     }
+
+
+def _wait_for_health(url: str) -> None:
+    response = _request(url)
+    if response.status == 200:
+        return
+    if response.status < 500:
+        raise CommandError(f"custom API health returned HTTP {response.status}")
+
+    deadline = time.monotonic() + API_PROPAGATION_TIMEOUT_SECONDS
+    while time.monotonic() < deadline:
+        time.sleep(API_PROPAGATION_RETRY_INTERVAL_SECONDS)
+        response = _request(url)
+        if response.status == 200:
+            return
+        if response.status < 500:
+            break
+    raise CommandError(
+        f"custom API health returned HTTP {response.status} after propagation timeout"
+    )
 
 
 def _wait_for_cors_preflight(
@@ -69,9 +89,9 @@ def _wait_for_cors_preflight(
 
     if ready():
         return
-    deadline = time.monotonic() + PREFLIGHT_PROPAGATION_TIMEOUT_SECONDS
+    deadline = time.monotonic() + API_PROPAGATION_TIMEOUT_SECONDS
     while time.monotonic() < deadline:
-        time.sleep(PREFLIGHT_RETRY_INTERVAL_SECONDS)
+        time.sleep(API_PROPAGATION_RETRY_INTERVAL_SECONDS)
         if ready():
             return
     raise CommandError(failure_message)
@@ -88,9 +108,7 @@ def verify_api(
     require_google_link_authorizer: bool = True,
 ) -> None:
     api = f"{config.api_origin}/api/v0"
-    health = _request(f"{api}/health")
-    if health.status != 200:
-        raise CommandError(f"custom API health returned HTTP {health.status}")
+    _wait_for_health(f"{api}/health")
 
     origin = config.frontend_origin
     preflight = _request(f"{api}/auth/google/exchange", method="OPTIONS", headers={

@@ -5,8 +5,10 @@ import DesktopBackLink from "../components/DesktopBackLink";
 import { GroupMemberManager } from "../components/group/GroupMemberManager";
 import { AddMemberProvider } from "../contexts/AddMemberContext";
 import { useAddMember } from "../hooks/AddMemberContextHooks";
+import { usePWAUpdateBlocker } from "../hooks/usePWAUpdateBlocker";
 
 const AddMemberContent = () => {
+    usePWAUpdateBlocker(true);
     const { groupId, loading } = useAddMember();
 
     return (

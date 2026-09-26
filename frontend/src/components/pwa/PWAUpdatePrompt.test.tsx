@@ -9,17 +9,31 @@ type RegisterCallback = (
 ) => void;
 
 type RegisterOptions = {
+    immediate?: boolean;
     onRegisteredSW?: RegisterCallback;
 };
 
-const { setNeedRefreshMock, updateServiceWorkerMock, useRegisterSWMock } = vi.hoisted(() => ({
+const {
+    claimActivationMock,
+    releaseActivationMock,
+    setNeedRefreshMock,
+    updateServiceWorkerMock,
+    usePWAUpdateSafetyMock,
+    useRegisterSWMock,
+} = vi.hoisted(() => ({
+    claimActivationMock: vi.fn(),
+    releaseActivationMock: vi.fn(),
     setNeedRefreshMock: vi.fn(),
     updateServiceWorkerMock: vi.fn(),
+    usePWAUpdateSafetyMock: vi.fn(),
     useRegisterSWMock: vi.fn(),
 }));
 
 vi.mock("virtual:pwa-register/react", () => ({
     useRegisterSW: (options?: RegisterOptions) => useRegisterSWMock(options),
+}));
+vi.mock("../../hooks/usePWAUpdateSafety", () => ({
+    usePWAUpdateSafety: () => usePWAUpdateSafetyMock(),
 }));
 
 const oneHour = 60 * 60 * 1000;
@@ -37,6 +51,14 @@ describe("PWAUpdatePrompt", () => {
         registeredCallback = undefined;
         setNeedRefreshMock.mockReset();
         updateServiceWorkerMock.mockReset();
+        claimActivationMock.mockReset();
+        releaseActivationMock.mockReset();
+        usePWAUpdateSafetyMock.mockReturnValue({
+            canAutoApply: false,
+            isUpdateSafe: false,
+            claimActivation: claimActivationMock,
+            releaseActivation: releaseActivationMock,
+        });
         useRegisterSWMock.mockImplementation((options?: RegisterOptions) => {
             registeredCallback = options?.onRegisteredSW;
             return {
@@ -60,6 +82,9 @@ describe("PWAUpdatePrompt", () => {
         } as unknown as ServiceWorkerRegistration;
 
         render(<PWAUpdatePrompt />);
+        expect(useRegisterSWMock).toHaveBeenCalledWith(
+            expect.objectContaining({ immediate: true }),
+        );
 
         await act(async () => {
             registeredCallback?.("/sw.js", registration);
@@ -92,13 +117,13 @@ describe("PWAUpdatePrompt", () => {
 
         fireEvent.click(screen.getByRole("button", { name: "Later" }));
         expect(
-            screen.queryByText("A newer version is ready. Reload when you are ready to update.")
+            screen.queryByText("A newer version is ready. Finish your current changes, or reload now.")
         ).not.toBeInTheDocument();
 
         visibilityState = "visible";
         fireEvent(document, new Event("visibilitychange"));
         expect(
-            screen.getByText("A newer version is ready. Reload when you are ready to update.")
+            screen.getByText("A newer version is ready. Finish your current changes, or reload now.")
         ).toBeVisible();
     });
 
@@ -132,7 +157,7 @@ describe("PWAUpdatePrompt", () => {
 
         fireEvent.click(screen.getByRole("button", { name: "Reload now" }));
 
-        expect(screen.getByRole("button", { name: "Reloading…" })).toBeDisabled();
+        expect(screen.getByRole("button", { name: "Applying…" })).toBeDisabled();
         await act(async () => resolveUpdate?.());
     });
 
@@ -147,7 +172,7 @@ describe("PWAUpdatePrompt", () => {
         expect(updateServiceWorkerMock).toHaveBeenCalledWith(true);
         expect(setNeedRefreshMock).toHaveBeenCalledWith(false);
         expect(
-            screen.queryByText("A newer version is ready. Reload when you are ready to update.")
+            screen.queryByText("A newer version is ready. Finish your current changes, or reload now.")
         ).not.toBeInTheDocument();
     });
 
@@ -160,6 +185,41 @@ describe("PWAUpdatePrompt", () => {
         });
 
         expect(setNeedRefreshMock).not.toHaveBeenCalled();
+        expect(screen.getByRole("button", { name: "Retry update" })).toBeEnabled();
+        expect(releaseActivationMock).toHaveBeenCalledTimes(1);
+    });
+
+    it("applies a pending update automatically when every tab is safe", async () => {
+        claimActivationMock.mockReturnValue(true);
+        updateServiceWorkerMock.mockResolvedValue(undefined);
+        usePWAUpdateSafetyMock.mockReturnValue({
+            canAutoApply: true,
+            isUpdateSafe: true,
+            claimActivation: claimActivationMock,
+            releaseActivation: releaseActivationMock,
+        });
+
+        render(<PWAUpdatePrompt />);
+
+        await act(async () => undefined);
+        expect(claimActivationMock).toHaveBeenCalledTimes(1);
+        expect(updateServiceWorkerMock).toHaveBeenCalledWith(true);
+        expect(setNeedRefreshMock).toHaveBeenCalledWith(false);
+    });
+
+    it("does not apply automatically while another editing flow blocks it", async () => {
+        usePWAUpdateSafetyMock.mockReturnValue({
+            canAutoApply: true,
+            isUpdateSafe: false,
+            claimActivation: claimActivationMock,
+            releaseActivation: releaseActivationMock,
+        });
+
+        render(<PWAUpdatePrompt />);
+
+        await act(async () => undefined);
+        expect(claimActivationMock).not.toHaveBeenCalled();
+        expect(updateServiceWorkerMock).not.toHaveBeenCalled();
         expect(screen.getByRole("button", { name: "Reload now" })).toBeEnabled();
     });
 });

@@ -7,6 +7,7 @@ import { apiFetch, getResponseErrorMessage } from "../lib/api";
 import MobilePageHeader from "../components/MobilePageHeader";
 import NotificationSettings from "../components/pwa/NotificationSettings";
 import { AccountSettingsData } from "../types/account";
+import { usePWAUpdateBlocker } from "../hooks/usePWAUpdateBlocker";
 
 const EMPTY_PROFILE = { firstname: "", lastname: "", nickname: "" };
 const EMPTY_PASSWORDS = {
@@ -169,6 +170,7 @@ function PasswordValidationMessage({
 }
 
 export default function AccountSettings() {
+    usePWAUpdateBlocker(true);
     const [account, setAccount] = useState<AccountSettingsData | null>(null);
     const [profile, setProfile] = useState(EMPTY_PROFILE);
     const [passwords, setPasswords] = useState(EMPTY_PASSWORDS);

@@ -29,6 +29,7 @@ import { formatReviewMonth, previousClosedUTCMonth } from "../lib/reviewMonth";
 import MobilePageHeader from "../components/MobilePageHeader";
 import DesktopBackLink from "../components/DesktopBackLink";
 import { buildEstimatedSettlementEntries } from "../lib/settlementPreview";
+import { usePWAUpdateBlocker } from "../hooks/usePWAUpdateBlocker";
 
 const GroupDetailContent = () => {
     const {
@@ -54,6 +55,7 @@ const GroupDetailContent = () => {
     const [showSettled, setShowSettled] = useState(false);
     const [settleOpen, setSettleOpen] = useState(false);
     const [showAllBalances, setShowAllBalances] = useState(false);
+    usePWAUpdateBlocker(settleOpen || settlementPending);
     const groupType = getGroupTypePresentation(groupinfo?.groupType);
     const previousMonth = previousClosedUTCMonth();
     const memberCount = groupinfo?.members?.length ?? 0;

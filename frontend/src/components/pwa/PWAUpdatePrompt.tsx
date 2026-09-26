@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRegisterSW } from "virtual:pwa-register/react";
+import { usePWAUpdateSafety } from "../../hooks/usePWAUpdateSafety";
 
 const UPDATE_CHECK_INTERVAL_MS = 60 * 60 * 1000;
 
@@ -8,11 +9,19 @@ const PWAUpdatePrompt = () => {
         useState<ServiceWorkerRegistration>();
     const [isUpdateDismissed, setIsUpdateDismissed] = useState(false);
     const [isReloading, setIsReloading] = useState(false);
+    const [activationFailed, setActivationFailed] = useState(false);
+    const {
+        canAutoApply,
+        isUpdateSafe,
+        claimActivation,
+        releaseActivation,
+    } = usePWAUpdateSafety();
     const {
         needRefresh: [needRefresh, setNeedRefresh],
         offlineReady: [offlineReady, setOfflineReady],
         updateServiceWorker,
     } = useRegisterSW({
+        immediate: true,
         onRegisteredSW: (_serviceWorkerUrl, nextRegistration) => {
             setRegistration(nextRegistration);
         },
@@ -47,26 +56,64 @@ const PWAUpdatePrompt = () => {
         };
     }, [registration]);
 
-    const showUpdatePrompt = needRefresh && !isUpdateDismissed;
-
-    const applyUpdate = async () => {
+    const applyUpdate = useCallback(async (automatic: boolean) => {
         if (isReloading) return;
+        if (automatic && !claimActivation()) return;
         setIsReloading(true);
+        setActivationFailed(false);
         try {
             await updateServiceWorker(true);
             setNeedRefresh(false);
             setIsUpdateDismissed(true);
         } catch {
             setIsReloading(false);
+            setActivationFailed(true);
+            releaseActivation();
         }
-    };
+    }, [
+        claimActivation,
+        isReloading,
+        releaseActivation,
+        setNeedRefresh,
+        updateServiceWorker,
+    ]);
+
+    useEffect(() => {
+        if (
+            !needRefresh ||
+            !canAutoApply ||
+            !isUpdateSafe ||
+            isReloading ||
+            activationFailed
+        ) {
+            return;
+        }
+        void applyUpdate(true);
+    }, [
+        activationFailed,
+        applyUpdate,
+        canAutoApply,
+        isReloading,
+        isUpdateSafe,
+        needRefresh,
+    ]);
+
+    useEffect(() => {
+        if (!needRefresh) setActivationFailed(false);
+    }, [needRefresh]);
+
+    const showUpdatePrompt = needRefresh && !isUpdateDismissed;
 
     if (!showUpdatePrompt && !offlineReady) {
         return null;
     }
 
     const updateMessage = showUpdatePrompt
-        ? "A newer version is ready. Reload when you are ready to update."
+        ? activationFailed
+            ? "The update could not be applied automatically. You can retry it now."
+            : isReloading
+                ? "Applying the latest version…"
+                : "A newer version is ready. Finish your current changes, or reload now."
         : "The app shell is ready for offline use. Expense data still needs a connection.";
 
     return (
@@ -77,10 +124,10 @@ const PWAUpdatePrompt = () => {
                     <button
                         type="button"
                         className="ui-button ui-button-primary ui-button-sm"
-                        onClick={() => void applyUpdate()}
+                        onClick={() => void applyUpdate(false)}
                         disabled={isReloading}
                     >
-                        {isReloading ? "Reloading…" : "Reload now"}
+                        {isReloading ? "Applying…" : activationFailed ? "Retry update" : "Reload now"}
                     </button>
                 ) : null}
                 <button

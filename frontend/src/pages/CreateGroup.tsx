@@ -11,8 +11,10 @@ import DesktopBackLink from "../components/DesktopBackLink";
 import { useCurrencies } from "../hooks/useCurrencies";
 import { GroupMemberManager } from "../components/group/GroupMemberManager";
 import { AddMemberProvider } from "../contexts/AddMemberContext";
+import { usePWAUpdateBlocker } from "../hooks/usePWAUpdateBlocker";
 
 const CreateGroupContent = () => {
+    usePWAUpdateBlocker(true);
     const {
         groupName,
         setGroupName,

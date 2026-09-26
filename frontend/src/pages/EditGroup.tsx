@@ -15,6 +15,7 @@ import { apiFetch, getResponseErrorMessage } from "../lib/api";
 import { useCurrencies } from "../hooks/useCurrencies";
 import { GroupCurrencySettings, GroupInfo } from "../types/group";
 import { currencySettingsAreValid, legacyCurrencySettings } from "../lib/currencySettings";
+import { usePWAUpdateBlocker } from "../hooks/usePWAUpdateBlocker";
 
 interface GroupForm {
     groupName: string;
@@ -36,6 +37,7 @@ const EMPTY_CURRENCY_SETTINGS: GroupCurrencySettings = {
 };
 
 export default function EditGroup() {
+    usePWAUpdateBlocker(true);
     const { id } = useParams();
     const { hash } = useLocation();
     const navigate = useNavigate();

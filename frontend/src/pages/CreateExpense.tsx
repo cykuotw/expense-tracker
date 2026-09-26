@@ -18,8 +18,10 @@ import ExpenseSubmissionFeedback from "../components/expense/ExpenseSubmissionFe
 import ExpenseSubmitButton from "../components/expense/ExpenseSubmitButton";
 import DesktopBackLink from "../components/DesktopBackLink";
 import { CurrencyPicker } from "../components/group/CurrencyPicker";
+import { usePWAUpdateBlocker } from "../hooks/usePWAUpdateBlocker";
 
 const CreateExpenseContent = () => {
+    usePWAUpdateBlocker(true);
     const {
         groupId,
         selectedGroupId,

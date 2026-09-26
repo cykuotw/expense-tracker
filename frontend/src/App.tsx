@@ -11,6 +11,7 @@ import MobileScrollToTop from "./components/MobileScrollToTop";
 import OfflineScreen from "./components/pwa/OfflineScreen";
 import PWAUpdatePrompt from "./components/pwa/PWAUpdatePrompt";
 import { PWAInstallProvider } from "./contexts/PWAInstallProvider";
+import { PWAUpdateSafetyProvider } from "./contexts/PWAUpdateSafetyProvider";
 import { reportFrontendRenderError } from "./lib/frontendErrorReporting";
 
 const Login = lazy(() => import("./pages/Login"));
@@ -104,11 +105,13 @@ function App() {
             <Router>
                 <MobileScrollToTop />
                 <PWAInstallProvider>
-                    <AuthProvider>
-                        <Toaster position="bottom-center" />
-                        {import.meta.env.PROD ? <PWAUpdatePrompt /> : null}
-                        <AppRoutes />
-                    </AuthProvider>
+                    <PWAUpdateSafetyProvider>
+                        <AuthProvider>
+                            <Toaster position="bottom-center" />
+                            {import.meta.env.PROD ? <PWAUpdatePrompt /> : null}
+                            <AppRoutes />
+                        </AuthProvider>
+                    </PWAUpdateSafetyProvider>
                 </PWAInstallProvider>
             </Router>
         </AppErrorBoundary>

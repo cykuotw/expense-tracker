@@ -1,4 +1,5 @@
 import { API_URL } from "../configs/config";
+import { beginMutationActivity } from "./mutationActivity";
 
 export type AuthMode = "required" | "none";
 
@@ -108,35 +109,46 @@ export async function apiFetch(
     init: RequestInit = {},
     options: ApiFetchOptions = {}
 ) {
-    const { authMode = "required", retryOnAuthFailure = true } = options;
-    const headers = new Headers(init.headers);
+    const finishMutation = isMutatingMethod(init.method)
+        ? beginMutationActivity()
+        : undefined;
+    try {
+        const { authMode = "required", retryOnAuthFailure = true } = options;
+        const headers = new Headers(init.headers);
 
-    if (init.body && !(init.body instanceof FormData) && !headers.has("Content-Type")) {
-        headers.set("Content-Type", "application/json");
+        if (
+            init.body &&
+            !(init.body instanceof FormData) &&
+            !headers.has("Content-Type")
+        ) {
+            headers.set("Content-Type", "application/json");
+        }
+
+        const response = await csrfFetch(`${API_URL}${path}`, {
+            ...init,
+            credentials: "include",
+            headers,
+        });
+
+        if (authMode !== "required" || response.status !== 401) {
+            return response;
+        }
+
+        if (!retryOnAuthFailure) {
+            authFailureHandler?.();
+            return response;
+        }
+
+        const refreshed = await refreshAccessToken();
+        if (!refreshed) {
+            authFailureHandler?.();
+            return response;
+        }
+
+        return apiFetch(path, init, { ...options, retryOnAuthFailure: false });
+    } finally {
+        finishMutation?.();
     }
-
-    const response = await csrfFetch(`${API_URL}${path}`, {
-        ...init,
-        credentials: "include",
-        headers,
-    });
-
-    if (authMode !== "required" || response.status !== 401) {
-        return response;
-    }
-
-    if (!retryOnAuthFailure) {
-        authFailureHandler?.();
-        return response;
-    }
-
-    const refreshed = await refreshAccessToken();
-    if (!refreshed) {
-        authFailureHandler?.();
-        return response;
-    }
-
-    return apiFetch(path, init, { ...options, retryOnAuthFailure: false });
 }
 
 export async function getResponseErrorMessage(

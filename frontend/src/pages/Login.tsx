@@ -7,8 +7,10 @@ import LoginForm from "../components/auth/LoginForm";
 import { LoginProvider } from "../contexts/LoginContext";
 import { useAuth } from "../hooks/AuthContextHooks";
 import { apiFetch, getResponseError } from "../lib/api";
+import { usePWAUpdateBlocker } from "../hooks/usePWAUpdateBlocker";
 
 export default function Login() {
+    usePWAUpdateBlocker(true);
     const navigate = useNavigate();
     const { markLoggedIn } = useAuth();
 

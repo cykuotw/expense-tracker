@@ -22,6 +22,10 @@ self.addEventListener("message", (event) => {
     }
 });
 
+self.addEventListener("activate", (event) => {
+    event.waitUntil(self.clients.claim());
+});
+
 registerRoute(new NavigationRoute(createHandlerBoundToURL("index.html"), { denylist: [/^\/api\//, /^\/auth\//] }));
 registerRoute(({ url }) => url.pathname.endsWith("/runtime-config.js"), new NetworkFirst({ cacheName: "runtime-config", networkTimeoutSeconds: 3, plugins: [new ExpirationPlugin({ maxEntries: 1, maxAgeSeconds: 60 * 60 * 24 })] }));
 self.addEventListener("push", (event) => {

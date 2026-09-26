@@ -3,8 +3,10 @@ import { useRegister } from "../hooks/RegisterContextHooks";
 import { RegisterProvider } from "../contexts/RegisterContext";
 import GoogleSignInButton from "../components/auth/GoogleSignInButton";
 import { GOOGLE_OAUTH_ENABLED } from "../configs/config";
+import { usePWAUpdateBlocker } from "../hooks/usePWAUpdateBlocker";
 
 const RegisterContent = () => {
+    usePWAUpdateBlocker(true);
     const {
         formData,
         loading,

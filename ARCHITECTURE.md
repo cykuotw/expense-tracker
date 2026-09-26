@@ -136,7 +136,15 @@ PostgreSQL
   the promoted live-root copies with `no-cache`. In particular, the generated
   `service-worker.js` must remain snapshot-managed; serving it with immutable
   caching can leave installed clients on a stale application shell and prevent
-  the reload prompt from discovering new releases. Any change to build output
+  update discovery. The application checks at registration, when returning to
+  the foreground, and hourly while open. A waiting worker activates and reloads
+  automatically only when every known same-origin tab is free of editing-flow
+  and in-flight-mutation blockers; otherwise the worker waits and the user keeps
+  an explicit reload option. Cross-tab coordination persists only random tab
+  IDs, blocker booleans, and short-lived timestamps/activation leases—never form
+  values, account identifiers, tokens, routes, or error details. Stale tab state
+  expires automatically, and unavailable browser storage disables automatic
+  activation rather than weakening the safety check. Any change to build output
   classification must update snapshot, restoration, and cache-header regression
   tests in the same change.
 - `backend/internal/tracker` assembles the Gin application and its public,

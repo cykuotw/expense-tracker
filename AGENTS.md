@@ -21,6 +21,7 @@
 - If Safari verification required by `ARCHITECTURE.md` is unavailable, record the affected flow, platform, automated checks performed, and remaining manual steps in the handoff. Implementation may be ready for review, but browser verification remains incomplete and must be completed before release.
 - When blocked, preserve the remaining work and resumption steps in the active plan, or in the conversation when file writes are restricted. Implementation completion does not authorize task archival or release.
 - Deployment and repository Python tooling, including skill scripts, must run through `uv` (for example, `uv run python ...`); do not substitute the system `python3` environment.
+- For serverless Terraform resources whose attributes depend on `use_lambda_aliases`, verify both the pre-alias (`false`) and alias-aware (`true`) targeted plan paths before deployment. If alias cutover requires replacement, allow only the exact Terraform address and add a compatibility test with the real action sequence; never allow replacements by broad resource type. Keep `count`-controlled resource deletion allowlists and disablement tests synchronized with every conditional resource.
 
 ## Task tracking (read when creating or updating task notes)
 

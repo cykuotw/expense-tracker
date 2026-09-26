@@ -183,6 +183,14 @@ class UpdateCompatibilityTest(unittest.TestCase):
                     "address": "aws_cloudwatch_log_subscription_filter.worker_error_notifier[0]",
                     "change": {"actions": ["delete"]},
                 },
+                {
+                    "address": "aws_lambda_permission.ocr_logs_error_notifier[0]",
+                    "change": {"actions": ["delete"]},
+                },
+                {
+                    "address": "aws_cloudwatch_log_subscription_filter.ocr_error_notifier[0]",
+                    "change": {"actions": ["delete"]},
+                },
             ]
         }
 
@@ -195,7 +203,7 @@ class UpdateCompatibilityTest(unittest.TestCase):
 
         terraform.apply.assert_called_once()
 
-    def test_alias_cutover_allows_error_notifier_subscription_replacement(self) -> None:
+    def test_alias_cutover_allows_worker_and_ocr_subscription_replacement(self) -> None:
         context = mock.MagicMock()
         context.terraform_root = Path("/repo/deployment/serverless/infrastructure/tf")
         context.config.error_alerting_enabled = True
@@ -205,7 +213,11 @@ class UpdateCompatibilityTest(unittest.TestCase):
                 {
                     "address": "aws_cloudwatch_log_subscription_filter.worker_error_notifier[0]",
                     "change": {"actions": ["delete", "create"]},
-                }
+                },
+                {
+                    "address": "aws_cloudwatch_log_subscription_filter.ocr_error_notifier[0]",
+                    "change": {"actions": ["delete", "create"]},
+                },
             ]
         }
 

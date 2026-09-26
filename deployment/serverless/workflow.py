@@ -597,6 +597,8 @@ ERROR_ALERTING_RESOURCE_ADDRESSES = frozenset(
         "aws_lambda_function.error_notifier[0]",
         "aws_lambda_permission.worker_logs_error_notifier[0]",
         "aws_cloudwatch_log_subscription_filter.worker_error_notifier[0]",
+        "aws_lambda_permission.ocr_logs_error_notifier[0]",
+        "aws_cloudwatch_log_subscription_filter.ocr_error_notifier[0]",
     }
 )
 
@@ -703,6 +705,11 @@ def _apply_infrastructure_updates(
                     "aws_lambda_permission.worker_logs_error_notifier[0]",
                     "aws_lambda_permission.ocr_logs_error_notifier[0]",
                     "aws_cloudwatch_log_subscription_filter.worker_error_notifier[0]",
+                    # First OCR adoption changes the destination from the
+                    # unqualified notifier ARN to its live alias. CloudWatch
+                    # requires replacing the subscription filter for that
+                    # narrowly scoped transition.
+                    "aws_cloudwatch_log_subscription_filter.ocr_error_notifier[0]",
                 }
             ),
         )

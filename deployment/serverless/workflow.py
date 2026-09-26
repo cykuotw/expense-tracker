@@ -487,6 +487,7 @@ def _require_complete(context: Context) -> dict[str, Any]:
         verify_api(
             context.config,
             require_patch_cors=False,
+            require_ocr_cors=False,
             require_google_register_authorizer=False,
             require_google_link_authorizer=False,
         )

@@ -37,6 +37,7 @@ class UpdateCompatibilityTest(unittest.TestCase):
         verify_api.assert_called_once_with(
             context.config,
             require_patch_cors=False,
+            require_ocr_cors=False,
             require_google_register_authorizer=False,
             require_google_link_authorizer=False,
         )

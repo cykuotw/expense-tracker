@@ -19,6 +19,10 @@ class Response:
     body: bytes
 
 
+PREFLIGHT_PROPAGATION_TIMEOUT_SECONDS = 60
+PREFLIGHT_RETRY_INTERVAL_SECONDS = 3
+
+
 def _request(url: str, *, method: str = "GET", headers: dict[str, str] | None = None, body: object | None = None, opener: urllib.request.OpenerDirector | None = None) -> Response:
     data = None if body is None else json.dumps(body).encode()
     request = urllib.request.Request(url, data=data, method=method, headers=headers or {})
@@ -29,12 +33,57 @@ def _request(url: str, *, method: str = "GET", headers: dict[str, str] | None = 
         return Response(error.code, error.headers, error.read())
 
 
+def _cors_values(response: Response, name: str) -> set[str]:
+    return {
+        value.strip().lower()
+        for value in response.headers.get(name, "").split(",")
+        if value.strip()
+    }
+
+
+def _wait_for_cors_preflight(
+    url: str,
+    *,
+    origin: str,
+    method: str,
+    request_headers: tuple[str, ...],
+    required_headers: tuple[str, ...] = (),
+    failure_message: str,
+) -> None:
+    headers = {
+        "Origin": origin,
+        "Access-Control-Request-Method": method,
+        "Access-Control-Request-Headers": ", ".join(request_headers),
+    }
+
+    def ready() -> bool:
+        response = _request(url, method="OPTIONS", headers=headers)
+        allowed_methods = _cors_values(response, "Access-Control-Allow-Methods")
+        allowed_headers = _cors_values(response, "Access-Control-Allow-Headers")
+        return (
+            response.status == 204
+            and response.headers.get("Access-Control-Allow-Origin") == origin
+            and method.lower() in allowed_methods
+            and all(header.lower() in allowed_headers for header in required_headers)
+        )
+
+    if ready():
+        return
+    deadline = time.monotonic() + PREFLIGHT_PROPAGATION_TIMEOUT_SECONDS
+    while time.monotonic() < deadline:
+        time.sleep(PREFLIGHT_RETRY_INTERVAL_SECONDS)
+        if ready():
+            return
+    raise CommandError(failure_message)
+
+
 def verify_api(
     config: Config,
     raw_endpoint: str | None = None,
     *,
     raw_disabled: bool = False,
     require_patch_cors: bool = True,
+    require_ocr_cors: bool = True,
     require_google_register_authorizer: bool = True,
     require_google_link_authorizer: bool = True,
 ) -> None:
@@ -52,14 +101,22 @@ def verify_api(
     if preflight.status != 204 or preflight.headers.get("Access-Control-Allow-Origin") != origin:
         raise CommandError("allowed credentialed CORS preflight failed")
     if require_patch_cors:
-        patch_preflight = _request(f"{api}/admin/users/00000000-0000-0000-0000-000000000000/role", method="OPTIONS", headers={
-            "Origin": origin,
-            "Access-Control-Request-Method": "PATCH",
-            "Access-Control-Request-Headers": "Content-Type, Authorization, X-CSRF-Token",
-        })
-        allowed_methods = patch_preflight.headers.get("Access-Control-Allow-Methods", "")
-        if patch_preflight.status != 204 or "PATCH" not in {method.strip() for method in allowed_methods.split(",")}:
-            raise CommandError("PATCH CORS preflight failed")
+        _wait_for_cors_preflight(
+            f"{api}/admin/users/00000000-0000-0000-0000-000000000000/role",
+            origin=origin,
+            method="PATCH",
+            request_headers=("Content-Type", "Authorization", "X-CSRF-Token"),
+            failure_message="PATCH CORS preflight failed after propagation timeout",
+        )
+    if require_ocr_cors:
+        _wait_for_cors_preflight(
+            f"{api}/ocr/drafts",
+            origin=origin,
+            method="POST",
+            request_headers=("Content-Type", "Authorization", "X-OCR-Account-ID", "X-OCR-Request-ID"),
+            required_headers=("Content-Type", "Authorization", "X-OCR-Account-ID", "X-OCR-Request-ID"),
+            failure_message="OCR CORS preflight failed after propagation timeout",
+        )
     disallowed = _request(f"{api}/auth/csrf", headers={"Origin": "https://invalid.example"})
     if disallowed.headers.get("Access-Control-Allow-Origin"):
         raise CommandError("disallowed CORS origin was reflected")

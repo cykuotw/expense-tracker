@@ -57,11 +57,15 @@ Daily EventBridge -------------------------> Delivery Lambda (VPC)
   the 3.5 MiB byte limit; it carries no group or expense authority. API Gateway
   sends the raw receipt body to a separate 512 MB, 12-second OCR Lambda outside
   the VPC. That Lambda has no database configuration and rejects duplicate
-  capabilities with a conditional, TTL-backed DynamoDB claim. Phase 2 returns
-  a provider-free stub only: it has no Textract permission and performs no OCR
-  or receipt storage. Both capability minting and draft routes are throttled to
-  1 request/second with burst 1, and OCR reserved concurrency is one after
-  deployment activation.
+  capabilities with a conditional, TTL-backed DynamoDB claim. The OCR runtime
+  validates the decoded image dimensions and pixel budget, re-encodes it as a
+  metadata-free JPEG, claims the capability once, and makes a bounded Textract
+  `AnalyzeExpense` request. It returns only provider-neutral editable draft
+  fields with confidence and provenance; it performs no expense or receipt
+  storage. Its IAM role grants only `textract:AnalyzeExpense` plus the replay
+  claim and logging permissions. Both capability minting and draft routes are
+  throttled to 1 request/second with burst 1, and OCR reserved concurrency is
+  one after deployment activation.
 - **Bootstrap Lambda:** performs explicit migration and bootstrap work before
   Worker releases that depend on it. Migrations are never a request-time
   responsibility.

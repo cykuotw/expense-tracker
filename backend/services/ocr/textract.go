@@ -8,9 +8,15 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/textract"
 	"github.com/aws/aws-sdk-go-v2/service/textract/types"
+	"github.com/aws/smithy-go"
 )
 
-var ErrUnexpectedExpenseCount = errors.New("provider returned an unexpected number of expense documents")
+var (
+	ErrProviderRequestFailed  = errors.New("expense analysis provider request failed")
+	ErrProviderRejected       = errors.New("expense analysis provider rejected the document")
+	ErrProviderThrottled      = errors.New("expense analysis provider throttled the request")
+	ErrUnexpectedExpenseCount = errors.New("provider returned an unexpected number of expense documents")
+)
 
 type textractAPI interface {
 	AnalyzeExpense(context.Context, *textract.AnalyzeExpenseInput, ...func(*textract.Options)) (*textract.AnalyzeExpenseOutput, error)
@@ -30,7 +36,19 @@ func (provider *TextractProvider) AnalyzeExpense(ctx context.Context, document [
 		Document: &types.Document{Bytes: document},
 	})
 	if err != nil {
-		return Result{}, errors.New("analyze expense provider request failed")
+		if ctx.Err() != nil {
+			return Result{}, ctx.Err()
+		}
+		var apiError smithy.APIError
+		if errors.As(err, &apiError) {
+			switch apiError.ErrorCode() {
+			case "BadDocumentException", "DocumentTooLargeException", "UnsupportedDocumentException", "InvalidParameterException":
+				return Result{}, ErrProviderRejected
+			case "ProvisionedThroughputExceededException", "ThrottlingException":
+				return Result{}, ErrProviderThrottled
+			}
+		}
+		return Result{}, ErrProviderRequestFailed
 	}
 	if response == nil || len(response.ExpenseDocuments) != 1 {
 		return Result{}, ErrUnexpectedExpenseCount

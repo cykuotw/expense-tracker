@@ -2,6 +2,7 @@ package ocr
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"image"
@@ -25,6 +26,7 @@ var (
 	ErrOutputTooLarge     = errors.New("normalized image exceeds provider byte limit")
 	ErrUnsupportedFormat  = errors.New("unsupported image format")
 	ErrDimensionsTooLarge = errors.New("image dimensions exceed limit")
+	ErrPreprocessTimeout  = errors.New("image preprocessing deadline exceeded")
 )
 
 // PreprocessOptions bounds image decoding and provider payload size.
@@ -58,7 +60,16 @@ func DefaultPreprocessOptions() PreprocessOptions {
 // PreprocessRaster validates, decodes, flattens, and re-encodes a JPEG or PNG.
 // Re-encoding intentionally drops EXIF and other source metadata.
 func PreprocessRaster(reader io.Reader, options PreprocessOptions) (PreprocessedImage, error) {
+	return PreprocessRasterContext(context.Background(), reader, options)
+}
+
+// PreprocessRasterContext applies the same bounded transformation while
+// honoring cancellation between the bounded decode and encode stages.
+func PreprocessRasterContext(ctx context.Context, reader io.Reader, options PreprocessOptions) (PreprocessedImage, error) {
 	options = withPreprocessDefaults(options)
+	if err := preprocessingContextError(ctx); err != nil {
+		return PreprocessedImage{}, err
+	}
 	limited := io.LimitReader(reader, options.MaxSourceBytes+1)
 	source, err := io.ReadAll(limited)
 	if err != nil {
@@ -66,6 +77,9 @@ func PreprocessRaster(reader io.Reader, options PreprocessOptions) (Preprocessed
 	}
 	if int64(len(source)) > options.MaxSourceBytes {
 		return PreprocessedImage{}, ErrInputTooLarge
+	}
+	if err := preprocessingContextError(ctx); err != nil {
+		return PreprocessedImage{}, err
 	}
 
 	config, format, err := image.DecodeConfig(bytes.NewReader(source))
@@ -80,15 +94,30 @@ func PreprocessRaster(reader io.Reader, options PreprocessOptions) (Preprocessed
 		int64(config.Width)*int64(config.Height) > options.MaxPixels {
 		return PreprocessedImage{}, ErrDimensionsTooLarge
 	}
+	if err := preprocessingContextError(ctx); err != nil {
+		return PreprocessedImage{}, err
+	}
 
 	decoded, _, err := image.Decode(bytes.NewReader(source))
 	if err != nil {
 		return PreprocessedImage{}, fmt.Errorf("decode image: %w", err)
 	}
 	bounds := decoded.Bounds()
+	width, height := bounds.Dx(), bounds.Dy()
+	if width != config.Width || height != config.Height || width <= 0 || height <= 0 ||
+		width > options.MaxDimension || height > options.MaxDimension ||
+		int64(width)*int64(height) > options.MaxPixels {
+		return PreprocessedImage{}, ErrDimensionsTooLarge
+	}
+	if err := preprocessingContextError(ctx); err != nil {
+		return PreprocessedImage{}, err
+	}
 	flattened := image.NewRGBA(image.Rect(0, 0, bounds.Dx(), bounds.Dy()))
 	draw.Draw(flattened, flattened.Bounds(), image.NewUniform(color.White), image.Point{}, draw.Src)
 	draw.Draw(flattened, flattened.Bounds(), decoded, bounds.Min, draw.Over)
+	if err := preprocessingContextError(ctx); err != nil {
+		return PreprocessedImage{}, err
+	}
 
 	var output bytes.Buffer
 	if err := jpeg.Encode(&output, flattened, &jpeg.Options{Quality: options.JPEGQuality}); err != nil {
@@ -96,6 +125,9 @@ func PreprocessRaster(reader io.Reader, options PreprocessOptions) (Preprocessed
 	}
 	if output.Len() > options.MaxOutputBytes {
 		return PreprocessedImage{}, ErrOutputTooLarge
+	}
+	if err := preprocessingContextError(ctx); err != nil {
+		return PreprocessedImage{}, err
 	}
 
 	return PreprocessedImage{
@@ -124,4 +156,11 @@ func withPreprocessDefaults(options PreprocessOptions) PreprocessOptions {
 		options.JPEGQuality = defaults.JPEGQuality
 	}
 	return options
+}
+
+func preprocessingContextError(ctx context.Context) error {
+	if err := ctx.Err(); err != nil {
+		return fmt.Errorf("%w: %w", ErrPreprocessTimeout, err)
+	}
+	return nil
 }

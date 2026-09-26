@@ -461,7 +461,7 @@ class ComponentTest(unittest.TestCase):
         self.assertIn("limit_req zone=expense_tracker_reads burst=40 nodelay;", source)
         self.assertIn("Retry-After 60", source)
 
-    def test_ocr_runtime_is_isolated_throttled_and_provider_free(self) -> None:
+    def test_ocr_runtime_is_isolated_throttled_and_least_privilege(self) -> None:
         api = (ROOT / "infrastructure/tf/api.tf").read_text()
         ocr = (ROOT / "infrastructure/tf/ocr.tf").read_text()
 
@@ -475,7 +475,10 @@ class ComponentTest(unittest.TestCase):
         self.assertIn("reserved_concurrent_executions = 0", ocr)
         self.assertIn('billing_mode = "PAY_PER_REQUEST"', ocr)
         self.assertIn('Action = ["dynamodb:PutItem"]', ocr)
+        self.assertIn('Action = ["textract:AnalyzeExpense"]', ocr)
+        self.assertNotIn("textract:*", ocr.lower())
         self.assertNotIn("vpc_config", ocr)
-        self.assertNotIn("textract:", ocr.lower())
         self.assertNotIn("DB_", ocr)
         self.assertNotIn("aws_nat_gateway", ocr)
+        self.assertIn('namespace   = "AWS/Textract"', ocr)
+        self.assertIn('Operation = "AnalyzeExpense"', ocr)

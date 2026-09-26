@@ -8,6 +8,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/textract"
 	"github.com/aws/aws-sdk-go-v2/service/textract/types"
+	"github.com/aws/smithy-go"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -17,6 +18,16 @@ type fakeTextractClient struct {
 	err      error
 	input    *textract.AnalyzeExpenseInput
 }
+
+type fakeProviderAPIError struct {
+	code    string
+	message string
+}
+
+func (err fakeProviderAPIError) Error() string                 { return err.message }
+func (err fakeProviderAPIError) ErrorCode() string             { return err.code }
+func (err fakeProviderAPIError) ErrorMessage() string          { return err.message }
+func (err fakeProviderAPIError) ErrorFault() smithy.ErrorFault { return smithy.FaultClient }
 
 func (client *fakeTextractClient) AnalyzeExpense(
 	_ context.Context,
@@ -64,7 +75,27 @@ func TestTextractProviderDoesNotExposeProviderError(t *testing.T) {
 
 	_, err := provider.AnalyzeExpense(t.Context(), []byte("image"))
 	require.Error(t, err)
+	assert.ErrorIs(t, err, ErrProviderRequestFailed)
 	assert.NotContains(t, err.Error(), "sensitive provider payload")
+}
+
+func TestTextractProviderClassifiesRejectedAndThrottledDocuments(t *testing.T) {
+	for name, test := range map[string]struct {
+		code string
+		want error
+	}{
+		"rejected":  {code: "BadDocumentException", want: ErrProviderRejected},
+		"throttled": {code: "ThrottlingException", want: ErrProviderThrottled},
+	} {
+		t.Run(name, func(t *testing.T) {
+			client := &fakeTextractClient{err: fakeProviderAPIError{code: test.code, message: "sensitive provider payload"}}
+			provider := NewTextractProvider(client)
+
+			_, err := provider.AnalyzeExpense(t.Context(), []byte("image"))
+			assert.ErrorIs(t, err, test.want)
+			assert.NotContains(t, err.Error(), "sensitive provider payload")
+		})
+	}
 }
 
 func TestTextractProviderRejectsMultipleDocuments(t *testing.T) {

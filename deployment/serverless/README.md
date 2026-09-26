@@ -532,9 +532,14 @@ allowances.
 - The Worker begins at reserved concurrency `0`; Python publishes runtime configuration and activates it at `5`. With the deployed `DB_MAX_OPEN_CONNS=2`, the Worker has a maximum application-side database pool budget of 10 connections.
 - The OCR Lambda begins at reserved concurrency `0`; Python publishes its
   minimal environment and activates it at `1`. It has no VPC attachment,
-  database variables, Textract permission, NAT Gateway, or paid VPC endpoint.
-  Its only data-plane permission in Phase 2 is the conditional DynamoDB replay
-  claim. The route returns `providerInvoked: false`.
+  database variables, NAT Gateway, or paid VPC endpoint. Its data-plane
+  permissions are limited to the conditional DynamoDB replay claim and
+  `textract:AnalyzeExpense`. The OCR boundary validates and re-encodes receipt
+  images before making a bounded synchronous provider request.
+- Native `AWS/Textract` metrics for `AnalyzeExpense` expose successful request
+  count, provider latency, throttles, and provider errors. At the current
+  `ca-central-1` price, monthly provider cost can be estimated as
+  `SuccessfulRequestCount * USD 0.01` for the first one million pages.
 - The raw execute-api endpoint is disabled only after custom-domain and frontend checks pass.
 - Normal updates use narrowly targeted Terraform plans for supported API, CloudFront, notification, and database-support infrastructure changes; Lambda code and runtime environments remain owned by the deployment runtime after initial creation. Deletions are limited to the two retired invitation routes, the obsolete notification HTTPS egress rule, and the six conditional alerting resources when alerting is explicitly disabled; replacements and unrelated deletions are rejected.
 - Before an update, the deployer removes only unmanaged Worker/OCR/Bootstrap/Sender/Delivery/Error Notifier runtime environments if an AWS provider response persisted them into local state, then verifies that no configured protected value remains anywhere in Terraform artifacts.

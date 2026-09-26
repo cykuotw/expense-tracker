@@ -54,6 +54,9 @@ resource "aws_iam_role_policy" "ocr" {
       },
       {
         Effect = "Allow", Action = ["dynamodb:PutItem"], Resource = aws_dynamodb_table.ocr_replay.arn
+      },
+      {
+        Effect = "Allow", Action = ["textract:AnalyzeExpense"], Resource = "*"
       }
     ]
   })
@@ -96,8 +99,8 @@ resource "aws_cloudwatch_metric_alarm" "ocr_runtime" {
 
   metric_query {
     id          = "signal"
-    expression  = "errors + throttles"
-    label       = "OCR errors and throttles"
+    expression  = "errors + throttles + provider_throttles + provider_server_errors + provider_user_errors"
+    label       = "OCR runtime and Textract errors or throttles"
     return_data = true
   }
 
@@ -123,6 +126,45 @@ resource "aws_cloudwatch_metric_alarm" "ocr_runtime" {
       stat        = "Sum"
       dimensions = {
         FunctionName = aws_lambda_function.ocr.function_name
+      }
+    }
+  }
+
+  metric_query {
+    id = "provider_throttles"
+    metric {
+      metric_name = "ThrottledCount"
+      namespace   = "AWS/Textract"
+      period      = 60
+      stat        = "Sum"
+      dimensions = {
+        Operation = "AnalyzeExpense"
+      }
+    }
+  }
+
+  metric_query {
+    id = "provider_server_errors"
+    metric {
+      metric_name = "ServerErrorCount"
+      namespace   = "AWS/Textract"
+      period      = 60
+      stat        = "Sum"
+      dimensions = {
+        Operation = "AnalyzeExpense"
+      }
+    }
+  }
+
+  metric_query {
+    id = "provider_user_errors"
+    metric {
+      metric_name = "UserErrorCount"
+      namespace   = "AWS/Textract"
+      period      = 60
+      stat        = "Sum"
+      dimensions = {
+        Operation = "AnalyzeExpense"
       }
     }
   }

@@ -2,6 +2,7 @@ package ocr
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"image"
 	"image/color"
@@ -54,6 +55,14 @@ func TestPreprocessRasterRejectsMalformedContent(t *testing.T) {
 	_, err := PreprocessRaster(bytes.NewReader([]byte("not an image")), DefaultPreprocessOptions())
 	assert.Error(t, err)
 	assert.False(t, errors.Is(err, ErrUnsupportedFormat))
+}
+
+func TestPreprocessRasterContextRejectsExpiredDeadline(t *testing.T) {
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+
+	_, err := PreprocessRasterContext(ctx, bytes.NewReader(encodeTestJPEG(t, 8, 8)), DefaultPreprocessOptions())
+	assert.ErrorIs(t, err, ErrPreprocessTimeout)
 }
 
 func encodeTestJPEG(t *testing.T, width, height int) []byte {

@@ -13,8 +13,10 @@ import (
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-lambda-go/lambdacontext"
+	"github.com/aws/aws-sdk-go-v2/aws/retry"
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
+	"github.com/aws/aws-sdk-go-v2/service/textract"
 )
 
 func main() {
@@ -29,9 +31,28 @@ func main() {
 		logger.Error("ocr_aws_configuration_load_failed", slog.String("error_type", fmt.Sprintf("%T", err)))
 		os.Exit(1)
 	}
-	handler := ocr.NewStubHandler(
+	textractClient := textract.NewFromConfig(awsConfig, func(options *textract.Options) {
+		options.Retryer = retry.NewStandard(func(retryOptions *retry.StandardOptions) {
+			retryOptions.MaxAttempts = 2
+			retryOptions.MaxBackoff = 500 * time.Millisecond
+		})
+	})
+	handler := ocr.NewDraftHandler(
 		runtimeConfig,
 		ocr.NewDynamoReplayStore(dynamodb.NewFromConfig(awsConfig), runtimeConfig.ReplayTable),
+		ocr.NewTextractProvider(textractClient),
+		func(observation ocr.DraftObservation) {
+			logger.Info("ocr_draft_pipeline_completed",
+				slog.String("outcome", observation.Outcome),
+				slog.Int("source_bytes", observation.SourceBytes),
+				slog.Int("normalized_bytes", observation.NormalizedBytes),
+				slog.Int("image_width", observation.Width),
+				slog.Int("image_height", observation.Height),
+				slog.Int64("preprocess_latency_ms", observation.PreprocessLatencyMillis),
+				slog.Int64("provider_latency_ms", observation.ProviderLatencyMillis),
+				slog.Bool("provider_invoked", observation.ProviderInvoked),
+			)
+		},
 	)
 	logger.Info("ocr_serverless_started")
 

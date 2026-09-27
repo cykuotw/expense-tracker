@@ -27,6 +27,9 @@ const EditExpense = lazy(() => import("./pages/EditExpense"));
 const AdminUsers = lazy(() => import("./pages/AdminUsers"));
 const AccountSettings = lazy(() => import("./pages/AccountSettings"));
 const MonthlyReview = lazy(() => import("./pages/MonthlyReview"));
+const ReceiptEditorLab = import.meta.env.DEV
+    ? lazy(() => import("./pages/ReceiptEditorLab"))
+    : null;
 
 function RouteFallback() {
     return (
@@ -100,19 +103,32 @@ function AppRoutes() {
 }
 
 function App() {
+    const receiptEditorLab = ReceiptEditorLab &&
+        window.location.pathname === "/__dev/receipt-editor";
+
     return (
         <AppErrorBoundary onError={reportFrontendRenderError}>
             <Router>
-                <MobileScrollToTop />
-                <PWAInstallProvider>
-                    <PWAUpdateSafetyProvider>
-                        <AuthProvider>
-                            <Toaster position="bottom-center" />
-                            {import.meta.env.PROD ? <PWAUpdatePrompt /> : null}
-                            <AppRoutes />
-                        </AuthProvider>
-                    </PWAUpdateSafetyProvider>
-                </PWAInstallProvider>
+                {receiptEditorLab ? (
+                    <Suspense fallback={<RouteFallback />}>
+                        <Routes>
+                            <Route path="/__dev/receipt-editor" element={<ReceiptEditorLab />} />
+                        </Routes>
+                    </Suspense>
+                ) : (
+                    <>
+                        <MobileScrollToTop />
+                        <PWAInstallProvider>
+                            <PWAUpdateSafetyProvider>
+                                <AuthProvider>
+                                    <Toaster position="bottom-center" />
+                                    {import.meta.env.PROD ? <PWAUpdatePrompt /> : null}
+                                    <AppRoutes />
+                                </AuthProvider>
+                            </PWAUpdateSafetyProvider>
+                        </PWAInstallProvider>
+                    </>
+                )}
             </Router>
         </AppErrorBoundary>
     );

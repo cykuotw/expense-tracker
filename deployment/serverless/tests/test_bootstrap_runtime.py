@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import base64
+import hashlib
 import sys
 import tempfile
 import unittest
@@ -40,6 +42,97 @@ def runtime_config() -> SimpleNamespace:
 
 
 class BootstrapRuntimeTest(unittest.TestCase):
+    def test_unchanged_release_reuses_existing_version(self) -> None:
+        client = mock.MagicMock()
+        client.json.return_value = {
+            "Environment": {"Variables": {"SAFE": "worker"}},
+        }
+        with tempfile.TemporaryDirectory() as temporary:
+            artifact = Path(temporary) / "worker.zip"
+            artifact.write_bytes(b"same-artifact")
+            existing = {
+                "functionName": "worker",
+                "version": "7",
+                "qualifiedArn": "arn:aws:lambda:ca-central-1:123:function:worker:7",
+                "codeSha256": base64.b64encode(
+                    hashlib.sha256(artifact.read_bytes()).digest(),
+                ).decode(),
+            }
+            record = runtime.publish_worker_release(
+                client,
+                artifact,
+                runtime_config(),
+                {"worker_function_name": "worker", "database_host": "db.internal"},
+                Path(temporary),
+                "20260919T184500Z-a1b2c3d4e5f6",
+                existing,
+            )
+
+        self.assertEqual(record, existing)
+        client.update_code.assert_not_called()
+        client.update_environment.assert_not_called()
+        client.publish_version.assert_not_called()
+        client.activate_worker.assert_called_once_with("worker")
+
+    def test_runtime_environment_change_requires_new_release(self) -> None:
+        client = mock.MagicMock()
+        client.json.return_value = {
+            "Environment": {"Variables": {"SAFE": "old-value"}},
+        }
+        with tempfile.TemporaryDirectory() as temporary:
+            artifact = Path(temporary) / "worker.zip"
+            artifact.write_bytes(b"same-artifact")
+            existing = {
+                "functionName": "worker",
+                "version": "7",
+                "qualifiedArn": "arn:aws:lambda:ca-central-1:123:function:worker:7",
+                "codeSha256": base64.b64encode(
+                    hashlib.sha256(artifact.read_bytes()).digest(),
+                ).decode(),
+            }
+
+            self.assertTrue(
+                runtime.release_needs_publish(
+                    client,
+                    existing,
+                    artifact,
+                    {"Variables": {"SAFE": "worker"}},
+                )
+            )
+
+    def test_versioned_infrastructure_change_requires_new_release(self) -> None:
+        client = mock.MagicMock()
+        client.json.side_effect = [
+            {
+                "Environment": {"Variables": {"SAFE": "worker"}},
+                "MemorySize": 128,
+            },
+            {
+                "Environment": {"Variables": {"SAFE": "worker"}},
+                "MemorySize": 256,
+            },
+        ]
+        with tempfile.TemporaryDirectory() as temporary:
+            artifact = Path(temporary) / "worker.zip"
+            artifact.write_bytes(b"same-artifact")
+            existing = {
+                "functionName": "worker",
+                "version": "7",
+                "qualifiedArn": "arn:aws:lambda:ca-central-1:123:function:worker:7",
+                "codeSha256": base64.b64encode(
+                    hashlib.sha256(artifact.read_bytes()).digest(),
+                ).decode(),
+            }
+
+            self.assertTrue(
+                runtime.release_needs_publish(
+                    client,
+                    existing,
+                    artifact,
+                    {"Variables": {"SAFE": "worker"}},
+                )
+            )
+
     def test_release_publication_orders_code_config_then_version(self) -> None:
         client = mock.MagicMock()
         client.publish_version.return_value = {

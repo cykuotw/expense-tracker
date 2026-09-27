@@ -44,6 +44,113 @@ def managed_manifest() -> dict[str, object]:
 
 
 class WorkflowTest(unittest.TestCase):
+    def test_artifact_components_follow_update_scope(self) -> None:
+        self.assertEqual(workflow._artifact_components("frontend"), frozenset())
+        self.assertEqual(
+            workflow._artifact_components("migrations"),
+            frozenset({"bootstrap"}),
+        )
+        self.assertEqual(
+            workflow._artifact_components("backend"),
+            workflow.artifacts.ALL_COMPONENTS,
+        )
+        self.assertEqual(
+            workflow._artifact_components("all"),
+            workflow.artifacts.ALL_COMPONENTS,
+        )
+
+    def test_automatic_cleanup_reuses_validated_outputs(self) -> None:
+        context = mock.MagicMock()
+        outputs = {"frontend_bucket_name": "bucket"}
+        with mock.patch.object(workflow, "cleanup_releases") as cleanup:
+            workflow._automatic_release_cleanup(context, outputs)
+
+        cleanup.assert_called_once_with(
+            context,
+            apply=True,
+            require_confirmation=False,
+            validated_outputs=outputs,
+        )
+
+    def test_step_reports_elapsed_seconds(self) -> None:
+        with mock.patch.object(
+            workflow.time,
+            "monotonic",
+            side_effect=[10.0, 12.5],
+        ), mock.patch("builtins.print") as printed:
+            workflow.step("example")
+            workflow.step("example", "pass")
+
+        self.assertEqual(printed.call_args_list[0].args[0], "[start] example")
+        self.assertEqual(
+            printed.call_args_list[1].args[0],
+            "[pass] example elapsed_seconds=2.50",
+        )
+
+    def test_unchanged_notifications_skip_sender_drain(self) -> None:
+        context = mock.MagicMock()
+        context.config.sender_environment.return_value = {
+            "Variables": {"DELIVERY": "delivery:live"},
+        }
+        context.config.delivery_environment.return_value = {
+            "Variables": {"DB": "private"},
+        }
+        outputs = {
+            "delivery_function_name": "delivery",
+            "database_host": "private",
+        }
+        built = {
+            "sender": Path("sender.zip"),
+            "delivery": Path("delivery.zip"),
+        }
+        backend = managed_manifest()["backend"]
+
+        with mock.patch.object(
+            workflow.runtime,
+            "release_needs_publish",
+            side_effect=[False, False],
+        ):
+            attempted, previous = workflow._pause_sender_for_notification_changes(
+                context,
+                outputs,
+                built,
+                backend,
+                "sender",
+            )
+
+        self.assertFalse(attempted)
+        self.assertIsNone(previous)
+        context.aws.pause_sender.assert_not_called()
+
+    def test_changed_notification_still_drains_sender(self) -> None:
+        context = mock.MagicMock()
+        context.aws.pause_sender.return_value = 1
+        outputs = {
+            "delivery_function_name": "delivery",
+            "database_host": "private",
+        }
+        built = {
+            "sender": Path("sender.zip"),
+            "delivery": Path("delivery.zip"),
+        }
+
+        with mock.patch.object(
+            workflow.runtime,
+            "release_needs_publish",
+            return_value=True,
+        ):
+            attempted, previous = workflow._pause_sender_for_notification_changes(
+                context,
+                outputs,
+                built,
+                managed_manifest()["backend"],
+                "sender",
+            )
+
+        self.assertTrue(attempted)
+        self.assertEqual(previous, 1)
+        context.aws.pause_sender.assert_called_once_with("sender")
+
     def test_fresh_plan_uses_pre_alias_infrastructure_projection(self) -> None:
         context = mock.MagicMock()
         context.repo_root = Path("/repo")
@@ -406,6 +513,64 @@ class WorkflowTest(unittest.TestCase):
             },
         )
         self.assertEqual(events, ["migrations", "notifier", "backend", "ocr", "sender"])
+
+    def test_frontend_scope_does_not_build_backend_artifacts(self) -> None:
+        context = mock.MagicMock()
+        context.repo_root = Path("/repo")
+        context.serverless_root = Path("/repo/deployment/serverless")
+        context.terraform_root = context.serverless_root / "infrastructure/tf"
+        outputs = {"frontend_bucket_name": "bucket"}
+        store = mock.MagicMock()
+        store.get_current.return_value = {"currentReleaseId": RELEASE_ID}
+        active = managed_manifest()
+        active["operation"] = "deploy"
+        store.get_release.return_value = active
+        policy = mock.MagicMock(migrations=(), baseline_version=35)
+        with mock.patch.object(workflow, "preflight"), \
+             mock.patch.object(workflow, "_require_complete", return_value=outputs), \
+             mock.patch.object(workflow, "_migration_preflight"), \
+             mock.patch.object(workflow.runtime, "repair_secret_boundary", return_value=0), \
+             mock.patch.object(
+                 workflow,
+                 "repository_release_identity",
+                 return_value=(
+                     "20260919T120000Z-0123456789ab",
+                     "0" * 40,
+                     "2026-09-19T12:00:00Z",
+                 ),
+             ), \
+             mock.patch.object(workflow, "ReleaseStore", return_value=store), \
+             mock.patch.object(
+                 workflow,
+                 "_adopt_existing_release",
+                 return_value=managed_manifest(),
+             ), \
+             mock.patch.object(
+                 workflow.migration_policy,
+                 "validate_repository",
+                 return_value=policy,
+             ), \
+             mock.patch.object(workflow, "_apply_infrastructure_updates", return_value=None), \
+             mock.patch.object(
+                 workflow,
+                 "_database_record",
+                 return_value=managed_manifest()["database"],
+             ), \
+             mock.patch.object(
+                 workflow,
+                 "publish_frontend",
+                 return_value={
+                     "snapshotPrefix": "release/frontend",
+                     "snapshotManifestKey": "release/frontend/snapshot.json",
+                     "snapshotDigest": "sha256:" + "1" * 64,
+                 },
+             ), \
+             mock.patch.object(workflow, "verify_frontend"), \
+             mock.patch.object(workflow, "_automatic_release_cleanup"), \
+             mock.patch.object(workflow.artifacts, "build") as build:
+            workflow.update(context, "frontend")
+
+        build.assert_not_called()
 
     def test_first_release_history_cutover_requires_all_scope(self) -> None:
         context = mock.MagicMock()

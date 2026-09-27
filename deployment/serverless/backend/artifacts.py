@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import tempfile
 import zipfile
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from backend.migration_policy import MANIFEST_NAME, validate_repository
@@ -29,67 +30,86 @@ def _go_build(repo_root: Path, package: str, destination: Path, ldflags: str = "
     )
 
 
-def build(repo_root: Path, output_dir: Path) -> dict[str, Path]:
+COMPONENT_PACKAGES = {
+    "worker": (
+        "./backend/cmd/tracker-serverless",
+        "-s -w -X expense-tracker/backend/config.BuildMode=release",
+    ),
+    "ocr": ("./backend/cmd/ocr-serverless", "-s -w"),
+    "bootstrap": ("./backend/cmd/bootstrap-serverless", "-s -w"),
+    "sender": ("./backend/cmd/push-sender-serverless", "-s -w"),
+    "delivery": ("./backend/cmd/push-delivery-serverless", "-s -w"),
+    "notifier": ("./backend/cmd/error-notifier-serverless", "-s -w"),
+}
+ALL_COMPONENTS = frozenset(COMPONENT_PACKAGES)
+MAX_PARALLEL_GO_BUILDS = 3
+
+
+def build(
+    repo_root: Path,
+    output_dir: Path,
+    *,
+    components: frozenset[str] = ALL_COMPONENTS,
+) -> dict[str, Path]:
+    unknown = components - ALL_COMPONENTS
+    if unknown:
+        raise ValueError(f"unknown backend artifact components: {sorted(unknown)}")
+    if not components:
+        return {}
     validate_repository(repo_root)
     output_dir.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="expense-tracker-artifacts-") as temporary:
         staging = Path(temporary)
-        worker_binary = staging / "worker-bootstrap"
-        ocr_binary = staging / "ocr-bootstrap"
-        bootstrap_binary = staging / "admin-bootstrap"
-        sender_binary = staging / "push-sender"
-        delivery_binary = staging / "push-delivery"
-        notifier_binary = staging / "error-notifier"
-        _go_build(
-            repo_root,
-            "./backend/cmd/tracker-serverless",
-            worker_binary,
-            "-s -w -X expense-tracker/backend/config.BuildMode=release",
-        )
-        _go_build(repo_root, "./backend/cmd/ocr-serverless", ocr_binary)
-        _go_build(repo_root, "./backend/cmd/bootstrap-serverless", bootstrap_binary)
-        _go_build(repo_root, "./backend/cmd/push-sender-serverless", sender_binary)
-        _go_build(repo_root, "./backend/cmd/push-delivery-serverless", delivery_binary)
-        _go_build(repo_root, "./backend/cmd/error-notifier-serverless", notifier_binary)
+        binaries = {
+            component: staging / f"{component}-bootstrap"
+            for component in components
+        }
+        with ThreadPoolExecutor(
+            max_workers=min(MAX_PARALLEL_GO_BUILDS, len(components)),
+        ) as executor:
+            futures = [
+                executor.submit(
+                    _go_build,
+                    repo_root,
+                    COMPONENT_PACKAGES[component][0],
+                    binaries[component],
+                    COMPONENT_PACKAGES[component][1],
+                )
+                for component in sorted(components)
+            ]
+            for future in futures:
+                future.result()
 
         artifacts = {
-            "worker": output_dir / "worker.zip",
-            "ocr": output_dir / "ocr.zip",
-            "bootstrap": output_dir / "bootstrap.zip",
-            "sender": output_dir / "sender.zip",
-            "delivery": output_dir / "delivery.zip",
-            "notifier": output_dir / "notifier.zip",
+            component: output_dir / f"{component}.zip"
+            for component in components
         }
-        worker_data = worker_binary.read_bytes()
-        with zipfile.ZipFile(artifacts["worker"], "w") as archive:
-            archive.writestr(_entry("bootstrap", worker_data, 0o100755), worker_data)
-        ocr_data = ocr_binary.read_bytes()
-        with zipfile.ZipFile(artifacts["ocr"], "w") as archive:
-            archive.writestr(_entry("bootstrap", ocr_data, 0o100755), ocr_data)
-        migrations = sorted((repo_root / "backend/cmd/migrate/migrations").glob("*.sql"))
-        manifest = repo_root / "backend/cmd/migrate/migrations" / MANIFEST_NAME
-        if not any(path.name.endswith(".up.sql") for path in migrations):
-            raise RuntimeError("no up migrations found for bootstrap artifact")
-        with zipfile.ZipFile(artifacts["bootstrap"], "w") as archive:
-            data = bootstrap_binary.read_bytes()
-            archive.writestr(_entry("bootstrap", data, 0o100755), data)
-            for migration in migrations:
-                data = migration.read_bytes()
-                archive.writestr(_entry(f"migrations/{migration.name}", data, 0o100644), data)
-            manifest_data = manifest.read_bytes()
-            archive.writestr(
-                _entry(f"migrations/{MANIFEST_NAME}", manifest_data, 0o100644),
-                manifest_data,
+        for component in sorted(components - {"bootstrap"}):
+            data = binaries[component].read_bytes()
+            with zipfile.ZipFile(artifacts[component], "w") as archive:
+                archive.writestr(_entry("bootstrap", data, 0o100755), data)
+
+        if "bootstrap" in components:
+            migrations = sorted(
+                (repo_root / "backend/cmd/migrate/migrations").glob("*.sql")
             )
-        sender_data = sender_binary.read_bytes()
-        with zipfile.ZipFile(artifacts["sender"], "w") as archive:
-            archive.writestr(_entry("bootstrap", sender_data, 0o100755), sender_data)
-        delivery_data = delivery_binary.read_bytes()
-        with zipfile.ZipFile(artifacts["delivery"], "w") as archive:
-            archive.writestr(_entry("bootstrap", delivery_data, 0o100755), delivery_data)
-        notifier_data = notifier_binary.read_bytes()
-        with zipfile.ZipFile(artifacts["notifier"], "w") as archive:
-            archive.writestr(_entry("bootstrap", notifier_data, 0o100755), notifier_data)
+            manifest = repo_root / "backend/cmd/migrate/migrations" / MANIFEST_NAME
+            if not any(path.name.endswith(".up.sql") for path in migrations):
+                raise RuntimeError("no up migrations found for bootstrap artifact")
+            with zipfile.ZipFile(artifacts["bootstrap"], "w") as archive:
+                data = binaries["bootstrap"].read_bytes()
+                archive.writestr(_entry("bootstrap", data, 0o100755), data)
+                for migration in migrations:
+                    data = migration.read_bytes()
+                    archive.writestr(
+                        _entry(f"migrations/{migration.name}", data, 0o100644),
+                        data,
+                    )
+                manifest_data = manifest.read_bytes()
+                archive.writestr(
+                    _entry(f"migrations/{MANIFEST_NAME}", manifest_data, 0o100644),
+                    manifest_data,
+                )
         for artifact in artifacts.values():
             os.chmod(artifact, 0o600)
         return artifacts

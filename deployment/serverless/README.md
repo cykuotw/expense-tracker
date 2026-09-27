@@ -147,6 +147,18 @@ application dependencies.
 
 For each frontend publication, the deployer runs `pnpm install
 --frozen-lockfile`, `pnpm run test:run`, and `pnpm run build` from `frontend/`.
+Frontend-only updates do not build backend Lambda artifacts. Migration-only
+updates build only Bootstrap; backend and all-scope updates build the six
+independent Go entrypoints with bounded concurrency.
+
+Update releases compare each candidate Lambda zip hash and exact runtime
+environment with the currently active immutable version. An unchanged function
+is carried forward in the new release manifest instead of publishing another
+numbered version. Sender is drained for up to 60 seconds only when Sender or
+Delivery code/configuration changes; other backend-only changes do not incur
+that fixed wait. Major deployment steps print `elapsed_seconds` on completion.
+Automatic release cleanup reuses the outputs and health checks validated by the
+successful deployment rather than running a second complete preflight.
 
 ## Commands
 

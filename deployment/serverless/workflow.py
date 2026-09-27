@@ -37,6 +37,8 @@ from release import (
     utc_text,
 )
 
+_STEP_STARTED_AT: dict[str, float] = {}
+
 
 @dataclass(frozen=True)
 class Context:
@@ -54,7 +56,54 @@ def make_context(config: Config) -> Context:
 
 
 def step(name: str, status: str = "start") -> None:
-    print(f"[{status}] {name}", flush=True)
+    if status == "start":
+        _STEP_STARTED_AT[name] = time.monotonic()
+        print(f"[{status}] {name}", flush=True)
+        return
+    started_at = _STEP_STARTED_AT.pop(name, None)
+    elapsed = (
+        f" elapsed_seconds={time.monotonic() - started_at:.2f}"
+        if started_at is not None
+        else ""
+    )
+    print(f"[{status}] {name}{elapsed}", flush=True)
+
+
+def _artifact_components(scope: str) -> frozenset[str]:
+    if scope == "frontend":
+        return frozenset()
+    if scope == "migrations":
+        return frozenset({"bootstrap"})
+    return artifacts.ALL_COMPONENTS
+
+
+def _pause_sender_for_notification_changes(
+    context: Context,
+    outputs: dict[str, Any],
+    built: dict[str, Path],
+    target_backend: dict[str, Any],
+    sender_name: str,
+) -> tuple[bool, int | None]:
+    notification_changes = (
+        runtime.release_needs_publish(
+            context.aws,
+            target_backend.get("sender"),
+            built["sender"],
+            context.config.sender_environment(
+                f"{outputs['delivery_function_name']}:live"
+            ),
+        )
+        or runtime.release_needs_publish(
+            context.aws,
+            target_backend.get("delivery"),
+            built["delivery"],
+            context.config.delivery_environment(str(outputs["database_host"])),
+        )
+    )
+    if not notification_changes:
+        print("reuse_notification_runtime=true sender_drain_skipped=true", flush=True)
+        return False, None
+    return True, context.aws.pause_sender(sender_name)
 
 
 def require_node_22() -> None:
@@ -300,6 +349,7 @@ def deploy(context: Context) -> None:
                 return
             step("artifacts")
             built = artifacts.build(context.repo_root, context.serverless_root / "build")
+            step("artifacts", "pass")
             _migration_preflight(context, "all", outputs)
             release_id, commit, created_at = repository_release_identity(context.repo_root)
             store = ReleaseStore(context.aws, context.config)
@@ -473,7 +523,7 @@ def deploy(context: Context) -> None:
                         f"{recovery_error}"
                     ) from deployment_error
                 raise
-            _automatic_release_cleanup(context)
+            _automatic_release_cleanup(context, outputs)
 
 
 def _require_complete(context: Context) -> dict[str, Any]:
@@ -929,7 +979,16 @@ def update(context: Context, scope: str) -> None:
     if repaired_state_files:
         print(f"repaired Terraform secret boundary: files={repaired_state_files}")
     release_id, commit, created_at = repository_release_identity(context.repo_root)
-    built = artifacts.build(context.repo_root, context.serverless_root / "build")
+    components = _artifact_components(scope)
+    built: dict[str, Path] = {}
+    if components:
+        step("artifacts")
+        built = artifacts.build(
+            context.repo_root,
+            context.serverless_root / "build",
+            components=components,
+        )
+        step("artifacts", "pass")
     store.put_candidate(_candidate(release_id, created_at, scope))
     current_manifest: dict[str, Any] | None = None
     promoted = False
@@ -984,13 +1043,22 @@ def update(context: Context, scope: str) -> None:
                 outputs,
                 context.terraform_root,
                 release_id,
+                target_backend.get("bootstrap"),
             )
             target_backend["bootstrap"] = bootstrap
             step("migrations", "pass")
 
         if scope in {"backend", "all"}:
-            previous_sender_concurrency = context.aws.pause_sender(sender_name)
-            sender_pause_attempted = True
+            (
+                sender_pause_attempted,
+                previous_sender_concurrency,
+            ) = _pause_sender_for_notification_changes(
+                context,
+                outputs,
+                built,
+                target_backend,
+                str(sender_name),
+            )
             step("backend")
             target_backend["errorNotifier"] = runtime.publish_error_notifier_release(
                 context.aws,
@@ -999,6 +1067,7 @@ def update(context: Context, scope: str) -> None:
                 outputs,
                 context.terraform_root,
                 release_id,
+                target_backend.get("errorNotifier"),
             )
             target_backend["worker"] = runtime.publish_worker_release(
                 context.aws,
@@ -1007,6 +1076,7 @@ def update(context: Context, scope: str) -> None:
                 outputs,
                 context.terraform_root,
                 release_id,
+                target_backend.get("worker"),
             )
             target_backend["ocr"] = runtime.publish_ocr_release(
                 context.aws,
@@ -1015,6 +1085,7 @@ def update(context: Context, scope: str) -> None:
                 outputs,
                 context.terraform_root,
                 release_id,
+                target_backend.get("ocr"),
             )
             sender, delivery = runtime.publish_notification_releases(
                 context.aws,
@@ -1025,6 +1096,8 @@ def update(context: Context, scope: str) -> None:
                 context.terraform_root,
                 release_id,
                 activate=False,
+                existing_sender=target_backend.get("sender"),
+                existing_delivery=target_backend.get("delivery"),
             )
             target_backend["sender"] = sender
             target_backend["delivery"] = delivery
@@ -1121,7 +1194,7 @@ def update(context: Context, scope: str) -> None:
                 + "; ".join(recovery_errors)
             ) from deployment_error
         raise
-    _automatic_release_cleanup(context)
+    _automatic_release_cleanup(context, outputs)
     print("deployment_state=complete")
 
 
@@ -1281,16 +1354,20 @@ def activate_release(
                 + "; ".join(recovery_errors)
             ) from activation_error
         raise
-    _automatic_release_cleanup(context)
+    _automatic_release_cleanup(context, outputs)
     print(f"deployment_state=complete current_release={release_id}")
 
 
-def _automatic_release_cleanup(context: Context) -> None:
+def _automatic_release_cleanup(
+    context: Context,
+    outputs: dict[str, Any],
+) -> None:
     try:
         cleanup_releases(
             context,
             apply=True,
             require_confirmation=False,
+            validated_outputs=outputs,
         )
     except Exception as error:
         raise CommandError(
@@ -1304,9 +1381,13 @@ def cleanup_releases(
     *,
     apply: bool | None = None,
     require_confirmation: bool = True,
+    validated_outputs: dict[str, Any] | None = None,
 ) -> None:
-    preflight(context, mutation=True)
-    outputs = _require_complete(context)
+    if validated_outputs is None:
+        preflight(context, mutation=True)
+        outputs = _require_complete(context)
+    else:
+        outputs = validated_outputs
     store = ReleaseStore(context.aws, context.config)
     pointer = store.get_current()
     if pointer is None:

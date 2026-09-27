@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import hashlib
 import json
 import os
@@ -10,6 +11,25 @@ from typing import Any
 from common.aws import AWSClient
 from common.command import CommandError, protected_json
 from config import Config
+
+VERSIONED_CONFIGURATION_FIELDS = (
+    "Runtime",
+    "Role",
+    "Handler",
+    "Timeout",
+    "MemorySize",
+    "VpcConfig",
+    "DeadLetterConfig",
+    "KMSKeyArn",
+    "TracingConfig",
+    "Layers",
+    "FileSystemConfigs",
+    "PackageType",
+    "Architectures",
+    "EphemeralStorage",
+    "SnapStart",
+    "LoggingConfig",
+)
 
 
 def _state_digest(terraform_root: Path) -> str | None:
@@ -249,7 +269,19 @@ def _publish_configured_function(
     release_id: str,
     config: Config,
     terraform_root: Path,
+    existing: dict[str, str] | None = None,
 ) -> dict[str, str]:
+    if existing is not None and not release_needs_publish(
+        client,
+        existing,
+        artifact,
+        environment,
+    ):
+        print(
+            f"reuse_lambda={function_name}:{existing['version']}",
+            flush=True,
+        )
+        return existing
     before = _state_digest(terraform_root)
     client.update_code(function_name, artifact)
     with protected_json(
@@ -269,6 +301,45 @@ def _publish_configured_function(
     return client.publish_version(function_name)
 
 
+def _artifact_code_sha256(artifact: Path) -> str:
+    return base64.b64encode(hashlib.sha256(artifact.read_bytes()).digest()).decode()
+
+
+def release_needs_publish(
+    client: AWSClient,
+    existing: dict[str, str] | None,
+    artifact: Path,
+    environment: dict[str, dict[str, str]],
+) -> bool:
+    if not artifact.is_file():
+        return True
+    if existing is None or existing.get("codeSha256") != _artifact_code_sha256(artifact):
+        return True
+    version_configuration = client.json(
+        "lambda",
+        "get-function-configuration",
+        "--function-name",
+        str(existing["qualifiedArn"]),
+    )
+    latest_configuration = client.json(
+        "lambda",
+        "get-function-configuration",
+        "--function-name",
+        str(existing["functionName"]),
+    )
+    actual_environment = version_configuration.get("Environment", {}).get(
+        "Variables",
+        {},
+    )
+    desired_environment = environment.get("Variables", {})
+    if actual_environment != desired_environment:
+        return True
+    return any(
+        version_configuration.get(field) != latest_configuration.get(field)
+        for field in VERSIONED_CONFIGURATION_FIELDS
+    )
+
+
 def publish_bootstrap_release(
     client: AWSClient,
     artifact: Path,
@@ -276,6 +347,7 @@ def publish_bootstrap_release(
     outputs: dict[str, Any],
     terraform_root: Path,
     release_id: str,
+    existing: dict[str, str] | None = None,
 ) -> tuple[dict[str, str], dict[str, Any]]:
     function_name = str(outputs["bootstrap_function_name"])
     record = _publish_configured_function(
@@ -286,6 +358,7 @@ def publish_bootstrap_release(
         release_id,
         config,
         terraform_root,
+        existing,
     )
     with tempfile.NamedTemporaryFile(
         prefix="expense-bootstrap-response-",
@@ -320,6 +393,7 @@ def publish_worker_release(
     outputs: dict[str, Any],
     terraform_root: Path,
     release_id: str,
+    existing: dict[str, str] | None = None,
 ) -> dict[str, str]:
     record = _publish_configured_function(
         client,
@@ -329,6 +403,7 @@ def publish_worker_release(
         release_id,
         config,
         terraform_root,
+        existing,
     )
     client.activate_worker(record["functionName"])
     return record
@@ -341,6 +416,7 @@ def publish_ocr_release(
     outputs: dict[str, Any],
     terraform_root: Path,
     release_id: str,
+    existing: dict[str, str] | None = None,
 ) -> dict[str, str]:
     record = _publish_configured_function(
         client,
@@ -350,6 +426,7 @@ def publish_ocr_release(
         release_id,
         config,
         terraform_root,
+        existing,
     )
     client.activate_ocr(record["functionName"])
     return record
@@ -365,6 +442,8 @@ def publish_notification_releases(
     release_id: str,
     *,
     activate: bool = True,
+    existing_sender: dict[str, str] | None = None,
+    existing_delivery: dict[str, str] | None = None,
 ) -> tuple[dict[str, str], dict[str, str]]:
     delivery_name = str(outputs["delivery_function_name"])
     delivery = _publish_configured_function(
@@ -375,6 +454,7 @@ def publish_notification_releases(
         release_id,
         config,
         terraform_root,
+        existing_delivery,
     )
     if activate:
         client.activate_notification_function(delivery_name)
@@ -387,6 +467,7 @@ def publish_notification_releases(
         release_id,
         config,
         terraform_root,
+        existing_sender,
     )
     if activate:
         client.activate_notification_function(sender_name)
@@ -400,6 +481,7 @@ def publish_error_notifier_release(
     outputs: dict[str, Any],
     terraform_root: Path,
     release_id: str,
+    existing: dict[str, str] | None = None,
 ) -> dict[str, str] | None:
     if not config.error_alerting_enabled:
         if outputs.get("error_notifier_function_name"):
@@ -416,6 +498,7 @@ def publish_error_notifier_release(
         release_id,
         config,
         terraform_root,
+        existing,
     )
     client.activate_notification_function(function_name)
     return record

@@ -13,6 +13,18 @@ from backend import artifacts
 
 
 class ArtifactBuildTest(unittest.TestCase):
+    def test_go_build_excludes_repository_wide_vcs_metadata(self) -> None:
+        with mock.patch.object(artifacts, "run") as run:
+            artifacts._go_build(
+                Path("/repo"),
+                "./backend/cmd/tracker-serverless",
+                Path("/tmp/worker-bootstrap"),
+            )
+
+        command = run.call_args.args[0]
+        self.assertIn("-buildvcs=false", command)
+        self.assertIn("-trimpath", command)
+
     def test_builds_only_selected_components(self) -> None:
         def fake_go_build(
             _repo_root: Path,

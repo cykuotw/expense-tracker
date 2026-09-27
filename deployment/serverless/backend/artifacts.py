@@ -23,7 +23,16 @@ def _entry(name: str, data: bytes, mode: int) -> zipfile.ZipInfo:
 
 def _go_build(repo_root: Path, package: str, destination: Path, ldflags: str = "-s -w") -> None:
     run(
-        ["go", "build", "-trimpath", f"-ldflags={ldflags}", "-o", str(destination), package],
+        [
+            "go",
+            "build",
+            "-buildvcs=false",
+            "-trimpath",
+            f"-ldflags={ldflags}",
+            "-o",
+            str(destination),
+            package,
+        ],
         cwd=repo_root,
         env={"GOOS": "linux", "GOARCH": "arm64", "CGO_ENABLED": "0"},
         capture=False,

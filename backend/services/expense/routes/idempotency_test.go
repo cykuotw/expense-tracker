@@ -77,13 +77,13 @@ func TestExpenseCreateFingerprintCanonicalizesAllocationOrderAndInputs(t *testin
 
 func TestExpenseCreateFingerprintCanonicalizesItemsWithCollidingConcatenations(t *testing.T) {
 	expense := types.Expense{}
-	first := types.Item{Name: "a", Amount: decimal.RequireFromString("12"), Unit: "3", UnitPrice: decimal.RequireFromString("4")}
-	second := types.Item{Name: "a1", Amount: decimal.RequireFromString("2"), Unit: "3", UnitPrice: decimal.RequireFromString("4")}
+	first := types.Item{Description: "a", LineTotal: decimal.RequireFromString("12"), Position: 0}
+	second := types.Item{Description: "a1", LineTotal: decimal.RequireFromString("2"), Position: 1}
 
 	ordered, err := expenseCreateFingerprint(expense, []types.Item{first, second}, nil, nil)
 	require.NoError(t, err)
 	reversed, err := expenseCreateFingerprint(expense, []types.Item{second, first}, nil, nil)
 	require.NoError(t, err)
 
-	assert.Equal(t, ordered, reversed)
+	assert.NotEqual(t, ordered, reversed)
 }

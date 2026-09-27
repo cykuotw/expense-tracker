@@ -1,12 +1,14 @@
 package expense
 
 import (
-	"cmp"
 	"crypto/sha256"
 	"encoding/json"
 	"slices"
+	"strings"
 
 	"expense-tracker/backend/types"
+
+	"github.com/shopspring/decimal"
 )
 
 type canonicalExpenseCreate struct {
@@ -27,10 +29,12 @@ type canonicalExpenseCreate struct {
 }
 
 type canonicalExpenseItem struct {
-	Name      string `json:"name"`
-	Amount    string `json:"amount"`
-	Unit      string `json:"unit"`
-	UnitPrice string `json:"unitPrice"`
+	Description string  `json:"description"`
+	Quantity    *string `json:"quantity"`
+	Unit        *string `json:"unit"`
+	UnitPrice   *string `json:"unitPrice"`
+	LineTotal   string  `json:"lineTotal"`
+	Position    int32   `json:"position"`
 }
 
 type canonicalExpenseAllocation struct {
@@ -57,7 +61,14 @@ func expenseCreateFingerprint(
 		Items: make([]canonicalExpenseItem, 0, len(items)), Allocations: make([]canonicalExpenseAllocation, 0, len(allocations)),
 	}
 	for _, item := range items {
-		canonical.Items = append(canonical.Items, canonicalExpenseItem{Name: item.Name, Amount: item.Amount.String(), Unit: item.Unit, UnitPrice: item.UnitPrice.String()})
+		canonical.Items = append(canonical.Items, canonicalExpenseItem{
+			Description: item.Description,
+			Quantity:    decimalString(item.Quantity),
+			Unit:        item.Unit,
+			UnitPrice:   decimalString(item.UnitPrice),
+			LineTotal:   item.LineTotal.String(),
+			Position:    item.Position,
+		})
 	}
 	for _, allocation := range allocations {
 		amount := ""
@@ -68,16 +79,8 @@ func expenseCreateFingerprint(
 			UserID: allocation.UserID.String(), Amount: amount, PercentageBasisPoints: allocation.PercentageBasisPoints,
 		})
 	}
-	slices.SortFunc(canonical.Items, func(a, b canonicalExpenseItem) int {
-		return cmp.Or(
-			cmp.Compare(a.Name, b.Name),
-			cmp.Compare(a.Amount, b.Amount),
-			cmp.Compare(a.Unit, b.Unit),
-			cmp.Compare(a.UnitPrice, b.UnitPrice),
-		)
-	})
 	slices.SortFunc(canonical.Allocations, func(a, b canonicalExpenseAllocation) int {
-		return cmp.Compare(a.UserID, b.UserID)
+		return strings.Compare(a.UserID, b.UserID)
 	})
 	payload, err := json.Marshal(canonical)
 	if err != nil {
@@ -85,4 +88,12 @@ func expenseCreateFingerprint(
 	}
 	hash := sha256.Sum256(payload)
 	return hash[:], nil
+}
+
+func decimalString(value *decimal.Decimal) *string {
+	if value == nil {
+		return nil
+	}
+	formatted := value.String()
+	return &formatted
 }

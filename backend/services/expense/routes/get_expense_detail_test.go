@@ -115,6 +115,11 @@ func TestRouteGetExpenseDetail(t *testing.T) {
 			if assert.Equal(t, len(test.expectResponse.Items), len(rsp.Items)) {
 				for i, it := range rsp.Items {
 					assert.Equal(t, test.expectResponse.Items[i].ItemID, it.ItemID)
+					assert.Equal(t, mockItems[i].Description, it.Description)
+					assert.Equal(t, mockItems[i].LineTotal, it.LineTotal)
+					assert.Equal(t, mockItems[i].Position, it.Position)
+					assert.Equal(t, it.Description, it.ItemName)
+					assert.Equal(t, it.LineTotal, it.ItemSubTotal)
 				}
 			}
 		})

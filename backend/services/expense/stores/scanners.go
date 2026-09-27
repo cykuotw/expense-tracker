@@ -5,6 +5,8 @@ import (
 	"time"
 
 	"expense-tracker/backend/types"
+
+	"github.com/shopspring/decimal"
 )
 
 const expenseSelectColumns = `
@@ -18,7 +20,15 @@ const balanceSelectColumns = `
 	id, sender_user_id, receiver_user_id, share, group_id,
 	create_time_utc, is_outdated, update_time_utc, is_settled, settle_time_utc, currency`
 
-const itemSelectColumns = `id, expense_id, name, amount, unit, unit_price`
+const itemSelectColumns = `
+	id,
+	expense_id,
+	COALESCE(description, name) AS resolved_description,
+	CASE WHEN description IS NULL THEN amount ELSE quantity END AS resolved_quantity,
+	CASE WHEN description IS NULL THEN NULLIF(unit, '') ELSE confirmed_unit END AS resolved_unit,
+	CASE WHEN description IS NULL THEN unit_price ELSE confirmed_unit_price END AS resolved_unit_price,
+	COALESCE(line_total, ROUND(amount * unit_price, 3)) AS resolved_line_total,
+	ROW_NUMBER() OVER (ORDER BY position NULLS LAST, id) - 1 AS resolved_position`
 
 const ledgerSelectColumns = `id, expense_id, lender_user_id, borrower_user_id, share, currency`
 
@@ -80,17 +90,39 @@ func scanRowIntoExpense(rows *sql.Rows) (*types.Expense, error) {
 
 func scanRowIntoItem(rows *sql.Rows) (*types.Item, error) {
 	item := new(types.Item)
+	quantity := sql.NullString{}
+	unit := sql.NullString{}
+	unitPrice := sql.NullString{}
 
 	err := rows.Scan(
 		&item.ID,
 		&item.ExpenseID,
-		&item.Name,
-		&item.Amount,
-		&item.Unit,
-		&item.UnitPrice,
+		&item.Description,
+		&quantity,
+		&unit,
+		&unitPrice,
+		&item.LineTotal,
+		&item.Position,
 	)
 	if err != nil {
 		return nil, err
+	}
+	if quantity.Valid {
+		value, err := decimal.NewFromString(quantity.String)
+		if err != nil {
+			return nil, err
+		}
+		item.Quantity = &value
+	}
+	if unit.Valid {
+		item.Unit = &unit.String
+	}
+	if unitPrice.Valid {
+		value, err := decimal.NewFromString(unitPrice.String)
+		if err != nil {
+			return nil, err
+		}
+		item.UnitPrice = &value
 	}
 	return item, err
 }

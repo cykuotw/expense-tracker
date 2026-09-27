@@ -41,9 +41,9 @@ func (h *Handler) expenseDetailResponse(c *gin.Context, expenseTypes []*types.Ex
 	itemRsp := make([]types.ItemResponse, 0, len(items))
 	for _, it := range items {
 		item := types.ItemResponse{
-			ItemID:       it.ID,
-			ItemName:     it.Name,
-			ItemSubTotal: it.Amount.Mul(it.UnitPrice),
+			ItemID: it.ID, Description: it.Description, Quantity: it.Quantity,
+			Unit: it.Unit, UnitPrice: it.UnitPrice, LineTotal: it.LineTotal,
+			Position: it.Position, ItemName: it.Description, ItemSubTotal: it.LineTotal,
 		}
 		itemRsp = append(itemRsp, item)
 	}

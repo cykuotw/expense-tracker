@@ -14,7 +14,7 @@ import (
 
 func TestValidateMoneyChecksRoundedItemSubtotal(t *testing.T) {
 	expense := types.Expense{SubTotal: decimal.RequireFromString("3.74"), Total: decimal.RequireFromString("3.74")}
-	items := []types.Item{{Amount: decimal.RequireFromString("1.25"), UnitPrice: decimal.RequireFromString("2.99")}}
+	items := []types.Item{{Description: "item", LineTotal: decimal.RequireFromString("3.74")}}
 
 	require.NoError(t, allocation.ValidateMoney(expense, items, 2))
 	expense.SubTotal = decimal.RequireFromString("3.73")

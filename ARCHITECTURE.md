@@ -208,6 +208,11 @@ and `frontend/src/lib/api.ts`. Do not duplicate endpoint details here.
 - A group contains members and expenses. An expense has descriptive and
   monetary data, may have item rows, and has ledger rows that describe who
   lent and borrowed each share.
+- Confirmed expense items are ordered by a stable zero-based position. Their
+  description and line total are authoritative; quantity, unit, and unit price
+  are optional supporting values. Item totals must equal the expense subtotal
+  at the currency's configured precision. OCR confidence, provider metadata,
+  and unconfirmed suggestions never enter this durable item contract.
 - Each expense stores one canonical allocation mode and one allocation row per
   selected participant. The allocation rows preserve user-entered source values
   for equal, exact-amount, percentage, and equal-plus-adjustment modes; selected
@@ -248,8 +253,10 @@ and `frontend/src/lib/api.ts`. Do not duplicate endpoint details here.
   live in `backend/services/expense/allocation`; HTTP routes coordinate the
   request and persistence boundaries. Allocation, ledger reconciliation, and
   balance updates share the expense mutation transaction.
-- Soft deletion removes an expense from normal balance and list calculations;
-  it is not the same as a permanent purge.
+- Soft deletion removes an expense from normal balance and list calculations
+  while retaining its item rows for the same lifecycle as the owning expense.
+  It is not the same as a permanent purge. A physical expense deletion removes
+  its item rows through the database foreign key's cascading delete.
 - An expense occurrence is a calendar day, stored as `expense.occurred_on
   DATE` and exchanged as `occurredOn` in strict `YYYY-MM-DD` form. Browser
   code must retain and format its numeric components directly rather than

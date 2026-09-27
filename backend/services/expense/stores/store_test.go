@@ -187,13 +187,16 @@ func insertItem(db *sql.DB, item types.Item) error {
 	if err := ensureExpense(db, item.ExpenseID); err != nil {
 		return err
 	}
-	query := fmt.Sprintf(
-		"INSERT INTO item ("+
-			"id, expense_id, name, amount, unit, unit_price"+
-			") VALUES ('%s', '%s', '%s', '%s', '%s', '%s')",
-		item.ID, item.ExpenseID, item.Name, item.Amount, item.Unit, item.UnitPrice,
-	)
-	_, err := db.Exec(query)
+	legacyUnit := ""
+	if item.Unit != nil {
+		legacyUnit = *item.Unit
+	}
+	_, err := db.Exec(`INSERT INTO item (
+		id, expense_id, name, amount, unit, unit_price,
+		description, quantity, confirmed_unit, confirmed_unit_price, line_total, position
+	) VALUES ($1, $2, $3, 1, $4, $5, $3, $6, $7, $8, $5, $9)`,
+		item.ID, item.ExpenseID, item.Description, legacyUnit, item.LineTotal,
+		item.Quantity, item.Unit, item.UnitPrice, item.Position)
 	return err
 }
 

@@ -3,6 +3,7 @@ package expense
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"expense-tracker/backend/config"
 	"expense-tracker/backend/services/auth"
 	"expense-tracker/backend/services/middleware/extractors"
@@ -16,6 +17,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestRouteUpdateExpenseDetail(t *testing.T) {
@@ -154,3 +156,89 @@ func TestHandleUpdateExpenseOccurredOnSemantics(t *testing.T) {
 }
 
 func stringPointer(value string) *string { return &value }
+
+func TestHandleUpdateExpenseReconcilesItemsInSubmittedOrder(t *testing.T) {
+	store := updateExpenseDetailStoreMock()
+	existingID := uuid.New()
+	totalOne := decimal.NewFromInt(4)
+	totalTwo := decimal.NewFromInt(6)
+	stages := make([]string, 0, 5)
+	var updated types.Item
+	var created types.Item
+	var retained []uuid.UUID
+	store.ClearItemPositionsFn = func(expenseID uuid.UUID) error {
+		assert.Equal(t, mockExpenseID, expenseID)
+		stages = append(stages, "clear")
+		return nil
+	}
+	store.UpdateItemFn = func(item types.Item) error {
+		stages = append(stages, "update")
+		updated = item
+		return nil
+	}
+	store.CreateItemFn = func(item types.Item) error {
+		stages = append(stages, "create")
+		created = item
+		return nil
+	}
+	store.DeleteItemsNotInFn = func(expenseID uuid.UUID, itemIDs []uuid.UUID) error {
+		stages = append(stages, "delete omitted")
+		retained = append(retained, itemIDs...)
+		return nil
+	}
+	store.UpdateExpenseFn = func(types.Expense) error {
+		stages = append(stages, "expense")
+		return nil
+	}
+
+	response := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(response)
+	context.Set("userID", mockCreatorID.String())
+	context.Set("expense", &types.Expense{ID: mockExpenseID, GroupID: mockGroupID, Currency: "CAD"})
+	context.Set("expensePayload", types.ExpenseUpdatePayload{
+		GroupID: mockGroupID, PayByUserId: mockCreatorID.String(), ExpenseTypeID: mockExpenseTypeID,
+		SubTotal: decimal.NewFromInt(10), Total: decimal.NewFromInt(10), Currency: "CAD",
+		Items: []types.ItemUpdatePayload{
+			{ID: existingID, ItemPayload: types.ItemPayload{Description: "Existing", LineTotal: &totalOne}},
+			{ItemPayload: types.ItemPayload{Description: "New", LineTotal: &totalTwo}},
+		},
+		Allocation: exactAllocation(mockUserID, "10"),
+	})
+
+	NewHandler(store, nil, updateExpenseDetailGroupStoreMock(), expenseControllerMock()).handleUpdateExpense(context)
+
+	require.Equal(t, http.StatusCreated, response.Code)
+	assert.Equal(t, []string{"clear", "update", "create", "delete omitted", "expense"}, stages[:5])
+	assert.Equal(t, int32(0), updated.Position)
+	assert.Equal(t, int32(1), created.Position)
+	require.Len(t, retained, 2)
+	assert.Equal(t, existingID, retained[0])
+	assert.Equal(t, created.ID, retained[1])
+}
+
+func TestHandleUpdateExpenseStopsAfterItemReconciliationFailure(t *testing.T) {
+	store := updateExpenseDetailStoreMock()
+	injected := errors.New("delete items failed")
+	total := decimal.NewFromInt(1)
+	expenseUpdated := false
+	store.DeleteItemsNotInFn = func(uuid.UUID, []uuid.UUID) error { return injected }
+	store.UpdateExpenseFn = func(types.Expense) error {
+		expenseUpdated = true
+		return nil
+	}
+	response := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(response)
+	context.Set("userID", mockCreatorID.String())
+	context.Set("expense", &types.Expense{ID: mockExpenseID, GroupID: mockGroupID, Currency: "CAD"})
+	context.Set("expensePayload", types.ExpenseUpdatePayload{
+		GroupID: mockGroupID, PayByUserId: mockCreatorID.String(), ExpenseTypeID: mockExpenseTypeID,
+		SubTotal: total, Total: total, Currency: "CAD",
+		Items:      []types.ItemUpdatePayload{{ItemPayload: types.ItemPayload{Description: "Item", LineTotal: &total}}},
+		Allocation: exactAllocation(mockUserID, "1"),
+	})
+
+	NewHandler(store, nil, updateExpenseDetailGroupStoreMock(), expenseControllerMock()).handleUpdateExpense(context)
+
+	assert.Equal(t, http.StatusInternalServerError, response.Code)
+	assert.False(t, expenseUpdated)
+}

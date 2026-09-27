@@ -71,7 +71,7 @@ class MigrationPolicyTest(unittest.TestCase):
     def test_repository_manifest_matches_current_migrations(self) -> None:
         manifest = validate_repository(REPO)
         self.assertEqual(manifest.baseline_version, 35)
-        self.assertEqual(len(manifest.migrations), 2)
+        self.assertEqual(len(manifest.migrations), 3)
         migration = manifest.migrations[0]
         self.assertEqual(migration.version, 36)
         self.assertEqual(migration.name, "add_multi_currency_accounting")
@@ -80,6 +80,10 @@ class MigrationPolicyTest(unittest.TestCase):
         self.assertEqual(feature_grants.version, 37)
         self.assertEqual(feature_grants.name, "add_user_feature_grants")
         self.assertEqual(feature_grants.deployment, "online")
+        confirmed_items = manifest.migrations[2]
+        self.assertEqual(confirmed_items.version, 38)
+        self.assertEqual(confirmed_items.name, "expand_confirmed_item_contract")
+        self.assertEqual(confirmed_items.deployment, "online")
 
     def test_shared_cross_language_fixtures(self) -> None:
         fixtures = REPO / "backend/internal/migrationpolicy/testdata"

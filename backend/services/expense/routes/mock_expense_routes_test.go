@@ -4,6 +4,7 @@ import (
 	"expense-tracker/backend/types"
 
 	"github.com/google/uuid"
+	"github.com/shopspring/decimal"
 )
 
 var mockUserID = uuid.New()
@@ -16,13 +17,13 @@ var mockExpenseID = uuid.New()
 var mockItemIDs = []uuid.UUID{uuid.New(), uuid.New(), uuid.New()}
 var mockItems = []*types.Item{
 	{
-		ID: mockItemIDs[0],
+		ID: mockItemIDs[0], Description: "First item", LineTotal: decimal.NewFromInt(1), Position: 0,
 	},
 	{
-		ID: mockItemIDs[1],
+		ID: mockItemIDs[1], Description: "Second item", LineTotal: decimal.NewFromInt(2), Position: 1,
 	},
 	{
-		ID: mockItemIDs[2],
+		ID: mockItemIDs[2], Description: "Third item", LineTotal: decimal.NewFromInt(3), Position: 2,
 	},
 }
 
@@ -49,6 +50,8 @@ type mockExpenseStore struct {
 	UpdateExpenseFn                           func(expense types.Expense) error
 	UpdateExpenseSettleInGroupFn              func(groupID string) error
 	UpdateItemFn                              func(item types.Item) error
+	ClearItemPositionsFn                      func(expenseID uuid.UUID) error
+	DeleteItemsNotInFn                        func(expenseID uuid.UUID, itemIDs []uuid.UUID) error
 	UpdateLedgerFn                            func(ledger types.Ledger) error
 	ReconcileExpenseAllocationStateFn         func(expenseID, payerID uuid.UUID, allocations []types.ExpenseAllocation, ledgers []types.Ledger) error
 	CheckExpenseExistByIDFn                   func(id string) (bool, error)
@@ -187,6 +190,18 @@ func (s *mockExpenseStore) UpdateExpenseSettleInGroup(groupID string) error {
 func (s *mockExpenseStore) UpdateItem(item types.Item) error {
 	if s.UpdateItemFn != nil {
 		return s.UpdateItemFn(item)
+	}
+	return nil
+}
+func (s *mockExpenseStore) ClearItemPositions(expenseID uuid.UUID) error {
+	if s.ClearItemPositionsFn != nil {
+		return s.ClearItemPositionsFn(expenseID)
+	}
+	return nil
+}
+func (s *mockExpenseStore) DeleteItemsNotIn(expenseID uuid.UUID, itemIDs []uuid.UUID) error {
+	if s.DeleteItemsNotInFn != nil {
+		return s.DeleteItemsNotInFn(expenseID, itemIDs)
 	}
 	return nil
 }

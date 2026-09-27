@@ -7,20 +7,27 @@ import (
 
 // DB structure
 type Item struct {
-	ID        uuid.UUID
-	ExpenseID uuid.UUID
-	Name      string
-	Amount    decimal.Decimal
-	Unit      string
-	UnitPrice decimal.Decimal
+	ID          uuid.UUID
+	ExpenseID   uuid.UUID
+	Description string
+	Quantity    *decimal.Decimal
+	Unit        *string
+	UnitPrice   *decimal.Decimal
+	LineTotal   decimal.Decimal
+	Position    int32
 }
 
 // Payload
 type ItemPayload struct {
-	ItemName  string          `json:"itemName"`
-	Amount    decimal.Decimal `json:"amount"`
-	Unit      string          `json:"unit"`
-	UnitPrice decimal.Decimal `json:"unitPrice"`
+	Description string           `json:"description"`
+	Quantity    *decimal.Decimal `json:"quantity"`
+	Unit        *string          `json:"unit"`
+	UnitPrice   *decimal.Decimal `json:"unitPrice"`
+	LineTotal   *decimal.Decimal `json:"lineTotal"`
+
+	// ItemName and Amount preserve the legacy API during the expand-and-contract rollout.
+	ItemName string           `json:"itemName,omitempty"`
+	Amount   *decimal.Decimal `json:"amount,omitempty"`
 }
 
 type ItemUpdatePayload struct {
@@ -29,7 +36,15 @@ type ItemUpdatePayload struct {
 }
 
 type ItemResponse struct {
-	ItemID       uuid.UUID       `json:"itemId"`
+	ItemID      uuid.UUID        `json:"itemId"`
+	Description string           `json:"description"`
+	Quantity    *decimal.Decimal `json:"quantity"`
+	Unit        *string          `json:"unit"`
+	UnitPrice   *decimal.Decimal `json:"unitPrice"`
+	LineTotal   decimal.Decimal  `json:"lineTotal"`
+	Position    int32            `json:"position"`
+
+	// ItemName and ItemSubTotal preserve the legacy response during rollout.
 	ItemName     string          `json:"itemName"`
 	ItemSubTotal decimal.Decimal `json:"itemSubTotal"`
 }

@@ -52,20 +52,10 @@ func (h *Handler) handleUpdateExpense(c *gin.Context) {
 		return
 	}
 
-	items := make([]types.Item, 0, len(payload.Items))
-	for _, itemPayload := range payload.Items {
-		itemID := itemPayload.ID
-		if itemID == uuid.Nil {
-			itemID = uuid.New()
-		}
-		items = append(items, types.Item{
-			ID:        itemID,
-			ExpenseID: expense.ID,
-			Name:      itemPayload.ItemName,
-			Amount:    itemPayload.Amount,
-			Unit:      itemPayload.Unit,
-			UnitPrice: itemPayload.UnitPrice,
-		})
+	items, err := normalizeUpdateItems(expense.ID, payload.Items)
+	if err != nil {
+		utils.WriteError(c, http.StatusBadRequest, err)
+		return
 	}
 	allocations, err := parseExpenseAllocationPayload(expense.ID, payload.Allocation)
 	if err != nil {
@@ -108,7 +98,12 @@ func (h *Handler) handleUpdateExpense(c *gin.Context) {
 		if err != nil {
 			return err
 		}
+		if err := store.ClearItemPositions(expense.ID); err != nil {
+			return err
+		}
+		itemIDs := make([]uuid.UUID, 0, len(items))
 		for index, item := range items {
+			itemIDs = append(itemIDs, item.ID)
 			if payload.Items[index].ID == uuid.Nil {
 				if err := store.CreateItem(item); err != nil {
 					return err
@@ -118,6 +113,9 @@ func (h *Handler) handleUpdateExpense(c *gin.Context) {
 			if err := store.UpdateItem(item); err != nil {
 				return err
 			}
+		}
+		if err := store.DeleteItemsNotIn(expense.ID, itemIDs); err != nil {
+			return err
 		}
 
 		if err := store.UpdateExpense(updatedExpense); err != nil {

@@ -5,7 +5,10 @@ import (
 )
 
 func (s *Store) GetItemsByExpenseID(expenseID string) ([]*types.Item, error) {
-	query := "SELECT " + itemSelectColumns + " FROM item WHERE expense_id = $1 ORDER BY id;"
+	query := "SELECT " + itemSelectColumns + `
+		FROM item
+		WHERE expense_id = $1
+		ORDER BY resolved_position;`
 	rows, err := s.db.Query(query, expenseID)
 	if err != nil {
 		return nil, err

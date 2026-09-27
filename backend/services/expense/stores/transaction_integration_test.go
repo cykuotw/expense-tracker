@@ -172,12 +172,9 @@ func TestRunInTransactionRollsBackMidTransactionChildFailure(t *testing.T) {
 		AllocationMode: "equal",
 	}
 	item := types.Item{
-		ID:        itemID,
-		ExpenseID: expenseID,
-		Name:      "duplicate item",
-		Amount:    decimal.NewFromInt(1),
-		Unit:      "each",
-		UnitPrice: decimal.NewFromInt(10),
+		ID: itemID, ExpenseID: expenseID, Description: "duplicate item",
+		Quantity: decimalPointer("1"), Unit: stringPointer("each"),
+		UnitPrice: decimalPointer("10"), LineTotal: decimal.NewFromInt(10),
 	}
 	require.NoError(t, ensureExpenseParents(db, expense))
 

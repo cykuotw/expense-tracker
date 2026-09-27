@@ -26,12 +26,10 @@ func TestGetItemsByExpenseID(t *testing.T) {
 		itemIDs = append(itemIDs, id)
 
 		item := types.Item{
-			ID:        id,
-			ExpenseID: mockExpenseID,
-			Name:      "test " + strconv.Itoa(i),
-			Amount:    decimal.NewFromFloat(3.66 + float64(i)),
-			Unit:      "lbs",
-			UnitPrice: decimal.NewFromFloat(0.7 + float64(i)),
+			ID: id, ExpenseID: mockExpenseID, Description: "test " + strconv.Itoa(i),
+			Quantity: decimalPointer(decimal.NewFromFloat(3.66 + float64(i)).String()),
+			Unit:     stringPointer("lbs"), UnitPrice: decimalPointer(decimal.NewFromFloat(0.7 + float64(i)).String()),
+			LineTotal: decimal.NewFromInt(int64(i + 1)), Position: int32(i),
 		}
 		insertItem(db, item)
 	}

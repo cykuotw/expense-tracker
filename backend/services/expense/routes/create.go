@@ -80,16 +80,10 @@ func (h *Handler) handleCreateExpense(c *gin.Context) {
 		return
 	}
 
-	items := make([]types.Item, 0, len(payload.Items))
-	for _, itemPayload := range payload.Items {
-		items = append(items, types.Item{
-			ID:        uuid.New(),
-			ExpenseID: expenseID,
-			Name:      itemPayload.ItemName,
-			Amount:    itemPayload.Amount,
-			Unit:      itemPayload.Unit,
-			UnitPrice: itemPayload.UnitPrice,
-		})
+	items, err := normalizeCreateItems(expenseID, payload.Items)
+	if err != nil {
+		utils.WriteError(c, http.StatusBadRequest, err)
+		return
 	}
 
 	resultExpenseID := expenseID

@@ -398,13 +398,18 @@ func validCreateExpensePayload() types.ExpensePayload {
 		Items: []types.ItemPayload{
 			{
 				ItemName:  "test item",
-				Amount:    decimal.NewFromInt(1),
-				Unit:      "each",
-				UnitPrice: decimal.NewFromFloat(20.1),
+				Amount:    itemDecimalPointer("1"),
+				Unit:      stringPointer("each"),
+				UnitPrice: itemDecimalPointer("20.1"),
 			},
 		},
 		Allocation: exactAllocation(mockCreatorID, "22.2"),
 	}
+}
+
+func itemDecimalPointer(value string) *decimal.Decimal {
+	parsed := decimal.RequireFromString(value)
+	return &parsed
 }
 
 func exactAllocation(userID uuid.UUID, amount string) types.ExpenseAllocationPayload {

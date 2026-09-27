@@ -3,6 +3,7 @@ package allocation
 import (
 	"cmp"
 	"slices"
+	"unicode/utf8"
 
 	"expense-tracker/backend/types"
 
@@ -11,7 +12,7 @@ import (
 )
 
 var maximumMoneyValue = decimal.NewFromInt(10_000_000).Sub(decimal.New(1, -3))
-var maximumItemQuantity = decimal.NewFromInt(100_000_000).Sub(decimal.New(1, -2))
+var maximumItemQuantity = decimal.NewFromInt(1_000_000_000).Sub(decimal.New(1, -6))
 
 // ParsePayload validates and normalizes an allocation request into stable user order.
 func ParsePayload(expenseID uuid.UUID, payload types.ExpenseAllocationPayload) ([]types.ExpenseAllocation, error) {
@@ -73,13 +74,24 @@ func ValidateMoney(expense types.Expense, items []types.Item, amountDigits int32
 	}
 	itemSubtotal := decimal.Zero
 	for _, item := range items {
-		if item.Amount.LessThanOrEqual(decimal.Zero) ||
-			item.Amount.Abs().GreaterThan(maximumItemQuantity) ||
-			!item.Amount.Truncate(2).Equal(item.Amount) || item.UnitPrice.IsNegative() ||
-			!validMoney(item.UnitPrice, amountDigits) {
+		if item.Description == "" || utf8.RuneCountInString(item.Description) > 256 ||
+			item.Position < 0 || item.LineTotal.IsNegative() || !validMoney(item.LineTotal, amountDigits) {
 			return types.ErrInvalidMoney
 		}
-		itemSubtotal = itemSubtotal.Add(item.Amount.Mul(item.UnitPrice).Round(amountDigits))
+		if item.Quantity != nil && (item.Quantity.LessThanOrEqual(decimal.Zero) ||
+			item.Quantity.Abs().GreaterThan(maximumItemQuantity) ||
+			!item.Quantity.Truncate(6).Equal(*item.Quantity)) {
+			return types.ErrInvalidMoney
+		}
+		if item.Unit != nil && utf8.RuneCountInString(*item.Unit) > 32 {
+			return types.ErrInvalidMoney
+		}
+		if item.UnitPrice != nil && (item.UnitPrice.IsNegative() ||
+			item.UnitPrice.Abs().GreaterThan(maximumMoneyValue) ||
+			!item.UnitPrice.Truncate(3).Equal(*item.UnitPrice)) {
+			return types.ErrInvalidMoney
+		}
+		itemSubtotal = itemSubtotal.Add(item.LineTotal)
 	}
 	if len(items) > 0 && !itemSubtotal.Equal(expense.SubTotal) {
 		return types.ErrInvalidMoney

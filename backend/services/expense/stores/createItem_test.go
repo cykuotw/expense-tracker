@@ -27,12 +27,9 @@ func TestCreateItem(t *testing.T) {
 		{
 			name: "valid",
 			mockItem: types.Item{
-				ID:        uuid.New(),
-				ExpenseID: uuid.New(),
-				Name:      "test name",
-				Amount:    decimal.NewFromFloat(3.7),
-				Unit:      "ea",
-				UnitPrice: decimal.NewFromFloat(2.9),
+				ID: uuid.New(), ExpenseID: uuid.New(), Description: "test name",
+				Quantity: decimalPointer("3.7"), Unit: stringPointer("ea"),
+				UnitPrice: decimalPointer("2.9"), LineTotal: decimal.RequireFromString("10.73"),
 			},
 			expectFail:  false,
 			expectError: nil,
@@ -50,4 +47,13 @@ func TestCreateItem(t *testing.T) {
 			assert.Equal(t, test.expectError, err)
 		})
 	}
+}
+
+func decimalPointer(value string) *decimal.Decimal {
+	parsed := decimal.RequireFromString(value)
+	return &parsed
+}
+
+func stringPointer(value string) *string {
+	return &value
 }

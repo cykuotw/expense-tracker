@@ -69,6 +69,8 @@ type ExpenseTransactionStore interface {
 	DeleteExpense(expense Expense) error
 	UpdateExpenseSettleInGroup(groupID string) error
 	UpdateItem(item Item) error
+	ClearItemPositions(expenseID uuid.UUID) error
+	DeleteItemsNotIn(expenseID uuid.UUID, itemIDs []uuid.UUID) error
 	UpdateLedger(ledger Ledger) error
 	ReconcileExpenseAllocationState(expenseID, payerID uuid.UUID, allocations []ExpenseAllocation, ledgers []Ledger) error
 	GetLedgerUnsettledFromGroup(groupID string) ([]*Ledger, error)

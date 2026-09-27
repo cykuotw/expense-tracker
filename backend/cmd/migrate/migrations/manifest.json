@@ -43,6 +43,27 @@
         "dataLossRisk": true,
         "notes": "The previous application ignores the additive table. Reversing the schema discards feature-grant state."
       }
+    },
+    {
+      "version": 38,
+      "name": "expand_confirmed_item_contract",
+      "categories": ["additive", "backfill", "constraint_tightening", "type_change", "index"],
+      "deployment": "online",
+      "backfill": {
+        "mode": "bounded",
+        "resumable": true,
+        "notes": "The idempotent backfill visits the finite set of existing item rows, copies legacy values into the confirmed contract, and assigns stable positions by expense and item ID."
+      },
+      "locking": {
+        "risk": "medium",
+        "notes": "ALTER TABLE and the unique partial index take bounded locks; the existing item table is expected to remain small enough for the normal migration window."
+      },
+      "rollback": {
+        "application": "compatible",
+        "schema": "manual_only",
+        "dataLossRisk": true,
+        "notes": "The previous application continues using retained and widened legacy columns. Reversing the schema discards confirmed line totals and ordering, and narrowing fails when new values do not fit the legacy contract."
+      }
     }
   ]
 }

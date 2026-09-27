@@ -59,6 +59,11 @@ class FrontendVerifyTest(unittest.TestCase):
     def test_accepts_versioned_runtime_and_additive_fields(self) -> None:
         self.verify_runtime({**EXPECTED, "frontendVersion": "v-20260908-deadbeef", "futureField": True})
 
+    def test_accepts_content_addressed_frontend_version(self) -> None:
+        self.verify_runtime(
+            {**EXPECTED, "frontendVersion": "v-deadbeef01234567"}
+        )
+
     def test_upgrade_check_accepts_legacy_runtime_and_headers(self) -> None:
         self.verify_runtime(
             EXPECTED,

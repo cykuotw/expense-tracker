@@ -156,9 +156,20 @@ environment with the currently active immutable version. An unchanged function
 is carried forward in the new release manifest instead of publishing another
 numbered version. Sender is drained for up to 60 seconds only when Sender or
 Delivery code/configuration changes; other backend-only changes do not incur
-that fixed wait. Major deployment steps print `elapsed_seconds` on completion.
-Automatic release cleanup reuses the outputs and health checks validated by the
-successful deployment rather than running a second complete preflight.
+that fixed wait. When Bootstrap is reused, one read-only migration-state probe
+replaces its two idempotency invocations when the live database schema is clean
+and current; that response is also reused in the release manifest.
+
+Frontend versions are content-addressed. After a verified frontend build, an
+update compares its complete snapshot descriptor with the active snapshot. An
+identical build carries the active snapshot forward without S3 publication or
+CloudFront invalidation; changed output still follows the full snapshot,
+restore, invalidation, and verification path.
+
+Major deployment steps, including preflight and automatic cleanup, print
+`elapsed_seconds` on completion. Automatic cleanup reuses the outputs and
+health checks validated by the successful deployment, batches stale S3 asset
+deletion, and removes stale Lambda versions with bounded concurrency.
 
 ## Commands
 

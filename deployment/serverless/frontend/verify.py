@@ -19,7 +19,9 @@ def _get(url: str) -> tuple[int, str, dict[str, str]]:
         return error.code, error.read().decode(), headers
 
 
-FRONTEND_VERSION_PATTERN = re.compile(r"^v-\d{8}-[0-9a-f]{8}$")
+FRONTEND_VERSION_PATTERN = re.compile(
+    r"^v-(?:\d{8}-[0-9a-f]{8}|[0-9a-f]{16})$"
+)
 
 
 def _csp(api_origin: str) -> str:

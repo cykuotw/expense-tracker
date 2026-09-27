@@ -4,6 +4,7 @@ import json
 import os
 import tempfile
 import time
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -855,6 +856,34 @@ def _database_record(context: Context, outputs: dict[str, Any]) -> dict[str, Any
     }
 
 
+def _database_record_from_bootstrap_response(
+    context: Context,
+    outputs: dict[str, Any],
+    response: dict[str, Any] | None,
+) -> dict[str, Any]:
+    if response is None:
+        return _database_record(context, outputs)
+    version = response.get("migration_version")
+    dirty = response.get("migration_dirty")
+    if (
+        not isinstance(version, int)
+        or isinstance(version, bool)
+        or not isinstance(dirty, bool)
+    ):
+        return _database_record(context, outputs)
+    if dirty:
+        raise CommandError(
+            f"database migration state is dirty: version={version:06d} dirty=true"
+        )
+    return {
+        "migrationVersion": version,
+        "dirty": False,
+        "migrationManifestDigest": migration_policy.repository_digest(
+            context.repo_root
+        ),
+    }
+
+
 def _changed_scopes(scope: str) -> list[str]:
     if scope == "all":
         return ["all"]
@@ -958,8 +987,10 @@ def _delete_committed_candidate(store: ReleaseStore, release_id: str) -> None:
 
 
 def update(context: Context, scope: str) -> None:
+    step("preflight")
     preflight(context, mutation=True)
     outputs = _require_complete(context)
+    step("preflight", "pass")
     store = ReleaseStore(context.aws, context.config)
     current_pointer = store.get_current()
     if scope != "all":
@@ -1034,9 +1065,10 @@ def update(context: Context, scope: str) -> None:
 
         target_backend = dict(current_manifest["backend"])
         target_frontend = current_manifest["frontend"]
+        bootstrap_response: dict[str, Any] | None = None
         if scope in {"migrations", "backend", "all"}:
             step("migrations")
-            bootstrap, _response = runtime.publish_bootstrap_release(
+            bootstrap, bootstrap_response = runtime.publish_bootstrap_release(
                 context.aws,
                 built["bootstrap"],
                 context.config,
@@ -1044,6 +1076,7 @@ def update(context: Context, scope: str) -> None:
                 context.terraform_root,
                 release_id,
                 target_backend.get("bootstrap"),
+                expected_schema_when_reused=expected_schema,
             )
             target_backend["bootstrap"] = bootstrap
             step("migrations", "pass")
@@ -1131,10 +1164,15 @@ def update(context: Context, scope: str) -> None:
                 context.config,
                 outputs,
                 release_id,
+                target_frontend,
             )
             verify_frontend(context.config)
             step("frontend", "pass")
-        database = _database_record(context, outputs)
+        database = _database_record_from_bootstrap_response(
+            context,
+            outputs,
+            bootstrap_response,
+        )
         if sender_pause_attempted:
             context.aws.restore_sender(sender_name, previous_sender_concurrency)
         manifest = _manifest(
@@ -1362,6 +1400,7 @@ def _automatic_release_cleanup(
     context: Context,
     outputs: dict[str, Any],
 ) -> None:
+    step("cleanup")
     try:
         cleanup_releases(
             context,
@@ -1374,6 +1413,7 @@ def _automatic_release_cleanup(
             "release is active, but automatic retention cleanup failed; "
             "inspect ACTION=history and rerun ACTION=cleanup"
         ) from error
+    step("cleanup", "pass")
 
 
 def cleanup_releases(
@@ -1500,8 +1540,14 @@ def cleanup_releases(
             "Apply the exact release cleanup plan shown above?",
             f"cleanup-{context.config.deployment.name_prefix}",
         )
-    for function_name, version in lambda_deletions:
-        context.aws.delete_version(function_name, version)
+    if lambda_deletions:
+        with ThreadPoolExecutor(max_workers=min(4, len(lambda_deletions))) as executor:
+            futures = [
+                executor.submit(context.aws.delete_version, function_name, version)
+                for function_name, version in lambda_deletions
+            ]
+            for future in futures:
+                future.result()
     for prefix in snapshot_prefix_deletions:
         context.aws.call(
             "s3",
@@ -1510,13 +1556,7 @@ def cleanup_releases(
             "--recursive",
             "--only-show-errors",
         )
-    for key in asset_deletions:
-        context.aws.call(
-            "s3",
-            "rm",
-            f"s3://{bucket}/{key}",
-            "--only-show-errors",
-        )
+    context.aws.delete_objects(bucket, asset_deletions)
     for manifest in delete_releases:
         context.aws.delete_parameter(store.release_path(str(manifest["releaseId"])))
     for candidate in candidates:

@@ -4,7 +4,6 @@ import hashlib
 import json
 import mimetypes
 import tempfile
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 from urllib.parse import quote
@@ -21,7 +20,7 @@ SERVICE_WORKER_FILE = "service-worker.js"
 SNAPSHOT_SCHEMA_VERSION = 1
 
 
-def frontend_version(dist: Path, *, now: datetime | None = None) -> str:
+def frontend_version(dist: Path) -> str:
     digest = hashlib.sha256()
     for path in sorted(dist.rglob("*")):
         if not path.is_file() or path.relative_to(dist).as_posix() == "runtime-config.js":
@@ -29,8 +28,7 @@ def frontend_version(dist: Path, *, now: datetime | None = None) -> str:
         digest.update(path.relative_to(dist).as_posix().encode())
         digest.update(b"\0")
         digest.update(path.read_bytes())
-    deployed_at = (now or datetime.now(UTC)).strftime("%Y%m%d")
-    return f"v-{deployed_at}-{digest.hexdigest()[:8]}"
+    return f"v-{digest.hexdigest()[:16]}"
 
 
 def runtime_config(config: Config, version: str) -> str:
@@ -163,12 +161,26 @@ def publish(
     config: Config,
     outputs: dict[str, Any],
     release_id: str,
+    existing: dict[str, str] | None = None,
 ) -> dict[str, str]:
     dist = build(repo_root, config)
     bucket = str(outputs["frontend_bucket_name"])
     distribution = str(outputs["cloudfront_distribution_id"])
     descriptor = snapshot_descriptor(dist, release_id)
     prefix = f"releases/{release_id}/frontend"
+
+    if existing is not None:
+        previous = load_snapshot_descriptor(client, bucket, existing)
+        if (
+            previous["schemaVersion"] == descriptor["schemaVersion"]
+            and previous["mutableFiles"] == descriptor["mutableFiles"]
+            and previous["assets"] == descriptor["assets"]
+        ):
+            print(
+                f"reuse_frontend_snapshot={existing['snapshotPrefix']}",
+                flush=True,
+            )
+            return existing
 
     for record in descriptor["assets"]:
         _put_file(client, dist / record["path"], bucket, record["path"], record, IMMUTABLE_CACHE_CONTROL)

@@ -6,7 +6,6 @@ import sys
 import tempfile
 import unittest
 import zipfile
-from datetime import UTC, datetime
 from pathlib import Path
 from unittest import mock
 
@@ -86,12 +85,12 @@ class ComponentTest(unittest.TestCase):
             (dist / "index.html").write_text("index")
             (dist / "assets/app.js").write_text("app")
             (dist / "runtime-config.js").write_text("first runtime config")
-            now = datetime(2026, 9, 7, tzinfo=UTC)
-            first = frontend_version(dist, now=now)
+            first = frontend_version(dist)
             (dist / "runtime-config.js").write_text("second runtime config")
-            self.assertEqual(first, frontend_version(dist, now=now))
+            self.assertEqual(first, frontend_version(dist))
             (dist / "assets/app.js").write_text("changed app")
-            self.assertNotEqual(first, frontend_version(dist, now=now))
+            self.assertNotEqual(first, frontend_version(dist))
+            self.assertRegex(first, r"^v-[0-9a-f]{16}$")
 
     def test_frontend_publish_snapshots_mutable_files_and_shares_hashed_assets(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -139,6 +138,56 @@ class ComponentTest(unittest.TestCase):
             self.assertIn(destination, destinations)
             self.assertIn("no-cache", destinations[destination])
         self.assertFalse(any("--delete" in call for call in copy_calls))
+
+    def test_frontend_publish_reuses_identical_active_snapshot(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            dist = Path(temporary)
+            (dist / "assets").mkdir()
+            (dist / "index.html").write_text("index")
+            (dist / "runtime-config.js").write_text("runtime")
+            (dist / "service-worker.js").write_text("worker")
+            (dist / "assets/index-123.js").write_text("asset")
+            release_id = "20260919T120000Z-0123456789ab"
+            previous_release_id = "20260918T120000Z-abcdefabcdef"
+            candidate = snapshot_descriptor(dist, release_id)
+            previous = {
+                **candidate,
+                "releaseId": previous_release_id,
+            }
+            existing = {
+                "snapshotPrefix": f"releases/{previous_release_id}/frontend",
+                "snapshotManifestKey": (
+                    f"releases/{previous_release_id}/frontend/snapshot.json"
+                ),
+                "snapshotDigest": value_digest(previous),
+            }
+            client = mock.MagicMock()
+            outputs = {
+                "frontend_bucket_name": "bucket",
+                "cloudfront_distribution_id": "distribution",
+            }
+            with (
+                mock.patch("frontend.publish.build", return_value=dist),
+                mock.patch(
+                    "frontend.publish.load_snapshot_descriptor",
+                    return_value=previous,
+                ),
+                mock.patch("frontend.publish.restore") as restore,
+                mock.patch("frontend.publish._invalidate") as invalidate,
+            ):
+                record = publish(
+                    client,
+                    Path("/repo"),
+                    mock.MagicMock(),
+                    outputs,
+                    release_id,
+                    existing,
+                )
+
+        self.assertEqual(record, existing)
+        restore.assert_not_called()
+        invalidate.assert_not_called()
+        client.call.assert_not_called()
 
     def test_frontend_snapshot_descriptor_classifies_only_assets_as_immutable(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

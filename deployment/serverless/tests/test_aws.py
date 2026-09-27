@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import sys
 import tempfile
 import unittest
@@ -13,6 +14,26 @@ from common.aws import AWSClient
 
 
 class AWSClientTest(unittest.TestCase):
+    def test_delete_objects_batches_requests_at_s3_limit(self) -> None:
+        client = AWSClient("ca-central-1")
+        requests: list[dict[str, object]] = []
+
+        def capture(*args: str) -> dict[str, object]:
+            request_path = Path(args[args.index("--delete") + 1].removeprefix("file://"))
+            requests.append(json.loads(request_path.read_text()))
+            return {}
+
+        with mock.patch.object(client, "json", side_effect=capture) as call:
+            client.delete_objects(
+                "bucket",
+                [f"assets/{index}.js" for index in range(1001)],
+            )
+
+        self.assertEqual(call.call_count, 2)
+        self.assertEqual(len(requests[0]["Objects"]), 1000)
+        self.assertEqual(len(requests[1]["Objects"]), 1)
+        self.assertTrue(requests[0]["Quiet"])
+
     def test_publish_version_returns_exact_immutable_record(self) -> None:
         client = AWSClient("ca-central-1")
         with mock.patch.object(

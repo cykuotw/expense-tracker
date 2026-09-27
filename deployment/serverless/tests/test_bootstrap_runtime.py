@@ -42,6 +42,101 @@ def runtime_config() -> SimpleNamespace:
 
 
 class BootstrapRuntimeTest(unittest.TestCase):
+    def test_reused_bootstrap_uses_read_only_state_when_schema_is_current(self) -> None:
+        client = mock.MagicMock()
+        client.json.return_value = {"Environment": {"Variables": {}}}
+        client.invoke_bootstrap.return_value = {
+            "status": "ok",
+            "operation": "migration-state",
+            "migration_version": 35,
+            "migration_dirty": False,
+        }
+        with tempfile.TemporaryDirectory() as temporary:
+            artifact = Path(temporary) / "bootstrap.zip"
+            artifact.write_bytes(b"same-artifact")
+            existing = {
+                "functionName": "bootstrap",
+                "version": "4",
+                "qualifiedArn": (
+                    "arn:aws:lambda:ca-central-1:123:function:bootstrap:4"
+                ),
+                "codeSha256": base64.b64encode(
+                    hashlib.sha256(artifact.read_bytes()).digest(),
+                ).decode(),
+            }
+            record, response = runtime.publish_bootstrap_release(
+                client,
+                artifact,
+                runtime_config(),
+                {
+                    "bootstrap_function_name": "bootstrap",
+                    "database_host": "db.internal",
+                },
+                Path(temporary),
+                "20260919T184500Z-a1b2c3d4e5f6",
+                existing,
+                expected_schema_when_reused=35,
+            )
+
+        self.assertEqual(record, existing)
+        self.assertEqual(response["operation"], "migration-state")
+        client.invoke_bootstrap.assert_called_once()
+        self.assertEqual(
+            client.invoke_bootstrap.call_args.kwargs["operation"],
+            "migration-state",
+        )
+
+    def test_reused_bootstrap_runs_migrations_when_live_schema_is_behind(self) -> None:
+        client = mock.MagicMock()
+        client.json.return_value = {"Environment": {"Variables": {}}}
+        client.invoke_bootstrap.side_effect = [
+            {
+                "status": "ok",
+                "operation": "migration-state",
+                "migration_version": 34,
+                "migration_dirty": False,
+            },
+            {
+                "first_admin_status": "already_exists",
+                "migration_version": 35,
+                "migration_dirty": False,
+            },
+            {"first_admin_status": "already_exists"},
+        ]
+        with tempfile.TemporaryDirectory() as temporary:
+            artifact = Path(temporary) / "bootstrap.zip"
+            artifact.write_bytes(b"same-artifact")
+            existing = {
+                "functionName": "bootstrap",
+                "version": "4",
+                "qualifiedArn": (
+                    "arn:aws:lambda:ca-central-1:123:function:bootstrap:4"
+                ),
+                "codeSha256": base64.b64encode(
+                    hashlib.sha256(artifact.read_bytes()).digest(),
+                ).decode(),
+            }
+            _record, response = runtime.publish_bootstrap_release(
+                client,
+                artifact,
+                runtime_config(),
+                {
+                    "bootstrap_function_name": "bootstrap",
+                    "database_host": "db.internal",
+                },
+                Path(temporary),
+                "20260919T184500Z-a1b2c3d4e5f6",
+                existing,
+                expected_schema_when_reused=35,
+            )
+
+        self.assertEqual(response["migration_version"], 35)
+        self.assertEqual(client.invoke_bootstrap.call_count, 3)
+        self.assertEqual(
+            client.invoke_bootstrap.call_args_list[0].kwargs["operation"],
+            "migration-state",
+        )
+
     def test_unchanged_release_reuses_existing_version(self) -> None:
         client = mock.MagicMock()
         client.json.return_value = {

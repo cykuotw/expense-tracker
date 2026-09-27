@@ -44,6 +44,26 @@ def managed_manifest() -> dict[str, object]:
 
 
 class WorkflowTest(unittest.TestCase):
+    def test_database_record_reuses_validated_bootstrap_response(self) -> None:
+        context = mock.MagicMock()
+        context.repo_root = Path("/repo")
+        with mock.patch.object(
+            workflow.migration_policy,
+            "repository_digest",
+            return_value="sha256:" + "1" * 64,
+        ):
+            record = workflow._database_record_from_bootstrap_response(
+                context,
+                {"bootstrap_function_name": "bootstrap"},
+                {
+                    "migration_version": 37,
+                    "migration_dirty": False,
+                },
+            )
+
+        self.assertEqual(record["migrationVersion"], 37)
+        context.aws.invoke_bootstrap.assert_not_called()
+
     def test_artifact_components_follow_update_scope(self) -> None:
         self.assertEqual(workflow._artifact_components("frontend"), frozenset())
         self.assertEqual(
@@ -435,7 +455,7 @@ class WorkflowTest(unittest.TestCase):
              mock.patch.object(workflow, "_automatic_release_cleanup"), \
              mock.patch.object(workflow.artifacts, "build", return_value={"bootstrap": Path("bootstrap.zip"), "worker": Path("worker.zip"), "ocr": Path("ocr.zip"), "sender": Path("sender.zip"), "delivery": Path("delivery.zip"), "notifier": Path("notifier.zip")}), \
              mock.patch.object(context.aws, "pause_sender", side_effect=lambda *args: events.append("pause-sender") or 1), \
-             mock.patch.object(workflow.runtime, "publish_bootstrap_release", side_effect=lambda *args: (events.append("migrations") or ({"functionName": "bootstrap"}, {}))), \
+             mock.patch.object(workflow.runtime, "publish_bootstrap_release", side_effect=lambda *args, **kwargs: (events.append("migrations") or ({"functionName": "bootstrap"}, {}))) as publish_bootstrap, \
              mock.patch.object(workflow, "_apply_infrastructure_updates", side_effect=lambda *args: events.append("infrastructure")), \
              mock.patch.object(workflow.runtime, "publish_error_notifier_release", side_effect=lambda *args: events.append("notifier")), \
              mock.patch.multiple(
@@ -451,6 +471,10 @@ class WorkflowTest(unittest.TestCase):
             workflow.update(context, "all")
         self.assertEqual(events, ["migration-policy", "state-repair", "infrastructure", "migrations", "pause-sender", "notifier", "backend", "ocr", "sender", "frontend"])
         self.assertFalse(publish_notifications.call_args.kwargs["activate"])
+        self.assertEqual(
+            publish_bootstrap.call_args.kwargs["expected_schema_when_reused"],
+            35,
+        )
         context.aws.activate_notification_function.assert_called_once_with("delivery")
         context.aws.restore_sender.assert_called_once_with("sender", 1)
 
@@ -483,7 +507,7 @@ class WorkflowTest(unittest.TestCase):
              mock.patch.object(workflow, "_automatic_release_cleanup"), \
              mock.patch.object(workflow.artifacts, "build", return_value={"bootstrap": Path("b"), "worker": Path("w"), "ocr": Path("o"), "sender": Path("s"), "delivery": Path("d"), "notifier": Path("n")}), \
              mock.patch.object(workflow, "_apply_infrastructure_updates", return_value=None), \
-             mock.patch.object(workflow.runtime, "publish_bootstrap_release", side_effect=lambda *args: (events.append("migrations") or ({"functionName": "bootstrap"}, {}))), \
+             mock.patch.object(workflow.runtime, "publish_bootstrap_release", side_effect=lambda *args, **kwargs: (events.append("migrations") or ({"functionName": "bootstrap"}, {}))) as publish_bootstrap, \
              mock.patch.object(workflow.runtime, "publish_error_notifier_release", side_effect=lambda *args: events.append("notifier")), \
              mock.patch.multiple(
                  workflow.runtime,
@@ -496,6 +520,10 @@ class WorkflowTest(unittest.TestCase):
              mock.patch.object(workflow, "publish_frontend") as publish:
             workflow.update(context, "backend")
         publish.assert_not_called()
+        self.assertEqual(
+            publish_bootstrap.call_args.kwargs["expected_schema_when_reused"],
+            35,
+        )
         self.assertFalse(publish_notifications.call_args.kwargs["activate"])
         context.aws.activate_notification_function.assert_called_once_with(
             "delivery"
@@ -877,7 +905,9 @@ class WorkflowTest(unittest.TestCase):
         store.list_candidates.return_value = []
         store.release_path.side_effect = lambda release_id: f"/releases/{release_id}"
         context.aws.list_versions.return_value = []
-        context.aws.json.return_value = {"Contents": []}
+        context.aws.json.return_value = {
+            "Contents": [{"Key": "assets/stale.js"}],
+        }
 
         with (
             mock.patch.object(workflow, "preflight"),
@@ -909,6 +939,10 @@ class WorkflowTest(unittest.TestCase):
             if call.args[:2] == ("s3", "rm")
         ]
         self.assertEqual(s3_removals, [])
+        context.aws.delete_objects.assert_called_once_with(
+            "bucket",
+            ["assets/stale.js"],
+        )
         context.aws.delete_parameter.assert_called_once_with(
             "/releases/20260101T120000Z-000000000001"
         )

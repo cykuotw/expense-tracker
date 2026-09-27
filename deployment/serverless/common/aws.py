@@ -5,7 +5,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-from common.command import CommandError, run
+from common.command import CommandError, protected_json, run
 
 
 class AWSClient:
@@ -301,6 +301,30 @@ class AWSClient:
             raise CommandError(
                 f"failed to delete release metadata: {(result.stderr or result.stdout).strip()}"
             )
+
+    def delete_objects(self, bucket: str, keys: list[str]) -> None:
+        for offset in range(0, len(keys), 1000):
+            chunk = keys[offset : offset + 1000]
+            if not chunk:
+                continue
+            request = {
+                "Objects": [{"Key": key} for key in chunk],
+                "Quiet": True,
+            }
+            with protected_json(request, prefix="expense-s3-delete-") as path:
+                response = self.json(
+                    "s3api",
+                    "delete-objects",
+                    "--bucket",
+                    bucket,
+                    "--delete",
+                    f"file://{path}",
+                )
+            errors = response.get("Errors", []) if isinstance(response, dict) else []
+            if errors:
+                raise CommandError(
+                    f"S3 batch deletion reported {len(errors)} object errors"
+                )
 
     def concurrency(self, function_name: str) -> int | None:
         result = self.json("lambda", "get-function-concurrency", "--function-name", function_name)

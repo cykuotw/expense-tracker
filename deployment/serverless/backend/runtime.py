@@ -270,7 +270,7 @@ def _publish_configured_function(
     config: Config,
     terraform_root: Path,
     existing: dict[str, str] | None = None,
-) -> dict[str, str]:
+) -> tuple[dict[str, str], bool]:
     if existing is not None and not release_needs_publish(
         client,
         existing,
@@ -281,7 +281,7 @@ def _publish_configured_function(
             f"reuse_lambda={function_name}:{existing['version']}",
             flush=True,
         )
-        return existing
+        return existing, True
     before = _state_digest(terraform_root)
     client.update_code(function_name, artifact)
     with protected_json(
@@ -298,7 +298,7 @@ def _publish_configured_function(
         raise CommandError(
             f"Terraform state changed while publishing release for {function_name}"
         )
-    return client.publish_version(function_name)
+    return client.publish_version(function_name), False
 
 
 def _artifact_code_sha256(artifact: Path) -> str:
@@ -348,9 +348,11 @@ def publish_bootstrap_release(
     terraform_root: Path,
     release_id: str,
     existing: dict[str, str] | None = None,
+    *,
+    expected_schema_when_reused: int | None = None,
 ) -> tuple[dict[str, str], dict[str, Any]]:
     function_name = str(outputs["bootstrap_function_name"])
-    record = _publish_configured_function(
+    record, reused = _publish_configured_function(
         client,
         function_name,
         artifact,
@@ -367,6 +369,25 @@ def publish_bootstrap_release(
     ) as stream:
         response_path = Path(stream.name)
     try:
+        if reused and expected_schema_when_reused is not None:
+            state = client.invoke_bootstrap(
+                record["qualifiedArn"],
+                response_path,
+                operation="migration-state",
+            )
+            version = state.get("migration_version")
+            dirty = state.get("migration_dirty")
+            if (
+                not isinstance(version, int)
+                or isinstance(version, bool)
+                or not isinstance(dirty, bool)
+            ):
+                raise CommandError(
+                    "Bootstrap migration-state response is invalid"
+                )
+            if not dirty and version == expected_schema_when_reused:
+                print("reuse_bootstrap_invocation=true", flush=True)
+                return record, state
         first = client.invoke_bootstrap(record["qualifiedArn"], response_path)
         second = client.invoke_bootstrap(record["qualifiedArn"], response_path)
         if first.get("first_admin_status") not in {
@@ -381,6 +402,12 @@ def publish_bootstrap_release(
             "already_exists",
         }:
             raise CommandError("second bootstrap invocation was not idempotent")
+        if (
+            not isinstance(first.get("migration_version"), int)
+            or isinstance(first.get("migration_version"), bool)
+            or not isinstance(first.get("migration_dirty"), bool)
+        ):
+            raise CommandError("first bootstrap invocation returned invalid migration state")
         return record, first
     finally:
         response_path.unlink(missing_ok=True)
@@ -395,7 +422,7 @@ def publish_worker_release(
     release_id: str,
     existing: dict[str, str] | None = None,
 ) -> dict[str, str]:
-    record = _publish_configured_function(
+    record, _reused = _publish_configured_function(
         client,
         str(outputs["worker_function_name"]),
         artifact,
@@ -418,7 +445,7 @@ def publish_ocr_release(
     release_id: str,
     existing: dict[str, str] | None = None,
 ) -> dict[str, str]:
-    record = _publish_configured_function(
+    record, _reused = _publish_configured_function(
         client,
         str(outputs["ocr_function_name"]),
         artifact,
@@ -446,7 +473,7 @@ def publish_notification_releases(
     existing_delivery: dict[str, str] | None = None,
 ) -> tuple[dict[str, str], dict[str, str]]:
     delivery_name = str(outputs["delivery_function_name"])
-    delivery = _publish_configured_function(
+    delivery, _delivery_reused = _publish_configured_function(
         client,
         delivery_name,
         delivery_artifact,
@@ -459,7 +486,7 @@ def publish_notification_releases(
     if activate:
         client.activate_notification_function(delivery_name)
     sender_name = str(outputs["sender_function_name"])
-    sender = _publish_configured_function(
+    sender, _sender_reused = _publish_configured_function(
         client,
         sender_name,
         sender_artifact,
@@ -490,7 +517,7 @@ def publish_error_notifier_release(
     function_name = str(outputs.get("error_notifier_function_name", ""))
     if not function_name:
         raise CommandError("enabled error alerting did not expose a notifier function")
-    record = _publish_configured_function(
+    record, _reused = _publish_configured_function(
         client,
         function_name,
         artifact,

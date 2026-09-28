@@ -14,6 +14,10 @@ import {
 } from "../types/group";
 import { ExpenseTypeItem } from "../types/expense";
 import { CurrencyMetadata } from "../lib/money";
+import type { PreparedReceipt } from "../lib/receiptEditor";
+import type { ConfirmedExpenseItem, OCRDraft, ReviewedReceiptDraft } from "../types/ocr";
+
+export type OCRWorkflowStatus = "idle" | "scanning" | "ready" | "error";
 
 export interface CreateExpenseContextType {
     groupId: string | null;
@@ -39,6 +43,25 @@ export interface CreateExpenseContextType {
     allocationCalculation: AllocationCalculation;
     mainFormVisited: boolean;
     markMainFormVisited: () => void;
+    merchant: string;
+    setMerchant: Dispatch<SetStateAction<string>>;
+    subtotalInput: string;
+    setSubtotalInput: Dispatch<SetStateAction<string>>;
+    taxInput: string;
+    setTaxInput: Dispatch<SetStateAction<string>>;
+    tipInput: string;
+    setTipInput: Dispatch<SetStateAction<string>>;
+    items: ConfirmedExpenseItem[];
+    setItems: Dispatch<SetStateAction<ConfirmedExpenseItem[]>>;
+    receiptDetailsActive: boolean;
+
+    receiptOCREnabled: boolean | null;
+    ocrStatus: OCRWorkflowStatus;
+    ocrDraft: OCRDraft | null;
+    ocrError: string | null;
+    startReceiptOCR: (receipt: PreparedReceipt) => Promise<void>;
+    applyReviewedReceipt: (draft: ReviewedReceiptDraft) => void;
+    clearReceiptWorkflow: () => void;
 
     indicatorShow: boolean;
     submissionError: string | null;

@@ -2,13 +2,20 @@ export interface ItemData {
     itemId: string;
     itemName: string;
     itemSubTotal: string;
+    description?: string;
+    quantity?: string | null;
+    unit?: string | null;
+    unitPrice?: string | null;
+    lineTotal?: string;
+    position?: number;
 }
 
 export interface ItemCreateData {
-    itemName: string;
-    amount: string;
-    unit: string;
-    unitPrice: string;
+    description: string;
+    quantity: string | null;
+    unit: string | null;
+    unitPrice: string | null;
+    lineTotal: string;
 }
 
 export interface ItemUpdateData extends ItemCreateData {

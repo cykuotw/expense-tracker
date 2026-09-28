@@ -1,5 +1,5 @@
-import { useEffect } from "react";
-import { Route, Routes } from "react-router-dom";
+import { lazy, Suspense, useEffect } from "react";
+import { Link, Route, Routes } from "react-router-dom";
 
 import Icon from "@mdi/react";
 import { mdiCamera } from "@mdi/js";
@@ -19,6 +19,11 @@ import ExpenseSubmitButton from "../components/expense/ExpenseSubmitButton";
 import DesktopBackLink from "../components/DesktopBackLink";
 import { CurrencyPicker } from "../components/group/CurrencyPicker";
 import { usePWAUpdateBlocker } from "../hooks/usePWAUpdateBlocker";
+import { ConfirmedReceiptDetails } from "../components/expense/ConfirmedReceiptDetails";
+import { validateReceiptExpense } from "../lib/receiptDraft";
+
+const ReceiptScanPage = lazy(() => import("../components/receipt/ReceiptScanPage"));
+const ReceiptDraftReview = lazy(() => import("../components/receipt/ReceiptDraftReview"));
 
 const CreateExpenseContent = () => {
     usePWAUpdateBlocker(true);
@@ -54,11 +59,28 @@ const CreateExpenseContent = () => {
         reloadGroupMembers,
         handleCreateExpense,
         markMainFormVisited,
+        merchant,
+        setMerchant,
+        subtotalInput,
+        setSubtotalInput,
+        taxInput,
+        setTaxInput,
+        tipInput,
+        setTipInput,
+        items,
+        setItems,
+        receiptDetailsActive,
+        receiptOCREnabled,
     } = useCreateExpense();
 
     useEffect(() => {
         markMainFormVisited();
     }, [markMainFormVisited]);
+
+    const receiptValidation = validateReceiptExpense({
+        merchant, subtotal: subtotalInput, tax: taxInput, tip: tipInput,
+        total: totalInput, items,
+    }, amountDigits);
 
     const selectGroup = (value: string) => {
         setSelectedGroupId(value);
@@ -100,6 +122,22 @@ const CreateExpenseContent = () => {
                     onSubmit={handleCreateExpense}
                     aria-busy={indicatorShow}
                 >
+                        {receiptOCREnabled ? (
+                            <div className="mb-5 flex flex-col gap-3 rounded-2xl border border-border bg-primary/5 p-4 sm:flex-row sm:items-center sm:justify-between">
+                                <div>
+                                    <p className="font-semibold">Have a receipt?</p>
+                                    <p className="mt-1 text-sm text-muted-foreground">Crop or cover private details, then review an OCR draft before saving.</p>
+                                </div>
+                                {selectedGroupId ? (
+                                    <Link className="ui-button ui-button-primary min-h-11 shrink-0" to={`receipt?g=${encodeURIComponent(selectedGroupId)}`}>
+                                        <Icon path={mdiCamera} size={0.85} aria-hidden="true" />
+                                        Scan receipt
+                                    </Link>
+                                ) : (
+                                    <button type="button" className="ui-button ui-button-primary min-h-11 shrink-0" disabled>Choose a group first</button>
+                                )}
+                            </div>
+                        ) : null}
                         <ExpenseSubmissionFeedback
                             error={submissionError}
                             errorTitle="We couldn't save this expense"
@@ -221,22 +259,22 @@ const CreateExpenseContent = () => {
                             </div>
                         </div>
 
-                        {/* RECEIPT UPLOAD BUTTON */}
-                        <div className="hidden">
-                            <label
-                                style={{ display: "inline-block" }}
-                                className="w-2/3 h-12 border border-gray-400 rounded-full bg-background hover:bg-border"
-                            >
-                                <input
-                                    type="file"
-                                    style={{ display: "none" }}
-                                />
-                                <div className="flex flex-row items-center justify-center h-full space-x-3">
-                                    <Icon path={mdiCamera} size={1} />
-                                    <p>Upload Receipt</p>
-                                </div>
-                            </label>
-                        </div>
+                        {receiptDetailsActive ? (
+                            <ConfirmedReceiptDetails
+                                merchant={merchant}
+                                onMerchantChange={setMerchant}
+                                subtotal={subtotalInput}
+                                onSubtotalChange={setSubtotalInput}
+                                tax={taxInput}
+                                onTaxChange={setTaxInput}
+                                tip={tipInput}
+                                onTipChange={setTipInput}
+                                items={items}
+                                onItemsChange={setItems}
+                                amountStep={amountDigits === null ? undefined : moneyInputStep(amountDigits)}
+                                validationMessage={receiptValidation.message}
+                            />
+                        ) : null}
 
                         <div className="mt-4 md:mt-6">
                             {groupMembersLoadStatus === "loading" ? (
@@ -305,6 +343,8 @@ const CreateExpense = () => {
             <Routes>
                 <Route index element={<CreateExpenseContent />} />
                 <Route path="split" element={<CreateExpenseSplit />} />
+                <Route path="receipt" element={<Suspense fallback={null}><ReceiptScanPage /></Suspense>} />
+                <Route path="receipt/review" element={<Suspense fallback={null}><ReceiptDraftReview /></Suspense>} />
             </Routes>
         </CreateExpenseProvider>
     );

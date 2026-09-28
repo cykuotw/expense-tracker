@@ -10,6 +10,7 @@ import {
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "react-hot-toast";
 import { CreateExpenseContext } from "../hooks/CreateExpenseContextHooks";
+import { useAuth } from "../hooks/AuthContextHooks";
 import {
     apiFetch,
     asArray,
@@ -38,6 +39,11 @@ import {
     GroupMembersLoadStatus,
 } from "../types/group";
 import { legacyCurrencySettings } from "../lib/currencySettings";
+import { requestReceiptDraft, ReceiptOCRError } from "../lib/receiptOcr";
+import { validateReceiptExpense } from "../lib/receiptDraft";
+import type { PreparedReceipt } from "../lib/receiptEditor";
+import type { AccountSettingsData } from "../types/account";
+import type { ConfirmedExpenseItem, OCRDraft, ReviewedReceiptDraft } from "../types/ocr";
 
 const EMPTY_ALLOCATION: ExpenseAllocation = {
     mode: "equal",
@@ -50,6 +56,7 @@ export const CreateExpenseProvider = ({
     children: ReactNode;
 }) => {
     const navigate = useNavigate();
+    const { userID } = useAuth();
     const [searchParams] = useSearchParams();
     const groupId = searchParams.get("g");
     const [indicatorShow, setIndicatorShow] = useState(false);
@@ -74,6 +81,17 @@ export const CreateExpenseProvider = ({
     const [payer, setPayer] = useState("");
     const [allocation, setAllocation] =
         useState<ExpenseAllocation>(EMPTY_ALLOCATION);
+    const [merchant, setMerchant] = useState("");
+    const [subtotalInput, setSubtotalInput] = useState("");
+    const [taxInput, setTaxInput] = useState("");
+    const [tipInput, setTipInput] = useState("");
+    const [items, setItems] = useState<ConfirmedExpenseItem[]>([]);
+    const [receiptOCREnabled, setReceiptOCREnabled] = useState<boolean | null>(null);
+    const [ocrStatus, setOCRStatus] = useState<"idle" | "scanning" | "ready" | "error">("idle");
+    const [ocrDraft, setOCRDraft] = useState<OCRDraft | null>(null);
+    const [ocrError, setOCRError] = useState<string | null>(null);
+    const ocrAbortRef = useRef<AbortController | null>(null);
+    const previousGroupRef = useRef(selectedGroupId);
 
     const [groupList, setGroupList] = useState<GroupListItem[]>([]);
     const [expenseTypes, setExpenseTypes] = useState<ExpenseTypeItem[]>([]);
@@ -99,12 +117,21 @@ export const CreateExpenseProvider = ({
         amountDigits === null
             ? null
             : decimalToUnits(totalInput, amountDigits);
+    const receiptDetailsActive = Boolean(
+        merchant.trim() || subtotalInput.trim() || taxInput.trim() ||
+        tipInput.trim() || items.length > 0
+    );
+    const receiptValidation = validateReceiptExpense({
+        merchant, subtotal: subtotalInput, tax: taxInput, tip: tipInput,
+        total: totalInput, items,
+    }, amountDigits);
     const dataOk =
         totalUnits !== null &&
         totalUnits > 0n &&
         description.length > 0 &&
         isDateOnly(occurredOn) &&
         allocationCalculation.valid &&
+        receiptValidation.valid &&
         groupMembersLoadStatus === "ready" &&
         Boolean(selectedGroupId && payer && selectedExpenseTypeId);
 
@@ -114,6 +141,56 @@ export const CreateExpenseProvider = ({
     const markMainFormVisited = useCallback(() => {
         setMainFormVisited(true);
     }, []);
+
+    const clearReceiptWorkflow = useCallback(() => {
+        ocrAbortRef.current?.abort("cancelled");
+        ocrAbortRef.current = null;
+        setOCRStatus("idle");
+        setOCRDraft(null);
+        setOCRError(null);
+    }, []);
+
+    const startReceiptOCR = useCallback(async (receipt: PreparedReceipt) => {
+        if (!userID || receiptOCREnabled !== true) {
+            setOCRStatus("error");
+            setOCRError("Receipt scanning is not available for this account.");
+            return;
+        }
+        ocrAbortRef.current?.abort("replaced");
+        const controller = new AbortController();
+        ocrAbortRef.current = controller;
+        setOCRStatus("scanning");
+        setOCRDraft(null);
+        setOCRError(null);
+        try {
+            const draft = await requestReceiptDraft(receipt, userID, controller.signal);
+            if (ocrAbortRef.current !== controller) return;
+            setOCRDraft(draft);
+            setOCRStatus("ready");
+        } catch (error) {
+            if (ocrAbortRef.current !== controller) return;
+            const receiptError = error instanceof ReceiptOCRError ? error : null;
+            if (receiptError?.code === "receipt_ocr_not_granted") {
+                setReceiptOCREnabled(false);
+            }
+            setOCRError(receiptError?.message ?? "The receipt could not be scanned. Continue with manual entry.");
+            setOCRStatus("error");
+        } finally {
+            if (ocrAbortRef.current === controller) ocrAbortRef.current = null;
+        }
+    }, [receiptOCREnabled, userID]);
+
+    const applyReviewedReceipt = useCallback((draft: ReviewedReceiptDraft) => {
+        setMerchant(draft.merchant);
+        setDescription((current) => current.trim() ? current : draft.merchant);
+        setOccurredOn(draft.date);
+        setSubtotalInput(draft.subtotal);
+        setTaxInput(draft.tax);
+        setTipInput(draft.tip);
+        setTotalInput(draft.total);
+        setItems(draft.items);
+        clearReceiptWorkflow();
+    }, [clearReceiptWorkflow]);
 
     const handleCreateExpense = async (event: FormEvent) => {
         event.preventDefault();
@@ -140,6 +217,12 @@ export const CreateExpenseProvider = ({
                 currency,
                 allocation,
                 occurredOn,
+                providerName: merchant.trim(),
+                ...(receiptDetailsActive ? {
+                    subTotal: receiptValidation.subTotal,
+                    taxFeeTip: receiptValidation.taxFeeTip,
+                    items: receiptValidation.items,
+                } : {}),
             };
 
             const fingerprint = JSON.stringify(payload);
@@ -165,6 +248,7 @@ export const CreateExpenseProvider = ({
             }
 
             submissionIntentRef.current = null;
+            clearReceiptWorkflow();
             toast.success("Your expense has been created!", { duration: 1000 });
             if (selectedGroupId) {
                 navigate(`/group/${selectedGroupId}`);
@@ -176,6 +260,37 @@ export const CreateExpenseProvider = ({
             setIndicatorShow(false);
         }
     };
+
+    useEffect(() => {
+        const controller = new AbortController();
+        const loadCapability = async () => {
+            try {
+                const response = await apiFetch("/account", { signal: controller.signal });
+                if (!response.ok) throw new Error("account capability request failed");
+                const account = (await response.json()) as Partial<AccountSettingsData>;
+                setReceiptOCREnabled(account.capabilities?.receiptOcr === true);
+            } catch {
+                if (!controller.signal.aborted) setReceiptOCREnabled(false);
+            }
+        };
+        void loadCapability();
+        return () => controller.abort();
+    }, []);
+
+    useEffect(() => () => {
+        ocrAbortRef.current?.abort("unmounted");
+    }, []);
+
+    useEffect(() => {
+        if (previousGroupRef.current === selectedGroupId) return;
+        previousGroupRef.current = selectedGroupId;
+        clearReceiptWorkflow();
+        setMerchant("");
+        setSubtotalInput("");
+        setTaxInput("");
+        setTipInput("");
+        setItems([]);
+    }, [clearReceiptWorkflow, selectedGroupId]);
 
     useEffect(() => {
         setGroupMembersLoadStatus(selectedGroupId ? "loading" : "idle");
@@ -318,6 +433,24 @@ export const CreateExpenseProvider = ({
                 allocationCalculation,
                 mainFormVisited,
                 markMainFormVisited,
+                merchant,
+                setMerchant,
+                subtotalInput,
+                setSubtotalInput,
+                taxInput,
+                setTaxInput,
+                tipInput,
+                setTipInput,
+                items,
+                setItems,
+                receiptDetailsActive,
+                receiptOCREnabled,
+                ocrStatus,
+                ocrDraft,
+                ocrError,
+                startReceiptOCR,
+                applyReviewedReceipt,
+                clearReceiptWorkflow,
                 indicatorShow,
                 submissionError,
                 dataOk,

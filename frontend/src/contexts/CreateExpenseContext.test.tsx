@@ -11,6 +11,10 @@ const { apiFetchMock, navigateMock, toastErrorMock, toastSuccessMock } =
         toastSuccessMock: vi.fn(),
     }));
 
+vi.mock("../hooks/AuthContextHooks", () => ({
+    useAuth: () => ({ userID: "user-1" }),
+}));
+
 vi.mock("react-router-dom", () => ({
     useNavigate: () => navigateMock,
     useSearchParams: () => [new URLSearchParams("g=group-1")],
@@ -93,6 +97,24 @@ function CreateExpenseHarness() {
             <output data-testid="submission-error">
                 {context.submissionError}
             </output>
+            <button
+                type="button"
+                onClick={() => context.applyReviewedReceipt({
+                    merchant: "Cafe",
+                    date: "2026-09-27",
+                    currencySuggestion: "USD",
+                    subtotal: "5.00",
+                    tax: "0.65",
+                    tip: "1.00",
+                    total: "6.65",
+                    items: [{
+                        id: "item-1", description: "Coffee", quantity: "2",
+                        unit: "cup", unitPrice: "2.50", lineTotal: "5.00",
+                    }],
+                })}
+            >
+                Apply receipt
+            </button>
             <button type="submit">Create</button>
         </form>
     );
@@ -102,6 +124,9 @@ describe("CreateExpenseProvider error handling", () => {
     beforeEach(() => {
         vi.clearAllMocks();
         apiFetchMock.mockImplementation((path: string) => {
+            if (path === "/account") {
+                return Promise.resolve(jsonResponse({ capabilities: { receiptOcr: true } }));
+            }
             if (path === "/expense_create_options?groupId=group-1") {
                 return Promise.resolve(
                     jsonResponse({
@@ -180,7 +205,7 @@ describe("CreateExpenseProvider error handling", () => {
             );
         });
         const initialReads = apiFetchMock.mock.calls.filter(
-            ([path]) => path !== "/create_expense"
+            ([path]) => path !== "/create_expense" && path !== "/account"
         );
         expect(initialReads).toHaveLength(1);
         expect(initialReads[0][0]).toBe(
@@ -419,6 +444,34 @@ describe("CreateExpenseProvider error handling", () => {
         expect(retryHeaders["Idempotency-Key"]).not.toBe(
             firstHeaders["Idempotency-Key"]
         );
+    });
+
+    it("submits only reviewed receipt values through the confirmed item contract", async () => {
+        render(
+            <CreateExpenseProvider>
+                <CreateExpenseHarness />
+            </CreateExpenseProvider>
+        );
+        await waitFor(() => expect(screen.getByTestId("members")).toHaveTextContent("1"));
+
+        fireEvent.click(screen.getByRole("button", { name: "Apply receipt" }));
+        fireEvent.submit(screen.getByRole("form", { name: "expense form" }));
+
+        await waitFor(() => expect(apiFetchMock.mock.calls.some(([path]) => path === "/create_expense")).toBe(true));
+        const request = apiFetchMock.mock.calls.find(([path]) => path === "/create_expense")?.[1] as RequestInit;
+        expect(JSON.parse(request.body as string)).toMatchObject({
+            description: "Cafe",
+            providerName: "Cafe",
+            occurredOn: "2026-09-27",
+            currency: "CAD",
+            subTotal: "5.00",
+            taxFeeTip: "1.65",
+            total: "6.65",
+            items: [{
+                description: "Coffee", quantity: "2", unit: "cup",
+                unitPrice: "2.50", lineTotal: "5.00",
+            }],
+        });
     });
 
     it("keeps the amount input editable when it is cleared or replaced", async () => {

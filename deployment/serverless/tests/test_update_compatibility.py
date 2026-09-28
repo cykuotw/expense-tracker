@@ -14,6 +14,16 @@ import workflow
 
 
 class UpdateCompatibilityTest(unittest.TestCase):
+    def setUp(self) -> None:
+        super().setUp()
+        patcher = mock.patch.object(
+            workflow.runtime,
+            "repair_secret_boundary",
+            return_value=0,
+        )
+        self.repair_secret_boundary = patcher.start()
+        self.addCleanup(patcher.stop)
+
     def test_pre_update_health_check_allows_not_yet_deployed_contracts(self) -> None:
         context = mock.MagicMock()
         context.terraform_root = Path("/repo/deployment/serverless/infrastructure/tf")
@@ -47,6 +57,12 @@ class UpdateCompatibilityTest(unittest.TestCase):
         context.terraform_root = Path("/repo/deployment/serverless/infrastructure/tf")
         context.config.error_alerting_enabled = True
         terraform = mock.MagicMock()
+        events: list[str] = []
+        terraform.apply.side_effect = lambda *_: events.append("apply")
+        terraform.output.side_effect = lambda: events.append("output") or {}
+        self.repair_secret_boundary.side_effect = (
+            lambda *_: events.append("repair") or 1
+        )
         terraform.show_plan.return_value = {
             "resource_changes": [
                 {
@@ -96,6 +112,10 @@ class UpdateCompatibilityTest(unittest.TestCase):
         self.assertIn("aws_iam_instance_profile.postgres_backup_writer", targets)
         self.assertNotIn("aws_instance.postgres", targets)
         terraform.apply.assert_called_once_with(plan_path)
+        self.repair_secret_boundary.assert_called_once_with(
+            context.terraform_root, context.config
+        )
+        self.assertEqual(events, ["apply", "repair", "output"])
 
     def test_backup_profile_is_attached_in_place_when_absent(self) -> None:
         context = mock.MagicMock()
@@ -149,6 +169,37 @@ class UpdateCompatibilityTest(unittest.TestCase):
             workflow._ensure_postgres_backup_profile(context, outputs)
         context.aws.call.assert_not_called()
 
+    def test_infrastructure_update_stops_before_outputs_when_state_repair_fails(self) -> None:
+        context = mock.MagicMock()
+        context.terraform_root = Path("/repo/deployment/serverless/infrastructure/tf")
+        context.config.error_alerting_enabled = False
+        terraform = mock.MagicMock()
+        terraform.show_plan.return_value = {
+            "resource_changes": [
+                {
+                    "address": "aws_lambda_function.ocr",
+                    "change": {"actions": ["update"]},
+                }
+            ]
+        }
+        self.repair_secret_boundary.side_effect = workflow.CommandError(
+            "protected value remains outside repairable state"
+        )
+
+        with mock.patch.object(
+            workflow,
+            "_terraform",
+            return_value=contextlib.nullcontext(Path("/tmp/variables")),
+        ), mock.patch.object(
+            workflow,
+            "Terraform",
+            return_value=terraform,
+        ), self.assertRaisesRegex(workflow.CommandError, "protected value remains"):
+            workflow._apply_infrastructure_updates(context, "backend")
+
+        terraform.apply.assert_called_once()
+        terraform.output.assert_not_called()
+
     def test_infrastructure_update_skips_apply_when_plan_is_empty(self) -> None:
         context = mock.MagicMock()
         context.terraform_root = Path("/repo/deployment/serverless/infrastructure/tf")
@@ -168,6 +219,7 @@ class UpdateCompatibilityTest(unittest.TestCase):
             workflow._apply_infrastructure_updates(context, "backend")
 
         terraform.apply.assert_not_called()
+        self.repair_secret_boundary.assert_not_called()
 
     def test_disabling_alerting_allows_only_its_conditional_resources_to_be_removed(self) -> None:
         context = mock.MagicMock()

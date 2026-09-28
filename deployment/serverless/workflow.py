@@ -768,6 +768,14 @@ def _apply_infrastructure_updates(
         _print_plan(actions)
         if actions:
             terraform.apply(plan_path)
+            repaired_state_files = runtime.repair_secret_boundary(
+                context.terraform_root, context.config
+            )
+            if repaired_state_files:
+                print(
+                    "repaired Terraform secret boundary after infrastructure apply: "
+                    f"files={repaired_state_files}"
+                )
         outputs = terraform.output()
     step("infrastructure", "pass")
     return outputs

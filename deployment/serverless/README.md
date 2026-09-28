@@ -299,8 +299,10 @@ The existing CloudFront response headers policy enforces
 a narrow `Content-Security-Policy` that was first validated in report-only mode
 across the supported Chromium and Safari flows. The allowlist covers the
 configured API origin, same-origin application and PWA resources, Google
-Identity Services, and the Roboto font files used by the frontend. Production
-observation found that both the application UI libraries and Google Identity
+Identity Services, and the Roboto font files used by the frontend. Receipt
+previews additionally allow `blob:` only in `img-src`, so locally prepared
+images can be reviewed without permitting blob scripts, workers, or network
+connections. Production observation found that both the application UI libraries and Google Identity
 Services require inline CSS, so `style-src` permits `unsafe-inline`. That
 exception applies only to styles; `script-src` remains free of `unsafe-inline`
 and `unsafe-eval`. The policy has no reporting endpoint or broad wildcard.

@@ -430,10 +430,12 @@ class ComponentTest(unittest.TestCase):
             "frame-src https://accounts.google.com/gsi/",
             "style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/style",
             "font-src 'self' https://fonts.gstatic.com",
+            "img-src 'self' data: blob:",
             "worker-src 'self'",
         ):
             self.assertIn(expected, csp)
         self.assertEqual(csp.count("'unsafe-inline'"), 1)
+        self.assertEqual(csp.count("blob:"), 1)
         self.assertNotIn(
             "script-src 'self' 'unsafe-inline'",
             csp,

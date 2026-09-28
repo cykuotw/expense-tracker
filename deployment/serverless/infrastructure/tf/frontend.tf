@@ -11,7 +11,7 @@ locals {
     "frame-src https://accounts.google.com/gsi/",
     "style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/style",
     "font-src 'self' https://fonts.gstatic.com",
-    "img-src 'self' data:",
+    "img-src 'self' data: blob:",
     "manifest-src 'self'",
     "worker-src 'self'",
   ])};"

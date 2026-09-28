@@ -248,7 +248,11 @@ metadata, a target recorded against a newer schema, a repository manifest
 digest mismatch, or any intervening migration whose
 `rollback.application` is not `compatible`. It never runs a down migration,
 forces a migration version, or restores a database backup as part of release
-activation. Use a reviewed forward fix when compatibility cannot be proven.
+activation. A legacy current-release record whose schema was omitted as zero
+is recovered only by reading the live Bootstrap migration state and validating
+that it is clean and described by the repository manifest; the next successful
+deployment records the corrected version without rewriting immutable history.
+Use a reviewed forward fix when compatibility cannot be proven.
 
 Frontend releases keep content-hashed `assets/` objects shared and immutable.
 Every other built file is copied into

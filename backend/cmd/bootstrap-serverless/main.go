@@ -68,10 +68,16 @@ func newHandler(
 		if err != nil {
 			return response{}, fmt.Errorf("bootstrap failed: %w", err)
 		}
+		state, err := readState(ctx, cfg)
+		if err != nil {
+			return response{}, fmt.Errorf("post-bootstrap migration state inspection failed: %w", err)
+		}
 		return response{
 			Status:           "ok",
 			Operation:        operation,
 			FirstAdminStatus: result.FirstAdminStatus,
+			MigrationVersion: state.Version,
+			MigrationDirty:   state.Dirty,
 		}, nil
 	}
 }

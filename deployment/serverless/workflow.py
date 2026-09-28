@@ -884,6 +884,35 @@ def _database_record_from_bootstrap_response(
     }
 
 
+def _validate_current_release_schema(
+    context: Context,
+    outputs: dict[str, Any],
+    policy: migration_policy.Manifest,
+    recorded_version: int,
+    repository_version: int,
+) -> None:
+    if recorded_version != 0:
+        policy.validate_application_rollback(
+            recorded_version,
+            repository_version,
+            False,
+        )
+        return
+
+    live_version, dirty = _migration_state(context, outputs)
+    policy.validate_application_rollback(
+        live_version,
+        repository_version,
+        dirty,
+    )
+    print(
+        "warning=current_release_schema_missing "
+        f"recorded=000000 live={live_version:06d} "
+        "action=record_live_schema_on_success",
+        flush=True,
+    )
+
+
 def _changed_scopes(scope: str) -> list[str]:
     if scope == "all":
         return ["all"]
@@ -1045,7 +1074,13 @@ def update(context: Context, scope: str) -> None:
             policy.migrations[-1].version if policy.migrations else policy.baseline_version
         )
         if scope in {"migrations", "backend", "all"}:
-            policy.validate_application_rollback(current_schema, expected_schema, False)
+            _validate_current_release_schema(
+                context,
+                outputs,
+                policy,
+                current_schema,
+                expected_schema,
+            )
 
         adding_ocr_boundary = scope in {"backend", "all"} and "ocr" not in current_manifest[
             "backend"

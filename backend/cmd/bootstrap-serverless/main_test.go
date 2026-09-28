@@ -18,14 +18,18 @@ func TestHandlerDefaultsEmptyOperationToAll(t *testing.T) {
 			called = true
 			return databasebootstrap.Result{FirstAdminStatus: "not_requested"}, nil
 		},
-		nil,
+		func(context.Context, databasebootstrap.Config) (databasebootstrap.MigrationState, error) {
+			return databasebootstrap.MigrationState{Version: 38}, nil
+		},
 	)
 
 	result, err := handler(t.Context(), request{})
 
 	assert.NoError(t, err)
 	assert.True(t, called)
-	assert.Equal(t, response{Status: "ok", Operation: "all", FirstAdminStatus: "not_requested"}, result)
+	assert.Equal(t, response{
+		Status: "ok", Operation: "all", FirstAdminStatus: "not_requested", MigrationVersion: 38,
+	}, result)
 }
 
 func TestHandlerRejectsUnknownOperationBeforeLoadingConfig(t *testing.T) {
@@ -51,6 +55,23 @@ func TestHandlerReturnsRunnerError(t *testing.T) {
 			return databasebootstrap.Result{}, expected
 		},
 		nil,
+	)
+
+	_, err := handler(t.Context(), request{Operation: "all"})
+
+	assert.ErrorIs(t, err, expected)
+}
+
+func TestHandlerReturnsPostBootstrapMigrationStateError(t *testing.T) {
+	expected := errors.New("database unavailable")
+	handler := newHandler(
+		func() (databasebootstrap.Config, error) { return databasebootstrap.Config{}, nil },
+		func(context.Context, databasebootstrap.Config) (databasebootstrap.Result, error) {
+			return databasebootstrap.Result{FirstAdminStatus: "not_requested"}, nil
+		},
+		func(context.Context, databasebootstrap.Config) (databasebootstrap.MigrationState, error) {
+			return databasebootstrap.MigrationState{}, expected
+		},
 	)
 
 	_, err := handler(t.Context(), request{Operation: "all"})

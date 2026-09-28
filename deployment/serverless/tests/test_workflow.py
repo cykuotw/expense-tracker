@@ -64,6 +64,68 @@ class WorkflowTest(unittest.TestCase):
         self.assertEqual(record["migrationVersion"], 37)
         context.aws.invoke_bootstrap.assert_not_called()
 
+    def test_current_release_schema_uses_recorded_version_when_known(self) -> None:
+        context = mock.MagicMock()
+        policy = mock.MagicMock()
+        with mock.patch.object(workflow, "_migration_state") as migration_state:
+            workflow._validate_current_release_schema(
+                context,
+                {"bootstrap_function_name": "bootstrap"},
+                policy,
+                37,
+                38,
+            )
+
+        policy.validate_application_rollback.assert_called_once_with(37, 38, False)
+        migration_state.assert_not_called()
+
+    def test_current_release_schema_recovers_zero_from_clean_live_state(self) -> None:
+        context = mock.MagicMock()
+        policy = mock.MagicMock()
+        with mock.patch.object(
+            workflow,
+            "_migration_state",
+            return_value=(38, False),
+        ) as migration_state, mock.patch("builtins.print") as printed:
+            workflow._validate_current_release_schema(
+                context,
+                {"bootstrap_function_name": "bootstrap"},
+                policy,
+                0,
+                38,
+            )
+
+        migration_state.assert_called_once_with(
+            context,
+            {"bootstrap_function_name": "bootstrap"},
+        )
+        policy.validate_application_rollback.assert_called_once_with(38, 38, False)
+        self.assertIn("live=000038", printed.call_args.args[0])
+
+    def test_current_release_schema_propagates_unsafe_live_state(self) -> None:
+        context = mock.MagicMock()
+        policy = mock.MagicMock()
+        policy.validate_application_rollback.side_effect = workflow.migration_policy.MigrationPolicyError(
+            "database migration state is dirty"
+        )
+        with mock.patch.object(
+            workflow,
+            "_migration_state",
+            return_value=(38, True),
+        ), self.assertRaisesRegex(
+            workflow.migration_policy.MigrationPolicyError,
+            "dirty",
+        ):
+            workflow._validate_current_release_schema(
+                context,
+                {"bootstrap_function_name": "bootstrap"},
+                policy,
+                0,
+                38,
+            )
+
+        policy.validate_application_rollback.assert_called_once_with(38, 38, True)
+
     def test_artifact_components_follow_update_scope(self) -> None:
         self.assertEqual(workflow._artifact_components("frontend"), frozenset())
         self.assertEqual(

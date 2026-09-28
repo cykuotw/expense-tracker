@@ -66,7 +66,7 @@ resource "aws_apigatewayv2_integration" "ocr" {
   integration_uri        = var.use_lambda_aliases ? local.ocr_live_invoke_arn : aws_lambda_function.ocr.invoke_arn
   integration_method     = "POST"
   payload_format_version = "2.0"
-  timeout_milliseconds   = 12000
+  timeout_milliseconds   = 30000
 }
 resource "aws_apigatewayv2_authorizer" "google" {
   api_id           = aws_apigatewayv2_api.worker.id

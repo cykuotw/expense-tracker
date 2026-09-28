@@ -46,6 +46,14 @@ func draftFixture(t *testing.T, contentType string) (time.Time, string, string, 
 	return now, accountID, requestID, token, secret
 }
 
+func TestNewDraftHandlerUsesBoundedStageTimeouts(t *testing.T) {
+	handler := NewDraftHandler(RuntimeConfig{}, &replayStub{}, &providerStub{}, nil)
+
+	assert.Equal(t, 10*time.Second, handler.preprocessTimeout)
+	assert.Equal(t, 15*time.Second, handler.providerTimeout)
+	assert.Less(t, handler.preprocessTimeout+handler.providerTimeout, 30*time.Second)
+}
+
 func TestDraftHandlerReturnsNormalizedEditableDraft(t *testing.T) {
 	now, accountID, requestID, token, secret := draftFixture(t, "image/jpeg")
 	provider := &providerStub{result: Result{

@@ -14,8 +14,8 @@ import (
 )
 
 const (
-	defaultPreprocessTimeout = 2 * time.Second
-	defaultProviderTimeout   = 8 * time.Second
+	defaultPreprocessTimeout = 10 * time.Second
+	defaultProviderTimeout   = 15 * time.Second
 )
 
 // DraftObservation contains privacy-safe operational measurements only.

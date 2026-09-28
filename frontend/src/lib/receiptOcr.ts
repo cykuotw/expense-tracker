@@ -8,7 +8,7 @@ import type {
 } from "../types/ocr";
 import type { PreparedReceipt } from "./receiptEditor";
 
-export const OCR_CLIENT_TIMEOUT_MS = 10_000;
+export const OCR_CLIENT_TIMEOUT_MS = 30_000;
 const MAX_DRAFT_ITEMS = 200;
 
 interface CapabilityResponse {

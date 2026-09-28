@@ -71,7 +71,7 @@ resource "aws_lambda_function" "ocr" {
   filename                       = var.ocr_artifact_path
   source_code_hash               = filebase64sha256(var.ocr_artifact_path)
   memory_size                    = 512
-  timeout                        = 12
+  timeout                        = 30
   reserved_concurrent_executions = 0
   depends_on                     = [aws_cloudwatch_log_group.ocr, aws_iam_role_policy.ocr]
 

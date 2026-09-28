@@ -87,6 +87,7 @@ describe("receipt OCR client", () => {
     });
 
     it("aborts capability acquisition at the bounded client timeout", async () => {
+        expect(OCR_CLIENT_TIMEOUT_MS).toBe(30_000);
         vi.useFakeTimers();
         apiFetchMock.mockImplementation((_path: string, init: RequestInit) => new Promise((_resolve, reject) => {
             init.signal?.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError")), { once: true });

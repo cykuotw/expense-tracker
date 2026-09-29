@@ -476,6 +476,125 @@ textarea {
     outline-offset: 2px;
 }
 
+/* Compact expense details retain natural scrolling for unusually long content. */
+.expense-detail-page :is(.page-title, .mobile-page-header__title) {
+    font-weight: 500;
+}
+
+.expense-detail-page :is(.font-semibold, .font-bold, .font-medium) {
+    font-weight: 400;
+}
+
+.expense-detail-page [aria-labelledby="expense-summary-title"] .text-4xl {
+    font-weight: 500;
+    letter-spacing: -0.025em;
+}
+
+@media (max-width: 767px) {
+    .expense-detail-page {
+        min-height: calc(100dvh - 6rem - env(safe-area-inset-bottom));
+        padding-top: 0.5rem;
+        padding-bottom: 0.5rem;
+    }
+
+    .expense-detail-page .mobile-page-header {
+        margin-bottom: 0.5rem;
+    }
+
+    .expense-detail-page .page-container > .flex,
+    .expense-detail-page .page-container > .flex > .grid,
+    .expense-detail-page .page-container > .flex > .grid > :is(div, aside) {
+        gap: 1rem;
+    }
+
+    .expense-detail-page [data-slot="card"] {
+        gap: 0.375rem;
+        border-radius: 1rem;
+        padding-block: 1.125rem;
+        box-shadow: none;
+    }
+
+    .expense-detail-page :is([data-slot="card-header"], [data-slot="card-content"]) {
+        padding-inline: 1.125rem;
+        gap: 1rem;
+    }
+
+    .expense-detail-page :is([data-slot="card-description"], .section-label) {
+        display: none;
+    }
+
+    .expense-detail-page [aria-labelledby="expense-summary-title"] [data-slot="card-header"] {
+        display: none;
+    }
+
+    .expense-detail-page [aria-labelledby="expense-summary-title"] .text-4xl {
+        font-size: 2rem;
+        line-height: 1.15;
+        overflow-wrap: anywhere;
+    }
+
+    .expense-detail-page [aria-labelledby="expense-summary-title"] dl {
+        display: grid;
+        gap: 0.625rem;
+    }
+
+    .expense-detail-page [aria-labelledby="expense-summary-title"] dl > div {
+        flex-direction: row;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 0.375rem;
+    }
+
+    .expense-detail-page [aria-labelledby="expense-summary-title"] dt {
+        font-size: 0.75rem;
+        letter-spacing: normal;
+        text-transform: none;
+    }
+
+    .expense-detail-page .metric-card {
+        padding: 0;
+        min-height: 0;
+        border: 0;
+        border-radius: 0;
+        box-shadow: none;
+        background: transparent;
+    }
+
+    .expense-detail-page :is(ul, ol, dl) {
+        gap: 0.75rem;
+    }
+
+    .expense-detail-page li {
+        flex-wrap: wrap;
+        gap: 0.125rem 0.75rem;
+    }
+
+    .expense-detail-page li > span:first-child {
+        overflow-wrap: anywhere;
+    }
+
+    .expense-detail-page [aria-labelledby="receipt-image-title"] [data-slot="card-header"],
+    .expense-detail-page [aria-labelledby="danger-zone-title"] [data-slot="card-header"] {
+        display: none;
+    }
+
+    .expense-detail-page aside {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+    }
+
+    .expense-detail-page aside [data-slot="card"] {
+        padding: 0;
+        background: transparent;
+        border: 0;
+        box-shadow: none;
+    }
+
+    .expense-detail-page aside [data-slot="card-content"] {
+        padding: 0;
+    }
+}
+
 .panel-card {
     border: 1px solid rgba(36, 52, 58, 0.08);
     background: rgba(255, 253, 248, 0.9);

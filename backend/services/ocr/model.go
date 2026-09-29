@@ -4,6 +4,7 @@ import (
 	"context"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/shopspring/decimal"
 )
@@ -50,14 +51,16 @@ type Provider interface {
 }
 
 var unambiguousMoney = regexp.MustCompile(`^[+-]?[0-9]+(?:\.[0-9]+)?$`)
+var unambiguousGroupedMoney = regexp.MustCompile(`^[+-]?[0-9]{1,3}(?:,[0-9]{3})+(?:\.[0-9]+)?$`)
 
-// PrepareDraft adds application-level review and inference semantics without
-// mutating the provider-neutral extraction values.
+// PrepareDraft adds application-level review, normalization, and inference
+// semantics to provider-neutral extraction values.
 func PrepareDraft(result Result) Result {
 	if result.Items == nil {
 		result.Items = []Item{}
 	}
 	markProviderFields(&result)
+	normalizeDraftFields(&result)
 	result.Merchant.RequiresReview = result.Merchant.Value != ""
 	result.Date.RequiresReview = result.Date.Value != ""
 	result.Currency.RequiresReview = result.Currency.Value != ""
@@ -72,6 +75,34 @@ func PrepareDraft(result Result) Result {
 		}
 	}
 	return result
+}
+
+func normalizeDraftFields(result *Result) {
+	normalizeDateField(&result.Date)
+	moneyFields := []*Field{&result.Subtotal, &result.Tax, &result.Tip, &result.Total}
+	for index := range result.Items {
+		item := &result.Items[index]
+		moneyFields = append(moneyFields, &item.UnitPrice, &item.LineTotal)
+	}
+	for _, field := range moneyFields {
+		if value, ok := parseUnambiguousMoney(field.Value); ok {
+			field.Value = value.String()
+		}
+	}
+}
+
+func normalizeDateField(field *Field) {
+	value := strings.TrimSpace(field.Value)
+	if value == "" {
+		return
+	}
+	for _, layout := range []string{"2006-01-02", "Jan 2, 2006", "January 2, 2006"} {
+		parsed, err := time.Parse(layout, value)
+		if err == nil {
+			field.Value = parsed.Format("2006-01-02")
+			return
+		}
+	}
 }
 
 func markProviderFields(result *Result) {
@@ -100,10 +131,10 @@ func parseUnambiguousMoney(value string) (decimal.Decimal, bool) {
 	normalized := strings.TrimSpace(value)
 	normalized = strings.TrimSpace(strings.TrimPrefix(normalized, "$"))
 	normalized = strings.TrimSpace(strings.TrimSuffix(strings.ToUpper(normalized), "CAD"))
-	normalized = strings.ReplaceAll(normalized, ",", "")
-	if !unambiguousMoney.MatchString(normalized) {
+	if !unambiguousMoney.MatchString(normalized) && !unambiguousGroupedMoney.MatchString(normalized) {
 		return decimal.Decimal{}, false
 	}
+	normalized = strings.ReplaceAll(normalized, ",", "")
 	parsed, err := decimal.NewFromString(normalized)
 	return parsed, err == nil
 }

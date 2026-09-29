@@ -50,6 +50,7 @@ describe("ReceiptDraftReview", () => {
             selectedGroupId: "group-1",
             currency: "CAD",
             amountDigits: 2,
+            occurredOn: "2026-09-28",
             ocrStatus: "ready",
             ocrDraft: draft,
             ocrError: null,
@@ -66,7 +67,9 @@ describe("ReceiptDraftReview", () => {
         expect(screen.getAllByText("Extracted").length).toBeGreaterThan(0);
         expect(screen.getAllByText("Inferred").length).toBeGreaterThan(0);
         expect(screen.getAllByText("Check this")).toHaveLength(2);
-        expect(screen.getByText(/receipt suggested USD/i)).toBeInTheDocument();
+        expect(screen.getByText("Receipt: USD")).toBeInTheDocument();
+        expect(screen.getByText(/receipt currency differs/i)).toBeInTheDocument();
+        expect(screen.getByLabelText(/^Total/)).toHaveValue(10);
 
         fireEvent.change(screen.getByLabelText(/Merchant/), { target: { value: "Edited Cafe" } });
         fireEvent.click(screen.getByRole("button", { name: "Move item 2 up" }));
@@ -81,6 +84,26 @@ describe("ReceiptDraftReview", () => {
             ],
         }));
         expect(screen.getByText("Manual form")).toBeInTheDocument();
+    });
+
+    it("uses the expense date as an inferred fallback when OCR has no date", () => {
+        useCreateExpenseMock.mockReturnValue({
+            ...useCreateExpenseMock(),
+            ocrDraft: { ...draft, date: provider("") },
+        });
+        renderReview();
+        expect(screen.getByLabelText(/^Date/)).toHaveValue("2026-09-28");
+        expect(screen.getAllByText("Inferred").length).toBeGreaterThan(0);
+        expect(screen.getByText(/No receipt date was found/)).toBeInTheDocument();
+    });
+
+    it("collapses secondary item fields behind a native disclosure", () => {
+        renderReview();
+        const summary = screen.getAllByText("Quantity, unit & price")[0].closest("summary");
+        const details = summary?.closest("details");
+        expect(details).not.toHaveAttribute("open");
+        fireEvent.click(summary!);
+        expect(details).toHaveAttribute("open");
     });
 
     it("supports item removal without persisting the discarded suggestion", () => {
@@ -99,6 +122,7 @@ describe("ReceiptDraftReview", () => {
             selectedGroupId: "group-1",
             currency: "CAD",
             amountDigits: 2,
+            occurredOn: "2026-09-28",
             ocrStatus: "error",
             ocrDraft: null,
             ocrError: "Receipt scanning timed out.",

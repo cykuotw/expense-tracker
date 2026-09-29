@@ -5,8 +5,10 @@ import { mdiArrowLeft, mdiCameraRetakeOutline, mdiCheck, mdiReceiptTextEditOutli
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { FieldError } from "@/components/ui/field";
 import { Spinner } from "@/components/ui/spinner";
 import { ConfirmedReceiptDetails } from "@/components/expense/ConfirmedReceiptDetails";
+import { ExpenseDateInput } from "@/components/expense/ExpenseDateInput";
 import { useCreateExpense } from "@/hooks/CreateExpenseContextHooks";
 import { editableOCRDraft } from "@/lib/receiptOcr";
 import { validateReceiptExpense } from "@/lib/receiptDraft";
@@ -37,14 +39,14 @@ function ReviewField({
     step?: string;
 }) {
     return (
-        <label className="grid gap-1.5 text-sm font-medium">
+        <label className="grid min-w-0 gap-1.5 text-sm font-medium">
             <span className="flex min-h-6 flex-wrap items-center gap-2">
                 {label}
                 {fieldBadge(field)}
                 {requiredReview ? <Badge variant="secondary">Check this</Badge> : null}
             </span>
             <input
-                className="ui-input-shell bg-background px-4"
+                className="ui-input-shell min-w-0 bg-background px-4"
                 type={type}
                 step={step}
                 min={type === "number" ? 0 : undefined}
@@ -65,6 +67,7 @@ export default function ReceiptDraftReview() {
         selectedGroupId,
         currency,
         amountDigits,
+        occurredOn,
         ocrStatus,
         ocrDraft,
         ocrError,
@@ -74,8 +77,15 @@ export default function ReceiptDraftReview() {
     const [draft, setDraft] = useState<EditableOCRDraft | null>(null);
 
     useEffect(() => {
-        setDraft(ocrDraft ? editableOCRDraft(ocrDraft) : null);
-    }, [ocrDraft]);
+        setDraft(ocrDraft ? (() => {
+            const editable = editableOCRDraft(ocrDraft);
+            if (editable.date.value) return editable;
+            return {
+                ...editable,
+                date: { value: occurredOn, provenance: "inferred", requiresReview: true, edited: false },
+            };
+        })() : null);
+    }, [occurredOn, ocrDraft]);
 
     const returnTo = `/create_expense${selectedGroupId ? `?g=${encodeURIComponent(selectedGroupId)}` : ""}`;
     const reviewValidation = useMemo(() => draft ? validateReceiptExpense({
@@ -186,20 +196,52 @@ export default function ReceiptDraftReview() {
                         <span className="grid size-11 place-items-center rounded-xl bg-primary/10 text-primary" aria-hidden="true"><Icon path={mdiReceiptTextEditOutline} size={1} /></span>
                         <div><h2 id="summary-title" className="text-lg font-semibold">Receipt summary</h2><p className="text-sm text-muted-foreground">Merchant and date always need your review.</p></div>
                     </div>
-                    <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                        <ReviewField label="Merchant" field={draft.merchant} requiredReview onChange={(field) => updateSummary("merchant", field)} />
-                        <ReviewField label="Date (YYYY-MM-DD)" field={draft.date} requiredReview onChange={(field) => updateSummary("date", field)} />
-                        <ReviewField label="OCR currency suggestion" field={draft.currencySuggestion} onChange={(field) => updateSummary("currencySuggestion", field)} />
-                        <ReviewField label="Total" field={draft.total} type="number" step={amountDigits === null ? undefined : moneyInputStep(amountDigits)} onChange={(field) => updateSummary("total", field)} />
+                    <div className="mt-5 grid gap-4 lg:grid-cols-12">
+                        <div className="lg:col-span-5">
+                            <ReviewField label="Merchant" field={draft.merchant} requiredReview onChange={(field) => updateSummary("merchant", field)} />
+                        </div>
+                        <div className="grid content-start gap-1.5 text-sm font-medium lg:col-span-3">
+                            <label htmlFor="receipt-date" className="flex min-h-6 flex-wrap items-center gap-2">
+                                Date
+                                {fieldBadge(draft.date)}
+                                <Badge variant="secondary">Check this</Badge>
+                            </label>
+                            <ExpenseDateInput
+                                id="receipt-date"
+                                value={draft.date.value}
+                                onChange={(event) => updateSummary("date", { ...draft.date, value: event.target.value, edited: true })}
+                                aria-invalid={!dateValid}
+                                aria-describedby={!dateValid ? "receipt-date-error" : undefined}
+                            />
+                            {draft.date.provenance === "inferred" && !draft.date.edited ? (
+                                <span className="text-xs font-normal text-muted-foreground">No receipt date was found. Today is selected; confirm it.</span>
+                            ) : typeof draft.date.confidence === "number" && !draft.date.edited ? (
+                                <span className="text-xs font-normal text-muted-foreground">Extraction confidence {Math.round(draft.date.confidence)}%</span>
+                            ) : null}
+                            {!dateValid ? <FieldError id="receipt-date-error">Choose a valid date.</FieldError> : null}
+                        </div>
+                        <div className="grid content-start gap-1.5 text-sm lg:col-span-4" role="group" aria-labelledby="receipt-currency-label">
+                            <span id="receipt-currency-label" className="flex min-h-6 flex-wrap items-center gap-2 font-medium">
+                                Expense currency
+                                <Badge variant="secondary">Group currency</Badge>
+                            </span>
+                            <div className="flex min-h-14 items-center justify-between rounded-xl border border-border bg-muted/30 px-4">
+                                <strong className="text-base">{currency}</strong>
+                                {draft.currencySuggestion.value ? <span className="text-xs text-muted-foreground">Receipt: {draft.currencySuggestion.value.toUpperCase()}</span> : null}
+                            </div>
+                            {draft.currencySuggestion.value && draft.currencySuggestion.value.toUpperCase() !== currency.toUpperCase() ? (
+                                <p className="text-xs text-muted-foreground">Receipt currency differs. Verify the amounts; {currency} remains selected.</p>
+                            ) : (
+                                <p className="text-xs text-muted-foreground">Uses the selected group currency.</p>
+                            )}
+                        </div>
+                    </div>
+                    <div className="mt-4 grid grid-cols-2 gap-4 lg:grid-cols-4">
                         <ReviewField label="Subtotal" field={draft.subtotal} type="number" step={amountDigits === null ? undefined : moneyInputStep(amountDigits)} onChange={(field) => updateSummary("subtotal", field)} />
                         <ReviewField label="Tax" field={draft.tax} type="number" step={amountDigits === null ? undefined : moneyInputStep(amountDigits)} onChange={(field) => updateSummary("tax", field)} />
                         <ReviewField label="Tip" field={draft.tip} type="number" step={amountDigits === null ? undefined : moneyInputStep(amountDigits)} onChange={(field) => updateSummary("tip", field)} />
+                        <ReviewField label="Total" field={draft.total} type="number" step={amountDigits === null ? undefined : moneyInputStep(amountDigits)} onChange={(field) => updateSummary("total", field)} />
                     </div>
-                    <div className="mt-4 rounded-xl border border-border bg-muted/40 px-4 py-3 text-sm">
-                        <strong>{currency}</strong> is the selected group currency and will remain authoritative.
-                        {draft.currencySuggestion.value && draft.currencySuggestion.value.toUpperCase() !== currency.toUpperCase() ? <span className="mt-1 block text-amber-700 dark:text-amber-300">The receipt suggested {draft.currencySuggestion.value}; check the amounts before continuing.</span> : null}
-                    </div>
-                    {!dateValid ? <p className="mt-3 text-sm text-destructive" role="alert">Enter the date as YYYY-MM-DD.</p> : null}
 
                     <ConfirmedReceiptDetails
                         merchant={draft.merchant.value}

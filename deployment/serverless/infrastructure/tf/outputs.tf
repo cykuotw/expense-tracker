@@ -52,6 +52,10 @@ output "ocr_function_name" {
 output "ocr_replay_table_name" {
   value = aws_dynamodb_table.ocr_replay.name
 }
+
+output "receipt_bucket_name" {
+  value = aws_s3_bucket.receipt.bucket
+}
 output "ocr_log_group_name" {
   value = aws_cloudwatch_log_group.ocr.name
 }

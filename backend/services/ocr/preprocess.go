@@ -44,6 +44,7 @@ type PreprocessedImage struct {
 	SourceFormat string
 	Width        int
 	Height       int
+	validated    bool
 }
 
 // DefaultPreprocessOptions returns conservative limits for receipt photos.
@@ -135,6 +136,7 @@ func PreprocessRasterContext(ctx context.Context, reader io.Reader, options Prep
 		SourceFormat: format,
 		Width:        bounds.Dx(),
 		Height:       bounds.Dy(),
+		validated:    true,
 	}, nil
 }
 

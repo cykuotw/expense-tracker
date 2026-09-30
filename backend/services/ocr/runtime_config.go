@@ -7,10 +7,12 @@ import (
 )
 
 type RuntimeConfig struct {
-	Mode             string
-	FrontendOrigin   string
-	CapabilitySecret []byte
-	ReplayTable      string
+	Mode                  string
+	FrontendOrigin        string
+	CapabilitySecret      []byte
+	ReplayTable           string
+	ReceiptBucket         string
+	ReceiptStorageEnabled bool
 }
 
 func LoadRuntimeConfig(lookup func(string) (string, bool)) (RuntimeConfig, error) {
@@ -51,10 +53,20 @@ func LoadRuntimeConfig(lookup func(string) (string, bool)) (RuntimeConfig, error
 	if err != nil {
 		return RuntimeConfig{}, err
 	}
+	receiptBucket, _ := lookup("RECEIPT_BUCKET")
+	storageEnabled, _ := lookup("RECEIPT_STORAGE_ENABLED")
+	if storageEnabled != "" && storageEnabled != "true" && storageEnabled != "false" {
+		return RuntimeConfig{}, fmt.Errorf("RECEIPT_STORAGE_ENABLED must be true or false")
+	}
+	if storageEnabled == "true" && strings.TrimSpace(receiptBucket) == "" {
+		return RuntimeConfig{}, fmt.Errorf("RECEIPT_BUCKET must be configured when receipt storage is enabled")
+	}
 	return RuntimeConfig{
-		Mode:             mode,
-		FrontendOrigin:   origin,
-		CapabilitySecret: []byte(secret),
-		ReplayTable:      table,
+		Mode:                  mode,
+		FrontendOrigin:        origin,
+		CapabilitySecret:      []byte(secret),
+		ReplayTable:           table,
+		ReceiptBucket:         strings.TrimSpace(receiptBucket),
+		ReceiptStorageEnabled: storageEnabled == "true",
 	}, nil
 }

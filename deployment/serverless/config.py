@@ -287,12 +287,14 @@ class Config:
             "WEB_PUSH_VAPID_PUBLIC_KEY": self.backend.web_push_vapid_public_key,
         }}
 
-    def ocr_environment(self, replay_table: str) -> dict[str, dict[str, str]]:
+    def ocr_environment(self, replay_table: str, receipt_bucket: str) -> dict[str, dict[str, str]]:
         return {"Variables": {
             "MODE": "release",
             "FRONTEND_ORIGIN": self.frontend_origin,
             "OCR_CAPABILITY_SECRET": self.backend.ocr_capability_secret,
             "OCR_REPLAY_TABLE": replay_table,
+            "RECEIPT_BUCKET": receipt_bucket,
+            "RECEIPT_STORAGE_ENABLED": "false",
         }}
 
     def delivery_environment(self, db_host: str) -> dict[str, dict[str, str]]:

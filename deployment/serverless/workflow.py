@@ -571,6 +571,15 @@ def _infrastructure_targets(scope: str) -> tuple[str, ...]:
         )
         targets.append("aws_apigatewayv2_stage.default")
         targets.extend((
+            "aws_s3_bucket.receipt",
+            "aws_s3_bucket_public_access_block.receipt",
+            "aws_s3_bucket_ownership_controls.receipt",
+            "aws_s3_bucket_server_side_encryption_configuration.receipt",
+            "aws_s3_bucket_lifecycle_configuration.receipt",
+            "aws_s3_bucket_policy.receipt",
+            "aws_cloudwatch_metric_alarm.receipt_temporary_backlog",
+            "aws_cloudwatch_log_metric_filter.receipt_storage_write_failure",
+            "aws_cloudwatch_metric_alarm.receipt_storage_write_failure",
             "aws_dynamodb_table.ocr_replay",
             "aws_iam_role.ocr",
             "aws_iam_role_policy.ocr",

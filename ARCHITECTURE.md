@@ -60,10 +60,20 @@ Daily EventBridge -------------------------> Delivery Lambda (VPC)
   capabilities with a conditional, TTL-backed DynamoDB claim. The OCR runtime
   validates the decoded image dimensions and pixel budget, re-encodes it as a
   metadata-free JPEG, claims the capability once, and makes a bounded Textract
-  `AnalyzeExpense` request. It returns only provider-neutral editable draft
-  fields with confidence and provenance; it performs no expense or receipt
-  storage. Its IAM role grants only `textract:AnalyzeExpense` plus the replay
-  claim and logging permissions. Both capability minting and draft routes are
+  `AnalyzeExpense` request. It returns provider-neutral editable draft fields
+  with confidence and provenance; it performs no expense mutation. Phase 7 adds
+  a private, unversioned S3 temporary-receipt bucket with a one-day lifecycle
+  rule and a narrowly scoped OCR `PutObject` permission. The runtime projects
+  `RECEIPT_STORAGE_ENABLED=false`, and the browser requests no retention, so
+  ordinary OCR drafts still store no image. Only an explicit retention-capability
+  claim together with a separately enabled runtime can write the server-validated,
+  re-encoded JPEG. No application role can read receipt objects; the bucket
+  explicitly denies object reads until authorized viewing is introduced. The
+  temporary writer returns an account-bound signed token but no object key as
+  client-selected authority. The one-day lifecycle is provisional while
+  completion-time and normalized-size distributions are measured. Its IAM role
+  otherwise grants `textract:AnalyzeExpense` plus the replay claim and logging
+  permissions. Both capability minting and draft routes are
   throttled to 1 request/second with burst 1, and OCR reserved concurrency is
   one after deployment activation.
 - **Bootstrap Lambda:** performs explicit migration and bootstrap work before

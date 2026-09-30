@@ -55,3 +55,26 @@ func TestLoadRuntimeConfigRejectsInvalidValuesWithoutExposingSecrets(t *testing.
 		})
 	}
 }
+
+func TestLoadRuntimeConfigKeepsReceiptStorageDisabledWithoutExplicitEnablement(t *testing.T) {
+	values := map[string]string{
+		"MODE": "release", "FRONTEND_ORIGIN": "https://app.example.com",
+		"OCR_CAPABILITY_SECRET": strings.Repeat("s", 32),
+		"OCR_REPLAY_TABLE":      "expense-ocr-replay", "RECEIPT_BUCKET": "private-receipts",
+		"RECEIPT_STORAGE_ENABLED": "false",
+	}
+	lookup := func(key string) (string, bool) { value, ok := values[key]; return value, ok }
+	config, err := LoadRuntimeConfig(lookup)
+	if err != nil || config.ReceiptStorageEnabled || config.ReceiptBucket != "private-receipts" {
+		t.Fatalf("unexpected disabled config: %#v, %v", config, err)
+	}
+	values["RECEIPT_STORAGE_ENABLED"] = "true"
+	config, err = LoadRuntimeConfig(lookup)
+	if err != nil || !config.ReceiptStorageEnabled {
+		t.Fatalf("unexpected enabled config: %#v, %v", config, err)
+	}
+	values["RECEIPT_BUCKET"] = ""
+	if _, err := LoadRuntimeConfig(lookup); err == nil || !strings.Contains(err.Error(), "RECEIPT_BUCKET") {
+		t.Fatalf("missing bucket not rejected: %v", err)
+	}
+}

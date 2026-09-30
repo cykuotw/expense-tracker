@@ -57,6 +57,9 @@ resource "aws_iam_role_policy" "ocr" {
       },
       {
         Effect = "Allow", Action = ["textract:AnalyzeExpense"], Resource = "*"
+      },
+      {
+        Effect = "Allow", Action = ["s3:PutObject"], Resource = "${aws_s3_bucket.receipt.arn}/temporary/*"
       }
     ]
   })

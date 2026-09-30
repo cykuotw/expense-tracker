@@ -125,3 +125,38 @@ func TestCapabilityRouteRejectsMissingGrantAndInvalidRequests(t *testing.T) {
 		})
 	}
 }
+
+func TestCapabilityRouteRequiresExplicitKeepReceiptRequest(t *testing.T) {
+	now := time.Date(2026, time.September, 30, 12, 0, 0, 0, time.UTC)
+	secret := []byte(strings.Repeat("o", 32))
+	userID := uuid.New()
+	handler := NewCapabilityHandler(&grantStoreStub{granted: true}, secret)
+	handler.now = func() time.Time { return now }
+
+	for name, test := range map[string]struct {
+		fragment string
+		want     bool
+	}{
+		"ordinary scan":      {"", false},
+		"explicit retention": {`,"keepReceipt":true`, true},
+	} {
+		t.Run(name, func(t *testing.T) {
+			body := `{"requestId":"` + uuid.NewString() + `","contentType":"image/jpeg"` + test.fragment + `}`
+			response := capabilityRoute(handler, capabilityRouteRequest(t, userID, body))
+			if response.Code != http.StatusCreated {
+				t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
+			}
+			var payload CapabilityResponse
+			if err := json.Unmarshal(response.Body.Bytes(), &payload); err != nil {
+				t.Fatal(err)
+			}
+			claims, err := VerifyCapability(secret, payload.Token, now.Add(time.Second))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if claims.KeepReceipt != test.want {
+				t.Fatalf("KeepReceipt = %t, want %t", claims.KeepReceipt, test.want)
+			}
+		})
+	}
+}

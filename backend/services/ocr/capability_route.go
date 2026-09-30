@@ -46,6 +46,7 @@ type CapabilityHandler struct {
 type capabilityRequest struct {
 	RequestID   string `json:"requestId"`
 	ContentType string `json:"contentType"`
+	KeepReceipt bool   `json:"keepReceipt,omitempty"`
 }
 
 type CapabilityResponse struct {
@@ -111,7 +112,11 @@ func (h *CapabilityHandler) handleCreate(c *gin.Context) {
 	}
 
 	normalizedType := strings.ToLower(strings.TrimSpace(payload.ContentType))
-	token, expiresAt, err := MintCapability(
+	mint := MintCapability
+	if payload.KeepReceipt {
+		mint = MintReceiptRetentionCapability
+	}
+	token, expiresAt, err := mint(
 		h.secret,
 		h.now(),
 		userID,

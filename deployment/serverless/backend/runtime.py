@@ -178,7 +178,7 @@ def configure_worker(client: AWSClient, config: Config, outputs: dict[str, Any],
 def configure_ocr(client: AWSClient, config: Config, outputs: dict[str, Any], terraform_root: Path) -> None:
     before = _state_digest(terraform_root)
     with protected_json(
-        config.ocr_environment(str(outputs["ocr_replay_table_name"])),
+        config.ocr_environment(str(outputs["ocr_replay_table_name"]), str(outputs["receipt_bucket_name"])),
         prefix="expense-ocr-env-",
     ) as path:
         client.publish_environment(str(outputs["ocr_function_name"]), path)
@@ -449,7 +449,7 @@ def publish_ocr_release(
         client,
         str(outputs["ocr_function_name"]),
         artifact,
-        config.ocr_environment(str(outputs["ocr_replay_table_name"])),
+        config.ocr_environment(str(outputs["ocr_replay_table_name"]), str(outputs["receipt_bucket_name"])),
         release_id,
         config,
         terraform_root,

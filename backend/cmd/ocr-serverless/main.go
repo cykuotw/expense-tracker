@@ -16,6 +16,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws/retry"
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/textract"
 )
 
@@ -42,6 +43,9 @@ func main() {
 		ocr.NewDynamoReplayStore(dynamodb.NewFromConfig(awsConfig), runtimeConfig.ReplayTable),
 		ocr.NewTextractProvider(textractClient),
 		func(observation ocr.DraftObservation) {
+			if observation.ReceiptStorageOutcome == "failed" {
+				logger.Error("receipt_storage_write_failed")
+			}
 			logger.Info("ocr_draft_pipeline_completed",
 				slog.String("outcome", observation.Outcome),
 				slog.Int("source_bytes", observation.SourceBytes),
@@ -51,9 +55,18 @@ func main() {
 				slog.Int64("preprocess_latency_ms", observation.PreprocessLatencyMillis),
 				slog.Int64("provider_latency_ms", observation.ProviderLatencyMillis),
 				slog.Bool("provider_invoked", observation.ProviderInvoked),
+				slog.String("receipt_storage_outcome", observation.ReceiptStorageOutcome),
 			)
 		},
 	)
+	if runtimeConfig.ReceiptStorageEnabled {
+		store, storeErr := ocr.NewTemporaryReceiptStore(s3.NewFromConfig(awsConfig), runtimeConfig.ReceiptBucket, runtimeConfig.CapabilitySecret)
+		if storeErr != nil {
+			logger.Error("receipt_storage_configuration_failed", slog.String("error_type", fmt.Sprintf("%T", storeErr)))
+			os.Exit(1)
+		}
+		handler.SetTemporaryReceiptStore(store)
+	}
 	logger.Info("ocr_serverless_started")
 
 	lambda.Start(func(ctx context.Context, request events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {

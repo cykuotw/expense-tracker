@@ -14,8 +14,9 @@ import (
 )
 
 const (
-	defaultPreprocessTimeout = 10 * time.Second
-	defaultProviderTimeout   = 15 * time.Second
+	defaultPreprocessTimeout   = 10 * time.Second
+	defaultProviderTimeout     = 15 * time.Second
+	defaultReceiptStoreTimeout = 3 * time.Second
 )
 
 // DraftObservation contains privacy-safe operational measurements only.
@@ -28,25 +29,31 @@ type DraftObservation struct {
 	PreprocessLatencyMillis int64
 	ProviderLatencyMillis   int64
 	ProviderInvoked         bool
+	ReceiptStorageOutcome   string
 }
 
 type DraftObserver func(DraftObservation)
 
 type DraftHandler struct {
-	secret            []byte
-	frontendOrigin    string
-	replay            ReplayStore
-	provider          Provider
-	preprocessOptions PreprocessOptions
-	preprocessTimeout time.Duration
-	providerTimeout   time.Duration
-	observe           DraftObserver
-	now               func() time.Time
+	secret                []byte
+	frontendOrigin        string
+	replay                ReplayStore
+	provider              Provider
+	receiptStore          *TemporaryReceiptStore
+	receiptStorageEnabled bool
+	preprocessOptions     PreprocessOptions
+	preprocessTimeout     time.Duration
+	providerTimeout       time.Duration
+	receiptStoreTimeout   time.Duration
+	observe               DraftObserver
+	now                   func() time.Time
 }
 
 type DraftResponse struct {
-	RequestID string `json:"requestId"`
-	Draft     Result `json:"draft"`
+	RequestID        string     `json:"requestId"`
+	Draft            Result     `json:"draft"`
+	ReceiptToken     string     `json:"receiptToken,omitempty"`
+	ReceiptExpiresAt *time.Time `json:"receiptExpiresAt,omitempty"`
 }
 
 func NewDraftHandler(
@@ -58,16 +65,23 @@ func NewDraftHandler(
 	options := DefaultPreprocessOptions()
 	options.MaxSourceBytes = MaxDocumentBytes
 	return &DraftHandler{
-		secret:            append([]byte(nil), config.CapabilitySecret...),
-		frontendOrigin:    config.FrontendOrigin,
-		replay:            replay,
-		provider:          provider,
-		preprocessOptions: options,
-		preprocessTimeout: defaultPreprocessTimeout,
-		providerTimeout:   defaultProviderTimeout,
-		observe:           observe,
-		now:               time.Now,
+		secret:                append([]byte(nil), config.CapabilitySecret...),
+		frontendOrigin:        config.FrontendOrigin,
+		replay:                replay,
+		provider:              provider,
+		receiptStorageEnabled: config.ReceiptStorageEnabled,
+		preprocessOptions:     options,
+		preprocessTimeout:     defaultPreprocessTimeout,
+		providerTimeout:       defaultProviderTimeout,
+		receiptStoreTimeout:   defaultReceiptStoreTimeout,
+		observe:               observe,
+		now:                   time.Now,
 	}
+}
+
+// SetTemporaryReceiptStore connects the optional writer before handling requests.
+func (h *DraftHandler) SetTemporaryReceiptStore(store *TemporaryReceiptStore) {
+	h.receiptStore = store
 }
 
 func (h *DraftHandler) Handle(ctx context.Context, request events.APIGatewayV2HTTPRequest) (response events.APIGatewayV2HTTPResponse, err error) {
@@ -161,11 +175,28 @@ func (h *DraftHandler) Handle(ctx context.Context, request events.APIGatewayV2HT
 		return h.retryableError("receipt scanning is temporarily unavailable; you can retry or enter the expense manually", origin), nil
 	}
 
+	responsePayload := DraftResponse{RequestID: claims.ID, Draft: PrepareDraft(extraction)}
+	if claims.KeepReceipt && h.receiptStorageEnabled {
+		if h.receiptStore == nil {
+			observation.Outcome = "receipt_storage_error"
+			observation.ReceiptStorageOutcome = "failed"
+			return h.retryableError("receipt storage is temporarily unavailable", origin), nil
+		}
+		storeContext, cancelStore := context.WithTimeout(ctx, h.receiptStoreTimeout)
+		receipt, token, storeErr := h.receiptStore.Store(storeContext, claims.Subject, processed, h.now())
+		cancelStore()
+		if storeErr != nil {
+			observation.Outcome = "receipt_storage_error"
+			observation.ReceiptStorageOutcome = "failed"
+			return h.retryableError("receipt storage is temporarily unavailable", origin), nil
+		}
+		expiresAt := receipt.CreatedAt.Add(ReceiptTokenTTL)
+		responsePayload.ReceiptToken = token
+		responsePayload.ReceiptExpiresAt = &expiresAt
+		observation.ReceiptStorageOutcome = "stored"
+	}
 	observation.Outcome = "success"
-	return h.json(http.StatusOK, DraftResponse{
-		RequestID: claims.ID,
-		Draft:     PrepareDraft(extraction),
-	}, origin), nil
+	return h.json(http.StatusOK, responsePayload, origin), nil
 }
 
 func (h *DraftHandler) preprocessError(err error, origin string) events.APIGatewayV2HTTPResponse {

@@ -71,12 +71,14 @@ class ConfigTest(unittest.TestCase):
         self.assertEqual(worker["DB_MAX_OPEN_CONNS"], "2")
         self.assertEqual(worker["DB_MAX_IDLE_CONNS"], "1")
         self.assertEqual(worker["OCR_CAPABILITY_SECRET"], "o" * 32)
-        ocr = config.ocr_environment("ocr-replay-table")["Variables"]
+        ocr = config.ocr_environment("ocr-replay-table", "private-receipts")["Variables"]
         self.assertEqual(ocr, {
             "MODE": "release",
             "FRONTEND_ORIGIN": "https://expense.example.com",
             "OCR_CAPABILITY_SECRET": "o" * 32,
             "OCR_REPLAY_TABLE": "ocr-replay-table",
+            "RECEIPT_BUCKET": "private-receipts",
+            "RECEIPT_STORAGE_ENABLED": "false",
         })
         self.assertFalse(any(key.startswith("DB_") for key in ocr))
         self.assertNotIn("JWT_SECRET", ocr)

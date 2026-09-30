@@ -23,6 +23,7 @@ import {
 } from "@mdi/js";
 
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { Spinner } from "@/components/ui/spinner";
 import {
     commitReceiptEdit,
@@ -46,12 +47,16 @@ import {
 } from "@/lib/receiptEditor";
 
 type EditorMode = "crop" | "mask" | "pan";
-type EditorPhase = "empty" | "loading" | "editing" | "exporting" | "preview" | "error";
+type EditorPhase = "empty" | "loading" | "editing" | "exporting" | "error";
 
 interface ReceiptEditorProps {
     onPrepared?: (receipt: PreparedReceipt) => void;
     onCancel?: () => void;
     onManualEntry?: () => void;
+    initialFile?: File | null;
+    onPhotoLoaded?: () => void;
+    onPhotoCleared?: () => void;
+    hideLibraryChoice?: boolean;
 }
 
 interface Point {
@@ -128,7 +133,7 @@ function RectFields({
     );
 }
 
-export default function ReceiptEditor({ onPrepared, onCancel, onManualEntry }: ReceiptEditorProps) {
+export default function ReceiptEditor({ onPrepared, onCancel, onManualEntry, initialFile, onPhotoLoaded, onPhotoCleared, hideLibraryChoice = false }: ReceiptEditorProps) {
     const [phase, setPhase] = useState<EditorPhase>("empty");
     const [decoded, setDecoded] = useState<DecodedReceipt | null>(null);
     const [history, setHistory] = useState(createReceiptHistory);
@@ -141,8 +146,6 @@ export default function ReceiptEditor({ onPrepared, onCancel, onManualEntry }: R
     const [pan, setPan] = useState({ x: 0, y: 0 });
     const [fitSize, setFitSize] = useState<{ width: number; height: number } | null>(null);
     const [error, setError] = useState<string | null>(null);
-    const [prepared, setPrepared] = useState<PreparedReceipt | null>(null);
-    const [preparedURL, setPreparedURL] = useState<string | null>(null);
     const [status, setStatus] = useState("Choose a receipt photo to begin.");
     const previewCanvasRef = useRef<HTMLCanvasElement>(null);
     const viewportRef = useRef<HTMLDivElement>(null);
@@ -165,11 +168,6 @@ export default function ReceiptEditor({ onPrepared, onCancel, onManualEntry }: R
         exportControllerRef.current?.abort();
         setDecoded((current) => {
             current?.dispose();
-            return null;
-        });
-        setPrepared(null);
-        setPreparedURL((current) => {
-            if (current) URL.revokeObjectURL(current);
             return null;
         });
         setHistory(createReceiptHistory());
@@ -232,7 +230,7 @@ export default function ReceiptEditor({ onPrepared, onCancel, onManualEntry }: R
         setStatus(message);
     }, []);
 
-    const loadFile = async (file: File) => {
+    const loadFile = useCallback(async (file: File) => {
         disposeSession();
         const controller = new AbortController();
         decodeControllerRef.current = controller;
@@ -248,6 +246,7 @@ export default function ReceiptEditor({ onPrepared, onCancel, onManualEntry }: R
             setDecoded(nextDecoded);
             setHistory(createReceiptHistory());
             setPhase("editing");
+            onPhotoLoaded?.();
             setStatus(`Receipt opened at ${nextDecoded.width} by ${nextDecoded.height} pixels.`);
         } catch (loadError) {
             if (loadError instanceof DOMException && loadError.name === "AbortError") return;
@@ -255,7 +254,11 @@ export default function ReceiptEditor({ onPrepared, onCancel, onManualEntry }: R
             setPhase("error");
             setStatus("Receipt photo could not be opened.");
         }
-    };
+    }, [disposeSession, onPhotoLoaded]);
+
+    useEffect(() => {
+        if (initialFile) void loadFile(initialFile);
+    }, [initialFile, loadFile]);
 
     const handleFile = (event: ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
@@ -377,14 +380,9 @@ export default function ReceiptEditor({ onPrepared, onCancel, onManualEntry }: R
         try {
             const result = await prepareReceipt(decoded, history.present, controller.signal);
             if (controller.signal.aborted) return;
-            const url = URL.createObjectURL(result.blob);
-            setPreparedURL((current) => {
-                if (current) URL.revokeObjectURL(current);
-                return url;
-            });
-            setPrepared(result);
-            setPhase("preview");
-            setStatus(`Prepared receipt is ${formatReceiptBytes(result.blob.size)}.`);
+            setPhase("editing");
+            setStatus(`Prepared receipt is ${formatReceiptBytes(result.blob.size)}. Scanning now.`);
+            onPrepared?.(result);
         } catch (exportError) {
             if (exportError instanceof DOMException && exportError.name === "AbortError") {
                 setPhase("editing");
@@ -418,11 +416,16 @@ export default function ReceiptEditor({ onPrepared, onCancel, onManualEntry }: R
         setPan({ x: 0, y: 0 });
     };
 
-    const cancel = () => {
+    const startOver = () => {
         disposeSession();
         setPhase("empty");
         setError(null);
-        setStatus("Receipt editing cancelled.");
+        onPhotoCleared?.();
+        setStatus("Choose a receipt photo to begin.");
+    };
+
+    const cancel = () => {
+        startOver();
         onCancel?.();
     };
 
@@ -465,12 +468,12 @@ export default function ReceiptEditor({ onPrepared, onCancel, onManualEntry }: R
                             <input className="sr-only" type="file" accept="image/*" capture="environment" onChange={handleFile} disabled={phase === "loading"} />
                         </label>
                     </Button>
-                    <Button asChild variant="outline" className="min-h-12 cursor-pointer text-base">
+                    {!hideLibraryChoice ? <Button asChild variant="outline" className="min-h-12 cursor-pointer text-base">
                         <label>
                             Choose photo
                             <input className="sr-only" type="file" accept="image/*" onChange={handleFile} disabled={phase === "loading"} />
                         </label>
-                    </Button>
+                    </Button> : null}
                 </div>
                 {phase === "loading" ? (
                     <div className="mt-4 flex min-h-12 items-center gap-3 rounded-2xl bg-muted px-4 text-sm" role="status">
@@ -491,35 +494,10 @@ export default function ReceiptEditor({ onPrepared, onCancel, onManualEntry }: R
                 <h2 id="receipt-error-title" className="mt-2 text-xl font-bold">We could not prepare this photo</h2>
                 <p className="mt-2 text-sm leading-6 text-muted-foreground" role="alert">{error}</p>
                 <div className="mt-5 flex flex-wrap gap-3">
-                    <Button type="button" className="min-h-11" onClick={cancel}>Choose another photo</Button>
+                    <Button type="button" className="min-h-11" onClick={startOver}>Choose another photo</Button>
                     {decoded ? <Button type="button" variant="outline" className="min-h-11" onClick={() => setPhase("editing")}>Return to editor</Button> : null}
                     <Button type="button" variant="ghost" className="min-h-11" onClick={manualEntry}>Manual entry</Button>
                 </div>
-            </section>
-        );
-    }
-
-    if (phase === "preview" && prepared && preparedURL) {
-        return (
-            <section className="rounded-[2rem] border border-border bg-card p-5 shadow-[var(--card-shadow-soft)] sm:p-7" aria-labelledby="receipt-preview-title">
-                <div className="section-label">Final preview</div>
-                <h2 id="receipt-preview-title" className="mt-2 text-2xl font-bold">Review the prepared receipt</h2>
-                <div className="mt-5 grid gap-5 lg:grid-cols-[minmax(0,1fr)_18rem]">
-                    <div className="grid min-h-64 place-items-center overflow-hidden rounded-2xl border border-border bg-muted/60 p-3">
-                        <img className="max-h-[65dvh] max-w-full object-contain" src={preparedURL} alt="Prepared receipt with crop and masks permanently applied" />
-                    </div>
-                    <div className="grid content-start gap-4">
-                        <dl className="grid gap-2 rounded-2xl border border-border bg-background p-4 text-sm">
-                            <div className="flex justify-between gap-4"><dt className="text-muted-foreground">File</dt><dd className="font-medium">JPEG</dd></div>
-                            <div className="flex justify-between gap-4"><dt className="text-muted-foreground">Size</dt><dd className="font-medium">{formatReceiptBytes(prepared.blob.size)}</dd></div>
-                            <div className="flex justify-between gap-4"><dt className="text-muted-foreground">Dimensions</dt><dd className="font-medium">{prepared.width} × {prepared.height}</dd></div>
-                        </dl>
-                        <Button type="button" className="min-h-12" onClick={() => onPrepared?.(prepared)}>Use prepared receipt</Button>
-                        <Button type="button" variant="outline" className="min-h-11" onClick={() => setPhase("editing")}>Back to editing</Button>
-                        <Button type="button" variant="ghost" className="min-h-11" onClick={cancel}>Cancel</Button>
-                    </div>
-                </div>
-                <p className="sr-only" aria-live="polite">{status}</p>
             </section>
         );
     }
@@ -529,8 +507,8 @@ export default function ReceiptEditor({ onPrepared, onCancel, onManualEntry }: R
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div>
                     <div className="section-label">Receipt preparation</div>
-                    <h2 id="receipt-edit-title" className="mt-1 text-2xl font-bold">Crop and protect your receipt</h2>
-                    <p className="mt-1 text-sm text-muted-foreground">Zoom and pan change only this preview. Crop and masks change the exported image.</p>
+                    <h2 id="receipt-edit-title" className="mt-1 text-2xl font-bold">Prepare your receipt</h2>
+                    <p className="mt-1 text-sm text-muted-foreground">Crop the edges, rotate if needed, and mask anything private.</p>
                 </div>
                 <div className="hidden flex-wrap gap-2 md:flex" role="toolbar" aria-label="Receipt editing history">
                     <Button type="button" variant="outline" className="min-h-11" disabled={history.past.length === 0 || phase === "exporting"} onClick={() => { setHistory(undoReceiptEdit); setStatus("Last edit undone."); }}>Undo</Button>
@@ -576,7 +554,7 @@ export default function ReceiptEditor({ onPrepared, onCancel, onManualEntry }: R
                 </div>
             </div>
 
-            <div className="mt-4 grid gap-5 xl:grid-cols-[minmax(0,1fr)_20rem]">
+            <div className="mt-4 grid gap-4">
                 <div className="relative min-h-[18rem] overflow-hidden rounded-2xl border border-border bg-[#282824] p-3 sm:p-5" style={{ touchAction: "none" }}>
                     <div ref={viewportRef} className="grid h-full min-h-[16rem] place-items-center overflow-hidden" data-testid="receipt-stage-viewport">
                         <div
@@ -635,7 +613,7 @@ export default function ReceiptEditor({ onPrepared, onCancel, onManualEntry }: R
                     <Button
                         type="button"
                         variant="outline"
-                        className="min-h-12 w-full justify-between px-4 md:hidden"
+                        className="min-h-12 w-full justify-between px-4"
                         aria-expanded={preciseControlsOpen}
                         aria-controls="receipt-precise-controls"
                         onClick={() => setPreciseControlsOpen((open) => !open)}
@@ -643,7 +621,7 @@ export default function ReceiptEditor({ onPrepared, onCancel, onManualEntry }: R
                         <span>Precise controls</span>
                         <span className="text-xs font-normal text-muted-foreground">{preciseControlsOpen ? "Hide" : "Show"}</span>
                     </Button>
-                    <div id="receipt-precise-controls" className={`${preciseControlsOpen ? "grid" : "hidden"} gap-4 md:grid`}>
+                    <div id="receipt-precise-controls" className={cn("gap-4 md:grid-cols-2", preciseControlsOpen ? "grid" : "hidden")}>
                         <div className="rounded-2xl border border-border bg-background p-4">
                             <h3 className="font-semibold">Precise crop</h3>
                             <p className="mt-1 text-xs leading-5 text-muted-foreground">Use these fields when dragging is difficult.</p>
@@ -689,13 +667,14 @@ export default function ReceiptEditor({ onPrepared, onCancel, onManualEntry }: R
                 </aside>
             </div>
 
-            <div className="mt-5 flex flex-col-reverse gap-3 border-t border-border pt-5 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex flex-wrap gap-2">
-                    <Button type="button" variant="ghost" className="min-h-11" onClick={phase === "exporting" ? cancelExport : cancel}>{phase === "exporting" ? "Cancel preparation" : "Cancel"}</Button>
-                    <Button type="button" variant="link" className="min-h-11" disabled={phase === "exporting"} onClick={manualEntry}>Manual entry</Button>
-                </div>
-                <Button type="button" className="min-h-12 min-w-44 text-base" disabled={phase === "exporting"} onClick={() => void exportReceipt()}>
-                    {phase === "exporting" ? <><Spinner aria-hidden="true" /> Preparing…</> : "Review prepared receipt"}
+            <div className="mt-5 flex flex-wrap gap-2 border-t border-border pt-4">
+                <Button type="button" variant="ghost" className="min-h-11" disabled={phase === "exporting"} onClick={cancel}>Cancel</Button>
+                <Button type="button" variant="link" className="min-h-11" disabled={phase === "exporting"} onClick={manualEntry}>Manual entry</Button>
+            </div>
+            <div className="receipt-workspace-actions mt-4 flex gap-2 sm:justify-end">
+                {phase === "exporting" ? <Button type="button" variant="outline" className="min-h-12" onClick={cancelExport}>Cancel preparation</Button> : null}
+                <Button type="button" className="min-h-12 w-full text-base sm:w-auto" disabled={phase === "exporting"} onClick={() => void exportReceipt()}>
+                    {phase === "exporting" ? <><Spinner aria-hidden="true" /> Preparing…</> : "Scan receipt"}
                 </Button>
             </div>
             <p className="mt-3 text-sm text-muted-foreground" role="status" aria-live="polite">{status}</p>

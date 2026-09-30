@@ -1003,3 +1003,51 @@ textarea {
     --sidebar-border: #3b554e;
     --sidebar-ring: #7fc2b1;
 }
+
+/* Keep receipt review fields readable within the shared page shell. */
+.receipt-review-page .page-container {
+    max-width: 48rem;
+}
+
+/* Receipt fields use one compact size, including the native date display. */
+.receipt-review-page .expense-form-input-shell,
+.receipt-details .expense-form-input-shell {
+    height: 3.25rem;
+    min-height: 3.25rem;
+    border-radius: 0.75rem;
+}
+
+/* Receipt capture and review share one mobile workspace. */
+.receipt-workspace-header {
+    position: sticky;
+    top: 0;
+    z-index: 45;
+    border-bottom: 1px solid var(--shadcn-border);
+    background: var(--mobile-page-header-bg);
+    padding: 0.5rem 1rem;
+    -webkit-backdrop-filter: blur(16px);
+    backdrop-filter: blur(16px);
+}
+
+@media (max-width: 767px) {
+    .receipt-workspace-page .page-header {
+        margin-bottom: 1rem;
+    }
+
+    .receipt-workspace-page .page-shell {
+        padding-bottom: calc(8rem + env(safe-area-inset-bottom));
+    }
+
+    .receipt-workspace-actions {
+        position: fixed;
+        right: 0;
+        bottom: calc(4.9rem + env(safe-area-inset-bottom));
+        left: 0;
+        z-index: 40;
+        border-top: 1px solid var(--shadcn-border);
+        background: color-mix(in srgb, var(--background) 95%, transparent);
+        padding: 0.75rem 1rem;
+        -webkit-backdrop-filter: blur(16px);
+        backdrop-filter: blur(16px);
+    }
+}

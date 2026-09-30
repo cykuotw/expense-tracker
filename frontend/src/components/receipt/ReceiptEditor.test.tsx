@@ -60,7 +60,8 @@ describe("ReceiptEditor", () => {
             target: { files: [new File(["photo"], "receipt.jpg", { type: "image/jpeg" })] },
         });
 
-        expect(await screen.findByRole("heading", { name: "Crop and protect your receipt" })).toBeInTheDocument();
+        expect(await screen.findByRole("heading", { name: "Prepare your receipt" })).toBeInTheDocument();
+        fireEvent.click(screen.getByRole("button", { name: /^Precise controls/ }));
         fireEvent.click(screen.getByRole("button", { name: "Add mask" }));
         expect(screen.getByText("1 permanent region")).toBeInTheDocument();
         expect(screen.getByLabelText("Selected mask left percentage")).toBeInTheDocument();
@@ -79,26 +80,23 @@ describe("ReceiptEditor", () => {
         expect(screen.getByRole("heading", { name: "Prepare a receipt photo" })).toBeInTheDocument();
     });
 
-    it("exports an in-memory JPEG preview and reports its dimensions", async () => {
+    it("scans the prepared JPEG in one action and preserves edits for another scan", async () => {
         const onPrepared = vi.fn();
         render(<ReceiptEditor onPrepared={onPrepared} />);
         fireEvent.change(screen.getByLabelText("Choose photo"), {
             target: { files: [new File(["photo"], "receipt.jpg", { type: "image/jpeg" })] },
         });
-        await screen.findByRole("heading", { name: "Crop and protect your receipt" });
+        await screen.findByRole("heading", { name: "Prepare your receipt" });
+        fireEvent.click(screen.getByRole("button", { name: /^Precise controls/ }));
         fireEvent.click(screen.getByRole("button", { name: "Add mask" }));
-        fireEvent.click(screen.getByRole("button", { name: "Review prepared receipt" }));
-
-        expect(await screen.findByRole("heading", { name: "Review the prepared receipt" })).toBeInTheDocument();
-        expect(screen.getByText("1200 × 800")).toBeInTheDocument();
-        fireEvent.click(screen.getByRole("button", { name: "Use prepared receipt" }));
+        fireEvent.click(screen.getByRole("button", { name: "Scan receipt" }));
         await waitFor(() => expect(onPrepared).toHaveBeenCalledOnce());
+        expect(screen.queryByRole("button", { name: "Use prepared receipt" })).not.toBeInTheDocument();
         const result = onPrepared.mock.calls[0][0];
         expect(result.blob.type).toBe("image/jpeg");
         expect(result.width).toBe(1200);
 
-        fireEvent.click(screen.getByRole("button", { name: "Back to editing" }));
-        const canvas = await screen.findByRole("img", { name: "Receipt editing canvas" });
+        const canvas = screen.getByRole("img", { name: "Receipt editing canvas" });
         await waitFor(() => expect(canvas).toHaveAttribute("width", "1200"));
         expect(canvas).toHaveAttribute("height", "800");
         expect(screen.getByText("1 permanent region")).toBeInTheDocument();
@@ -109,7 +107,7 @@ describe("ReceiptEditor", () => {
         fireEvent.change(screen.getByLabelText("Choose photo"), {
             target: { files: [new File(["photo"], "receipt.jpg", { type: "image/jpeg" })] },
         });
-        await screen.findByRole("heading", { name: "Crop and protect your receipt" });
+        await screen.findByRole("heading", { name: "Prepare your receipt" });
 
         const toolbar = within(screen.getByTestId("mobile-receipt-toolbar"));
         expect(toolbar.getByRole("button", { name: "Crop mode" })).toHaveClass("min-h-12");
@@ -137,13 +135,34 @@ describe("ReceiptEditor", () => {
         fireEvent.change(screen.getByLabelText("Choose photo"), {
             target: { files: [new File(["photo"], "receipt.jpg", { type: "image/jpeg" })] },
         });
-        await screen.findByRole("heading", { name: "Crop and protect your receipt" });
+        await screen.findByRole("heading", { name: "Prepare your receipt" });
+        fireEvent.click(screen.getByRole("button", { name: /^Precise controls/ }));
         fireEvent.click(screen.getByRole("button", { name: "Add mask" }));
-        fireEvent.click(screen.getByRole("button", { name: "Review prepared receipt" }));
+        fireEvent.click(screen.getByRole("button", { name: "Scan receipt" }));
         fireEvent.click(screen.getByRole("button", { name: "Cancel preparation" }));
-        expect(screen.getByRole("heading", { name: "Crop and protect your receipt" })).toBeInTheDocument();
+        expect(screen.getByRole("heading", { name: "Prepare your receipt" })).toBeInTheDocument();
         expect(screen.getByText("1 permanent region")).toBeInTheDocument();
         expect(screen.getByRole("status")).toHaveTextContent("Receipt preparation cancelled");
+    });
+
+    it("keeps a failed photo retry on the receipt page", async () => {
+        vi.stubGlobal("createImageBitmap", vi.fn().mockRejectedValue(new Error("unsupported")));
+        Object.defineProperty(Image.prototype, "decode", {
+            configurable: true,
+            value: vi.fn().mockRejectedValue(new Error("unsupported")),
+        });
+        const onCancel = vi.fn();
+        const onPhotoCleared = vi.fn();
+        render(<ReceiptEditor onCancel={onCancel} onPhotoCleared={onPhotoCleared} />);
+        fireEvent.change(screen.getByLabelText("Choose photo"), {
+            target: { files: [new File(["photo"], "receipt.heic", { type: "image/heic" })] },
+        });
+        expect(await screen.findByRole("heading", { name: "We could not prepare this photo" })).toBeInTheDocument();
+        fireEvent.click(screen.getByRole("button", { name: "Choose another photo" }));
+        expect(screen.getByRole("heading", { name: "Prepare a receipt photo" })).toBeInTheDocument();
+        expect(onCancel).not.toHaveBeenCalled();
+        expect(onPhotoCleared).toHaveBeenCalledOnce();
+        Reflect.deleteProperty(Image.prototype, "decode");
     });
 
     it("offers retry and manual entry when native decoding is unsupported", async () => {

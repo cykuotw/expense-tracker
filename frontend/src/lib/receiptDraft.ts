@@ -14,6 +14,7 @@ export interface ReceiptExpenseValues {
 export interface ReceiptExpenseValidation {
     valid: boolean;
     message: string | null;
+    section?: "amounts" | "items";
     subTotal?: string;
     taxFeeTip?: string;
     items?: ItemCreateData[];
@@ -33,7 +34,7 @@ export function validateReceiptExpense(
     amountDigits: number | null,
 ): ReceiptExpenseValidation {
     if (amountDigits === null) {
-        return { valid: false, message: "Choose a group with an available currency first." };
+        return { valid: false, message: "Choose a group with an available currency first.", section: "amounts" };
     }
 
     const hasBreakdown = [values.subtotal, values.tax, values.tip].some(
@@ -53,10 +54,11 @@ export function validateReceiptExpense(
         return {
             valid: false,
             message: `Use valid amounts with at most ${amountDigits} decimal places.`,
+            section: "amounts",
         };
     }
     if (subtotalUnits + taxUnits + tipUnits !== totalUnits) {
-        return { valid: false, message: "Subtotal, tax, and tip must add up to the total." };
+        return { valid: false, message: "Subtotal, tax, and tip must add up to the total.", section: "amounts" };
     }
 
     let itemUnits = 0n;
@@ -65,19 +67,19 @@ export function validateReceiptExpense(
         const description = item.description.trim();
         const lineUnits = decimalToUnits(item.lineTotal, amountDigits);
         if (!description || Array.from(description).length > 256 || lineUnits === null || lineUnits < 0n) {
-            return { valid: false, message: "Each item needs a description and a valid line total." };
+            return { valid: false, message: "Each item needs a description and a valid line total.", section: "items" };
         }
         const quantity = item.quantity.trim();
         const unit = item.unit.trim();
         const unitPrice = item.unitPrice.trim();
         if (quantity && !validQuantity(quantity)) {
-            return { valid: false, message: "Item quantity must be positive with at most 6 decimal places." };
+            return { valid: false, message: "Item quantity must be positive with at most 6 decimal places.", section: "items" };
         }
         if (unit && Array.from(unit).length > 32) {
-            return { valid: false, message: "Item unit must be 32 characters or fewer." };
+            return { valid: false, message: "Item unit must be 32 characters or fewer.", section: "items" };
         }
         if (unitPrice && !validUnitPrice(unitPrice)) {
-            return { valid: false, message: "Item unit price must be non-negative with at most 3 decimal places." };
+            return { valid: false, message: "Item unit price must be non-negative with at most 3 decimal places.", section: "items" };
         }
         itemUnits += lineUnits;
         items.push({
@@ -89,7 +91,7 @@ export function validateReceiptExpense(
         });
     }
     if (items.length > 0 && itemUnits !== subtotalUnits) {
-        return { valid: false, message: "Item line totals must add up to the subtotal." };
+        return { valid: false, message: "Item line totals must add up to the subtotal.", section: "items" };
     }
 
     return {

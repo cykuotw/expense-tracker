@@ -273,6 +273,7 @@ const CreateExpenseContent = () => {
                                 onItemsChange={setItems}
                                 amountStep={amountDigits === null ? undefined : moneyInputStep(amountDigits)}
                                 validationMessage={receiptValidation.message}
+                                compactItems
                             />
                         ) : null}
 

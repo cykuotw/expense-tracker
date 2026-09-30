@@ -13,7 +13,7 @@ cleanupOutdatedCaches();
 precacheAndRoute(self.__WB_MANIFEST);
 
 // vite-plugin-pwa's prompt registration sends this message when the user
-// chooses “Reload now”. injectManifest workers must handle it themselves;
+// chooses “Update now”. injectManifest workers must handle it themselves;
 // without it, the downloaded worker remains waiting and the current shell
 // continues to serve the previous application version.
 self.addEventListener("message", (event) => {

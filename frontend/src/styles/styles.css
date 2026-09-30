@@ -116,6 +116,12 @@ body {
     margin-top: 0.75rem;
 }
 
+@media (max-width: 767px) {
+    .pwa-update-prompt {
+        bottom: calc(5.75rem + env(safe-area-inset-bottom));
+    }
+}
+
 a,
 button,
 input,

@@ -137,14 +137,19 @@ PostgreSQL
   `service-worker.js` must remain snapshot-managed; serving it with immutable
   caching can leave installed clients on a stale application shell and prevent
   update discovery. The application checks at registration, when returning to
-  the foreground, and hourly while open. A waiting worker activates and reloads
-  automatically only when every known same-origin tab is free of editing-flow
-  and in-flight-mutation blockers; otherwise the worker waits and the user keeps
-  an explicit reload option. Cross-tab coordination persists only random tab
-  IDs, blocker booleans, and short-lived timestamps/activation leases—never form
-  values, account identifiers, tokens, routes, or error details. Stale tab state
-  expires automatically, and unavailable browser storage disables automatic
-  activation rather than weakening the safety check. Any change to build output
+  the foreground, and hourly while open. An update discovered during an open
+  session stays pending: the user can update explicitly, or choose Later to hide
+  the notice for that page session. Later checks keep the waiting worker current
+  without interrupting the page. Before an explicit update, the app checks once
+  more and waits within a bounded window for a newer worker to finish installing;
+  an already installed waiting worker remains usable if that check fails. After
+  all pages using the old worker close, the browser can activate the waiting
+  worker for the next launch. Editing-flow and in-flight-mutation blockers
+  prevent explicit updates while they are active. Cross-tab coordination
+  persists only
+  random tab IDs, blocker booleans, and short-lived timestamps/activation
+  leases—never form values, account identifiers, tokens, routes, or error
+  details. Stale tab state expires automatically. Any change to build output
   classification must update snapshot, restoration, and cache-header regression
   tests in the same change.
 - `backend/internal/tracker` assembles the Gin application and its public,

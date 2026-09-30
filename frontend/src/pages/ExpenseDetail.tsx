@@ -197,7 +197,13 @@ const ExpenseDetailContent = () => {
                         amountDigits={amountDigits}
                     />
 
-                    <div className="grid gap-4 md:gap-6 lg:grid-cols-[minmax(0,1.35fr)_minmax(18rem,0.65fr)] lg:items-start">
+                    <div
+                        className={`grid gap-4 md:gap-6 ${
+                            expenseDetail.invoiceUrl
+                                ? "lg:grid-cols-[minmax(0,1.35fr)_minmax(18rem,0.65fr)] lg:items-start"
+                                : "lg:max-w-3xl"
+                        }`}
+                    >
                         <div className="flex min-w-0 flex-col gap-4 md:gap-6">
                             <PaymentDetails
                                 expenseDetail={expenseDetail}
@@ -209,15 +215,16 @@ const ExpenseDetailContent = () => {
                             /> : null}
                         </div>
 
-                        <aside className="flex min-w-0 flex-col gap-4 md:gap-6">
-                            {expenseDetail.invoiceUrl ? (
+                        {expenseDetail.invoiceUrl ? (
+                            <aside className="min-w-0">
                                 <ReceiptImage
                                     invoiceUrl={expenseDetail.invoiceUrl}
                                 />
-                            ) : null}
-                            <DangerZone />
-                        </aside>
+                            </aside>
+                        ) : null}
                     </div>
+
+                    <DangerZone />
                 </div>
             </div>
         </main>
@@ -643,37 +650,32 @@ function DangerZone() {
     };
 
     return (
-        <section aria-labelledby="danger-zone-title">
-            <Card className="rounded-[2rem] bg-card ring-destructive/25">
-                <CardHeader>
-                    <div className="section-label text-destructive">
-                        Danger zone
-                    </div>
-                    <CardTitle>
-                        <h2 id="danger-zone-title">Remove expense</h2>
-                    </CardTitle>
-                    <CardDescription>
-                        Removing this expense updates the group&apos;s active
-                        balances.
-                    </CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <Button
-                        variant="destructive"
-                        size="lg"
-                        className="min-h-11 w-full"
-                        onClick={() => setDeleteOpen(true)}
-                    >
-                        <Icon
-                            path={mdiDeleteOutline}
-                            size={0.85}
-                            data-icon="inline-start"
-                            aria-hidden="true"
-                        />
-                        Delete expense
-                    </Button>
-                </CardContent>
-            </Card>
+        <section
+            aria-labelledby="danger-zone-title"
+            className="flex flex-col gap-3 border-t border-border pt-4 sm:flex-row sm:items-center sm:justify-between"
+        >
+            <div>
+                <h2 id="danger-zone-title" className="text-sm font-medium">
+                    Remove expense
+                </h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                    Removing this expense updates the group&apos;s active balances.
+                </p>
+            </div>
+            <Button
+                variant="outline"
+                size="lg"
+                className="min-h-11 w-full text-destructive hover:text-destructive sm:w-auto"
+                onClick={() => setDeleteOpen(true)}
+            >
+                <Icon
+                    path={mdiDeleteOutline}
+                    size={0.85}
+                    data-icon="inline-start"
+                    aria-hidden="true"
+                />
+                Delete expense
+            </Button>
 
             <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
                 <AlertDialogContent aria-busy={deleting}>

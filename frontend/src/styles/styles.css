@@ -481,10 +481,6 @@ textarea {
     font-weight: 500;
 }
 
-.expense-detail-page :is(.font-semibold, .font-bold, .font-medium) {
-    font-weight: 400;
-}
-
 .expense-detail-page [aria-labelledby="expense-summary-title"] .text-4xl {
     font-weight: 500;
     letter-spacing: -0.025em;
@@ -520,10 +516,6 @@ textarea {
     }
 
     .expense-detail-page :is([data-slot="card-description"], .section-label) {
-        display: none;
-    }
-
-    .expense-detail-page [aria-labelledby="expense-summary-title"] [data-slot="card-header"] {
         display: none;
     }
 
@@ -573,14 +565,8 @@ textarea {
         overflow-wrap: anywhere;
     }
 
-    .expense-detail-page [aria-labelledby="receipt-image-title"] [data-slot="card-header"],
-    .expense-detail-page [aria-labelledby="danger-zone-title"] [data-slot="card-header"] {
+    .expense-detail-page [aria-labelledby="receipt-image-title"] [data-slot="card-header"] {
         display: none;
-    }
-
-    .expense-detail-page aside {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
     }
 
     .expense-detail-page aside [data-slot="card"] {

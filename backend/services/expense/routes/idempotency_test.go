@@ -87,3 +87,15 @@ func TestExpenseCreateFingerprintCanonicalizesItemsWithCollidingConcatenations(t
 
 	assert.NotEqual(t, ordered, reversed)
 }
+
+func TestExpenseCreateFingerprintBindsReceiptRetentionChoice(t *testing.T) {
+	expense := types.Expense{GroupID: uuid.New(), PayByUserId: uuid.New(), ExpenseTypeID: uuid.New()}
+	without, err := expenseCreateFingerprint(expense, nil, nil, nil)
+	require.NoError(t, err)
+	chosen, err := expenseCreateFingerprint(expense, nil, nil, nil, &types.ReceiptChoice{Keep: true, Token: "receipt-one"})
+	require.NoError(t, err)
+	changed, err := expenseCreateFingerprint(expense, nil, nil, nil, &types.ReceiptChoice{Keep: true, Token: "receipt-two"})
+	require.NoError(t, err)
+	assert.NotEqual(t, without, chosen)
+	assert.NotEqual(t, chosen, changed)
+}

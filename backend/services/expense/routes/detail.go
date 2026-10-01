@@ -106,6 +106,25 @@ func (h *Handler) expenseDetailResponse(c *gin.Context, expenseTypes []*types.Ex
 		expenseCategory = item.Category
 		break
 	}
+	receipt, err := h.store.GetExpenseReceiptByRole(expense.ID, "candidate")
+	if err != nil {
+		return types.ExpenseResponse{}, err
+	}
+	if receipt == nil {
+		receipt, err = h.store.GetExpenseReceiptByRole(expense.ID, "current")
+		if err != nil {
+			return types.ExpenseResponse{}, err
+		}
+	}
+	if receipt == nil {
+		cleanups, err := h.store.ListExpenseReceiptsForCleanup(expense.ID)
+		if err != nil {
+			return types.ExpenseResponse{}, err
+		}
+		if len(cleanups) > 0 {
+			receipt = &cleanups[0]
+		}
+	}
 	return types.ExpenseResponse{
 		ID:                expense.ID,
 		Description:       expense.Description,
@@ -126,5 +145,6 @@ func (h *Handler) expenseDetailResponse(c *gin.Context, expenseTypes []*types.Ex
 		Items:             itemRsp,
 		Ledgers:           ledgerRsp,
 		Allocation:        allocationResponse,
+		Receipt:           receiptSummary(receipt),
 	}, nil
 }

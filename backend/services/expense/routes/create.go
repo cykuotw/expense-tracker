@@ -86,6 +86,28 @@ func (h *Handler) handleCreateExpense(c *gin.Context) {
 		return
 	}
 
+	existingAttempt, err := h.store.GetExpenseCreateIdempotency(creatorID, key)
+	if err != nil {
+		utils.WriteError(c, http.StatusInternalServerError, err)
+		return
+	}
+	var pendingReceipt *types.ExpenseReceipt
+	if existingAttempt == nil {
+		pendingReceipt, err = h.prepareReceipt(c.Request.Context(), payload.Receipt, userID, expenseID, key)
+		if err != nil {
+			if errors.Is(err, errReceiptChoiceInvalid) {
+				utils.WriteError(c, http.StatusBadRequest, err)
+				return
+			}
+			if errors.Is(err, errReceiptUnavailable) {
+				utils.WriteError(c, http.StatusServiceUnavailable, err)
+				return
+			}
+			utils.WriteError(c, http.StatusServiceUnavailable, err)
+			return
+		}
+	}
+
 	resultExpenseID := expenseID
 
 	err = h.store.RunInTransaction(func(store types.ExpenseTransactionStore) error {
@@ -106,7 +128,7 @@ func (h *Handler) handleCreateExpense(c *gin.Context) {
 			return err
 		}
 
-		fingerprint, err := expenseCreateFingerprint(expense, items, allocations, payload.OccurredOn)
+		fingerprint, err := expenseCreateFingerprint(expense, items, allocations, payload.OccurredOn, payload.Receipt)
 		if err != nil {
 			return err
 		}
@@ -125,6 +147,11 @@ func (h *Handler) handleCreateExpense(c *gin.Context) {
 		}
 		if err := store.CreateExpense(expense); err != nil {
 			return err
+		}
+		if pendingReceipt != nil {
+			if err := store.CreateExpenseReceipt(*pendingReceipt); err != nil {
+				return err
+			}
 		}
 		for _, item := range items {
 			if err := store.CreateItem(item); err != nil {
@@ -167,5 +194,23 @@ func (h *Handler) handleCreateExpense(c *gin.Context) {
 		return
 	}
 
+	if payload.Receipt != nil && payload.Receipt.Keep {
+		record, err := h.store.GetExpenseReceiptByRequest(resultExpenseID, key)
+		if err != nil || record == nil {
+			utils.WriteError(c, http.StatusInternalServerError, errReceiptObjectMissing)
+			return
+		}
+		result, err := h.reconcileReceipt(c.Request.Context(), record.ID)
+		if err != nil {
+			utils.WriteError(c, http.StatusServiceUnavailable, err)
+			return
+		}
+		status := http.StatusCreated
+		if result.Status == "pending" {
+			status = http.StatusAccepted
+		}
+		utils.WriteJSON(c, status, gin.H{"expenseId": resultExpenseID.String(), "receipt": receiptSummary(result)})
+		return
+	}
 	utils.WriteJSON(c, http.StatusCreated, map[string]string{"expenseId": resultExpenseID.String()})
 }

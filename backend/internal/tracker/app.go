@@ -1,6 +1,7 @@
 package tracker
 
 import (
+	"context"
 	"database/sql"
 	"expense-tracker/backend/config"
 	"expense-tracker/backend/internal/observability"
@@ -19,6 +20,8 @@ import (
 	"expense-tracker/backend/services/notification"
 	"expense-tracker/backend/services/ocr"
 	"expense-tracker/backend/services/user"
+	awsconfig "github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"log/slog"
 	"net/http"
 	"os"
@@ -115,7 +118,15 @@ func registerRoutes(router *gin.Engine, db *sql.DB) {
 
 	expenseStore := expenseStore.NewStore(db)
 	expenseController := expense.NewController()
-	expenseHandler := expenseRoute.NewHandler(expenseStore, userStore, groupStore, expenseController)
+	receiptOptions := []func(*expenseRoute.Handler){}
+	if config.Envs.ReceiptBucket != "" {
+		awsCfg, err := awsconfig.LoadDefaultConfig(context.Background())
+		if err == nil {
+			receiptOptions = append(receiptOptions, expenseRoute.WithReceiptStorage(
+				s3.NewFromConfig(awsCfg), config.Envs.ReceiptBucket, []byte(config.Envs.OCRCapabilitySecret), config.Envs.ReceiptStorageEnabled))
+		}
+	}
+	expenseHandler := expenseRoute.NewHandler(expenseStore, userStore, groupStore, expenseController, receiptOptions...)
 	expenseHandler.RegisterRoutes(protected)
 }
 

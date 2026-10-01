@@ -7,7 +7,7 @@ vi.mock("./api", async () => {
 });
 vi.mock("../configs/config", () => ({ API_URL: "https://api.example.test/api/v0" }));
 
-import { OCR_CLIENT_TIMEOUT_MS, parseOCRDraft, ReceiptOCRError, requestReceiptDraft } from "./receiptOcr";
+import { OCR_CLIENT_TIMEOUT_MS, parseOCRDraft, ReceiptOCRError, requestReceiptDraft, requestReceiptDraftWithRetention } from "./receiptOcr";
 
 const field = (value: string, provenance = "provider") => ({ value, provenance });
 const draft = {
@@ -70,6 +70,21 @@ describe("receipt OCR client", () => {
                 }),
             }),
         );
+    });
+
+    it("requires an explicit keep choice and a returned token before claiming retention", async () => {
+        apiFetchMock.mockResolvedValue(jsonResponse({
+            token: "capability", requestId: "00000000-0000-4000-8000-000000000001",
+            contentType: "image/jpeg", maxBytes: 3_670_016, expiresAt: "2026-09-27T12:00:00Z",
+        }, 201));
+        vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse({
+            requestId: "00000000-0000-4000-8000-000000000001", draft,
+        })));
+        await expect(requestReceiptDraftWithRetention(receipt, "account-1", true)).rejects.toMatchObject({
+            code: "receipt_storage_unavailable",
+        });
+        const body = JSON.parse((apiFetchMock.mock.lastCall![1] as RequestInit).body as string);
+        expect(body.keepReceipt).toBe(true);
     });
 
     it("maps a revoked grant to an actionable safe error", async () => {

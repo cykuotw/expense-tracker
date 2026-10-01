@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { useEffect } from "react";
@@ -57,6 +57,26 @@ describe("ReceiptScanPage", () => {
         vi.unstubAllGlobals();
     });
 
+    it("uses the existing photo input from the desktop header and keeps back navigation", async () => {
+        render(<MemoryRouter initialEntries={["/create_expense/receipt?g=group-1"]}>
+            <Routes>
+                <Route path="/create_expense/receipt" element={<ReceiptScanPage />} />
+                <Route path="/create_expense" element={<div>Manual form</div>} />
+            </Routes>
+        </MemoryRouter>);
+
+        const input = screen.getByLabelText("Receipt photo file");
+        const openPicker = vi.spyOn(input, "click");
+        const desktopHeader = screen.getByRole("heading", { name: "Receipt photo" }).closest("header");
+        if (!desktopHeader) throw new Error("desktop receipt header is missing");
+        fireEvent.click(within(desktopHeader).getByRole("button", { name: "Upload photo" }));
+        expect(openPicker).toHaveBeenCalledOnce();
+
+        fireEvent.click(screen.getByRole("button", { name: "Back to expense" }));
+        expect(clearReceiptWorkflow).toHaveBeenCalledOnce();
+        expect(screen.getByText("Manual form")).toBeInTheDocument();
+    });
+
     it("scans and reviews on one route, then replaces the photo without scrolling back", async () => {
         render(<MemoryRouter initialEntries={["/create_expense/receipt?g=group-1"]}>
             <Location />
@@ -67,11 +87,11 @@ describe("ReceiptScanPage", () => {
         </MemoryRouter>);
 
         expect(await screen.findByText("Editor: no photo")).toBeInTheDocument();
-        fireEvent.change(screen.getByLabelText("Upload photo"), {
+        fireEvent.change(screen.getByLabelText("Receipt photo file"), {
             target: { files: [new File(["first"], "first.jpg", { type: "image/jpeg" })] },
         });
         expect(await screen.findByText("Editor: first.jpg")).toBeInTheDocument();
-        expect(screen.getByLabelText("Change photo")).toBeInTheDocument();
+        expect(screen.getAllByRole("button", { name: "Change photo" })[0]).toBeInTheDocument();
 
         fireEvent.click(screen.getByRole("button", { name: "Scan receipt" }));
         expect(startReceiptOCR).toHaveBeenCalledOnce();
@@ -83,7 +103,7 @@ describe("ReceiptScanPage", () => {
         expect(screen.getByText("Editor: first.jpg")).toBeInTheDocument();
 
         fireEvent.click(screen.getByRole("button", { name: "Scan receipt" }));
-        fireEvent.change(screen.getByLabelText("Change photo"), {
+        fireEvent.change(screen.getByLabelText("Receipt photo file"), {
             target: { files: [new File(["second"], "second.jpg", { type: "image/jpeg" })] },
         });
         expect(await screen.findByText("Editor: second.jpg")).toBeInTheDocument();

@@ -1,7 +1,5 @@
-import Icon from "@mdi/react";
 import { useEffect } from "react";
 import { Route, Routes, useParams } from "react-router-dom";
-import { mdiCamera } from "@mdi/js";
 
 import { EditExpenseProvider } from "../contexts/EditExpenseContext";
 import { useEditExpense } from "../hooks/EditExpenseContextHooks";
@@ -16,11 +14,13 @@ import ExpenseSubmitButton from "../components/expense/ExpenseSubmitButton";
 import DesktopBackLink from "../components/DesktopBackLink";
 import { CurrencyPicker } from "../components/group/CurrencyPicker";
 import { usePWAUpdateBlocker } from "../hooks/usePWAUpdateBlocker";
+import ExpenseReceiptAttachment from "../components/receipt/ExpenseReceiptAttachment";
 
 const EditExpenseContent = () => {
     usePWAUpdateBlocker(true);
     const {
         formData,
+        receipt,
         amountDigits,
         currencies,
         setFormData,
@@ -185,23 +185,6 @@ const EditExpenseContent = () => {
                             </div>
                         </div>
 
-                        {/* RECEIPT UPLOAD BUTTON */}
-                        <div className="hidden">
-                            <label
-                                style={{ display: "inline-block" }}
-                                className="w-2/3 h-12 border border-gray-400 rounded-full bg-background hover:bg-border"
-                            >
-                                <input
-                                    type="file"
-                                    style={{ display: "none" }}
-                                />
-                                <div className="flex flex-row items-center justify-center h-full space-x-3">
-                                    <Icon path={mdiCamera} size={1} />
-                                    <p>Upload Receipt</p>
-                                </div>
-                            </label>
-                        </div>
-
                         <div className="mt-4 md:mt-6">
                             {groupMembersLoadStatus === "error" ? (
                                 <div className="flex min-h-14 items-center justify-between gap-3 rounded-2xl border border-destructive/30 bg-destructive/5 px-4 py-2 md:min-h-20">
@@ -261,6 +244,7 @@ const EditExpenseContent = () => {
                             />
                         </div>
                 </form>
+                <ExpenseReceiptAttachment expenseId={expenseId} initialReceipt={receipt} />
             </div>
         </div>
     );

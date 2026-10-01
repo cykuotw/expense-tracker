@@ -39,7 +39,7 @@ import {
     GroupMembersLoadStatus,
 } from "../types/group";
 import { legacyCurrencySettings } from "../lib/currencySettings";
-import { requestReceiptDraft, ReceiptOCRError } from "../lib/receiptOcr";
+import { requestReceiptDraftWithRetention, ReceiptOCRError } from "../lib/receiptOcr";
 import { validateReceiptExpense } from "../lib/receiptDraft";
 import type { PreparedReceipt } from "../lib/receiptEditor";
 import type { AccountSettingsData } from "../types/account";
@@ -87,6 +87,15 @@ export const CreateExpenseProvider = ({
     const [tipInput, setTipInput] = useState("");
     const [items, setItems] = useState<ConfirmedExpenseItem[]>([]);
     const [receiptOCREnabled, setReceiptOCREnabled] = useState<boolean | null>(null);
+    const [receiptRetentionAvailable, setReceiptRetentionAvailable] = useState(false);
+    const [keepReceipt, setKeepReceipt] = useState(false);
+    const [receiptToken, setReceiptToken] = useState<string | null>(null);
+    const [receiptExpiresAt, setReceiptExpiresAt] = useState<string | null>(null);
+    const discardReceiptToken = useCallback(() => {
+        setReceiptToken(null);
+        setReceiptExpiresAt(null);
+        setKeepReceipt(false);
+    }, []);
     const [ocrStatus, setOCRStatus] = useState<"idle" | "scanning" | "ready" | "error">("idle");
     const [ocrDraft, setOCRDraft] = useState<OCRDraft | null>(null);
     const [ocrError, setOCRError] = useState<string | null>(null);
@@ -142,12 +151,16 @@ export const CreateExpenseProvider = ({
         setMainFormVisited(true);
     }, []);
 
-    const clearReceiptWorkflow = useCallback(() => {
+    const clearReceiptWorkflow = useCallback((preserveRetention = false) => {
         ocrAbortRef.current?.abort("cancelled");
         ocrAbortRef.current = null;
         setOCRStatus("idle");
         setOCRDraft(null);
         setOCRError(null);
+        if (!preserveRetention) {
+            setReceiptToken(null);
+            setReceiptExpiresAt(null);
+        }
     }, []);
 
     const startReceiptOCR = useCallback(async (receipt: PreparedReceipt) => {
@@ -162,10 +175,14 @@ export const CreateExpenseProvider = ({
         setOCRStatus("scanning");
         setOCRDraft(null);
         setOCRError(null);
+        setReceiptToken(null);
+        setReceiptExpiresAt(null);
         try {
-            const draft = await requestReceiptDraft(receipt, userID, controller.signal);
+            const result = await requestReceiptDraftWithRetention(receipt, userID, keepReceipt, controller.signal);
             if (ocrAbortRef.current !== controller) return;
-            setOCRDraft(draft);
+            setOCRDraft(result.draft);
+            setReceiptToken(result.receiptToken);
+            setReceiptExpiresAt(result.receiptExpiresAt);
             setOCRStatus("ready");
         } catch (error) {
             if (ocrAbortRef.current !== controller) return;
@@ -178,7 +195,7 @@ export const CreateExpenseProvider = ({
         } finally {
             if (ocrAbortRef.current === controller) ocrAbortRef.current = null;
         }
-    }, [receiptOCREnabled, userID]);
+    }, [receiptOCREnabled, userID, keepReceipt]);
 
     const applyReviewedReceipt = useCallback((draft: ReviewedReceiptDraft) => {
         setMerchant(draft.merchant);
@@ -189,7 +206,7 @@ export const CreateExpenseProvider = ({
         setTipInput(draft.tip);
         setTotalInput(draft.total);
         setItems(draft.items);
-        clearReceiptWorkflow();
+        clearReceiptWorkflow(true);
     }, [clearReceiptWorkflow]);
 
     const handleCreateExpense = async (event: FormEvent) => {
@@ -203,6 +220,10 @@ export const CreateExpenseProvider = ({
             return;
         }
 
+        if (keepReceipt && !receiptToken) {
+            setSubmissionError("Scan the photo again or choose Don't keep photo before saving.");
+            return;
+        }
         submissionInFlightRef.current = true;
         setSubmissionError(null);
         setIndicatorShow(true);
@@ -218,6 +239,7 @@ export const CreateExpenseProvider = ({
                 allocation,
                 occurredOn,
                 providerName: merchant.trim(),
+                ...(keepReceipt && receiptToken ? { receipt: { keep: true, token: receiptToken } } : {}),
                 ...(receiptDetailsActive ? {
                     subTotal: receiptValidation.subTotal,
                     taxFeeTip: receiptValidation.taxFeeTip,
@@ -226,17 +248,20 @@ export const CreateExpenseProvider = ({
             };
 
             const fingerprint = JSON.stringify(payload);
-            if (submissionIntentRef.current?.fingerprint !== fingerprint) {
-                submissionIntentRef.current = {
-                    key: crypto.randomUUID(),
-                    fingerprint,
-                };
+            const isReplay = submissionIntentRef.current?.fingerprint === fingerprint;
+            if (keepReceipt && !isReplay && receiptExpiresAt && Date.parse(receiptExpiresAt) <= Date.now()) {
+                setSubmissionError("The receipt save window expired. Scan the photo again or choose Don't keep photo.");
+                return;
             }
+            const submissionIntent = isReplay && submissionIntentRef.current
+                ? submissionIntentRef.current
+                : { key: crypto.randomUUID(), fingerprint };
+            submissionIntentRef.current = submissionIntent;
             const response = await apiFetch("/create_expense", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
-                    "Idempotency-Key": submissionIntentRef.current.key,
+                    "Idempotency-Key": submissionIntent.key,
                 },
                 body: fingerprint,
             });
@@ -247,9 +272,18 @@ export const CreateExpenseProvider = ({
                 return;
             }
 
+            if (response.status === 202) {
+                setSubmissionError("Expense saved. The receipt photo is still being secured. Tap Retry to finish it.");
+                return;
+            }
+            const result = await response.json().catch(() => null) as { receipt?: { status?: string } } | null;
             submissionIntentRef.current = null;
             clearReceiptWorkflow();
-            toast.success("Your expense has been created!", { duration: 1000 });
+            if (result?.receipt?.status === "failed") {
+                toast.error("Expense saved, but the receipt photo could not be kept.");
+            } else {
+                toast.success("Your expense has been created!", { duration: 1000 });
+            }
             if (selectedGroupId) {
                 navigate(`/group/${selectedGroupId}`);
             }
@@ -269,6 +303,7 @@ export const CreateExpenseProvider = ({
                 if (!response.ok) throw new Error("account capability request failed");
                 const account = (await response.json()) as Partial<AccountSettingsData>;
                 setReceiptOCREnabled(account.capabilities?.receiptOcr === true);
+                setReceiptRetentionAvailable(account.capabilities?.receiptRetention === true);
             } catch {
                 if (!controller.signal.aborted) setReceiptOCREnabled(false);
             }
@@ -445,6 +480,11 @@ export const CreateExpenseProvider = ({
                 setItems,
                 receiptDetailsActive,
                 receiptOCREnabled,
+                receiptRetentionAvailable,
+                keepReceipt,
+                setKeepReceipt,
+                receiptToken,
+                discardReceiptToken,
                 ocrStatus,
                 ocrDraft,
                 ocrError,

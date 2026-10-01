@@ -65,6 +65,10 @@ type ExpenseTransactionStore interface {
 	CreateExpenseAllocation(allocation ExpenseAllocation) error
 	ClaimExpenseCreateIdempotency(record ExpenseCreateIdempotency) (existing ExpenseCreateIdempotency, claimed bool, err error)
 	QueueExpenseCreatedNotifications(expense Expense) error
+	CreateExpenseReceipt(receipt ExpenseReceipt) error
+	GetExpenseReceiptForUpdate(receiptID uuid.UUID) (*ExpenseReceipt, error)
+	GetExpenseReceiptByRoleForUpdate(expenseID uuid.UUID, role string) (*ExpenseReceipt, error)
+	UpdateExpenseReceipt(receipt ExpenseReceipt) error
 	UpdateExpense(expense Expense) error
 	DeleteExpense(expense Expense) error
 	UpdateExpenseSettleInGroup(groupID string) error
@@ -87,10 +91,15 @@ type ExpenseTransactionStore interface {
 
 type ExpenseStore interface {
 	RunInTransaction(func(ExpenseTransactionStore) error) error
+	GetExpenseCreateIdempotency(userID, key uuid.UUID) (*ExpenseCreateIdempotency, error)
 
 	CheckExpenseExistByID(id string) (bool, error)
 
 	GetExpenseByID(expenseID string) (*Expense, error)
+	GetExpenseReceiptByRole(expenseID uuid.UUID, role string) (*ExpenseReceipt, error)
+	GetExpenseReceiptByRequest(expenseID, requestKey uuid.UUID) (*ExpenseReceipt, error)
+	GetExpenseReceiptByDeleteRequest(expenseID, requestKey uuid.UUID) (*ExpenseReceipt, error)
+	ListExpenseReceiptsForCleanup(expenseID uuid.UUID) ([]ExpenseReceipt, error)
 	GetExpenseList(groupID string, page int64, order ExpenseListOrder, status ExpenseListStatus) (*ExpenseListPage, error)
 	GetExpenseType() ([]*ExpenseType, error)
 	GetExpenseTypeById(id uuid.UUID) (string, error)
@@ -161,6 +170,7 @@ type ExpensePayload struct {
 	OccurredOn     *string                  `json:"occurredOn"`
 	Items          []ItemPayload            `json:"items"`
 	Allocation     ExpenseAllocationPayload `json:"allocation"`
+	Receipt        *ReceiptChoice           `json:"receipt,omitempty"`
 }
 
 type ExpenseUpdatePayload struct {
@@ -228,6 +238,7 @@ type ExpenseResponse struct {
 	Allocation        ExpenseAllocationPayload `json:"allocation"`
 	Items             []ItemResponse           `json:"items"`
 	Ledgers           []LedgerResponse         `json:"ledgers"`
+	Receipt           *ExpenseReceiptSummary   `json:"receipt,omitempty"`
 }
 
 type ExpenseTypeResponse struct {

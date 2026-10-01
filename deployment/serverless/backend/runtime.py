@@ -167,7 +167,7 @@ def configure_bootstrap(client: AWSClient, config: Config, outputs: dict[str, An
 
 def configure_worker(client: AWSClient, config: Config, outputs: dict[str, Any], terraform_root: Path) -> None:
     before = _state_digest(terraform_root)
-    with protected_json(config.worker_environment(str(outputs["database_host"])), prefix="expense-worker-env-") as path:
+    with protected_json(config.worker_environment(str(outputs["database_host"]), str(outputs["receipt_bucket_name"])), prefix="expense-worker-env-") as path:
         client.publish_environment(str(outputs["worker_function_name"]), path)
     client.activate_worker(str(outputs["worker_function_name"]))
     assert_secret_boundary(terraform_root, config)
@@ -426,7 +426,7 @@ def publish_worker_release(
         client,
         str(outputs["worker_function_name"]),
         artifact,
-        config.worker_environment(str(outputs["database_host"])),
+        config.worker_environment(str(outputs["database_host"]), str(outputs["receipt_bucket_name"])),
         release_id,
         config,
         terraform_root,

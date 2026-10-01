@@ -40,6 +40,7 @@ export interface ExpenseDetailData {
     allocation: ExpenseAllocation;
     items: ItemData[];
     ledgers: LedgerData[];
+    receipt?: { status: string; contentType: string; byteSize: number; width: number; height: number };
 }
 
 export interface ExpenseTypeItem {
@@ -65,9 +66,10 @@ export interface ExpenseCreateData {
     taxFeeTip?: string;
     invoiceUrl?: string;
     items?: ItemCreateData[];
+    receipt?: { keep: boolean; token: string };
 }
 
-export type ExpenseUpdateData = Omit<ExpenseCreateData, "createByUserId">;
+export type ExpenseUpdateData = Omit<ExpenseCreateData, "createByUserId" | "receipt">;
 
 export interface CreateExpenseOptionsData {
     groups: GroupListItem[];

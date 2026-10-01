@@ -112,7 +112,8 @@ type AccountResponse struct {
 }
 
 type UserCapabilities struct {
-	ReceiptOCR bool `json:"receiptOcr"`
+	ReceiptOCR       bool `json:"receiptOcr"`
+	ReceiptRetention bool `json:"receiptRetention,omitempty"`
 }
 
 type UpdateOwnProfilePayload struct {

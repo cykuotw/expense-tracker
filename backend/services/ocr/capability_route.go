@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"expense-tracker/backend/config"
 	"expense-tracker/backend/services/auth"
 	"expense-tracker/backend/types"
 	"expense-tracker/backend/utils"
@@ -38,9 +39,10 @@ type ReceiptOCRGrantStore interface {
 }
 
 type CapabilityHandler struct {
-	store  ReceiptOCRGrantStore
-	secret []byte
-	now    func() time.Time
+	store                 ReceiptOCRGrantStore
+	secret                []byte
+	now                   func() time.Time
+	receiptStorageEnabled bool
 }
 
 type capabilityRequest struct {
@@ -59,9 +61,10 @@ type CapabilityResponse struct {
 
 func NewCapabilityHandler(store ReceiptOCRGrantStore, secret []byte) *CapabilityHandler {
 	return &CapabilityHandler{
-		store:  store,
-		secret: append([]byte(nil), secret...),
-		now:    time.Now,
+		store:                 store,
+		secret:                append([]byte(nil), secret...),
+		now:                   time.Now,
+		receiptStorageEnabled: config.Envs.ReceiptStorageEnabled && config.Envs.ReceiptBucket != "",
 	}
 }
 
@@ -111,6 +114,11 @@ func (h *CapabilityHandler) handleCreate(c *gin.Context) {
 		return
 	}
 
+	if payload.KeepReceipt && !h.receiptStorageEnabled {
+		utils.WriteError(c, http.StatusServiceUnavailable, utils.NewDetailedError(
+			"receipt retention is unavailable", "receipt_storage_unavailable", nil))
+		return
+	}
 	normalizedType := strings.ToLower(strings.TrimSpace(payload.ContentType))
 	mint := MintCapability
 	if payload.KeepReceipt {

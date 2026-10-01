@@ -45,6 +45,7 @@ var strictBooleanKeys = []struct {
 }{
 	{"GOOGLE_OAUTH_ENABLED", func(cfg *Config, value bool) { cfg.GoogleOAuthEnabled = value }},
 	{"CORS_ALLOW_CREDENTIALS", func(cfg *Config, value bool) { cfg.CORSAllowCredentials = value }},
+	{"RECEIPT_STORAGE_ENABLED", func(cfg *Config, value bool) { cfg.ReceiptStorageEnabled = value }},
 	{"AUTH_COOKIE_SECURE", func(cfg *Config, value bool) { cfg.AuthCookieSecure = value }},
 }
 
@@ -73,6 +74,7 @@ func loadFromLookup(lookup func(string) (string, bool)) (Config, error) {
 		RefreshJWTSecret:              "secretstring",
 		RefreshJWTExpirationInSeconds: 2_592_000,
 		OCRCapabilitySecret:           "development-ocr-capability-secret",
+		ReceiptBucket:                 "",
 		GoogleExchangeMode:            GoogleExchangeInProcess,
 		ExpensesPerPage:               25,
 		CORSAllowedOrigins:            []string{"http://localhost:5173"},
@@ -95,6 +97,7 @@ func loadFromLookup(lookup func(string) (string, bool)) (Config, error) {
 	setString("DB_SSLMODE", &cfg.DBSSLMode)
 	setString("JWT_SECRET", &cfg.JWTSecret)
 	setString("OCR_CAPABILITY_SECRET", &cfg.OCRCapabilitySecret)
+	setString("RECEIPT_BUCKET", &cfg.ReceiptBucket)
 	if value, ok := lookup("REFRESH_JWT_SECRET"); ok {
 		cfg.RefreshJWTSecret = strings.TrimSpace(value)
 	} else {
@@ -263,6 +266,9 @@ func ValidateRequestServer(cfg Config, profile RequestServerProfile) error {
 	}
 	if cfg.OCRCapabilitySecret == cfg.JWTSecret || cfg.OCRCapabilitySecret == cfg.RefreshJWTSecret {
 		return fmt.Errorf("OCR_CAPABILITY_SECRET must differ from JWT_SECRET and REFRESH_JWT_SECRET")
+	}
+	if cfg.ReceiptStorageEnabled && cfg.ReceiptBucket == "" {
+		return fmt.Errorf("RECEIPT_BUCKET is required when RECEIPT_STORAGE_ENABLED is true")
 	}
 	if err := validateRange("JWT_EXP", cfg.JWTExpirationInSeconds, MinAccessTokenLifetimeSeconds, MaxAccessTokenLifetimeSeconds); err != nil {
 		return err

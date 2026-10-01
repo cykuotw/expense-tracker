@@ -127,6 +127,7 @@ func TestValidateRequestServerRejectsInvalidReleaseConfiguration(t *testing.T) {
 		{"short refresh secret", "REFRESH_JWT_SECRET", func(cfg *Config) { cfg.RefreshJWTSecret = "short" }},
 		{"identical secrets", "JWT_SECRET", func(cfg *Config) { cfg.RefreshJWTSecret = cfg.JWTSecret }},
 		{"short OCR secret", "OCR_CAPABILITY_SECRET", func(cfg *Config) { cfg.OCRCapabilitySecret = "short" }},
+		{"receipt storage without bucket", "RECEIPT_BUCKET", func(cfg *Config) { cfg.ReceiptStorageEnabled = true; cfg.ReceiptBucket = "" }},
 		{"OCR secret reuses access secret", "OCR_CAPABILITY_SECRET", func(cfg *Config) { cfg.OCRCapabilitySecret = cfg.JWTSecret }},
 		{"short access lifetime", "JWT_EXP", func(cfg *Config) { cfg.JWTExpirationInSeconds = MinAccessTokenLifetimeSeconds - 1 }},
 		{"long access lifetime", "JWT_EXP", func(cfg *Config) { cfg.JWTExpirationInSeconds = MaxAccessTokenLifetimeSeconds + 1 }},

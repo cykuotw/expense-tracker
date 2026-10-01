@@ -33,6 +33,19 @@ func (h *Handler) handleDeleteExpense(c *gin.Context) {
 		if err := store.CheckGroupParticipants(expense.GroupID.String(), []uuid.UUID{actorID}); err != nil {
 			return err
 		}
+		for _, role := range []string{"candidate", "current"} {
+			receipt, err := store.GetExpenseReceiptByRoleForUpdate(expense.ID, role)
+			if err != nil {
+				return err
+			}
+			if receipt != nil {
+				receipt.Role = "cleanup"
+				receipt.Status = "deleting"
+				if err := store.UpdateExpenseReceipt(*receipt); err != nil {
+					return err
+				}
+			}
+		}
 		if err := store.DeleteExpense(*expense); err != nil {
 			return err
 		}
@@ -50,5 +63,21 @@ func (h *Handler) handleDeleteExpense(c *gin.Context) {
 		return
 	}
 
+	receipts, err := h.store.ListExpenseReceiptsForCleanup(expense.ID)
+	if err != nil {
+		utils.WriteError(c, http.StatusInternalServerError, err)
+		return
+	}
+	cleanupPending := false
+	for _, receipt := range receipts {
+		result, err := h.reconcileReceipt(c.Request.Context(), receipt.ID)
+		if err != nil || result.Status != "deleted" {
+			cleanupPending = true
+		}
+	}
+	if cleanupPending {
+		utils.WriteJSON(c, http.StatusAccepted, gin.H{"receipt": gin.H{"status": "deleting"}})
+		return
+	}
 	utils.WriteJSON(c, http.StatusOK, nil)
 }

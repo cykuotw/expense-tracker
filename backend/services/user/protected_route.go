@@ -56,7 +56,7 @@ func accountResponse(user *types.User, receiptOCR bool) types.AccountResponse {
 		Email:                 user.Email,
 		GoogleConnected:       user.ExternalType == "google",
 		PasswordChangeAllowed: user.HasLocalPassword,
-		Capabilities:          types.UserCapabilities{ReceiptOCR: receiptOCR},
+		Capabilities:          types.UserCapabilities{ReceiptOCR: receiptOCR, ReceiptRetention: receiptOCR && config.Envs.ReceiptStorageEnabled && config.Envs.ReceiptBucket != ""},
 	}
 }
 

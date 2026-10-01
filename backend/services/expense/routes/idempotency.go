@@ -26,6 +26,8 @@ type canonicalExpenseCreate struct {
 	OccurredOn     string                       `json:"occurredOn,omitempty"`
 	Items          []canonicalExpenseItem       `json:"items"`
 	Allocations    []canonicalExpenseAllocation `json:"allocations"`
+	ReceiptKeep    bool                         `json:"receiptKeep,omitempty"`
+	ReceiptToken   string                       `json:"receiptToken,omitempty"`
 }
 
 type canonicalExpenseItem struct {
@@ -48,6 +50,7 @@ func expenseCreateFingerprint(
 	items []types.Item,
 	allocations []types.ExpenseAllocation,
 	requestedOccurredOn *string,
+	receiptChoice ...*types.ReceiptChoice,
 ) ([]byte, error) {
 	occurredOn := ""
 	if requestedOccurredOn != nil {
@@ -59,6 +62,12 @@ func expenseCreateFingerprint(
 		SubTotal: expense.SubTotal.String(), TaxFeeTip: expense.TaxFeeTip.String(), Total: expense.Total.String(),
 		Currency: expense.Currency, InvoiceURL: expense.InvoicePicUrl, AllocationMode: expense.AllocationMode, OccurredOn: occurredOn,
 		Items: make([]canonicalExpenseItem, 0, len(items)), Allocations: make([]canonicalExpenseAllocation, 0, len(allocations)),
+	}
+	if len(receiptChoice) > 0 && receiptChoice[0] != nil {
+		canonical.ReceiptKeep = receiptChoice[0].Keep
+		if canonical.ReceiptKeep {
+			canonical.ReceiptToken = receiptChoice[0].Token
+		}
 	}
 	for _, item := range items {
 		canonical.Items = append(canonical.Items, canonicalExpenseItem{

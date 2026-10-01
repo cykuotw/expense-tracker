@@ -71,6 +71,8 @@ class ConfigTest(unittest.TestCase):
         self.assertEqual(worker["DB_MAX_OPEN_CONNS"], "2")
         self.assertEqual(worker["DB_MAX_IDLE_CONNS"], "1")
         self.assertEqual(worker["OCR_CAPABILITY_SECRET"], "o" * 32)
+        self.assertEqual(worker["RECEIPT_STORAGE_ENABLED"], "false")
+        self.assertEqual(config.worker_environment("10.0.0.2", "private-receipts")["Variables"]["RECEIPT_BUCKET"], "private-receipts")
         ocr = config.ocr_environment("ocr-replay-table", "private-receipts")["Variables"]
         self.assertEqual(ocr, {
             "MODE": "release",

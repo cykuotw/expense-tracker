@@ -114,6 +114,39 @@ class VerifyTest(unittest.TestCase):
             )
         self.assertEqual(request.call_count, 5)
 
+    def test_receipt_routes_require_methods_and_headers_after_worker_update(self) -> None:
+        config = SimpleNamespace(api_origin="https://api.example.com", frontend_origin="https://expense.example.com")
+        receipt_preflight = Response(204, {
+            "Access-Control-Allow-Origin": config.frontend_origin,
+            "Access-Control-Allow-Methods": "POST, PUT, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type, X-CSRF-Token, Idempotency-Key",
+        }, b"")
+        missing_key = Response(204, {
+            "Access-Control-Allow-Origin": config.frontend_origin,
+            "Access-Control-Allow-Methods": "POST, PUT, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type, X-CSRF-Token",
+        }, b"")
+        responses = [
+            Response(200, {}, b""),
+            Response(204, {"Access-Control-Allow-Origin": config.frontend_origin}, b""),
+            self._patch_preflight(config.frontend_origin),
+            self._ocr_preflight(config.frontend_origin),
+            missing_key,
+            receipt_preflight,
+            receipt_preflight,
+            receipt_preflight,
+            Response(200, {}, b""),
+            Response(401, {}, b""),
+            Response(401, {}, b""),
+        ]
+        with mock.patch("backend.verify._request", side_effect=responses), \
+             mock.patch("backend.verify.time.monotonic", side_effect=[10, 11]), \
+             mock.patch("backend.verify.time.sleep") as sleep:
+            verify_api(config, require_receipt_cors=True,
+                       require_google_register_authorizer=False,
+                       require_google_link_authorizer=False)
+        sleep.assert_called_once_with(3)
+
     def test_google_register_authorizer_is_required_after_update(self) -> None:
         config = SimpleNamespace(
             api_origin="https://api.example.com",

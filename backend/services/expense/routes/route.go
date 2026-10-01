@@ -5,6 +5,8 @@ import (
 	"expense-tracker/backend/services/middleware/validation"
 	"expense-tracker/backend/types"
 
+	"github.com/aws/aws-sdk-go-v2/service/s3"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -13,16 +15,33 @@ type Handler struct {
 	userStore  types.UserStore
 	groupStore types.GroupStore
 
-	controller types.ExpenseController
+	controller            types.ExpenseController
+	receiptObjects        *receiptObjectStore
+	receiptSecret         []byte
+	receiptStorageEnabled bool
 }
 
-func NewHandler(store types.ExpenseStore, userStore types.UserStore, groupStore types.GroupStore, controller types.ExpenseController) *Handler {
-	return &Handler{
+func NewHandler(store types.ExpenseStore, userStore types.UserStore, groupStore types.GroupStore, controller types.ExpenseController, options ...func(*Handler)) *Handler {
+	h := &Handler{
 		store:      store,
 		userStore:  userStore,
 		groupStore: groupStore,
 
 		controller: controller,
+	}
+	for _, option := range options {
+		option(h)
+	}
+	return h
+}
+
+func WithReceiptStorage(client *s3.Client, bucket string, secret []byte, enabled bool) func(*Handler) {
+	return func(h *Handler) {
+		if client != nil && bucket != "" && len(secret) >= 32 {
+			h.receiptObjects = &receiptObjectStore{client: client, bucket: bucket}
+			h.receiptSecret = append([]byte(nil), secret...)
+			h.receiptStorageEnabled = enabled
+		}
 	}
 }
 
@@ -52,6 +71,18 @@ func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 		extractors.ExtractExpenseFromStore(h.store),
 		validation.ValidateGroupUserPairExist(h.groupStore),
 		h.handleGetExpenseDetail)
+	router.PUT("/expense/:expenseId/receipt",
+		extractors.ExtractExpenseFromStore(h.store),
+		validation.ValidateGroupUserPairExist(h.groupStore),
+		h.handleReceiptMutation)
+	router.POST("/expense/:expenseId/receipt/reconcile",
+		extractors.ExtractExpenseFromStore(h.store),
+		validation.ValidateGroupUserPairExist(h.groupStore),
+		h.handleReceiptReconcile)
+	router.POST("/expense/:expenseId/receipt/retry",
+		extractors.ExtractExpenseFromStore(h.store),
+		validation.ValidateGroupUserPairExist(h.groupStore),
+		h.handleReceiptRetry)
 	router.PUT("/expense/:expenseId",
 		extractors.ExtractExpenseFromStore(h.store),
 		validation.ValidateGroupUserPairExist(h.groupStore),

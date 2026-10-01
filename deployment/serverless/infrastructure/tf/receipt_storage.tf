@@ -67,11 +67,16 @@ resource "aws_s3_bucket_policy" "receipt" {
         }
       },
       {
-        Sid       = "DenyReceiptReadsUntilAuthorizedViewing"
+        Sid       = "DenyReceiptReadsExceptWorker"
         Effect    = "Deny"
         Principal = "*"
         Action    = ["s3:GetObject", "s3:GetObjectVersion"]
         Resource  = "${aws_s3_bucket.receipt.arn}/*"
+        Condition = {
+          ArnNotEquals = {
+            "aws:PrincipalArn" = aws_iam_role.worker.arn
+          }
+        }
       }
     ]
   })

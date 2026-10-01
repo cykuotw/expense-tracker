@@ -56,12 +56,17 @@ export interface CreateExpenseContextType {
     receiptDetailsActive: boolean;
 
     receiptOCREnabled: boolean | null;
+    receiptRetentionAvailable: boolean;
+    keepReceipt: boolean;
+    setKeepReceipt: Dispatch<SetStateAction<boolean>>;
+    receiptToken: string | null;
+    discardReceiptToken: () => void;
     ocrStatus: OCRWorkflowStatus;
     ocrDraft: OCRDraft | null;
     ocrError: string | null;
     startReceiptOCR: (receipt: PreparedReceipt) => Promise<void>;
     applyReviewedReceipt: (draft: ReviewedReceiptDraft) => void;
-    clearReceiptWorkflow: () => void;
+    clearReceiptWorkflow: (preserveRetention?: boolean) => void;
 
     indicatorShow: boolean;
     submissionError: string | null;

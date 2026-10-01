@@ -132,6 +132,7 @@ func TestCapabilityRouteRequiresExplicitKeepReceiptRequest(t *testing.T) {
 	userID := uuid.New()
 	handler := NewCapabilityHandler(&grantStoreStub{granted: true}, secret)
 	handler.now = func() time.Time { return now }
+	handler.receiptStorageEnabled = true
 
 	for name, test := range map[string]struct {
 		fragment string

@@ -472,6 +472,7 @@ def deploy(context: Context) -> None:
                     if not raw_already_disabled
                     else None,
                     raw_disabled=False,
+                    require_receipt_cors=True,
                 )
                 step("frontend publication")
                 frontend = publish_frontend(
@@ -490,6 +491,7 @@ def deploy(context: Context) -> None:
                     context.config,
                     str(outputs["raw_api_endpoint"]),
                     raw_disabled=True,
+                    require_receipt_cors=True,
                 )
                 manifest = _manifest(
                     release_id=release_id,
@@ -583,6 +585,7 @@ def _infrastructure_targets(scope: str) -> tuple[str, ...]:
             "aws_dynamodb_table.ocr_replay",
             "aws_iam_role.ocr",
             "aws_iam_role_policy.ocr",
+            "aws_iam_role_policy.worker",
             "aws_cloudwatch_log_group.ocr",
             "aws_lambda_function.ocr",
             "aws_cloudwatch_metric_alarm.ocr_runtime",
@@ -1205,7 +1208,7 @@ def update(context: Context, scope: str) -> None:
             context.aws.activate_notification_function(
                 str(outputs["delivery_function_name"])
             )
-            verify_api(context.config)
+            verify_api(context.config, require_receipt_cors=True)
             step("backend", "pass")
         if scope in {"frontend", "all"}:
             step("frontend")

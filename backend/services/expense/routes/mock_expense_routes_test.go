@@ -69,6 +69,31 @@ type mockExpenseStore struct {
 	CheckGroupBalanceAllSettledFn             func(groupID string) (bool, error)
 }
 
+func (s *mockExpenseStore) CreateExpenseReceipt(receipt types.ExpenseReceipt) error { return nil }
+func (s *mockExpenseStore) GetExpenseReceiptForUpdate(receiptID uuid.UUID) (*types.ExpenseReceipt, error) {
+	return nil, nil
+}
+func (s *mockExpenseStore) GetExpenseReceiptByRoleForUpdate(expenseID uuid.UUID, role string) (*types.ExpenseReceipt, error) {
+	return nil, nil
+}
+func (s *mockExpenseStore) GetExpenseReceiptByRole(expenseID uuid.UUID, role string) (*types.ExpenseReceipt, error) {
+	return nil, nil
+}
+func (s *mockExpenseStore) GetExpenseReceiptByDeleteRequest(expenseID, requestKey uuid.UUID) (*types.ExpenseReceipt, error) {
+	return nil, nil
+}
+func (s *mockExpenseStore) ListExpenseReceiptsForCleanup(expenseID uuid.UUID) ([]types.ExpenseReceipt, error) {
+	return nil, nil
+}
+func (s *mockExpenseStore) GetExpenseReceiptByRequest(expenseID, requestKey uuid.UUID) (*types.ExpenseReceipt, error) {
+	return nil, nil
+}
+func (s *mockExpenseStore) UpdateExpenseReceipt(receipt types.ExpenseReceipt) error { return nil }
+
+func (s *mockExpenseStore) GetExpenseCreateIdempotency(userID, key uuid.UUID) (*types.ExpenseCreateIdempotency, error) {
+	return nil, nil
+}
+
 func (s *mockExpenseStore) LockGroupCurrency(groupID string) (string, error) {
 	if s.LockGroupCurrencyFn != nil {
 		return s.LockGroupCurrencyFn(groupID)

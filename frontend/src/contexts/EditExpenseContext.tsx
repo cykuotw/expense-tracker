@@ -84,6 +84,7 @@ export const EditExpenseProvider = ({ children }: { children: ReactNode }) => {
     const [mainFormVisited, setMainFormVisited] = useState(false);
     const [formData, setFormData] =
         useState<expenseFormData>(EMPTY_FORM_DATA);
+    const [receipt, setReceipt] = useState<ExpenseDetailData["receipt"]>(undefined);
     const [currencies, setCurrencies] = useState<CurrencyMetadata[]>([]);
     const [enabledCurrencies, setEnabledCurrencies] = useState<CurrencyMetadata[]>([]);
     const [initialFormData, setInitialFormData] =
@@ -272,6 +273,7 @@ export const EditExpenseProvider = ({ children }: { children: ReactNode }) => {
                 };
                 if (!active) return;
 
+                setReceipt(data.receipt);
                 setGroupList(asArray<GroupListItem>(options.groups));
                 setExpenseTypes(
                     asArray<ExpenseTypeItem>(options.expenseTypes)
@@ -319,6 +321,7 @@ export const EditExpenseProvider = ({ children }: { children: ReactNode }) => {
         <EditExpenseContext.Provider
             value={{
                 formData,
+                receipt,
                 amountDigits,
                 currencies: enabledCurrencies,
                 setFormData,

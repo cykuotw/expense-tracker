@@ -453,7 +453,7 @@ export default function ReceiptEditor({ onPrepared, onCancel, onManualEntry, ini
 
     if (phase === "empty" || phase === "loading") {
         return (
-            <section className="rounded-[2rem] border border-border bg-card p-5 shadow-[var(--card-shadow-soft)] sm:p-7" aria-labelledby="receipt-editor-title">
+            <section className="rounded-[2rem] border border-border bg-card p-5 shadow-[var(--card-shadow-soft)] sm:p-7 lg:mx-auto lg:max-w-3xl" aria-labelledby="receipt-editor-title">
                 <div className="grid gap-2">
                     <div className="section-label">Receipt preparation</div>
                     <h2 id="receipt-editor-title" className="text-2xl font-bold text-foreground">Prepare a receipt photo</h2>
@@ -554,9 +554,9 @@ export default function ReceiptEditor({ onPrepared, onCancel, onManualEntry, ini
                 </div>
             </div>
 
-            <div className="mt-4 grid gap-4">
-                <div className="relative min-h-[18rem] overflow-hidden rounded-2xl border border-border bg-[#282824] p-3 sm:p-5" style={{ touchAction: "none" }}>
-                    <div ref={viewportRef} className="grid h-full min-h-[16rem] place-items-center overflow-hidden" data-testid="receipt-stage-viewport">
+            <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_21rem] lg:items-start xl:grid-cols-[minmax(0,1fr)_24rem]">
+                <div className="relative min-h-[18rem] min-w-0 overflow-hidden rounded-2xl border border-border bg-[#282824] p-3 sm:p-5 lg:min-h-[34rem]" style={{ touchAction: "none" }}>
+                    <div ref={viewportRef} className="grid h-full min-h-[16rem] place-items-center overflow-hidden lg:min-h-[32rem]" data-testid="receipt-stage-viewport">
                         <div
                             ref={stageRef}
                             className="relative max-h-[70dvh] max-w-full origin-center select-none shadow-2xl"
@@ -609,11 +609,15 @@ export default function ReceiptEditor({ onPrepared, onCancel, onManualEntry, ini
                     <div className="pointer-events-none absolute bottom-3 left-3 rounded-full bg-black/70 px-3 py-1 text-xs font-medium text-white" data-testid="receipt-viewport-status">{viewIsFit ? "Fit" : `${Math.round(zoom * 100)}% zoom`}</div>
                 </div>
 
-                <aside className="grid content-start gap-3" aria-label="Precise receipt controls">
+                <aside className="grid min-w-0 content-start gap-3 lg:rounded-2xl lg:border lg:border-border lg:bg-background/60 lg:p-4" aria-label="Precise receipt controls">
+                    <div className="hidden lg:block">
+                        <h3 className="font-semibold">Adjustments</h3>
+                        <p className="mt-1 text-sm text-muted-foreground">Fine-tune the crop and cover private details.</p>
+                    </div>
                     <Button
                         type="button"
                         variant="outline"
-                        className="min-h-12 w-full justify-between px-4"
+                        className="min-h-12 w-full justify-between px-4 lg:hidden"
                         aria-expanded={preciseControlsOpen}
                         aria-controls="receipt-precise-controls"
                         onClick={() => setPreciseControlsOpen((open) => !open)}
@@ -621,7 +625,7 @@ export default function ReceiptEditor({ onPrepared, onCancel, onManualEntry, ini
                         <span>Precise controls</span>
                         <span className="text-xs font-normal text-muted-foreground">{preciseControlsOpen ? "Hide" : "Show"}</span>
                     </Button>
-                    <div id="receipt-precise-controls" className={cn("gap-4 md:grid-cols-2", preciseControlsOpen ? "grid" : "hidden")}>
+                    <div id="receipt-precise-controls" className={cn("gap-4 md:grid-cols-2 lg:grid-cols-1", preciseControlsOpen ? "grid" : "hidden lg:grid")}>
                         <div className="rounded-2xl border border-border bg-background p-4">
                             <h3 className="font-semibold">Precise crop</h3>
                             <p className="mt-1 text-xs leading-5 text-muted-foreground">Use these fields when dragging is difficult.</p>

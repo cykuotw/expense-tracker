@@ -71,6 +71,8 @@ const CreateExpenseContent = () => {
         setItems,
         receiptDetailsActive,
         receiptOCREnabled,
+        receiptToken,
+        discardReceiptToken,
     } = useCreateExpense();
 
     useEffect(() => {
@@ -138,9 +140,15 @@ const CreateExpenseContent = () => {
                                 )}
                             </div>
                         ) : null}
+                        {receiptToken ? (
+                            <div className="mb-5 flex items-center justify-between gap-3 rounded-2xl border border-border bg-muted/30 p-4">
+                                <p className="text-sm">Edited receipt photo will be kept with this expense.</p>
+                                <button type="button" className="ui-button ui-button-secondary min-h-11 shrink-0" onClick={discardReceiptToken}>Don't keep photo</button>
+                            </div>
+                        ) : null}
                         <ExpenseSubmissionFeedback
                             error={submissionError}
-                            errorTitle="We couldn't save this expense"
+                            errorTitle="Check expense status"
                             idPrefix="create-expense"
                             retryDisabled={!dataOk}
                             saving={indicatorShow}

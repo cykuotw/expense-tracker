@@ -51,6 +51,15 @@ resource "aws_iam_role_policy" "worker" {
       },
       {
         Effect = "Allow", Action = local.lambda_network_actions, Resource = "*"
+      },
+      {
+        Effect = "Allow", Action = ["s3:GetObject"], Resource = ["${aws_s3_bucket.receipt.arn}/temporary/*", "${aws_s3_bucket.receipt.arn}/retained/*"]
+      },
+      {
+        Effect = "Allow", Action = ["s3:PutObject"], Resource = "${aws_s3_bucket.receipt.arn}/retained/*"
+      },
+      {
+        Effect = "Allow", Action = ["s3:DeleteObject"], Resource = ["${aws_s3_bucket.receipt.arn}/temporary/*", "${aws_s3_bucket.receipt.arn}/retained/*"]
       }
     ]
   })

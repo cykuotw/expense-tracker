@@ -3,6 +3,8 @@ package store
 import (
 	"expense-tracker/backend/types"
 	"fmt"
+
+	"github.com/google/uuid"
 )
 
 func (s *Store) ClaimExpenseCreateIdempotency(record types.ExpenseCreateIdempotency) (types.ExpenseCreateIdempotency, bool, error) {
@@ -60,4 +62,21 @@ func (s *Store) ClaimExpenseCreateIdempotency(record types.ExpenseCreateIdempote
 	existing.CreatorUserID = record.CreatorUserID
 	existing.Key = record.Key
 	return existing, false, rows.Err()
+}
+
+func (s *Store) GetExpenseCreateIdempotency(userID, key uuid.UUID) (*types.ExpenseCreateIdempotency, error) {
+	rows, err := s.db.Query(`SELECT request_fingerprint, expense_id FROM expense_create_idempotency
+        WHERE creator_user_id = $1 AND idempotency_key = $2`, userID, key)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	if !rows.Next() {
+		return nil, rows.Err()
+	}
+	record := &types.ExpenseCreateIdempotency{CreatorUserID: userID, Key: key}
+	if err := rows.Scan(&record.RequestFingerprint, &record.ExpenseID); err != nil {
+		return nil, err
+	}
+	return record, rows.Err()
 }

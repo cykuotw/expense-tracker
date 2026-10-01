@@ -114,6 +114,12 @@ async function errorFromResponse(response: Response, fallback: string) {
             error.code,
         );
     }
+    if (error.code === "receipt_storage_unavailable") {
+        return new ReceiptOCRError(
+            "Keeping a receipt photo is unavailable right now. Turn off Keep receipt to scan values only.",
+            error.code,
+        );
+    }
     if (response.status === 429) {
         return new ReceiptOCRError(
             "Receipt scanning is busy. Wait a moment, retry, or continue with manual entry.",
@@ -123,11 +129,18 @@ async function errorFromResponse(response: Response, fallback: string) {
     return new ReceiptOCRError(error.message || fallback, error.code ?? "ocr_failed");
 }
 
-export async function requestReceiptDraft(
+export interface ReceiptDraftResult {
+    draft: OCRDraft;
+    receiptToken: string | null;
+    receiptExpiresAt: string | null;
+}
+
+export async function requestReceiptDraftWithRetention(
     receipt: PreparedReceipt,
     accountID: string,
+    keepReceipt: boolean,
     signal?: AbortSignal,
-): Promise<OCRDraft> {
+): Promise<ReceiptDraftResult> {
     const controller = new AbortController();
     const timeout = window.setTimeout(() => controller.abort("timeout"), OCR_CLIENT_TIMEOUT_MS);
     const abort = () => controller.abort(signal?.reason ?? "cancelled");
@@ -140,7 +153,7 @@ export async function requestReceiptDraft(
             method: "POST",
             signal: controller.signal,
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ requestId, contentType }),
+            body: JSON.stringify({ requestId, contentType, keepReceipt }),
         });
         if (!capabilityResponse.ok) {
             throw await errorFromResponse(capabilityResponse, "Receipt scanning is unavailable.");
@@ -182,7 +195,18 @@ export async function requestReceiptDraft(
                 "invalid_draft",
             );
         }
-        return parseOCRDraft(value.draft);
+        const draft = parseOCRDraft(value.draft);
+        const receiptToken = typeof value.receiptToken === "string" && value.receiptToken
+            ? value.receiptToken : null;
+        const receiptExpiresAt = typeof value.receiptExpiresAt === "string"
+            ? value.receiptExpiresAt : null;
+        if (keepReceipt && (!receiptToken || !receiptExpiresAt)) {
+            throw new ReceiptOCRError(
+                "The receipt values were read, but the photo could not be saved. Scan again without keeping the photo or retry later.",
+                "receipt_storage_unavailable",
+            );
+        }
+        return { draft, receiptToken, receiptExpiresAt };
     } catch (error) {
         if (error instanceof ReceiptOCRError) throw error;
         if (controller.signal.aborted) {
@@ -226,3 +250,11 @@ export function editableOCRDraft(draft: OCRDraft): EditableOCRDraft {
     };
 }
 
+
+export async function requestReceiptDraft(
+    receipt: PreparedReceipt,
+    accountID: string,
+    signal?: AbortSignal,
+): Promise<OCRDraft> {
+    return (await requestReceiptDraftWithRetention(receipt, accountID, false, signal)).draft;
+}

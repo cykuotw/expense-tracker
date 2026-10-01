@@ -37,6 +37,8 @@ type Config struct {
 	RefreshJWTSecret              string
 	RefreshJWTExpirationInSeconds int64
 	OCRCapabilitySecret           string
+	ReceiptBucket                 string
+	ReceiptStorageEnabled         bool
 
 	GoogleOAuthEnabled bool
 	GoogleClientId     string
@@ -100,6 +102,8 @@ func legacyConfig() Config {
 		RefreshJWTSecret:              getEnv("REFRESH_JWT_SECRET", getEnv("JWT_SECRET", "secretstring")),
 		RefreshJWTExpirationInSeconds: getEnvInt("REFRESH_JWT_EXP", 3600*24*30),
 		OCRCapabilitySecret:           getEnv("OCR_CAPABILITY_SECRET", "development-ocr-capability-secret"),
+		ReceiptBucket:                 getEnv("RECEIPT_BUCKET", ""),
+		ReceiptStorageEnabled:         getEnvBool("RECEIPT_STORAGE_ENABLED", false),
 
 		GoogleOAuthEnabled: getEnvBool("GOOGLE_OAUTH_ENABLED", false),
 		GoogleClientId:     getEnv("GOOGLE_CLIENT_ID", ""),

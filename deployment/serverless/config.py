@@ -262,7 +262,7 @@ class Config:
             "use_lambda_aliases": use_lambda_aliases,
         }
 
-    def worker_environment(self, db_host: str) -> dict[str, dict[str, str]]:
+    def worker_environment(self, db_host: str, receipt_bucket: str = "") -> dict[str, dict[str, str]]:
         return {"Variables": {
             "MODE": "release", "API_URL": "/api/v0",
             "FRONTEND_ORIGIN": self.frontend_origin,
@@ -280,6 +280,8 @@ class Config:
             "REFRESH_JWT_SECRET": self.backend.refresh_jwt_secret,
             "REFRESH_JWT_EXP": str(self.backend.refresh_jwt_exp),
             "OCR_CAPABILITY_SECRET": self.backend.ocr_capability_secret,
+            "RECEIPT_BUCKET": receipt_bucket,
+            "RECEIPT_STORAGE_ENABLED": "false",
             "EXPENSES_PER_PAGE": str(self.backend.expenses_per_page),
             "GOOGLE_OAUTH_ENABLED": "true",
             "GOOGLE_CLIENT_ID": self.backend.google_client_id,

@@ -5,7 +5,12 @@
     {
       "version": 36,
       "name": "add_multi_currency_accounting",
-      "categories": ["additive", "backfill", "constraint_tightening", "index"],
+      "categories": [
+        "additive",
+        "backfill",
+        "constraint_tightening",
+        "index"
+      ],
       "deployment": "online",
       "backfill": {
         "mode": "bounded",
@@ -26,7 +31,11 @@
     {
       "version": 37,
       "name": "add_user_feature_grants",
-      "categories": ["additive", "constraint_tightening", "index"],
+      "categories": [
+        "additive",
+        "constraint_tightening",
+        "index"
+      ],
       "deployment": "online",
       "backfill": {
         "mode": "none",
@@ -47,7 +56,13 @@
     {
       "version": 38,
       "name": "expand_confirmed_item_contract",
-      "categories": ["additive", "backfill", "constraint_tightening", "type_change", "index"],
+      "categories": [
+        "additive",
+        "backfill",
+        "constraint_tightening",
+        "type_change",
+        "index"
+      ],
       "deployment": "online",
       "backfill": {
         "mode": "bounded",
@@ -63,6 +78,31 @@
         "schema": "manual_only",
         "dataLossRisk": true,
         "notes": "The previous application continues using retained and widened legacy columns. Reversing the schema discards confirmed line totals and ordering, and narrowing fails when new values do not fit the legacy contract."
+      }
+    },
+    {
+      "version": 39,
+      "name": "add_expense_receipts",
+      "categories": [
+        "additive",
+        "constraint_tightening",
+        "index"
+      ],
+      "deployment": "online",
+      "backfill": {
+        "mode": "none",
+        "resumable": false,
+        "notes": "Existing expenses have no retained receipt association."
+      },
+      "locking": {
+        "risk": "low",
+        "notes": "The new table and its indexes do not rewrite existing expense rows."
+      },
+      "rollback": {
+        "application": "compatible",
+        "schema": "manual_only",
+        "dataLossRisk": true,
+        "notes": "The previous application ignores this additive table. Reversing it discards receipt association and cleanup state."
       }
     }
   ]

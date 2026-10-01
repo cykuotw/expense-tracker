@@ -13,7 +13,7 @@ import {
     GroupMember,
     GroupMembersLoadStatus,
 } from "../types/group";
-import { ExpenseTypeItem } from "../types/expense";
+import { ExpenseDetailData, ExpenseTypeItem } from "../types/expense";
 import { CurrencyMetadata } from "../lib/money";
 
 export interface expenseFormData {
@@ -30,6 +30,7 @@ export interface expenseFormData {
 
 export interface EditExpenseContextType {
     formData: expenseFormData;
+    receipt: ExpenseDetailData["receipt"];
     amountDigits: number | null;
     currencies: CurrencyMetadata[];
     setFormData: Dispatch<SetStateAction<expenseFormData>>;

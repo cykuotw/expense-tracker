@@ -104,6 +104,7 @@ def verify_api(
     raw_disabled: bool = False,
     require_patch_cors: bool = True,
     require_ocr_cors: bool = True,
+    require_receipt_cors: bool = False,
     require_google_register_authorizer: bool = True,
     require_google_link_authorizer: bool = True,
 ) -> None:
@@ -134,6 +135,31 @@ def verify_api(
             request_headers=("Content-Type", "Authorization", "X-OCR-Account-ID", "X-OCR-Request-ID"),
             required_headers=("Content-Type", "Authorization", "X-OCR-Account-ID", "X-OCR-Request-ID"),
             failure_message="OCR CORS preflight failed after propagation timeout",
+        )
+    if require_receipt_cors:
+        _wait_for_cors_preflight(
+            f"{api}/expense/00000000-0000-0000-0000-000000000000/receipt",
+            origin=origin,
+            method="PUT",
+            request_headers=("Content-Type", "X-CSRF-Token", "Idempotency-Key"),
+            required_headers=("Content-Type", "X-CSRF-Token", "Idempotency-Key"),
+            failure_message="receipt mutation CORS preflight failed after propagation timeout",
+        )
+        _wait_for_cors_preflight(
+            f"{api}/expense/00000000-0000-0000-0000-000000000000/receipt/reconcile",
+            origin=origin,
+            method="POST",
+            request_headers=("X-CSRF-Token",),
+            required_headers=("X-CSRF-Token",),
+            failure_message="receipt reconciliation CORS preflight failed after propagation timeout",
+        )
+        _wait_for_cors_preflight(
+            f"{api}/expense/00000000-0000-0000-0000-000000000000/receipt/retry",
+            origin=origin,
+            method="POST",
+            request_headers=("X-CSRF-Token", "Idempotency-Key"),
+            required_headers=("X-CSRF-Token", "Idempotency-Key"),
+            failure_message="receipt retry CORS preflight failed after propagation timeout",
         )
     disallowed = _request(f"{api}/auth/csrf", headers={"Origin": "https://invalid.example"})
     if disallowed.headers.get("Access-Control-Allow-Origin"):

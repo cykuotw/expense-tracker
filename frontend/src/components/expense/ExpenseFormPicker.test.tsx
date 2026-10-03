@@ -154,13 +154,9 @@ describe("ExpenseFormPicker", () => {
 
         fireEvent.click(screen.getByRole("button", { name: "Split rule" }));
         expect(screen.getByRole("listbox", { name: "Split rule options" })).toHaveClass(
-            "z-[60]",
-            "max-h-40",
-            "md:max-h-80",
-            "overflow-y-auto",
-            "bottom-full",
-            "md:top-full"
+            "overflow-y-auto"
         );
+        expect(screen.getByRole("listbox", { name: "Split rule options" }).closest("[data-picker-panel]")).toHaveClass("form-picker-panel");
         expect(screen.getByRole("option", { name: "Unequally" })).toHaveClass("min-h-12");
         const option = screen.getByRole("option", { name: "Unequally" });
         fireEvent.pointerDown(option, { clientY: 100 });

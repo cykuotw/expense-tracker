@@ -144,10 +144,11 @@ describe("ExpenseSimpleSplitControl", () => {
             </MemoryRouter>
         );
 
-        fireEvent.click(screen.getByRole("button", { name: "Split" }));
+        const trigger = screen.getByRole("button", { name: "Split" });
+        const rect = vi.spyOn(trigger, "getBoundingClientRect").mockReturnValue({ top: 400, bottom: 456, left: 16, width: 343, height: 56 } as DOMRect);
+        fireEvent.click(trigger);
 
-        expect(screen.getByRole("listbox", { name: "Split options" })).toHaveClass(
-            "bottom-full"
-        );
+        expect(screen.getByRole("listbox", { name: "Split options" }).closest("[data-picker-panel]")).toHaveAttribute("data-side", "above");
+        rect.mockRestore();
     });
 });

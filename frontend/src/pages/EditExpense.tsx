@@ -3,6 +3,8 @@ import { Route, Routes, useParams } from "react-router-dom";
 
 import { EditExpenseProvider } from "../contexts/EditExpenseContext";
 import { useEditExpense } from "../hooks/EditExpenseContextHooks";
+import AmountCalculator from "../components/expense/AmountCalculator";
+import { useFormFocusVisibility } from "../hooks/useFormFocusVisibility";
 import { ExpenseTypePicker } from "../components/expense/ExpenseTypePicker";
 import MobilePageHeader from "../components/MobilePageHeader";
 import { ExpenseDateInput } from "../components/expense/ExpenseDateInput";
@@ -18,6 +20,7 @@ import ExpenseReceiptAttachment from "../components/receipt/ExpenseReceiptAttach
 
 const EditExpenseContent = () => {
     usePWAUpdateBlocker(true);
+    const pageRef = useFormFocusVisibility();
     const {
         formData,
         receipt,
@@ -45,7 +48,7 @@ const EditExpenseContent = () => {
         markMainFormVisited();
     }, [markMainFormVisited]);
     return (
-        <div className="page-shell expense-form-page">
+        <div ref={pageRef} className="page-shell expense-form-page">
             <div className="page-container max-w-5xl">
                 <MobilePageHeader
                     title="Edit expense"
@@ -89,7 +92,7 @@ const EditExpenseContent = () => {
                             savingLabel="Saving changes"
                         />
                         <div className="grid grid-cols-2 gap-3 md:gap-5">
-                            <div className="col-span-2">
+                            <div data-form-field className="col-span-2">
                                 <label className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground/60">
                                     Group
                                 </label>
@@ -98,7 +101,7 @@ const EditExpenseContent = () => {
                                 </output>
                             </div>
 
-                            <div className="col-span-2">
+                            <div data-form-field className="col-span-2">
                                 <label
                                     htmlFor="occurredOn"
                                     className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground/60"
@@ -115,7 +118,7 @@ const EditExpenseContent = () => {
                                 />
                             </div>
 
-                            <div className="col-span-2">
+                            <div data-form-field className="col-span-2">
                                 <label className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground/60">
                                     Expense type
                                 </label>
@@ -133,13 +136,14 @@ const EditExpenseContent = () => {
                                 </div>
                             </div>
 
-                            <div className="col-span-2">
-                                <label className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground/60">
+                            <div data-form-field className="col-span-2">
+                                <label htmlFor="expense-description" className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground/60">
                                     Description
                                 </label>
                                 <label className="expense-form-input-shell mt-2 flex w-full items-center rounded-2xl border border-border bg-background px-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] transition hover:border-primary/60 focus-within:border-primary focus-within:outline-none focus-within:ring-2 focus-within:ring-primary">
                                     <input
                                         type="text"
+                                        id="expense-description"
                                         name="description"
                                         className="min-w-0 grow border-0 bg-transparent outline-none"
                                         placeholder="Description"
@@ -149,7 +153,7 @@ const EditExpenseContent = () => {
                                 </label>
                             </div>
 
-                            <div>
+                            <div data-form-field className="col-span-2 sm:col-span-1">
                                 <label className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground/60">
                                     Currency
                                 </label>
@@ -164,24 +168,29 @@ const EditExpenseContent = () => {
                                     />
                                 </div>
                             </div>
-                            <div>
-                                <label className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground/60">
+                            <div data-form-field className="col-span-2 sm:col-span-1">
+                                <label htmlFor="expense-total" className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground/60">
                                     Amount
                                 </label>
-                                <label className="expense-form-input-shell mt-2 flex w-full items-center rounded-2xl border border-border bg-background px-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] transition hover:border-primary/60 focus-within:border-primary focus-within:outline-none focus-within:ring-2 focus-within:ring-primary">
-                                    <input
-                                        type="number"
-                                        name="total"
-                                        className="min-w-0 grow border-0 bg-transparent outline-none"
-                                        step={amountDigits === null ? undefined : moneyInputStep(amountDigits)}
-                                        placeholder={amountDigits === null ? "Unavailable" : moneyInputPlaceholder(amountDigits)}
-                                        value={formData.total}
-                                        onChange={handleFormDataChange}
-                                        required
-                                        min={0}
-                                        disabled={amountDigits === null}
-                                    />
-                                </label>
+                                <div className="mt-2 flex items-center gap-2">
+                                    <label className="expense-form-input-shell flex w-full items-center rounded-2xl border border-border bg-background px-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] transition hover:border-primary/60 focus-within:border-primary focus-within:outline-none focus-within:ring-2 focus-within:ring-primary">
+                                        <input
+                                            type="number"
+                                            id="expense-total"
+                                            name="total"
+                                            className="min-w-0 grow border-0 bg-transparent outline-none"
+                                            step={amountDigits === null ? undefined : moneyInputStep(amountDigits)}
+                                            placeholder={amountDigits === null ? "Unavailable" : moneyInputPlaceholder(amountDigits)}
+                                            value={formData.total}
+                                            onChange={handleFormDataChange}
+                                            required
+                                            min={0}
+                                            disabled={amountDigits === null}
+                                        />
+                                    </label>
+                                    <AmountCalculator amount={formData.total} amountDigits={amountDigits} currency={formData.currency}
+                                        onApply={(total) => setFormData((current) => ({ ...current, total }))} />
+                                </div>
                             </div>
                         </div>
 

@@ -10,6 +10,8 @@ import {
     mdiPlus,
 } from "@mdi/js";
 import { ExpenseData } from "../types/expense";
+import { ExpenseOrderPicker, type ExpenseOrderOption } from "../components/expense/ExpenseOrderPicker";
+import type { ExpenseListOrder } from "../hooks/GroupDetailContextHooks";
 import ExpenseCard from "../components/expense/ExpenseCard";
 import {
     AlertDialog,
@@ -30,6 +32,11 @@ import MobilePageHeader from "../components/MobilePageHeader";
 import DesktopBackLink from "../components/DesktopBackLink";
 import { buildEstimatedSettlementEntries } from "../lib/settlementPreview";
 import { usePWAUpdateBlocker } from "../hooks/usePWAUpdateBlocker";
+
+const GROUP_EXPENSE_ORDER_OPTIONS: readonly ExpenseOrderOption<ExpenseListOrder>[] = [
+    { value: "newest", label: "Newest first" },
+    { value: "oldest", label: "Oldest first" },
+];
 
 const GroupDetailContent = () => {
     const {
@@ -371,24 +378,7 @@ const GroupDetailContent = () => {
                         <div className="panel-card rounded-[2rem] p-6 md:p-8">
                             <div className="flex items-center justify-between gap-3">
                                 <div className="section-label">Unsettled</div>
-                                <label className="flex min-h-11 items-center gap-2 text-sm font-medium text-foreground/70">
-                                    <span className="hidden sm:inline">Order</span>
-                                    <select
-                                        aria-label="Expense order"
-                                        className="ui-select min-h-11 w-auto bg-background py-2 pl-3 pr-8 text-sm"
-                                        value={expenseOrder}
-                                        onChange={(event) =>
-                                            setExpenseOrder(
-                                                event.target.value === "oldest"
-                                                    ? "oldest"
-                                                    : "newest"
-                                            )
-                                        }
-                                    >
-                                        <option value="newest">New to old</option>
-                                        <option value="oldest">Old to new</option>
-                                    </select>
-                                </label>
+                                <ExpenseOrderPicker value={expenseOrder} options={GROUP_EXPENSE_ORDER_OPTIONS} onChange={setExpenseOrder} label="Order" accessibleLabel="Expense order" hideLabelOnMobile />
                             </div>
                             <div
                                 className="mt-4 space-y-4"

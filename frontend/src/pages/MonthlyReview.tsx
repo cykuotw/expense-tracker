@@ -8,6 +8,7 @@ import { ReviewMonthPicker } from "../components/review/ReviewMonthPicker";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
+import { ExpenseOrderPicker, type ExpenseOrderOption } from "../components/expense/ExpenseOrderPicker";
 import { useCurrencies } from "../hooks/useCurrencies";
 import { getExpenseTypePresentation } from "../lib/expenseCategoryPresentation";
 import { apiFetch, asArray, getResponseErrorMessage } from "../lib/api";
@@ -116,13 +117,32 @@ function MemberNetCard({ rows, currency, amountDigits }: {
     );
 }
 
-function ExpenseDisclosure({ summary, amountDigits, groupId, month }: { summary: MonthlyReviewCurrency; amountDigits: number | null; groupId: string; month: string }) {
+type ExpenseSort = "date_desc" | "date_asc" | "amount_desc" | "amount_asc";
+
+const EXPENSE_SORT_OPTIONS: readonly ExpenseOrderOption<ExpenseSort>[] = [
+    { value: "date_desc", label: "Newest first" },
+    { value: "date_asc", label: "Oldest first" },
+    { value: "amount_desc", label: "Highest amount" },
+    { value: "amount_asc", label: "Lowest amount" },
+];
+
+type ExpenseListProps = {
+    summary: MonthlyReviewCurrency;
+    amountDigits: number | null;
+    groupId: string;
+    month: string;
+    category?: string;
+    sort?: ExpenseSort;
+};
+
+function ExpenseList({ summary, amountDigits, groupId, month, category, sort = "date_desc" }: ExpenseListProps) {
     const [expenses, setExpenses] = useState<MonthlyReviewExpense[]>([]);
     const [nextCursor, setNextCursor] = useState<string | undefined>();
     const [loaded, setLoaded] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
     const requestInFlight = useRef(false);
+    const active = useRef(true);
 
     const loadExpenses = useCallback(async (cursor?: string) => {
         if (requestInFlight.current) return;
@@ -131,58 +151,113 @@ function ExpenseDisclosure({ summary, amountDigits, groupId, month }: { summary:
         setError("");
         try {
             const query = new URLSearchParams({ currency: summary.currency });
+            if (category !== undefined) {
+                query.set("category", category);
+                query.set("sort", sort);
+            }
             if (cursor) query.set("cursor", cursor);
             const response = await apiFetch(`/group/${encodeURIComponent(groupId)}/monthly-review/${month}/expenses?${query.toString()}`);
             if (!response.ok) throw new Error(await getResponseErrorMessage(response, "Expenses could not be loaded."));
             const page = (await response.json()) as MonthlyReviewExpensePage;
+            if (!active.current) return;
             setExpenses((current) => cursor ? [...current, ...asArray<MonthlyReviewExpense>(page.expenses)] : asArray<MonthlyReviewExpense>(page.expenses));
             setNextCursor(page.nextCursor);
             setLoaded(true);
         } catch (loadError) {
+            if (!active.current) return;
             setError(loadError instanceof Error ? loadError.message : "Expenses could not be loaded.");
         } finally {
             requestInFlight.current = false;
-            setLoading(false);
+            if (active.current) setLoading(false);
         }
-    }, [groupId, month, summary.currency]);
+    }, [groupId, month, summary.currency, category, sort]);
+
+    useEffect(() => {
+        active.current = true;
+        void loadExpenses();
+        return () => { active.current = false; };
+    }, [loadExpenses]);
 
     return (
+        <div className="mt-3 flex flex-col gap-2">
+            {expenses.map((expense) => {
+                const presentation = getExpenseTypePresentation(expense.category, expense.expenseType);
+                return (
+                    <Link key={expense.id} to={`/expense/${expense.id}`} className="metric-card grid min-h-16 grid-cols-[2.5rem_minmax(0,1fr)_auto] items-center gap-3 rounded-2xl p-3 transition-colors hover:border-primary/30 hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" aria-label={`Open expense: ${expense.description}`}>
+                        <span className={`flex size-10 items-center justify-center rounded-xl ${presentation.iconClassName}`} aria-hidden="true"><Icon path={presentation.icon} size={1} /></span>
+                        <span className="min-w-0">
+                            <span className="block truncate font-semibold">{expense.description}</span>
+                            <span className="block truncate text-xs text-foreground/60">{formatDateOnlyLong(expense.occurredOn)} · Paid by {expense.payerName}</span>
+                        </span>
+                        <span className="flex flex-col items-end gap-1">
+                            <span className="font-semibold tabular-nums">{formatSignedMoney(expense.total, summary.currency, amountDigits)}</span>
+                            {expense.settled ? <Badge variant="secondary">Settled</Badge> : null}
+                        </span>
+                    </Link>
+                );
+            })}
+            {loading ? <div className="flex min-h-20 items-center justify-center" role="status"><span className="ui-spinner" aria-hidden="true" /><span className="sr-only">Loading expenses</span></div> : null}
+            {!loading && loaded && expenses.length === 0 ? <p className="py-4 text-center text-sm text-foreground/60">No expenses available.</p> : null}
+            {error ? <div className="flex flex-col items-center gap-2 py-3" role="alert"><p className="text-sm text-destructive">{error}</p><Button type="button" variant="outline" className="min-h-11" onClick={() => void loadExpenses(nextCursor)}>Try again</Button></div> : null}
+            {!loading && !error && nextCursor ? <Button type="button" variant="outline" className="min-h-11" onClick={() => void loadExpenses(nextCursor)}>Load more expenses</Button> : null}
+        </div>
+    );
+}
+
+function ExpenseDisclosure({ category, amount, ...props }: Omit<ExpenseListProps, "sort"> & { amount?: string }) {
+    const [activated, setActivated] = useState(false);
+    const [sort, setSort] = useState<ExpenseSort>("date_desc");
+    const categoryTotal = props.summary.categories.reduce((sum, row) => sum + Math.max(0, numericAmount(row.amount)), 0);
+    const proportion = categoryTotal > 0 ? Math.max(0, numericAmount(amount ?? "0")) / categoryTotal : 0;
+    const percentage = Math.round(proportion * 100);
+    return (
         <details
-            className="panel-card group rounded-[1.5rem] p-4 sm:p-5"
-            onToggle={(event) => {
-                if (event.currentTarget.open && !loaded && !requestInFlight.current) void loadExpenses();
-            }}
+            className={cn("group rounded-xl", category === undefined ? "panel-card rounded-[1.5rem] p-4 sm:p-5" : "min-w-0")}
+            onToggle={(event) => { if (event.currentTarget.open) setActivated(true); }}
         >
-            <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary [&::-webkit-details-marker]:hidden">
-                <span className="font-semibold">Expenses</span>
-                <span className="flex items-center gap-2 text-sm text-foreground/60">
-                    {summary.expenseCount}
-                    <Icon className="transition-transform group-open:rotate-90" path={mdiChevronRight} size={0.8} aria-hidden="true" />
+            <summary className="flex min-h-11 cursor-pointer list-none flex-col justify-center gap-2 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary [&::-webkit-details-marker]:hidden">
+                <span className="flex w-full items-center justify-between gap-3">
+                    <span className="min-w-0 break-words font-semibold">{category ?? "Expenses"}</span>
+                    <span className="flex shrink-0 items-center gap-2 text-sm text-foreground/60">
+                        {amount === undefined ? props.summary.expenseCount : <span className="font-semibold tabular-nums">{formatSignedMoney(amount, props.summary.currency, props.amountDigits)}</span>}
+                        <Icon className="transition-transform group-open:rotate-90 motion-reduce:transition-none" path={mdiChevronRight} size={0.8} aria-hidden="true" />
+                    </span>
                 </span>
+                {category !== undefined ? (
+                    <span className="flex w-full flex-col gap-2">
+                        <span className="h-2.5 overflow-hidden rounded-full bg-primary/10" role="img" aria-label={`${category}: ${percentage}%`}>
+                            <span className="block h-full rounded-full bg-primary" style={{ width: `${proportion * 100}%` }} />
+                        </span>
+                        <span className="text-xs text-foreground/55">{percentage}% of total</span>
+                    </span>
+                ) : null}
             </summary>
-            <div className="mt-3 flex flex-col gap-2">
-                {expenses.map((expense) => {
-                    const presentation = getExpenseTypePresentation(expense.category, expense.expenseType);
-                    return (
-                        <Link key={expense.id} to={`/expense/${expense.id}`} className="metric-card grid min-h-16 grid-cols-[2.5rem_minmax(0,1fr)_auto] items-center gap-3 rounded-2xl p-3 transition-colors hover:border-primary/30 hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" aria-label={`Open expense: ${expense.description}`}>
-                            <span className={`flex size-10 items-center justify-center rounded-xl ${presentation.iconClassName}`} aria-hidden="true"><Icon path={presentation.icon} size={1} /></span>
-                            <span className="min-w-0">
-                                <span className="block truncate font-semibold">{expense.description}</span>
-                                <span className="block truncate text-xs text-foreground/60">{formatDateOnlyLong(expense.occurredOn)} · Paid by {expense.payerName}</span>
-                            </span>
-                            <span className="flex flex-col items-end gap-1">
-                                <span className="font-semibold tabular-nums">{formatSignedMoney(expense.total, summary.currency, amountDigits)}</span>
-                                {expense.settled ? <Badge variant="secondary">Settled</Badge> : null}
-                            </span>
-                        </Link>
-                    );
-                })}
-                {loading ? <div className="flex min-h-20 items-center justify-center" role="status"><span className="ui-spinner" aria-hidden="true" /><span className="sr-only">Loading expenses</span></div> : null}
-                {!loading && loaded && expenses.length === 0 ? <p className="py-4 text-center text-sm text-foreground/60">No expenses available.</p> : null}
-                {error ? <div className="flex flex-col items-center gap-2 py-3" role="alert"><p className="text-sm text-destructive">{error}</p><Button type="button" variant="outline" onClick={() => void loadExpenses(nextCursor)}>Try again</Button></div> : null}
-                {!loading && !error && nextCursor ? <Button type="button" variant="outline" onClick={() => void loadExpenses(nextCursor)}>Load more expenses</Button> : null}
-            </div>
+            {activated ? (
+                <>
+                    {category !== undefined ? (
+                        <div className="mt-3">
+                            <ExpenseOrderPicker value={sort} options={EXPENSE_SORT_OPTIONS} onChange={setSort} label="Sort" accessibleLabel="Sort expenses" />
+                        </div>
+                    ) : null}
+                    <ExpenseList key={`${props.groupId}-${props.month}-${props.summary.currency}-${category ?? "all"}-${sort}`} {...props} category={category} sort={sort} />
+                </>
+            ) : null}
         </details>
+    );
+}
+
+function CategoryReview(props: Omit<ExpenseListProps, "category" | "sort">) {
+    return (
+        <Card className="panel-card rounded-[1.5rem]" size="sm">
+            <CardHeader><CardTitle><h3>By category</h3></CardTitle></CardHeader>
+            <CardContent>
+                <div className="flex flex-col gap-4">
+                    {props.summary.categories.map((category) => (
+                        <ExpenseDisclosure key={category.name} {...props} category={category.name} amount={category.amount} />
+                    ))}
+                </div>
+            </CardContent>
+        </Card>
     );
 }
 
@@ -194,7 +269,7 @@ function CurrencyReview({ summary, amountDigits, groupId, month }: { summary: Mo
                 <CardContent><div className="text-3xl font-bold tracking-[-0.04em] text-primary stat-number">{formatSignedMoney(summary.total, summary.currency, amountDigits)}</div></CardContent>
             </Card>
             <div className="grid gap-4 lg:grid-cols-2">
-                <HorizontalBarCard title="By category" rows={summary.categories.map((item) => ({ key: item.name, label: item.name, amount: item.amount }))} currency={summary.currency} amountDigits={amountDigits} />
+                <CategoryReview summary={summary} amountDigits={amountDigits} groupId={groupId} month={month} />
                 <HorizontalBarCard title="Paid by" rows={summary.payers.map((item) => ({ key: item.userId, label: item.username, amount: item.amount }))} currency={summary.currency} amountDigits={amountDigits} />
             </div>
             <MemberNetCard rows={summary.memberNetTotals} currency={summary.currency} amountDigits={amountDigits} />

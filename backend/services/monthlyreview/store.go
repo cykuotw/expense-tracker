@@ -21,6 +21,8 @@ const (
 	monthlyReviewExpensePageSize = 20
 )
 
+var ErrInvalidExpenseOptions = errors.New("invalid monthly review expense options")
+
 var ErrInvalidExpenseCursor = errors.New("invalid monthly review expense cursor")
 
 var earliestMonthlyReviewMonth = time.Date(2026, time.January, 1, 0, 0, 0, 0, time.UTC)
@@ -402,10 +404,36 @@ func (s *Store) currencySummaries(ctx context.Context, groupID uuid.UUID, month 
 	return summaries, nil
 }
 
+type ExpenseListOptions struct {
+	Category string
+	Sort     string
+}
+
+func (options ExpenseListOptions) normalized() (ExpenseListOptions, error) {
+	if options.Sort == "" {
+		options.Sort = "date_desc"
+	}
+	if len(options.Category) > 200 {
+		return options, ErrInvalidExpenseOptions
+	}
+	switch options.Sort {
+	case "date_desc", "date_asc", "amount_desc", "amount_asc":
+		return options, nil
+	default:
+		return options, ErrInvalidExpenseOptions
+	}
+}
+
 type expenseCursor struct {
 	OccurredOn     time.Time `json:"occurredOn"`
 	ExpenseTimeUTC time.Time `json:"expenseTimeUtc"`
 	ID             uuid.UUID `json:"id"`
+	Total          string    `json:"total,omitempty"`
+	Sort           string    `json:"sort,omitempty"`
+	Category       string    `json:"category,omitempty"`
+	Currency       string    `json:"currency,omitempty"`
+	GroupID        string    `json:"groupId,omitempty"`
+	Month          string    `json:"month,omitempty"`
 }
 
 func decodeExpenseCursor(value string) (expenseCursor, error) {
@@ -423,6 +451,29 @@ func decodeExpenseCursor(value string) (expenseCursor, error) {
 	return cursor, nil
 }
 
+func (cursor expenseCursor) validateScope(groupID uuid.UUID, month time.Time, currency string, options ExpenseListOptions) error {
+	if cursor.Sort == "" {
+		// Accept pre-extension cursors only for the original unfiltered order.
+		if options.Sort != "date_desc" || options.Category != "" {
+			return ErrInvalidExpenseCursor
+		}
+		return nil
+	}
+	if cursor.Sort != options.Sort || cursor.Category != options.Category || cursor.Currency != currency ||
+		cursor.GroupID != groupID.String() || cursor.Month != month.Format("2006-01") {
+		return ErrInvalidExpenseCursor
+	}
+	if options.Sort == "amount_desc" || options.Sort == "amount_asc" {
+		if len(cursor.Total) > 100 {
+			return ErrInvalidExpenseCursor
+		}
+		if _, err := decimal.NewFromString(cursor.Total); err != nil {
+			return ErrInvalidExpenseCursor
+		}
+	}
+	return nil
+}
+
 func encodeExpenseCursor(cursor expenseCursor) (string, error) {
 	payload, err := json.Marshal(cursor)
 	if err != nil {
@@ -431,8 +482,16 @@ func encodeExpenseCursor(cursor expenseCursor) (string, error) {
 	return base64.RawURLEncoding.EncodeToString(payload), nil
 }
 
-func (s *Store) ListExpenses(ctx context.Context, groupID, userID uuid.UUID, month time.Time, currency, cursorValue string) (ExpensePage, error) {
+func (s *Store) ListExpenses(ctx context.Context, groupID, userID uuid.UUID, month time.Time, currency, cursorValue string, listOptions ...ExpenseListOptions) (ExpensePage, error) {
 	if _, err := s.authorizedGroupName(ctx, groupID, userID); err != nil {
+		return ExpensePage{}, err
+	}
+	options := ExpenseListOptions{}
+	if len(listOptions) > 0 {
+		options = listOptions[0]
+	}
+	options, err := options.normalized()
+	if err != nil {
 		return ExpensePage{}, err
 	}
 	cursor, err := decodeExpenseCursor(cursorValue)
@@ -440,11 +499,40 @@ func (s *Store) ListExpenses(ctx context.Context, groupID, userID uuid.UUID, mon
 		return ExpensePage{}, err
 	}
 
+	if cursorValue != "" {
+		if err := cursor.validateScope(groupID, month, currency, options); err != nil {
+			return ExpensePage{}, err
+		}
+	}
+	// Only these validated constants enter SQL; category and cursor values stay parameters.
+	direction, comparison := "DESC", "<"
+	if options.Sort == "date_asc" || options.Sort == "amount_asc" {
+		direction, comparison = "ASC", ">"
+	}
+	dateExpression := "COALESCE(expense.occurred_on, (expense.expense_time_utc AT TIME ZONE 'UTC')::date)"
+	orderColumns := dateExpression + ", expense.expense_time_utc, expense.id"
+	cursorColumns := "$4::date, $5::timestamptz, $6::uuid"
+	if options.Sort == "amount_desc" || options.Sort == "amount_asc" {
+		orderColumns = "expense.total, " + orderColumns
+		cursorColumns = "$9::numeric, " + cursorColumns
+	}
+	orderBy := dateExpression + " " + direction + ", expense.expense_time_utc " + direction + ", expense.id " + direction
+	if options.Sort == "amount_desc" || options.Sort == "amount_asc" {
+		orderBy = "expense.total " + direction + ", " + orderBy
+	}
+	var cursorTotal any
+	if cursorValue != "" && (options.Sort == "amount_desc" || options.Sort == "amount_asc") {
+		cursorTotal = cursor.Total
+	}
 	var cursorOccurredOn, cursorExpenseTime, cursorID any
 	if cursorValue != "" {
 		cursorOccurredOn, cursorExpenseTime, cursorID = cursor.OccurredOn, cursor.ExpenseTimeUTC, cursor.ID
 	}
-	rows, err := s.db.QueryContext(ctx, `
+	arguments := []any{groupID, month, currency, cursorOccurredOn, cursorExpenseTime, cursorID, monthlyReviewExpensePageSize + 1, options.Category}
+	if options.Sort == "amount_desc" || options.Sort == "amount_asc" {
+		arguments = append(arguments, cursorTotal)
+	}
+	rows, err := s.db.QueryContext(ctx, fmt.Sprintf(`
         SELECT expense.id, expense.description,
             COALESCE(expense.occurred_on, (expense.expense_time_utc AT TIME ZONE 'UTC')::date),
             expense.expense_time_utc, expense_type.name, expense_type.category,
@@ -457,13 +545,11 @@ func (s *Store) ListExpenses(ctx context.Context, groupID, userID uuid.UUID, mon
         WHERE expense.group_id = $1 AND expense.is_deleted IS FALSE AND expense.currency = $3
             AND COALESCE(expense.occurred_on, (expense.expense_time_utc AT TIME ZONE 'UTC')::date) >= $2
             AND COALESCE(expense.occurred_on, (expense.expense_time_utc AT TIME ZONE 'UTC')::date) < ($2::date + INTERVAL '1 month')
-            AND ($4::date IS NULL OR (
-                COALESCE(expense.occurred_on, (expense.expense_time_utc AT TIME ZONE 'UTC')::date),
-                expense.expense_time_utc, expense.id
-            ) < ($4::date, $5::timestamptz, $6::uuid))
-        ORDER BY COALESCE(expense.occurred_on, (expense.expense_time_utc AT TIME ZONE 'UTC')::date) DESC,
-            expense.expense_time_utc DESC, expense.id DESC
-        LIMIT $7`, groupID, month, currency, cursorOccurredOn, cursorExpenseTime, cursorID, monthlyReviewExpensePageSize+1)
+            AND ($8 = '' OR expense_type.category = $8)
+            AND ($4::date IS NULL OR (%s) %s (%s))
+        ORDER BY %s
+        LIMIT $7`, orderColumns, comparison, cursorColumns, orderBy),
+		arguments...)
 	if err != nil {
 		return ExpensePage{}, err
 	}
@@ -482,6 +568,12 @@ func (s *Store) ListExpenses(ctx context.Context, groupID, userID uuid.UUID, mon
 			&payerID, &row.expense.PayerName, &row.expense.Total, &row.expense.Settled); err != nil {
 			return ExpensePage{}, err
 		}
+		row.cursor.Total = row.expense.Total
+		row.cursor.Sort = options.Sort
+		row.cursor.Category = options.Category
+		row.cursor.Currency = currency
+		row.cursor.GroupID = groupID.String()
+		row.cursor.Month = month.Format("2006-01")
 		row.cursor.ID = expenseID
 		row.expense.ID = expenseID.String()
 		row.expense.PayerID = payerID.String()

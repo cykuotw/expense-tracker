@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import MonthlyReview from "./MonthlyReview";
@@ -64,6 +64,10 @@ function mockMonthlyReviewResponses(reviewResponse: object) {
             : String(path).includes("/expenses?") ? { expenses: [], nextCursor: undefined }
                 : reviewResponse,
     ), { status: 200, headers: { "Content-Type": "application/json" } })));
+}
+
+function openSortMenu(container: HTMLElement) {
+    fireEvent.pointerDown(within(container).getByRole("button", { name: /^Sort expenses:/ }), { button: 0, ctrlKey: false, pointerType: "mouse" });
 }
 
 describe("MonthlyReview", () => {
@@ -163,6 +167,72 @@ describe("MonthlyReview", () => {
         expect(await screen.findByRole("link", { name: "Open expense: Dinner" })).toHaveAttribute("href", "/expense/expense-2");
         expect(apiFetchMock).toHaveBeenCalledWith("/group/group-1/monthly-review/2026-08/expenses?currency=CAD&cursor=next-page");
         expect(screen.queryByRole("button", { name: "Load more expenses" })).not.toBeInTheDocument();
+    });
+
+    it("expands categories independently, sorts the complete list, and resets pagination", async () => {
+        const review = { groupId: "group-1", groupName: "Home", month: "2026-08", state: "published", currencies: [{
+            currency: "CAD", total: "50", expenseCount: 2,
+            categories: [{ name: "Food and Drink", amount: "30" }, { name: "Transportation", amount: "20" }],
+            payers: [], memberNetTotals: [],
+        }] };
+        const expense = (id: string) => ({ id, description: id, occurredOn: "2026-08-20", expenseType: "Groceries", category: "Food and Drink", payerId: "alice", payerName: "Alice", total: "30", settled: false });
+        apiFetchMock.mockImplementation((path = "") => {
+            if (path.includes("monthly-review-trend")) return Promise.resolve(Response.json(trendResponse));
+            if (!path.includes("/expenses?")) return Promise.resolve(Response.json(review));
+            const query = new URLSearchParams(path.split("?")[1]);
+            return Promise.resolve(Response.json({ expenses: [expense(query.get("cursor") ? "Second page" : query.get("sort") ?? "default")], nextCursor: query.get("cursor") ? undefined : "next-page" }));
+        });
+        renderReview();
+        const food = (await screen.findByText("Food and Drink")).closest("details") as HTMLElement;
+        const transport = screen.getByText("Transportation").closest("details") as HTMLElement;
+        expect(food).not.toHaveAttribute("open");
+        expect(screen.getByRole("img", { name: "Food and Drink: 60%" })).toBeVisible();
+        expect(apiFetchMock).not.toHaveBeenCalledWith(expect.stringContaining("/expenses?"));
+        fireEvent.click(within(food).getByText("Food and Drink"));
+        await within(food).findByRole("link", { name: "Open expense: date_desc" });
+        expect(transport).not.toHaveAttribute("open");
+        fireEvent.click(within(food).getByRole("button", { name: "Load more expenses" }));
+        await within(food).findByRole("link", { name: "Open expense: Second page" });
+        expect(apiFetchMock).toHaveBeenCalledWith("/group/group-1/monthly-review/2026-08/expenses?currency=CAD&category=Food+and+Drink&sort=date_desc&cursor=next-page");
+        for (const sort of ["date_asc", "amount_desc", "amount_asc"]) {
+            openSortMenu(food);
+            const labels: Record<string, string> = { date_asc: "Oldest first", amount_desc: "Highest amount", amount_asc: "Lowest amount" };
+            fireEvent.click(await screen.findByRole("menuitemradio", { name: labels[sort] }));
+            await within(food).findByRole("link", { name: `Open expense: ${sort}` });
+            expect(within(food).queryByRole("link", { name: "Open expense: Second page" })).not.toBeInTheDocument();
+            expect(apiFetchMock).toHaveBeenLastCalledWith(`/group/group-1/monthly-review/2026-08/expenses?currency=CAD&category=Food+and+Drink&sort=${sort}`);
+        }
+        const calls = apiFetchMock.mock.calls.length;
+        fireEvent.click(within(food).getByText("Food and Drink"));
+        fireEvent.click(within(food).getByText("Food and Drink"));
+        await waitFor(() => expect(food).toHaveAttribute("open"));
+        expect(apiFetchMock).toHaveBeenCalledTimes(calls);
+    });
+
+    it("ignores stale sort responses and retries failed category reads", async () => {
+        let resolveStale!: (response: Response) => void;
+        let fail = true;
+        apiFetchMock.mockImplementation((path = "") => {
+            if (path.includes("monthly-review-trend")) return Promise.resolve(Response.json(trendResponse));
+            if (!path.includes("/expenses?")) return Promise.resolve(Response.json({ groupId: "group-1", groupName: "Home", month: "2026-08", state: "published", currencies: [{ currency: "CAD", total: "30", expenseCount: 1, categories: [{ name: "Food and Drink", amount: "30" }], payers: [], memberNetTotals: [] }] }));
+            if (path.includes("sort=date_desc")) return new Promise<Response>((resolve) => { resolveStale = resolve; });
+            return Promise.resolve(fail ? new Response("", { status: 500 }) : Response.json({ expenses: [] }));
+        });
+        renderReview();
+        const food = (await screen.findByText("Food and Drink")).closest("details") as HTMLElement;
+        fireEvent.click(within(food).getByText("Food and Drink"));
+        await within(food).findByRole("button", { name: "Sort expenses: Newest first" });
+        await waitFor(() => expect(resolveStale).toBeDefined());
+        openSortMenu(food);
+        expect(await screen.findByRole("menuitemradio", { name: "Newest first" })).toHaveAttribute("aria-checked", "true");
+        fireEvent.click(screen.getByRole("menuitemradio", { name: "Highest amount" }));
+        expect(await within(food).findByRole("alert")).toHaveTextContent("Expenses could not be loaded.");
+        fail = false;
+        fireEvent.click(within(food).getByRole("button", { name: "Try again" }));
+        expect(await within(food).findByText("No expenses available.")).toBeVisible();
+        await act(async () => resolveStale(Response.json({ expenses: [{ id: "stale", description: "Stale expense", occurredOn: "2026-08-20", total: "30", category: "Food and Drink", expenseType: "Groceries", payerName: "Alice", settled: false }], nextCursor: "stale-cursor" })));
+        expect(within(food).queryByRole("link", { name: "Open expense: Stale expense" })).not.toBeInTheDocument();
+        expect(within(food).queryByRole("button", { name: "Load more expenses" })).not.toBeInTheDocument();
     });
 
     it("renders a clear empty state", async () => {

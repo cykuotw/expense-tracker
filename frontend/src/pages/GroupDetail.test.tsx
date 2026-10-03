@@ -140,7 +140,7 @@ describe("GroupDetail mobile balance summary", () => {
         );
     });
 
-    it("shows two balances initially and expands the compact mobile summary", () => {
+    it("shows two balances initially and expands the compact mobile summary", async () => {
         const setExpenseOrder = vi.fn();
         groupDetailMock.mockReturnValue({
             groupinfo: { groupName: "Trip", description: "", currency: "CAD" },
@@ -205,9 +205,11 @@ describe("GroupDetail mobile balance summary", () => {
             screen.getByRole("button", { name: "Show fewer balances" })
         ).toHaveAttribute("aria-expanded", "true");
 
-        const expenseOrder = screen.getByLabelText("Expense order");
-        expect(expenseOrder).toHaveValue("newest");
-        fireEvent.change(expenseOrder, { target: { value: "oldest" } });
+        const expenseOrder = screen.getByRole("button", { name: "Expense order: Newest first" });
+        fireEvent.pointerDown(expenseOrder, { button: 0, ctrlKey: false, pointerType: "mouse" });
+        expect(await screen.findByRole("menuitemradio", { name: "Newest first" })).toHaveAttribute("aria-checked", "true");
+        expect(screen.getAllByRole("menuitemradio")).toHaveLength(2);
+        fireEvent.click(screen.getByRole("menuitemradio", { name: "Oldest first" }));
         expect(setExpenseOrder).toHaveBeenCalledWith("oldest");
     });
 

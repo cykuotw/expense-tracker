@@ -16,7 +16,7 @@ import (
 type ReviewStore interface {
 	Get(context.Context, uuid.UUID, uuid.UUID, time.Time, time.Time) (Review, error)
 	GetTrend(context.Context, uuid.UUID, uuid.UUID, time.Time, time.Time) (Trend, error)
-	ListExpenses(context.Context, uuid.UUID, uuid.UUID, time.Time, string, string) (ExpensePage, error)
+	ListExpenses(context.Context, uuid.UUID, uuid.UUID, time.Time, string, string, ...ExpenseListOptions) (ExpensePage, error)
 }
 
 type Handler struct {
@@ -54,12 +54,17 @@ func (h *Handler) getExpenses(c *gin.Context) {
 		utils.WriteError(c, http.StatusBadRequest, errors.New("currency is required"))
 		return
 	}
-	page, err := h.store.ListExpenses(c.Request.Context(), groupID, userID, month, currency, c.Query("cursor"))
+	options, err := (ExpenseListOptions{Category: c.Query("category"), Sort: c.Query("sort")}).normalized()
+	if err != nil {
+		utils.WriteError(c, http.StatusBadRequest, err)
+		return
+	}
+	page, err := h.store.ListExpenses(c.Request.Context(), groupID, userID, month, currency, c.Query("cursor"), options)
 	if err != nil {
 		switch {
 		case errors.Is(err, types.ErrGroupNotExist):
 			utils.WriteError(c, http.StatusNotFound, types.ErrGroupNotExist)
-		case errors.Is(err, ErrInvalidExpenseCursor):
+		case errors.Is(err, ErrInvalidExpenseCursor), errors.Is(err, ErrInvalidExpenseOptions):
 			utils.WriteError(c, http.StatusBadRequest, err)
 		default:
 			utils.WriteError(c, http.StatusInternalServerError, err)

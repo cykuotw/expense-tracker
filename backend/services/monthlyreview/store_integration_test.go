@@ -6,11 +6,13 @@ import (
 	dbstore "expense-tracker/backend/db"
 	"expense-tracker/backend/types"
 	"fmt"
+	"strings"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
 )
 
@@ -289,4 +291,75 @@ func createMonthlyReviewFixture(t *testing.T, database *sql.DB) monthlyReviewFix
 		require.NoError(t, err)
 	})
 	return fixture
+}
+
+func TestMonthlyReviewCategorySortsAcrossPages(t *testing.T) {
+	database := openMonthlyReviewTestDB(t)
+	fixture := createMonthlyReviewFixture(t, database)
+	store := NewStore(database)
+	now := time.Date(1900, time.September, 13, 10, 0, 0, 0, time.UTC)
+	month := time.Date(1900, time.August, 1, 0, 0, 0, 0, time.UTC)
+	// Equal amounts/dates/timestamps deliberately cross the page boundary.
+	for index := range 44 {
+		_, err := database.Exec(`INSERT INTO expense (
+            id, description, group_id, create_by_user_id, pay_by_user_id, exp_type_id,
+            is_settled, sub_total, tax_fee_tip, total, currency, create_time_utc,
+            expense_time_utc, allocation_mode, is_deleted, occurred_on
+        ) VALUES ($1, $2, $3, $4, $4, $5, FALSE, $6, 0, $6, 'CAD', NOW(), $7, 'equal', FALSE, $8)`,
+			uuid.New(), fmt.Sprintf("Sort expense %02d", index), fixture.homeGroup,
+			fixture.alice, fixture.category, []string{"2", "10"}[index/22], now,
+			fmt.Sprintf("1900-08-%02d", index/22+1))
+		require.NoError(t, err)
+	}
+	_, err := store.PublishEligible(t.Context(), now, 25)
+	require.NoError(t, err)
+	for _, sort := range []string{"date_desc", "date_asc", "amount_desc", "amount_asc"} {
+		t.Run(sort, func(t *testing.T) {
+			options := ExpenseListOptions{Category: "Food and Drink", Sort: sort}
+			seen := make(map[string]bool)
+			cursor := ""
+			var previous *Expense
+			for pageNumber := range 4 {
+				page, err := store.ListExpenses(t.Context(), fixture.homeGroup, fixture.alice, month, "CAD", cursor, options)
+				require.NoError(t, err)
+				require.LessOrEqual(t, len(page.Expenses), monthlyReviewExpensePageSize)
+				for _, expense := range page.Expenses {
+					require.Equal(t, options.Category, expense.Category)
+					require.False(t, seen[expense.ID], "duplicate expense across pages")
+					seen[expense.ID] = true
+					if previous != nil {
+						comparison := strings.Compare(previous.OccurredOn, expense.OccurredOn)
+						if strings.HasPrefix(sort, "amount") {
+							left, err := decimal.NewFromString(previous.Total)
+							require.NoError(t, err)
+							right, err := decimal.NewFromString(expense.Total)
+							require.NoError(t, err)
+							comparison = left.Cmp(right)
+							if comparison == 0 {
+								comparison = strings.Compare(previous.OccurredOn, expense.OccurredOn)
+							}
+						}
+						if strings.HasSuffix(sort, "asc") {
+							require.LessOrEqual(t, comparison, 0)
+						} else {
+							require.GreaterOrEqual(t, comparison, 0)
+						}
+					}
+					copy := expense
+					previous = &copy
+				}
+				if page.NextCursor == "" {
+					break
+				}
+				require.Less(t, pageNumber, 3, "pagination must terminate")
+				cursor = page.NextCursor
+				_, err = store.ListExpenses(t.Context(), fixture.homeGroup, fixture.alice, month, "CAD", cursor, ExpenseListOptions{Category: "Transportation", Sort: sort})
+				require.ErrorIs(t, err, ErrInvalidExpenseCursor)
+			}
+			require.Len(t, seen, 45)
+		})
+	}
+	empty, err := store.ListExpenses(t.Context(), fixture.homeGroup, fixture.alice, month, "CAD", "", ExpenseListOptions{Category: "Transportation"})
+	require.NoError(t, err)
+	require.Empty(t, empty.Expenses)
 }

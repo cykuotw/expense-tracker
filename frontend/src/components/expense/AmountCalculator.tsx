@@ -1,11 +1,11 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Icon from "@mdi/react";
-import { mdiCalculatorVariantOutline } from "@mdi/js";
+import { mdiCalculator, mdiClose } from "@mdi/js";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Field, FieldLabel } from "../ui/field";
-import { calculateAmount } from "../../lib/amountCalculator";
+import { calculateAmount, normalizeCalculatorExpression } from "../../lib/amountCalculator";
 
 interface AmountCalculatorProps {
     amount: string;
@@ -22,6 +22,7 @@ export default function AmountCalculator({ amount, amountDigits, currency, onApp
     const dialogRef = useRef<HTMLDialogElement>(null);
     const triggerRef = useRef<HTMLButtonElement>(null);
     const closeRef = useRef<HTMLButtonElement>(null);
+    const outsidePointerRef = useRef(false);
     const id = useId();
     const result = calculateAmount(expression, amountDigits);
 
@@ -55,10 +56,24 @@ export default function AmountCalculator({ amount, amountDigits, currency, onApp
         <Button ref={triggerRef} type="button" variant="outline" size="icon" className="size-11 shrink-0"
             aria-label="Calculate amount" aria-haspopup="dialog" disabled={amountDigits === null}
             onClick={() => { setExpression(amount); setOpen(true); }}>
-            <Icon path={mdiCalculatorVariantOutline} aria-hidden="true" />
+            <Icon path={mdiCalculator} size={1} aria-hidden="true" />
         </Button>
         {open && createPortal(
-            <dialog ref={dialogRef} className="amount-calculator" aria-labelledby={`${id}-title`} aria-describedby={`${id}-description`}
+            <dialog ref={dialogRef} className="amount-calculator" aria-labelledby={`${id}-title`}
+                onPointerDown={(event) => {
+                    const bounds = event.currentTarget.getBoundingClientRect();
+                    outsidePointerRef.current = event.target === event.currentTarget &&
+                        (event.clientX < bounds.left || event.clientX > bounds.right ||
+                            event.clientY < bounds.top || event.clientY > bounds.bottom);
+                }}
+                onPointerCancel={() => { outsidePointerRef.current = false; }}
+                onClick={(event) => {
+                    const bounds = event.currentTarget.getBoundingClientRect();
+                    if (outsidePointerRef.current && event.target === event.currentTarget &&
+                        (event.clientX < bounds.left || event.clientX > bounds.right ||
+                            event.clientY < bounds.top || event.clientY > bounds.bottom)) setOpen(false);
+                    outsidePointerRef.current = false;
+                }}
                 onCancel={(event) => { event.preventDefault(); setOpen(false); }}
                 onKeyDown={(event) => {
                     if (event.key === "Enter" && event.target instanceof HTMLInputElement) event.preventDefault();
@@ -71,35 +86,36 @@ export default function AmountCalculator({ amount, amountDigits, currency, onApp
                         if (destination) { event.preventDefault(); destination.focus({ preventScroll: true }); }
                     }
                 }}>
-                <div className="flex items-center justify-between gap-3">
-                    <h2 id={`${id}-title`} className="text-lg font-semibold">Calculate amount</h2>
-                    <Button ref={closeRef} type="button" variant="ghost" className="min-h-11" onClick={() => setOpen(false)}>Cancel</Button>
+                <h2 id={`${id}-title`} className="sr-only">Calculate amount</h2>
+                <div className="flex items-center gap-2">
+                    <Field className="min-w-0 flex-1" data-invalid={Boolean(result.error)}>
+                        <FieldLabel htmlFor={`${id}-expression`} className="sr-only">Calculation</FieldLabel>
+                        <Input id={`${id}-expression`} type="text" inputMode="text" autoComplete="off" maxLength={256}
+                            value={expression} onChange={(event) => setExpression(event.target.value)}
+                            placeholder="12.50 + 8.25" aria-describedby={`${id}-result`} aria-invalid={Boolean(result.error)} className="h-11" />
+                    </Field>
+                    <Button ref={closeRef} type="button" variant="ghost" size="icon" className="size-11 shrink-0" aria-label="Cancel" onClick={() => setOpen(false)}>
+                        <Icon path={mdiClose} aria-hidden="true" />
+                    </Button>
                 </div>
-                <p id={`${id}-description`} className="mt-2 text-sm text-muted-foreground">Combine amounts in {currency}. Apply the result when you're ready.</p>
-                <Field className="mt-4">
-                    <FieldLabel htmlFor={`${id}-expression`}>Calculation</FieldLabel>
-                    <Input id={`${id}-expression`} type="text" inputMode="text" autoComplete="off" maxLength={256}
-                        value={expression} onChange={(event) => setExpression(event.target.value)}
-                        placeholder="12.50 + 8.25" aria-describedby={`${id}-result`} />
-                </Field>
-                <div id={`${id}-result`} className="mt-3 min-h-16 rounded-xl bg-muted p-3" aria-live="polite" aria-atomic="true">
+                <div id={`${id}-result`} className="mt-2 min-h-8 text-right" aria-live="polite" aria-atomic="true">
                     {result.error ? <p className="text-sm text-destructive">{result.error}</p> :
                         result.amount ? <>
-                            <p className="break-all text-xl font-semibold tabular-nums">{result.amount} {currency}</p>
-                            {result.rounded ? <p className="mt-1 text-xs text-muted-foreground">Rounded to {amountDigits} decimal places for {currency}.</p> : null}
-                        </> : <p className="text-sm text-muted-foreground">Enter amounts to calculate a total.</p>}
+                            <p className="break-all text-xl font-semibold tabular-nums">{result.rounded ? "≈ " : ""}{result.amount} {currency}</p>
+                            {result.rounded ? <span className="sr-only">Rounded to {amountDigits} decimal places for {currency}.</span> : null}
+                        </> : null}
                 </div>
-                <div className="mt-3 grid grid-cols-4 gap-2">
+                <div className="mt-2 grid grid-cols-4 gap-2">
                     {keypad.map((key) => <Button key={key} type="button" variant="outline" className="min-h-11"
                         aria-label={key === "⌫" ? "Backspace" : key === "÷" ? "Divide" : key === "×" ? "Multiply" : key === "−" ? "Subtract" : key === "+" ? "Add" : key}
                         onClick={() => setExpression((current) => key === "⌫" ? current.slice(0, -1) : (current + key).slice(0, 256))}>
                         {key}
                     </Button>)}
                 </div>
-                <div className="mt-4 flex gap-3">
+                <div className="mt-2 flex gap-2">
                     <Button type="button" variant="outline" className="min-h-11" onClick={() => setExpression("")}>Clear</Button>
                     <Button type="button" className="min-h-11 flex-1" disabled={!result.amount} onClick={() => {
-                        if (result.amount) { onApply(result.amount); setOpen(false); }
+                        if (result.amount) { setExpression(normalizeCalculatorExpression(expression)); onApply(result.amount); setOpen(false); }
                     }}>Apply amount</Button>
                 </div>
             </dialog>, document.body,

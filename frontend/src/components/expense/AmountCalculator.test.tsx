@@ -11,6 +11,7 @@ afterEach(() => {
     Reflect.deleteProperty(HTMLDialogElement.prototype, "showModal");
     Reflect.deleteProperty(HTMLDialogElement.prototype, "close");
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
 });
 
 describe("AmountCalculator", () => {
@@ -51,8 +52,7 @@ describe("AmountCalculator", () => {
         render(<AmountCalculator amount="" amountDigits={0} currency="JPY" onApply={vi.fn()} />);
         fireEvent.click(screen.getByRole("button", { name: "Calculate amount" }));
         fireEvent.change(screen.getByLabelText("Calculation"), { target: { value: "10/3" } });
-        expect(screen.getByText("3 JPY")).toBeVisible();
-        expect(screen.getByText(/Rounded to 0 decimal places/)).toBeVisible();
+        expect(screen.getByText("≈ 3 JPY")).toBeVisible();
         fireEvent.change(screen.getByLabelText("Calculation"), { target: { value: "1/0" } });
         expect(screen.getByText("Cannot divide by zero.")).toBeVisible();
         expect(screen.getByRole("button", { name: "Apply amount" })).toBeDisabled();
@@ -64,11 +64,43 @@ describe("AmountCalculator", () => {
     it("keeps Tab and Shift+Tab within the calculator", () => {
         render(<AmountCalculator amount="1.00" amountDigits={2} currency="CAD" onApply={vi.fn()} />);
         fireEvent.click(screen.getByRole("button", { name: "Calculate amount" }));
-        const cancel = screen.getByRole("button", { name: "Cancel" });
+        const input = screen.getByLabelText("Calculation");
         const apply = screen.getByRole("button", { name: "Apply amount" });
-        fireEvent.keyDown(cancel, { key: "Tab", shiftKey: true });
+        fireEvent.keyDown(input, { key: "Tab", shiftKey: true });
         expect(apply).toHaveFocus();
         fireEvent.keyDown(apply, { key: "Tab" });
-        expect(cancel).toHaveFocus();
+        expect(input).toHaveFocus();
+    });
+    it("keeps a trailing operator editable and applies the completed portion", () => {
+        const onApply = vi.fn();
+        render(<AmountCalculator amount="12.00" amountDigits={2} currency="CAD" onApply={onApply} />);
+        fireEvent.click(screen.getByRole("button", { name: "Calculate amount" }));
+        const input = screen.getByLabelText("Calculation");
+        fireEvent.change(input, { target: { value: "12 + 8 +" } });
+        expect(input).toHaveValue("12 + 8 +");
+        expect(screen.getByText("20.00 CAD")).toBeVisible();
+        fireEvent.blur(input);
+        expect(screen.getByRole("dialog")).toBeVisible();
+        fireEvent.click(screen.getByRole("button", { name: "Apply amount" }));
+        expect(onApply).toHaveBeenCalledExactlyOnceWith("20.00");
+    });
+    it("cancels an outside click but preserves padding clicks and inside-to-outside drags", () => {
+        vi.stubGlobal("PointerEvent", MouseEvent);
+        const onApply = vi.fn();
+        render(<AmountCalculator amount="10.00" amountDigits={2} currency="CAD" onApply={onApply} />);
+        fireEvent.click(screen.getByRole("button", { name: "Calculate amount" }));
+        const dialog = screen.getByRole("dialog");
+        vi.spyOn(dialog, "getBoundingClientRect").mockReturnValue({ left: 20, top: 20, right: 300, bottom: 380 } as DOMRect);
+        fireEvent.change(screen.getByLabelText("Calculation"), { target: { value: "50 + 2" } });
+        fireEvent.pointerDown(dialog, { clientX: 25, clientY: 25 });
+        fireEvent.click(dialog, { clientX: 25, clientY: 25 });
+        expect(dialog).toBeVisible();
+        fireEvent.pointerDown(screen.getByLabelText("Calculation"), { clientX: 40, clientY: 40 });
+        fireEvent.click(dialog, { clientX: 5, clientY: 5 });
+        expect(dialog).toBeVisible();
+        fireEvent.pointerDown(dialog, { clientX: 5, clientY: 5 });
+        fireEvent.click(dialog, { clientX: 5, clientY: 5 });
+        expect(screen.queryByRole("dialog")).toBeNull();
+        expect(onApply).not.toHaveBeenCalled();
     });
 });

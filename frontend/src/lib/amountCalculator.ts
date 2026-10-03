@@ -3,6 +3,11 @@ import { unitsToDecimal } from "./money";
 interface Fraction { numerator: bigint; denominator: bigint }
 export interface CalculatorResult { amount: string | null; error: string | null; rounded: boolean }
 
+// Ignore one unfinished binary operation without masking malformed operator sequences.
+export function normalizeCalculatorExpression(expression: string): string {
+    return expression.replace(/([0-9)]|\d\.)\s*[+\-*/×÷−]\s*$/, "$1").trim();
+}
+
 function fraction(numerator: bigint, denominator: bigint): Fraction {
     if (denominator === 0n) throw new Error("Cannot divide by zero.");
     if (denominator < 0n) { numerator = -numerator; denominator = -denominator; }
@@ -21,7 +26,7 @@ export function calculateAmount(expression: string, amountDigits: number | null)
     if (expression.length > 256) return invalid("Use a shorter calculation (up to 256 characters).");
     try {
         // A bounded arithmetic parser keeps decimal operations exact without executing input.
-        const source = expression.replace(/×/g, "*").replace(/÷/g, "/").replace(/−/g, "-").trim();
+        const source = normalizeCalculatorExpression(expression).replace(/×/g, "*").replace(/÷/g, "/").replace(/−/g, "-");
         const tokenPattern = /\s*(\d+(?:\.\d*)?|\.\d+|[()+\-*/])/y;
         const tokens: string[] = [];
         let offset = 0;

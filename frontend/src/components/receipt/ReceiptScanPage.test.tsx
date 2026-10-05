@@ -39,10 +39,9 @@ describe("ReceiptScanPage", () => {
 
     beforeEach(() => {
         vi.clearAllMocks();
-        vi.stubGlobal("URL", {
-            ...URL,
-            createObjectURL: vi.fn(() => "blob:prepared-receipt"),
-            revokeObjectURL: vi.fn(),
+        vi.stubGlobal("URL", class extends URL {
+            static createObjectURL = vi.fn(() => "blob:prepared-receipt");
+            static revokeObjectURL = vi.fn();
         });
         useCreateExpenseMock.mockReturnValue({
             selectedGroupId: "group-1",

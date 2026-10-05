@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useRef } from "react";
-import { Navigate, useNavigate } from "react-router-dom";
+import { Navigate } from "react-router-dom";
+import { useReturnNavigation } from "../../hooks/navigation";
 import { toast } from "react-hot-toast";
 import { mdiCheck } from "@mdi/js";
 import Icon from "@mdi/react";
@@ -43,7 +44,7 @@ export default function SplitExpensePage({
     returnTo,
     total,
 }: SplitExpensePageProps) {
-    const navigate = useNavigate();
+    const { finish } = useReturnNavigation(returnTo);
     const errorSummaryRef = useRef<HTMLDivElement>(null);
     const {
         calculation,
@@ -89,7 +90,7 @@ export default function SplitExpensePage({
             return;
         }
         onSave(draftAllocation);
-        navigate(returnTo);
+        finish();
     };
 
     return (

@@ -3,6 +3,7 @@ import { mdiChevronLeft, mdiChevronRight, mdiHistory, mdiReceiptTextOutline } fr
 import Icon from "@mdi/react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import DesktopBackLink from "../components/DesktopBackLink";
+import { useNavigationReady, useNavigationState } from "../hooks/navigation";
 import MobilePageHeader from "../components/MobilePageHeader";
 import { ReviewMonthPicker } from "../components/review/ReviewMonthPicker";
 import { Badge } from "../components/ui/badge";
@@ -136,6 +137,9 @@ type ExpenseListProps = {
 };
 
 function ExpenseList({ summary, amountDigits, groupId, month, category, sort = "date_desc" }: ExpenseListProps) {
+    const [savedPages, setSavedPages] = useNavigationState<number>(`review.${month}.${summary.currency}.${category ?? "all"}.${sort}.pages`, 1);
+    const restorePages = useRef(savedPages);
+    const pages = useRef(0);
     const [expenses, setExpenses] = useState<MonthlyReviewExpense[]>([]);
     const [nextCursor, setNextCursor] = useState<string | undefined>();
     const [loaded, setLoaded] = useState(false);
@@ -163,6 +167,8 @@ function ExpenseList({ summary, amountDigits, groupId, month, category, sort = "
             setExpenses((current) => cursor ? [...current, ...asArray<MonthlyReviewExpense>(page.expenses)] : asArray<MonthlyReviewExpense>(page.expenses));
             setNextCursor(page.nextCursor);
             setLoaded(true);
+            pages.current = cursor ? pages.current + 1 : 1;
+            setSavedPages((current) => Math.max(current, pages.current));
         } catch (loadError) {
             if (!active.current) return;
             setError(loadError instanceof Error ? loadError.message : "Expenses could not be loaded.");
@@ -170,13 +176,19 @@ function ExpenseList({ summary, amountDigits, groupId, month, category, sort = "
             requestInFlight.current = false;
             if (active.current) setLoading(false);
         }
-    }, [groupId, month, summary.currency, category, sort]);
+    }, [groupId, month, summary.currency, category, sort, setSavedPages]);
 
     useEffect(() => {
         active.current = true;
         void loadExpenses();
         return () => { active.current = false; };
     }, [loadExpenses]);
+
+    const restoring = loaded && !!nextCursor && pages.current < restorePages.current && !error;
+    useNavigationReady(!loading && (loaded || !!error) && !restoring);
+    useEffect(() => {
+        if (restoring && !loading) void loadExpenses(nextCursor);
+    }, [restoring, loading, loadExpenses, nextCursor]);
 
     return (
         <div className="mt-3 flex flex-col gap-2">
@@ -205,15 +217,18 @@ function ExpenseList({ summary, amountDigits, groupId, month, category, sort = "
 }
 
 function ExpenseDisclosure({ category, amount, ...props }: Omit<ExpenseListProps, "sort"> & { amount?: string }) {
-    const [activated, setActivated] = useState(false);
-    const [sort, setSort] = useState<ExpenseSort>("date_desc");
+    const name = `review.${props.month}.${props.summary.currency}.${category ?? "all"}`;
+    const [open, setOpen] = useNavigationState<boolean>(`${name}.open`, false);
+    const [activated, setActivated] = useState(open);
+    const [sort, setSort] = useNavigationState<ExpenseSort>(`${name}.sort`, "date_desc");
     const categoryTotal = props.summary.categories.reduce((sum, row) => sum + Math.max(0, numericAmount(row.amount)), 0);
     const proportion = categoryTotal > 0 ? Math.max(0, numericAmount(amount ?? "0")) / categoryTotal : 0;
     const percentage = Math.round(proportion * 100);
     return (
         <details
+            open={open}
             className={cn("group rounded-xl", category === undefined ? "panel-card rounded-[1.5rem] p-4 sm:p-5" : "min-w-0")}
-            onToggle={(event) => { if (event.currentTarget.open) setActivated(true); }}
+            onToggle={(event) => { setOpen(event.currentTarget.open); if (event.currentTarget.open) setActivated(true); }}
         >
             <summary className="flex min-h-11 cursor-pointer list-none flex-col justify-center gap-2 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary [&::-webkit-details-marker]:hidden">
                 <span className="flex w-full items-center justify-between gap-3">
@@ -325,7 +340,7 @@ function TrendSection({ trend, loading, error, amountDigitsFor, onPrevious, onNe
     onNext: () => void;
     onLatest: () => void;
 }) {
-    const [mobilePage, setMobilePage] = useState(0);
+    const [mobilePage, setMobilePage] = useNavigationState<number>(`review.trend.${trend?.endMonth ?? "loading"}.page`, 0);
     const trendMonths = trend?.currencies[0]?.months ?? [];
     const mobilePageCount = Math.max(1, Math.ceil(trendMonths.length / MOBILE_TREND_MONTHS));
     const mobileBounds = mobileTrendBounds(trendMonths.length, mobilePage);
@@ -391,10 +406,11 @@ export default function MonthlyReview() {
     const [review, setReview] = useState<MonthlyReviewData | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
-    const [trendEndMonth, setTrendEndMonth] = useState(latestClosedMonth);
+    const [trendEndMonth, setTrendEndMonth] = useNavigationState("review.trendEndMonth", latestClosedMonth);
     const [trend, setTrend] = useState<MonthlyReviewTrendData | null>(null);
     const [trendLoading, setTrendLoading] = useState(true);
     const [trendError, setTrendError] = useState("");
+    useNavigationReady(!loading && !trendLoading);
     const { currencies } = useCurrencies();
     const validMonth = parseReviewMonth(month) !== null;
     const amountDigitsFor = useCallback((currency: string) => currencyAmountDigits(currencies, currency), [currencies]);

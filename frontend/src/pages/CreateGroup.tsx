@@ -63,6 +63,7 @@ const CreateGroupContent = () => {
                     title={createdGroupId ? "Manage members" : "Create group"}
                     backTo={createdGroupId ? `/group/${createdGroupId}` : "/"}
                     backLabel={createdGroupId ? "View group" : "Back to groups"}
+                    backMode={createdGroupId ? "destination" : "return"}
                     action={
                         createdGroupId ? (
                             <Link
@@ -87,6 +88,7 @@ const CreateGroupContent = () => {
                     }
                 />
                 <DesktopBackLink
+                    mode={createdGroupId ? "destination" : "return"}
                     to={createdGroupId ? `/group/${createdGroupId}` : "/"}
                     label={createdGroupId ? "View group" : "Back to groups"}
                 />

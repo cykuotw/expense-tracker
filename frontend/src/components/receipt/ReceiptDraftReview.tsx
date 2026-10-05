@@ -1,4 +1,5 @@
 import { useEffect, useId, useMemo, useState } from "react";
+import { useReturnNavigation } from "../../hooks/navigation";
 import { useNavigate } from "react-router-dom";
 import Icon from "@mdi/react";
 import { mdiArrowLeft, mdiCameraRetakeOutline, mdiCheck } from "@mdi/js";
@@ -65,7 +66,6 @@ interface ReceiptDraftReviewProps {
 }
 
 export default function ReceiptDraftReview({ photoURL, onEditPhoto }: ReceiptDraftReviewProps) {
-    const navigate = useNavigate();
     const {
         selectedGroupId,
         currency,
@@ -92,6 +92,8 @@ export default function ReceiptDraftReview({ photoURL, onEditPhoto }: ReceiptDra
     }, [occurredOn, ocrDraft]);
 
     const returnTo = `/create_expense${selectedGroupId ? `?g=${encodeURIComponent(selectedGroupId)}` : ""}`;
+    const navigate = useNavigate();
+    const { finish } = useReturnNavigation(returnTo);
     const reviewValidation = useMemo(() => draft ? validateReceiptExpense({
         merchant: draft.merchant.value,
         subtotal: draft.subtotal.value,
@@ -115,7 +117,7 @@ export default function ReceiptDraftReview({ photoURL, onEditPhoto }: ReceiptDra
 
     const goManual = () => {
         clearReceiptWorkflow();
-        navigate(returnTo, { replace: true });
+        finish();
     };
 
     const apply = () => {
@@ -138,7 +140,7 @@ export default function ReceiptDraftReview({ photoURL, onEditPhoto }: ReceiptDra
             })),
         };
         applyReviewedReceipt(reviewed);
-        navigate(returnTo, { replace: true });
+        finish();
     };
 
     if (ocrStatus === "scanning") {

@@ -97,7 +97,7 @@ const CreateExpenseContent = () => {
                 <MobilePageHeader
                     title="Add expense"
                     backTo={groupId ? `/group/${groupId}` : "/"}
-                    backLabel="Back to group"
+                    backLabel={groupId ? "Back to group" : "Back to groups"}
                     action={
                         <ExpenseSubmitButton
                             form="create-expense-form"
@@ -110,7 +110,7 @@ const CreateExpenseContent = () => {
                         />
                     }
                 />
-                <DesktopBackLink to={`/group/${groupId}`} label="Back to group" />
+                <DesktopBackLink to={groupId ? `/group/${groupId}` : "/"} label={groupId ? "Back to group" : "Back to groups"} />
                 <div className="page-header desktop-page-header expense-form-header">
                     <div className="page-header__copy expense-form-header__copy">
                         <div className="page-eyebrow">Expense</div>

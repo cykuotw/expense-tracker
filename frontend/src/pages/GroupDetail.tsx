@@ -30,6 +30,7 @@ import { getGroupTypePresentation } from "../lib/groupTypePresentation";
 import { formatReviewMonth, previousClosedUTCMonth } from "../lib/reviewMonth";
 import MobilePageHeader from "../components/MobilePageHeader";
 import DesktopBackLink from "../components/DesktopBackLink";
+import { useNavigationReady, useNavigationState } from "../hooks/navigation";
 import { buildEstimatedSettlementEntries } from "../lib/settlementPreview";
 import { usePWAUpdateBlocker } from "../hooks/usePWAUpdateBlocker";
 
@@ -59,9 +60,10 @@ const GroupDetailContent = () => {
         loadSettledExpenses,
         loadMoreSettledExpenses,
     } = useGroupDetail();
-    const [showSettled, setShowSettled] = useState(false);
+    const [showSettled, setShowSettled] = useNavigationState<boolean>("group.settled", false);
     const [settleOpen, setSettleOpen] = useState(false);
-    const [showAllBalances, setShowAllBalances] = useState(false);
+    const [showAllBalances, setShowAllBalances] = useNavigationState<boolean>("group.balances", false);
+    useNavigationReady(!loading && !unsettledLoading && !settledLoading);
     usePWAUpdateBlocker(settleOpen || settlementPending);
     const groupType = getGroupTypePresentation(groupinfo?.groupType);
     const previousMonth = previousClosedUTCMonth();
@@ -101,7 +103,7 @@ const GroupDetailContent = () => {
     );
 
     useEffect(() => {
-        if (!showSettled) return;
+        if (!showSettled || loading) return;
         const requestKey = `${expenseOrder}:${expenseListRefreshVersion}`;
         if (loadedSettledExpensesRef.current === requestKey) return;
 
@@ -112,6 +114,7 @@ const GroupDetailContent = () => {
         expenseOrder,
         loadSettledExpenses,
         showSettled,
+        loading,
     ]);
 
     if (loading) {

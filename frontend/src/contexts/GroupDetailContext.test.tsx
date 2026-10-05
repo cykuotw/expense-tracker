@@ -10,6 +10,7 @@ const { apiFetchMock, toastErrorMock, toastSuccessMock } = vi.hoisted(() => ({
 }));
 
 vi.mock("react-router-dom", () => ({
+    useLocation: () => ({ key: "test", pathname: "/group/group-1", search: "", hash: "" }),
     useParams: () => ({ id: "group-1" }),
 }));
 

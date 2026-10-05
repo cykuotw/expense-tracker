@@ -7,7 +7,8 @@ import {
     useRef,
     useState,
 } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
+import { useReturnNavigation } from "../hooks/navigation";
 import { toast } from "react-hot-toast";
 import { CreateExpenseContext } from "../hooks/CreateExpenseContextHooks";
 import { useAuth } from "../hooks/AuthContextHooks";
@@ -55,7 +56,7 @@ export const CreateExpenseProvider = ({
 }: {
     children: ReactNode;
 }) => {
-    const navigate = useNavigate();
+    const { finish } = useReturnNavigation("/");
     const { userID } = useAuth();
     const [searchParams] = useSearchParams();
     const groupId = searchParams.get("g");
@@ -285,7 +286,7 @@ export const CreateExpenseProvider = ({
                 toast.success("Your expense has been created!", { duration: 1000 });
             }
             if (selectedGroupId) {
-                navigate(`/group/${selectedGroupId}`);
+                finish(`/group/${selectedGroupId}`);
             }
         } catch {
             setSubmissionError(getExpenseSubmissionFallback("create"));

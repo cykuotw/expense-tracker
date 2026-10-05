@@ -6,7 +6,8 @@ import {
     FormEvent,
     SetStateAction,
 } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
+import { useReturnNavigation } from "../hooks/navigation";
 import { toast } from "react-hot-toast";
 import { isEmail } from "validator";
 import { apiFetch, asArray, getResponseErrorMessage } from "../lib/api";
@@ -32,7 +33,7 @@ export const AddMemberProvider = ({
     returnToGroupAfterSave = true,
     allowPreCreate = false,
 }: AddMemberProviderProps) => {
-    const navigate = useNavigate();
+    const { finish } = useReturnNavigation("/");
     const [searchParams] = useSearchParams();
     const groupId = providedGroupId ?? searchParams.get("g");
 
@@ -134,7 +135,7 @@ export const AddMemberProvider = ({
             );
             if (returnToGroupAfterSave && groupId) {
                 window.setTimeout(() => {
-                    navigate(`/group/${groupId}`);
+                    finish(`/group/${groupId}`);
                 }, 1000);
             }
         } catch {

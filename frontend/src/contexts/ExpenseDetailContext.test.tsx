@@ -11,6 +11,7 @@ const { apiFetchMock, navigateMock, paramsMock, toastErrorMock } = vi.hoisted(()
 }));
 
 vi.mock("react-router-dom", () => ({
+    useLocation: () => ({ key: "test", pathname: "/expense/expense-1", search: "", hash: "" }),
     useNavigate: () => navigateMock,
     useParams: () => paramsMock(),
 }));
@@ -135,7 +136,7 @@ describe("ExpenseDetailProvider error handling", () => {
         fireEvent.submit(screen.getByRole("form", { name: "delete form" }));
 
         await waitFor(() => {
-            expect(navigateMock).toHaveBeenCalledWith("/group/group-1");
+            expect(navigateMock).toHaveBeenCalledWith("/group/group-1", { replace: true });
         });
     });
 

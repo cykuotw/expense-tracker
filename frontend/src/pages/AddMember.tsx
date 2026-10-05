@@ -17,7 +17,7 @@ const AddMemberContent = () => {
                 <MobilePageHeader
                     title="Add members"
                     backTo={groupId ? `/group/${groupId}` : "/"}
-                    backLabel="Back to group"
+                    backLabel={groupId ? "Back to group" : "Back to groups"}
                     action={
                         loading ? (
                             <span className="ui-spinner ui-spinner-sm" role="status" aria-label="Updating members" />
@@ -33,7 +33,7 @@ const AddMemberContent = () => {
                         )
                     }
                 />
-                <DesktopBackLink to={groupId ? `/group/${groupId}` : "/"} label="Back to group" />
+                <DesktopBackLink to={groupId ? `/group/${groupId}` : "/"} label={groupId ? "Back to group" : "Back to groups"} />
                 <div className="page-header desktop-page-header">
                     <div className="page-header__copy">
                         <div className="page-eyebrow">Group Members</div>

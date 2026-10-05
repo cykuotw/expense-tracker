@@ -1,5 +1,6 @@
 import { useState, useEffect, ReactNode, useRef, useCallback } from "react";
 import { useParams } from "react-router-dom";
+import { useNavigationReady, useNavigationState } from "../hooks/navigation";
 import { toast } from "react-hot-toast";
 import { apiFetch, asArray, getResponseErrorMessage } from "../lib/api";
 import { GroupInfo } from "../types/group";
@@ -37,7 +38,9 @@ export const GroupDetailProvider = ({ children }: { children: ReactNode }) => {
         []
     );
     const [expenseOrder, setExpenseOrder] =
-        useState<ExpenseListOrder>("newest");
+        useNavigationState<ExpenseListOrder>("group.order", "newest");
+    const [restoreUnsettledPages, setRestoreUnsettledPages] = useNavigationState<number>("group.unsettledPages", 1);
+    const [restoreSettledPages, setRestoreSettledPages] = useNavigationState<number>("group.settledPages", 0);
     const [expenseListRefreshVersion, setExpenseListRefreshVersion] =
         useState(0);
     const [unsettledPage, setUnsettledPage] = useState(0);
@@ -142,6 +145,7 @@ export const GroupDetailProvider = ({ children }: { children: ReactNode }) => {
             if (generation !== unsettledExpenseListGenerationRef.current) return;
             setUnsettledExpenses((prev) => [...prev, ...data.expenses]);
             setUnsettledPage((prev) => prev + 1);
+            setRestoreUnsettledPages((prev) => Math.max(prev, unsettledPage + 1));
             setUnsettledHasMore(data.hasMore);
         } catch (error) {
             if (generation !== unsettledExpenseListGenerationRef.current) return;
@@ -165,17 +169,19 @@ export const GroupDetailProvider = ({ children }: { children: ReactNode }) => {
             if (generation !== settledExpenseListGenerationRef.current) return;
             setSettledExpenses(data.expenses);
             setSettledPage(1);
+            setRestoreSettledPages((prev) => Math.max(prev, 1));
             setSettledHasMore(data.hasMore);
         } catch (error) {
             if (generation !== settledExpenseListGenerationRef.current) return;
             console.error(error);
+            setSettledPage(1);
             setSettledHasMore(false);
         } finally {
             if (generation === settledExpenseListGenerationRef.current) {
                 setSettledLoading(false);
             }
         }
-    }, [expenseOrder, fetchExpensePage, settledLoading]);
+    }, [expenseOrder, fetchExpensePage, settledLoading, setRestoreSettledPages]);
 
     const loadMoreSettledExpenses = async () => {
         if (settledLoading || !settledHasMore) return;
@@ -190,6 +196,7 @@ export const GroupDetailProvider = ({ children }: { children: ReactNode }) => {
             if (generation !== settledExpenseListGenerationRef.current) return;
             setSettledExpenses((prev) => [...prev, ...data.expenses]);
             setSettledPage((prev) => prev + 1);
+            setRestoreSettledPages((prev) => Math.max(prev, settledPage + 1));
             setSettledHasMore(data.hasMore);
         } catch (error) {
             if (generation !== settledExpenseListGenerationRef.current) return;
@@ -250,6 +257,16 @@ export const GroupDetailProvider = ({ children }: { children: ReactNode }) => {
         }
     };
 
+    const restoringUnsettled = unsettledHasMore && unsettledPage < restoreUnsettledPages;
+    const restoringSettled = restoreSettledPages > 0 && (settledPage === 0 || (settledHasMore && settledPage < restoreSettledPages));
+    useNavigationReady(!loading && !unsettledLoading && !settledLoading && !restoringUnsettled && !restoringSettled);
+    useEffect(() => {
+        if (!loading && restoringUnsettled && !unsettledLoading) void loadMoreUnsettledExpenses();
+    });
+    useEffect(() => {
+        if (!loading && settledPage > 0 && restoringSettled && !settledLoading) void loadMoreSettledExpenses();
+    });
+
     return (
         <GroupDetailContext.Provider
             value={{
@@ -260,7 +277,11 @@ export const GroupDetailProvider = ({ children }: { children: ReactNode }) => {
                 unsettledHasMore,
                 expenseOrder,
                 expenseListRefreshVersion,
-                setExpenseOrder,
+                setExpenseOrder: (order) => {
+                    setRestoreUnsettledPages(1);
+                    setRestoreSettledPages(0);
+                    setExpenseOrder(order);
+                },
                 settledExpenses,
                 settledLoading,
                 settledHasMore,

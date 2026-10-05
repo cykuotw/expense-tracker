@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
+import { Link, useLocation, useParams } from "react-router-dom";
+import { useReturnNavigation } from "../hooks/navigation";
 import { toast } from "react-hot-toast";
 import { mdiCheckBold } from "@mdi/js";
 import Icon from "@mdi/react";
@@ -40,7 +41,7 @@ export default function EditGroup() {
     usePWAUpdateBlocker(true);
     const { id } = useParams();
     const { hash } = useLocation();
-    const navigate = useNavigate();
+    const back = useReturnNavigation("/");
     const [form, setForm] = useState<GroupForm>(EMPTY_GROUP_FORM);
     const [initialForm, setInitialForm] = useState<GroupForm | null>(null);
     const [saving, setSaving] = useState(false);
@@ -124,7 +125,7 @@ export default function EditGroup() {
                 return;
             }
             toast.success("Group updated");
-            navigate(`/group/${id}`);
+            back.finish(`/group/${id}`);
         } catch {
             toast.error("Failed to update group");
         } finally {
@@ -240,7 +241,7 @@ export default function EditGroup() {
                         >
                             {saving ? "Saving…" : "Save group"}
                         </button>
-                        <Link className="ui-button ui-button-ghost" to={`/group/${id}`}>
+                        <Link className="ui-button ui-button-ghost" to={back.to} onClick={back.onClick}>
                             Cancel
                         </Link>
                     </div> : null}

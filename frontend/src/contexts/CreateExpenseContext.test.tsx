@@ -16,6 +16,7 @@ vi.mock("../hooks/AuthContextHooks", () => ({
 }));
 
 vi.mock("react-router-dom", () => ({
+    useLocation: () => ({ key: "test", pathname: "/create_expense", search: "?g=group-1", hash: "" }),
     useNavigate: () => navigateMock,
     useSearchParams: () => [new URLSearchParams("g=group-1")],
 }));

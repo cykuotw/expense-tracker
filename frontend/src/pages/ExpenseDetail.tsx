@@ -26,6 +26,7 @@ import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
 
 import DesktopBackLink from "../components/DesktopBackLink";
+import { useNavigationReady, useReturnNavigation } from "../hooks/navigation";
 import MobilePageHeader from "../components/MobilePageHeader";
 import { ExpenseDetailProvider } from "../contexts/ExpenseDetailContext";
 import { useExpenseDetail } from "../hooks/ExpenseDetailContextHooks";
@@ -97,6 +98,8 @@ const ExpenseDetailContent = () => {
         errorMessage,
     } = useExpenseDetail();
     const { currencies } = useCurrencies();
+    useNavigationReady(!loading);
+    const back = useReturnNavigation(expenseDetail?.groupId ? `/group/${expenseDetail.groupId}` : "/");
 
     if (!expenseId) {
         return <ExpensePageMessage title="Expense ID not found" />;
@@ -158,6 +161,9 @@ const ExpenseDetailContent = () => {
                     to={`/group/${expenseDetail.groupId}`}
                     label="Back to group"
                 />
+                {back.to !== `/group/${expenseDetail.groupId}` ? (
+                    <Link className="ui-button ui-button-ghost self-start" to={`/group/${expenseDetail.groupId}`}>View group</Link>
+                ) : null}
 
                 <header className="page-header desktop-page-header">
                     <div className="page-header__copy min-w-0">

@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { useState } from "react";
+import { useNavigationReady, useNavigationState } from "../hooks/navigation";
 import { mdiPlus } from "@mdi/js";
 import Icon from "@mdi/react";
 import GroupCard from "../components/group/GroupCard";
@@ -17,7 +17,8 @@ const HomeContent = () => {
         error: currenciesError,
         reload: reloadCurrencies,
     } = useCurrencies();
-    const [showAllMobileBalances, setShowAllMobileBalances] = useState(false);
+    const [showAllMobileBalances, setShowAllMobileBalances] = useNavigationState<boolean>("home.balances", false);
+    useNavigationReady(!loading && !currenciesLoading);
 
     if (loading) {
         return (

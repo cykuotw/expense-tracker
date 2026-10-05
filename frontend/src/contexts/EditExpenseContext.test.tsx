@@ -12,6 +12,7 @@ const { apiFetchMock, navigateMock, toastErrorMock, toastSuccessMock } =
     }));
 
 vi.mock("react-router-dom", () => ({
+    useLocation: () => ({ key: "test", pathname: "/expense/expense-1/edit", search: "", hash: "" }),
     useNavigate: () => navigateMock,
     useParams: () => ({ id: "expense-1" }),
 }));

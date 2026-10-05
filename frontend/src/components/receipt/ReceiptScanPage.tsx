@@ -1,5 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState, type ChangeEvent } from "react";
-import { Navigate, useNavigate } from "react-router-dom";
+import { Navigate } from "react-router-dom";
+import { useReturnNavigation } from "../../hooks/navigation";
 import Icon from "@mdi/react";
 import { mdiArrowLeft, mdiImagePlusOutline } from "@mdi/js";
 
@@ -12,7 +13,6 @@ import ReceiptDraftReview from "./ReceiptDraftReview";
 const ReceiptEditor = lazy(() => import("./ReceiptEditor"));
 
 export default function ReceiptScanPage() {
-    const navigate = useNavigate();
     const {
         selectedGroupId,
         receiptOCREnabled,
@@ -29,6 +29,7 @@ export default function ReceiptScanPage() {
     const replacePhotoInputRef = useRef<HTMLInputElement>(null);
     const query = selectedGroupId ? `?g=${encodeURIComponent(selectedGroupId)}` : "";
     const returnTo = `/create_expense${query}`;
+    const { finish } = useReturnNavigation(returnTo);
     const markPhotoLoaded = useCallback(() => setPhotoLoaded(true), []);
 
     useEffect(() => () => {
@@ -39,7 +40,7 @@ export default function ReceiptScanPage() {
 
     const leave = () => {
         clearReceiptWorkflow();
-        navigate(returnTo, { replace: true });
+        finish();
     };
     const editPhoto = () => {
         clearReceiptWorkflow();

@@ -8,7 +8,8 @@ import {
     useRef,
     useState,
 } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
+import { useReturnNavigation } from "../hooks/navigation";
 import { toast } from "react-hot-toast";
 import {
     EditExpenseContext,
@@ -76,7 +77,7 @@ function isSameExpenseFormData(
 }
 
 export const EditExpenseProvider = ({ children }: { children: ReactNode }) => {
-    const navigate = useNavigate();
+    const { finish } = useReturnNavigation("/");
     const { id: expenseId = "" } = useParams();
     const [indicatorShow, setIndicatorShow] = useState(false);
     const [submissionError, setSubmissionError] = useState<string | null>(null);
@@ -175,7 +176,7 @@ export const EditExpenseProvider = ({ children }: { children: ReactNode }) => {
 
             toast.success("Expense updated", { duration: 1000 });
             window.setTimeout(() => {
-                navigate(`/expense/${expenseId}`);
+                finish(`/expense/${expenseId}`);
             }, 1000);
         } catch {
             setSubmissionError(getExpenseSubmissionFallback("update"));

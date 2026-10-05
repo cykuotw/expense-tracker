@@ -36,11 +36,11 @@ function renderSplit({
     onSave = vi.fn(),
 } = {}) {
     render(
-        <MemoryRouter initialEntries={["/expense-form/split"]}>
+        <MemoryRouter initialEntries={["/create_expense/split"]}>
             <Routes>
-                <Route path="/expense-form" element={<p>Expense form</p>} />
+                <Route path="/create_expense" element={<p>Expense form</p>} />
                 <Route
-                    path="/expense-form/split"
+                    path="/create_expense/split"
                     element={
                         <SplitExpensePage
                             allocation={{
@@ -54,7 +54,7 @@ function renderSplit({
                             groupMembers={members}
                             mainFormVisited={mainFormVisited}
                             onSave={onSave}
-                            returnTo="/expense-form"
+                            returnTo="/create_expense"
                             total="10.00"
                         />
                     }
@@ -130,9 +130,9 @@ describe("SplitExpensePage", () => {
         const onSave = vi.fn();
         const router = createMemoryRouter(
             [
-                { path: "/expense-form", element: <p>Expense form</p> },
+                { path: "/create_expense", element: <p>Expense form</p> },
                 {
-                    path: "/expense-form/split",
+                    path: "/create_expense/split",
                     element: (
                         <SplitExpensePage
                             allocation={{
@@ -146,14 +146,14 @@ describe("SplitExpensePage", () => {
                             groupMembers={members}
                             mainFormVisited
                             onSave={onSave}
-                            returnTo="/expense-form"
+                            returnTo="/create_expense"
                             total="10.00"
                         />
                     ),
                 },
             ],
             {
-                initialEntries: ["/expense-form", "/expense-form/split"],
+                initialEntries: ["/create_expense", "/create_expense/split"],
                 initialIndex: 1,
             },
         );

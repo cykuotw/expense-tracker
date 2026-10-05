@@ -1,4 +1,4 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, type ReactNode } from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
 
@@ -7,7 +7,7 @@ import { useAuth } from "./hooks/AuthContextHooks";
 import NavbarLayout from "./layouts/NavbarLayout";
 import RouteGuard from "./components/auth/RouteGuard";
 import AppErrorBoundary from "./components/AppErrorBoundary";
-import MobileScrollToTop from "./components/MobileScrollToTop";
+import NavigationProvider from "./contexts/NavigationProvider";
 import OfflineScreen from "./components/pwa/OfflineScreen";
 import PWAUpdatePrompt from "./components/pwa/PWAUpdatePrompt";
 import { PWAInstallProvider } from "./contexts/PWAInstallProvider";
@@ -102,6 +102,11 @@ function AppRoutes() {
     );
 }
 
+function SessionNavigation({ children }: { children: ReactNode }) {
+    const { userID, isAuthenticated } = useAuth();
+    return <NavigationProvider key={`${isAuthenticated}:${userID ?? "guest"}`}>{children}</NavigationProvider>;
+}
+
 function App() {
     const receiptEditorLab = ReceiptEditorLab &&
         window.location.pathname === "/__dev/receipt-editor";
@@ -117,13 +122,14 @@ function App() {
                     </Suspense>
                 ) : (
                     <>
-                        <MobileScrollToTop />
                         <PWAInstallProvider>
                             <PWAUpdateSafetyProvider>
                                 <AuthProvider>
-                                    <Toaster position="bottom-center" />
-                                    {import.meta.env.PROD ? <PWAUpdatePrompt /> : null}
-                                    <AppRoutes />
+                                    <SessionNavigation>
+                                        <Toaster position="bottom-center" />
+                                        {import.meta.env.PROD ? <PWAUpdatePrompt /> : null}
+                                        <AppRoutes />
+                                    </SessionNavigation>
                                 </AuthProvider>
                             </PWAUpdateSafetyProvider>
                         </PWAInstallProvider>

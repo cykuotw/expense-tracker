@@ -39,6 +39,13 @@
       "sourceType": "github",
       "computedHash": "7bf00be700d1d205b747126aa96d3587bbc2855cd09897614676e179eebe35ed"
     },
+    "impeccable": {
+      "source": "pbakaus/impeccable",
+      "sourceType": "github",
+      "ref": "87a6ab0c145adb85cbd428a99fa1377305e0818d",
+      "skillPath": ".agents/skills/impeccable/SKILL.md",
+      "computedHash": "f663c52fe49d805ed1b0d19e466a14034594130a4847e9726d8bfb8587c7186a"
+    },
     "security-best-practices": {
       "source": "openai/skills",
       "sourceType": "github",

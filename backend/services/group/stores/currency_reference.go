@@ -44,7 +44,7 @@ func (s *Store) IsSupportedCurrency(code string) (bool, error) {
 
 func (s *Store) CanEditGroupCurrency(groupID string, userID string) (bool, error) {
 	var editable bool
-	err := s.db.QueryRow(`SELECT NOT EXISTS (
+	err := s.db.QueryRow(`SELECT groups.is_active AND NOT EXISTS (
 		SELECT 1 FROM expense WHERE expense.group_id = groups.id
 	)
 	FROM groups
@@ -67,7 +67,7 @@ func (s *Store) UpdateGroupCurrency(groupID string, userID string, currency stri
 	err = tx.QueryRow(`SELECT groups.currency
 		FROM groups
 		JOIN group_member ON group_member.group_id = groups.id
-		WHERE groups.id = $1 AND group_member.user_id = $2
+		WHERE groups.id = $1 AND group_member.user_id = $2 AND groups.is_active = TRUE
 		FOR UPDATE OF groups`, groupID, userID).Scan(&current)
 	if errors.Is(err, sql.ErrNoRows) {
 		return types.ErrGroupNotExist

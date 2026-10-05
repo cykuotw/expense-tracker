@@ -214,7 +214,7 @@ func (s *Store) authorizedGroupName(ctx context.Context, groupID, userID uuid.UU
 		SELECT groups.group_name
 		FROM groups
 		JOIN group_member ON group_member.group_id = groups.id AND group_member.user_id = $2
-		WHERE groups.id = $1 AND groups.is_active IS TRUE AND groups.group_type = 'home'`, groupID, userID).
+		WHERE groups.id = $1 AND groups.group_type = 'home'`, groupID, userID).
 		Scan(&groupName); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return "", types.ErrGroupNotExist

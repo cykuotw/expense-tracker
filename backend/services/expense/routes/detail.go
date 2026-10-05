@@ -125,7 +125,16 @@ func (h *Handler) expenseDetailResponse(c *gin.Context, expenseTypes []*types.Ex
 			receipt = &cleanups[0]
 		}
 	}
+	groupActive := true
+	if lifecycleStore, ok := h.groupStore.(types.GroupLifecycleStore); ok {
+		lifecycle, err := lifecycleStore.GetGroupLifecycle(expense.GroupID.String(), userID)
+		if err != nil {
+			return types.ExpenseResponse{}, err
+		}
+		groupActive = lifecycle.IsActive
+	}
 	return types.ExpenseResponse{
+		GroupIsActive:     groupActive,
 		ID:                expense.ID,
 		Description:       expense.Description,
 		CreatedByUserID:   expense.CreateByUserID,

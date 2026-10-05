@@ -33,6 +33,23 @@ vi.mock("../components/group/GroupTypePicker", () => ({
 }));
 
 describe("EditGroup member anchor", () => {
+    it("keeps archived details and membership read-only while the creator can restore", async () => {
+        apiFetchMock.mockImplementation((path: string) => Promise.resolve(new Response(JSON.stringify(
+            path === "/currencies" ? [] : {
+                groupName: "Archived trip", currency: "CAD", groupType: "trip",
+                isActive: false, detailsEditable: false, currencyEditable: false,
+                canManageLifecycle: true, canRestore: true, canArchive: false,
+                members: [{ userId: "u", username: "Alex" }],
+            }
+        ), { status: 200, headers: { "Content-Type": "application/json" } })));
+        render(<MemoryRouter initialEntries={["/group/group-1/edit#status"]}><Routes>
+            <Route path="/group/:id/edit" element={<EditGroup />} />
+        </Routes></MemoryRouter>);
+        expect(await screen.findByRole("button", { name: "Restore group" })).toBeVisible();
+        expect(screen.queryByText("Member editor")).toBeNull();
+        expect(document.querySelector("form")).toBeNull();
+        expect(screen.getByText("Alex")).toBeVisible();
+    });
     beforeEach(() => {
         vi.clearAllMocks();
         Object.defineProperty(Element.prototype, "scrollIntoView", {

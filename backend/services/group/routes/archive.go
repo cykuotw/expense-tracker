@@ -11,6 +11,14 @@ import (
 )
 
 func (h *Handler) handleArchiveGroup(c *gin.Context) {
+	h.handleGroupStatus(c, false)
+}
+
+func (h *Handler) handleRestoreGroup(c *gin.Context) {
+	h.handleGroupStatus(c, true)
+}
+
+func (h *Handler) handleGroupStatus(c *gin.Context, active bool) {
 	// get param from path
 	groupID := c.Param("groupId")
 	group, err := h.store.GetGroupByID(groupID)
@@ -30,7 +38,11 @@ func (h *Handler) handleArchiveGroup(c *gin.Context) {
 	}
 
 	// update group status
-	if err = h.store.UpdateGroupStatus(groupID, userID, false); err != nil {
+	if err = h.store.UpdateGroupStatus(groupID, userID, active); err != nil {
+		if errors.Is(err, types.ErrGroupUnsettled) {
+			utils.WriteError(c, http.StatusConflict, err)
+			return
+		}
 		if errors.Is(err, types.ErrGroupNotExist) {
 			utils.WriteError(c, http.StatusNotFound, err)
 			return

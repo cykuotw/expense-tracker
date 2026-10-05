@@ -27,6 +27,7 @@ export interface GroupCardData {
     balanceAmount: string;
     settlementPreviewComplete?: boolean;
     usesSettlementPreview?: boolean;
+    archiveSuggested?: boolean;
 }
 
 export interface GroupMember {
@@ -37,6 +38,12 @@ export interface GroupMember {
 export type GroupMembersLoadStatus = "idle" | "loading" | "ready" | "error";
 
 export interface GroupInfo {
+	// Optional during client/server compatibility rollout; an explicit false is archived.
+	isActive?: boolean;
+	canManageLifecycle?: boolean;
+	canArchive?: boolean;
+	canRestore?: boolean;
+	archiveBlockedReason?: string;
     currentUserId: string;
     groupName: string;
     description: string;

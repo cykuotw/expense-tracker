@@ -223,6 +223,18 @@ and `frontend/src/lib/api.ts`. Do not duplicate endpoint details here.
 - A group contains members and expenses. An expense has descriptive and
   monetary data, may have item rows, and has ledger rows that describe who
   lent and borrowed each share.
+- Group archival is a reversible, creator-only lifecycle transition. Archive
+  locks the same group row as accounting mutations and requires no unsettled,
+  non-deleted expenses or current unsettled balances in any original currency.
+  Archived groups reject ordinary mutations while current members retain
+  historical reads, including supported monthly reviews. Publication and
+  notification delivery exclude archived groups; restoration re-enables normal
+  operations without deleting or recreating accounting history.
+- Home archive suggestions are a read-only server projection for group creators.
+  They apply to fully settled trip/event groups after 90 days without expense or
+  settlement activity, across all original currencies. Personal net balances do
+  not establish archive eligibility; the archive transaction rechecks current
+  accounting state before changing the lifecycle.
 - Confirmed expense items are ordered by a stable zero-based position. Their
   description and line total are authoritative; quantity, unit, and unit price
   are optional supporting values. Item totals must equal the expense subtotal

@@ -65,6 +65,7 @@ dist-ssr
 # AI agent files
 .agents
 .codex
+.impeccable/
 
 # Terraform files
 .terraform/

@@ -766,7 +766,7 @@ func TestUpdateGroupMember(t *testing.T) {
 	mockGroupID := uuid.New()
 	mockUserID := uuid.New()
 	assert.NoError(t, ensureTestUser(db, mockUserID))
-	assert.NoError(t, insertGroup(db, types.Group{ID: mockGroupID, CreateByUser: uuid.New()}))
+	assert.NoError(t, insertGroup(db, types.Group{ID: mockGroupID, CreateByUser: uuid.New(), IsActive: true}))
 	defer cleanUser(db, mockUserID)
 	defer deleteGroup(db, mockGroupID)
 

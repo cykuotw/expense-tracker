@@ -87,6 +87,7 @@ type ReplaceGroupMembersPayload struct {
 }
 
 type GetGroupResponse struct {
+	GroupLifecycle
 	CurrentUserID    string                `json:"currentUserId"`
 	GroupName        string                `json:"groupName"`
 	Description      string                `json:"description"`
@@ -142,4 +143,5 @@ type GetGroupListResponse struct {
 	BalanceAmount             decimal.Decimal    `json:"balanceAmount"`
 	SettlementPreviewComplete bool               `json:"settlementPreviewComplete"`
 	UsesSettlementPreview     bool               `json:"usesSettlementPreview"`
+	ArchiveSuggested          bool               `json:"archiveSuggested"`
 }

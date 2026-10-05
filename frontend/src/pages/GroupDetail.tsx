@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import Icon from "@mdi/react";
 import {
     mdiAccountMultipleOutline,
+    mdiArchiveArrowUpOutline,
     mdiCalendarMonthOutline,
     mdiChevronRight,
     mdiHandshakeOutline,
@@ -13,6 +14,7 @@ import { ExpenseData } from "../types/expense";
 import { ExpenseOrderPicker, type ExpenseOrderOption } from "../components/expense/ExpenseOrderPicker";
 import type { ExpenseListOrder } from "../hooks/GroupDetailContextHooks";
 import ExpenseCard from "../components/expense/ExpenseCard";
+import ArchivedStatus from "../components/group/ArchivedStatus";
 import {
     AlertDialog,
     AlertDialogCancel,
@@ -66,6 +68,7 @@ const GroupDetailContent = () => {
     useNavigationReady(!loading && !unsettledLoading && !settledLoading);
     usePWAUpdateBlocker(settleOpen || settlementPending);
     const groupType = getGroupTypePresentation(groupinfo?.groupType);
+    const archived = groupinfo?.isActive === false;
     const previousMonth = previousClosedUTCMonth();
     const memberCount = groupinfo?.members?.length ?? 0;
     const loadedSettledExpensesRef = useRef<string | null>(null);
@@ -141,6 +144,7 @@ const GroupDetailContent = () => {
                         </span>
                     }
                     action={
+                        archived ? null :
                         <Link
                             to={`/group/${groupId}/edit`}
                             className="ui-button ui-button-outline min-h-12 min-w-12 px-3"
@@ -160,10 +164,12 @@ const GroupDetailContent = () => {
                         <div className="page-eyebrow">Group</div>
                         <div className="mt-2 flex items-center gap-3"><span className={`flex size-11 items-center justify-center rounded-xl ${groupType.iconClassName}`} aria-hidden="true"><Icon path={groupType.icon} size={1.1} /></span><h1 className="page-title">{groupinfo?.groupName}</h1></div>
                         <p className="page-copy">
-                            Review balances, add expenses, and update members.
+                            {archived
+                                ? "Review retained expenses, balances, and members."
+                                : "Review balances, add expenses, and update members."}
                         </p>
                     </div>
-                    <div className="page-actions w-full sm:w-auto">
+                    {!archived ? <div className="page-actions w-full sm:w-auto">
                         <Link
                             to={`/create_expense?g=${groupId}`}
                             className="ui-button ui-button-primary w-full sm:w-40"
@@ -177,11 +183,22 @@ const GroupDetailContent = () => {
                         >
                             Settle Up
                         </button>
-                    </div>
+                    </div> : null}
                 </div>
 
+                {archived ? (
+                    <section className="mb-4 flex flex-col gap-3 rounded-xl border border-border bg-muted px-4 py-3 text-muted-foreground shadow-sm sm:flex-row sm:items-center sm:justify-between" aria-label="Group status">
+                        <ArchivedStatus label="Archived · Read-only" />
+                        {groupinfo?.canRestore ? (
+                            <Link to={`/group/${groupId}/edit#status`} className="ui-button ui-button-outline gap-2"><Icon path={mdiArchiveArrowUpOutline} size={0.8} aria-hidden="true" />Restore group</Link>
+                        ) : (
+                            <p className="text-sm text-muted-foreground">The group creator can restore this group.</p>
+                        )}
+                    </section>
+                ) : null}
+
                 <div className="mb-4 grid grid-cols-[minmax(0,1fr)_auto] items-stretch gap-2 md:mb-6 md:max-w-2xl md:grid-cols-2">
-                    <Link
+                    {archived ? <div className="panel-card-soft min-h-14 rounded-2xl px-4 py-3"><span className="font-medium">{memberCount} members</span><p className="text-sm text-muted-foreground">{groupinfo?.members?.map((member) => member.username).join(", ")}</p></div> : <Link
                         to={`/group/${groupId}/edit#members`}
                         className="panel-card-soft group flex min-h-14 min-w-0 flex-1 items-center gap-3 rounded-2xl px-3 py-2 transition-colors hover:border-primary/30 hover:bg-primary/5 md:max-w-sm md:px-4"
                         aria-label={`Manage ${memberCount} ${
@@ -208,8 +225,8 @@ const GroupDetailContent = () => {
                             size={0.8}
                             aria-hidden="true"
                         />
-                    </Link>
-                    <button
+                    </Link>}
+                    {!archived ? <button
                         type="button"
                         className="ui-button ui-button-destructive min-h-14 shrink-0 gap-1.5 px-3 text-xs md:hidden"
                         onClick={() => setSettleOpen(true)}
@@ -220,7 +237,7 @@ const GroupDetailContent = () => {
                             aria-hidden="true"
                         />
                         <span>Settle up</span>
-                    </button>
+                    </button> : null}
                     {groupinfo?.groupType === "home" ? (
                         <Link
                             to={`/group/${groupId}/monthly-review/${previousMonth}`}
@@ -488,17 +505,17 @@ const GroupDetailContent = () => {
                 </div>
             </div>
 
-            <Link
+            {!archived ? <Link
                 to={`/create_expense?g=${groupId}`}
                 className="ui-button ui-button-primary group-add-expense-fab"
                 aria-label="Add expense"
             >
                 <Icon path={mdiPlus} size={1.05} aria-hidden="true" />
                 <span>Add expense</span>
-            </Link>
+            </Link> : null}
 
             <AlertDialog
-                open={settleOpen}
+                open={settleOpen && !archived}
                 onOpenChange={(open) => {
                     if (!settlementPending) setSettleOpen(open);
                 }}

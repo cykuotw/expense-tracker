@@ -44,6 +44,7 @@ import {
     GroupMembersLoadStatus,
 } from "../types/group";
 import { legacyCurrencySettings } from "../lib/currencySettings";
+import ArchivedGroupMessage from "../components/group/ArchivedGroupMessage";
 
 const EMPTY_FORM_DATA: expenseFormData = {
     groupId: "",
@@ -97,6 +98,7 @@ export const EditExpenseProvider = ({ children }: { children: ReactNode }) => {
     const [groupMembersLoadStatus, setGroupMembersLoadStatus] =
         useState<GroupMembersLoadStatus>("idle");
     const [optionsReloadVersion, setOptionsReloadVersion] = useState(0);
+    const [groupArchived, setGroupArchived] = useState(false);
 
     const amountDigits = currencyAmountDigits(currencies, formData.currency);
     const allocationCalculation = useMemo(
@@ -119,6 +121,7 @@ export const EditExpenseProvider = ({ children }: { children: ReactNode }) => {
             ? null
             : decimalToUnits(formData.total, amountDigits);
     const dataOk =
+        !groupArchived &&
         totalUnits !== null &&
         totalUnits > 0n &&
         formData.description.length > 0 &&
@@ -224,6 +227,7 @@ export const EditExpenseProvider = ({ children }: { children: ReactNode }) => {
                 }
                 const expenseDetail = options.expense;
                 const group = options.group;
+                if (active) setGroupArchived(group.isActive === false);
                 const currencyOptions = asArray<CurrencyMetadata>(
                     options.currencies
                 );
@@ -343,7 +347,7 @@ export const EditExpenseProvider = ({ children }: { children: ReactNode }) => {
                 handleFormDataChange,
             }}
         >
-            {children}
+            {groupArchived ? <ArchivedGroupMessage groupId={formData.groupId} /> : children}
         </EditExpenseContext.Provider>
     );
 };

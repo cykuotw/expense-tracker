@@ -74,6 +74,17 @@ describe("GroupDetail mobile balance summary", () => {
 
         groupDetailMock.mockReturnValue({
             ...groupState,
+            groupinfo: { ...groupState.groupinfo, isActive: false, canRestore: true },
+        });
+        rerender(<MemoryRouter><GroupDetail /></MemoryRouter>);
+        expect(screen.getByRole("link", { name: "Restore group" })).toHaveAttribute("href", "/group/group-home/edit#status");
+        expect(screen.queryByRole("link", { name: /^add expense$/i })).toBeNull();
+        expect(screen.queryByRole("link", { name: /^manage.*members$/i })).toBeNull();
+        expect(screen.queryByRole("button", { name: /^settle/i })).toBeNull();
+        expect(screen.getByRole("link", { name: /monthly review$/i })).toBeVisible();
+
+        groupDetailMock.mockReturnValue({
+            ...groupState,
             groupinfo: {
                 groupName: "Trip",
                 description: "",

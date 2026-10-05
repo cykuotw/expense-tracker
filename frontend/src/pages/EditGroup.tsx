@@ -9,6 +9,8 @@ import {
     CurrencySettingsEditor,
 } from "../components/group/CurrencySettingsEditor";
 import { GroupMemberManager } from "../components/group/GroupMemberManager";
+import GroupLifecycleControls from "../components/group/GroupLifecycleControls";
+import ArchivedStatus from "../components/group/ArchivedStatus";
 import MobilePageHeader from "../components/MobilePageHeader";
 import DesktopBackLink from "../components/DesktopBackLink";
 import { AddMemberProvider } from "../contexts/AddMemberContext";
@@ -49,6 +51,9 @@ export default function EditGroup() {
     const [currencySettings, setCurrencySettings] = useState<GroupCurrencySettings>(EMPTY_CURRENCY_SETTINGS);
     const [initialCurrencySettings, setInitialCurrencySettings] = useState<GroupCurrencySettings | null>(null);
     const [detailsEditable, setDetailsEditable] = useState(false);
+    const [group, setGroup] = useState<GroupInfo | null>(null);
+    const [groupRevision, setGroupRevision] = useState(0);
+    const [groupError, setGroupError] = useState<string | null>(null);
     const { currencies, loading: currenciesLoading, error: currenciesError, reload } = useCurrencies();
 
     useEffect(() => {
@@ -61,9 +66,14 @@ export default function EditGroup() {
                 const response = await apiFetch(`/group/${id}`, {
                     signal: abortController.signal,
                 });
-                if (!response.ok) return;
+                if (!response.ok) {
+                    if (active) setGroupError(await getResponseErrorMessage(response, "Could not load this group. Try again."));
+                    return;
+                }
                 const data = (await response.json()) as GroupInfo;
                 if (!active) return;
+                setGroup(data);
+                setGroupError(null);
                 const nextForm: GroupForm = {
                     groupName: data.groupName ?? "",
                     description: data.description ?? "",
@@ -76,9 +86,9 @@ export default function EditGroup() {
                     data.currencySettings ?? legacyCurrencySettings(nextForm.currency);
                 setCurrencySettings(nextCurrencySettings);
                 setInitialCurrencySettings(nextCurrencySettings);
-                setDetailsEditable(data.detailsEditable === true);
+                setDetailsEditable(data.detailsEditable === true && data.isActive !== false);
             } catch {
-                // Group loading remains silent; aborts are expected cleanup.
+                if (active) setGroupError("Could not load this group. Check your connection and try again.");
             }
         };
 
@@ -87,13 +97,13 @@ export default function EditGroup() {
             active = false;
             abortController.abort();
         };
-    }, [id]);
+    }, [id, groupRevision]);
 
     useEffect(() => {
-        if (hash !== "#members") return;
+        if (hash !== "#members" && hash !== "#status") return;
 
-        document.getElementById("members")?.scrollIntoView({ block: "start" });
-    }, [hash]);
+        document.getElementById(hash.slice(1))?.scrollIntoView({ block: "start" });
+    }, [hash, group]);
 
     const isFormDirty =
         initialForm !== null &&
@@ -193,6 +203,8 @@ export default function EditGroup() {
                         <h1 className="page-title">Edit group</h1>
                     </div>
                 </div>
+                {groupError ? <div role="alert"><p>{groupError}</p><button type="button" className="ui-button ui-button-outline" onClick={() => setGroupRevision((value) => value + 1)}>Try again</button></div> : null}
+                {group?.isActive === false ? <section className="rounded-2xl border border-border bg-muted p-6 shadow-sm"><h2><ArchivedStatus /></h2><p className="mt-2 text-muted-foreground">This group is read-only. Its creator can restore it below.</p><h3 className="mt-4 font-semibold">Members</h3><ul>{group.members?.map((member) => <li key={member.userId}>{member.username}</li>)}</ul></section> : <>
                 <form
                     id="edit-group-form"
                     className="panel-card relative z-10 grid gap-3 rounded-[2rem] p-4 md:gap-5 md:p-8"
@@ -294,6 +306,8 @@ export default function EditGroup() {
                         <GroupMemberManager />
                     </AddMemberProvider>
                 </section>
+                </>}
+                {id && group ? <GroupLifecycleControls groupId={id} group={group} onRefresh={() => setGroupRevision((value) => value + 1)} /> : null}
             </div>
         </div>
     );

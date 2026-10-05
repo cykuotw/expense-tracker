@@ -219,6 +219,7 @@ type GroupOverviewResponse struct {
 }
 
 type ExpenseResponse struct {
+	GroupIsActive     bool                     `json:"groupIsActive"`
 	ID                uuid.UUID                `json:"expenseId"`
 	Description       string                   `json:"description"`
 	CreatedByUserID   uuid.UUID                `json:"createdByUserID"`

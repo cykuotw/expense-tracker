@@ -16,7 +16,10 @@ func (s *Store) ReplaceGroupMembers(groupID, creatorID string, memberIDs []strin
 	defer func() { _ = tx.Rollback() }()
 
 	var lockedGroupID string
-	if err := tx.QueryRow(`SELECT id FROM groups WHERE id = $1 FOR UPDATE`, groupID).Scan(&lockedGroupID); err != nil {
+	if err := tx.QueryRow(`SELECT id FROM groups WHERE id = $1 AND create_by_user_id = $2 AND is_active = TRUE FOR UPDATE`, groupID, creatorID).Scan(&lockedGroupID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return types.ErrGroupNotExist
+		}
 		return err
 	}
 	if _, err := tx.Exec("DELETE FROM group_member WHERE group_id = $1 AND user_id <> $2", groupID, creatorID); err != nil {
@@ -38,12 +41,18 @@ func (s *Store) UpdateGroupMember(action string, userID string, groupID string) 
 	}
 	defer func() { _ = tx.Rollback() }()
 
-	var lockedGroupID string
-	if err := tx.QueryRow(`SELECT id FROM groups WHERE id = $1 FOR UPDATE`, groupID).Scan(&lockedGroupID); err != nil {
-		if action == "delete" && errors.Is(err, sql.ErrNoRows) {
-			return tx.Commit()
+	var active bool
+	if err := tx.QueryRow(`SELECT is_active FROM groups WHERE id = $1 FOR UPDATE`, groupID).Scan(&active); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			if action == "delete" {
+				return tx.Commit()
+			}
+			return types.ErrGroupNotExist
 		}
 		return err
+	}
+	if !active {
+		return types.ErrGroupNotExist
 	}
 
 	var exist bool
@@ -77,25 +86,48 @@ func (s *Store) UpdateGroupMember(action string, userID string, groupID string) 
 }
 
 func (s *Store) UpdateGroupStatus(groupID string, creatorID string, isActive bool) error {
-	query := "UPDATE groups SET is_active = $1 WHERE id = $2 AND create_by_user_id = $3;"
-	result, err := s.db.Exec(query, isActive, groupID, creatorID)
+	tx, err := s.db.Begin()
 	if err != nil {
 		return err
 	}
-	updated, err := result.RowsAffected()
-	if err != nil {
-		return err
-	}
-	if updated == 0 {
+	defer func() { _ = tx.Rollback() }()
+	var active bool
+	err = tx.QueryRow(`SELECT is_active FROM groups WHERE id = $1 AND create_by_user_id = $2 FOR UPDATE`, groupID, creatorID).Scan(&active)
+	if errors.Is(err, sql.ErrNoRows) {
 		return types.ErrGroupNotExist
 	}
-	return nil
+	if err != nil {
+		return err
+	}
+	if active == isActive {
+		return tx.Commit()
+	}
+	if !isActive {
+		var settled bool
+		if err := tx.QueryRow(groupSettledSQL, groupID).Scan(&settled); err != nil {
+			return err
+		}
+		if !settled {
+			return types.ErrGroupUnsettled
+		}
+	}
+	if _, err := tx.Exec(`UPDATE groups SET is_active = $1 WHERE id = $2`, isActive, groupID); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 func (s *Store) UpdateGroup(group types.Group) error {
-	_, err := s.db.Exec(`UPDATE groups
+	result, err := s.db.Exec(`UPDATE groups
 		SET group_name = $1, description = $2, group_type = $3
-		WHERE id = $4 AND create_by_user_id = $5`,
+		WHERE id = $4 AND create_by_user_id = $5 AND is_active = TRUE`,
 		group.GroupName, group.Description, group.GroupType, group.ID, group.CreateByUser)
+	if err != nil {
+		return err
+	}
+	count, err := result.RowsAffected()
+	if err == nil && count == 0 {
+		return types.ErrGroupNotExist
+	}
 	return err
 }

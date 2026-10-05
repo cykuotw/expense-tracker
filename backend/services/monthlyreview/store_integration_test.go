@@ -168,6 +168,23 @@ func TestPublicationAndLiveReviewLifecycle(t *testing.T) {
 	require.NoError(t, database.QueryRow(`SELECT COUNT(*) FROM web_push_delivery
 		WHERE group_id = $1 AND review_month = $2 AND notification_type = 'monthly_review_available'`, fixture.homeGroup, july).Scan(&deliveryCount))
 	require.Equal(t, 2, deliveryCount, "live changes must not enqueue another availability event")
+
+	_, err = database.Exec("UPDATE groups SET is_active = FALSE WHERE id = $1", fixture.homeGroup)
+	require.NoError(t, err)
+	review, err = store.Get(t.Context(), fixture.homeGroup, fixture.alice, july, now)
+	require.NoError(t, err)
+	require.Equal(t, StatePublished, review.State)
+	_, err = store.GetTrend(t.Context(), fixture.homeGroup, fixture.alice, july, now)
+	require.NoError(t, err)
+	expensePage, err = store.ListExpenses(t.Context(), fixture.homeGroup, fixture.alice, july, "CAD", "")
+	require.NoError(t, err)
+	require.Len(t, expensePage.Expenses, 1)
+	_, err = store.Get(t.Context(), fixture.homeGroup, uuid.New(), july, now)
+	require.ErrorIs(t, err, types.ErrGroupNotExist)
+	result, err = store.PublishEligible(t.Context(), now, 25)
+	require.NoError(t, err)
+	require.Zero(t, result.Published)
+	require.Zero(t, result.Deliveries)
 }
 
 func TestMonthlyReviewExpensesUseBoundedCursorPagination(t *testing.T) {

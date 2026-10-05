@@ -40,6 +40,7 @@ import {
     GroupMembersLoadStatus,
 } from "../types/group";
 import { legacyCurrencySettings } from "../lib/currencySettings";
+import ArchivedGroupMessage from "../components/group/ArchivedGroupMessage";
 import { requestReceiptDraftWithRetention, ReceiptOCRError } from "../lib/receiptOcr";
 import { validateReceiptExpense } from "../lib/receiptDraft";
 import type { PreparedReceipt } from "../lib/receiptEditor";
@@ -73,6 +74,7 @@ export const CreateExpenseProvider = ({
         groupId
     );
     const [selectedExpenseTypeId, setSelectedExpenseTypeId] = useState("");
+    const [groupArchived, setGroupArchived] = useState(false);
     const [totalInput, setTotalInput] = useState("");
     const [description, setDescription] = useState("");
     const [occurredOn, setOccurredOn] = useState(todayDateOnly);
@@ -136,6 +138,7 @@ export const CreateExpenseProvider = ({
         total: totalInput, items,
     }, amountDigits);
     const dataOk =
+        !groupArchived &&
         totalUnits !== null &&
         totalUnits > 0n &&
         description.length > 0 &&
@@ -369,6 +372,7 @@ export const CreateExpenseProvider = ({
                     options.currencies
                 );
                 const group = options.group;
+                if (active) setGroupArchived(group?.isActive === false);
                 const groupCurrencySettings = group
                     ? group.currencySettings ?? legacyCurrencySettings(group.currency)
                     : null;
@@ -504,7 +508,7 @@ export const CreateExpenseProvider = ({
                 handleCreateExpense,
             }}
         >
-            {children}
+            {groupArchived && selectedGroupId ? <ArchivedGroupMessage groupId={selectedGroupId} /> : children}
         </CreateExpenseContext.Provider>
     );
 };

@@ -100,6 +100,16 @@ describe("ExpenseDetail", () => {
         );
     });
 
+    it("retains archived expense history without edit or delete controls", async () => {
+        apiFetchMock.mockImplementation((path: string) => Promise.resolve(jsonResponse(path === "/currencies" ? currencyMetadata : { ...baseExpense, groupIsActive: false })));
+        renderExpenseDetail();
+        expect(await screen.findByText("Archived group · Read-only")).toBeVisible();
+        expect(screen.queryByRole("link", { name: /Edit expense/i })).not.toBeInTheDocument();
+        expect(screen.queryByRole("button", { name: /Delete expense/i })).not.toBeInTheDocument();
+        expect(screen.getAllByText("10.00 CAD")).toHaveLength(1);
+        expect(screen.getAllByRole("link", { name: /Back to group/i })).toHaveLength(2);
+    });
+
     it("renders a valid expense with no ledger entries instead of failing blank", async () => {
         renderExpenseDetail();
 

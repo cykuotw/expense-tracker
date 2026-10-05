@@ -27,10 +27,12 @@ func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 	router.GET("/group/:groupid/currency-settings", h.handleGetGroupCurrencySettings)
 	router.PUT("/group/:groupid/currency-settings", h.handleUpdateGroupCurrencySettings)
 	router.GET("/groups", h.handleGetGroupList)
+	router.GET("/groups/archived", h.handleGetArchivedGroups)
 	router.GET("/group_member/:groupid", h.handleGetGroupMember)
 	router.PUT("/group_member", h.handleUpdateGroupMember)
 	router.PUT("/group_members", h.handleReplaceGroupMembers)
 	router.PUT("/archive_group/:groupId", h.handleArchiveGroup)
+	router.PUT("/restore_group/:groupId", h.handleRestoreGroup)
 
 	router.GET("/related_member", h.handleGetRelatedMember)
 }

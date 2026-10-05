@@ -51,14 +51,20 @@ func (h *Handler) handleGetGroup(c *gin.Context) {
 		}
 	}
 
+	lifecycle, err := types.ReadGroupLifecycle(h.store, group, userID)
+	if err != nil {
+		utils.WriteError(c, http.StatusInternalServerError, err)
+		return
+	}
 	response := types.GetGroupResponse{
+		GroupLifecycle:   lifecycle,
 		CurrentUserID:    userID,
 		GroupName:        group.GroupName,
 		Description:      group.Description,
 		Currency:         group.Currency,
 		CurrencySettings: currencySettings,
-		CurrencyEditable: currencyEditable,
-		DetailsEditable:  group.CreateByUser.String() == userID,
+		CurrencyEditable: currencyEditable && lifecycle.IsActive,
+		DetailsEditable:  group.CreateByUser.String() == userID && lifecycle.IsActive,
 		GroupType:        group.GroupType,
 		Members:          groupMembersForUser(users, userID),
 	}

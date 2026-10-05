@@ -6,10 +6,43 @@ import { GroupMemberManager } from "../components/group/GroupMemberManager";
 import { AddMemberProvider } from "../contexts/AddMemberContext";
 import { useAddMember } from "../hooks/AddMemberContextHooks";
 import { usePWAUpdateBlocker } from "../hooks/usePWAUpdateBlocker";
+import { useEffect, useState } from "react";
+import { apiFetch, getResponseErrorMessage } from "../lib/api";
+import ArchivedGroupMessage from "../components/group/ArchivedGroupMessage";
 
 const AddMemberContent = () => {
     usePWAUpdateBlocker(true);
     const { groupId, loading } = useAddMember();
+    const [archived, setArchived] = useState(false);
+    const [statusReady, setStatusReady] = useState(false);
+    const [statusError, setStatusError] = useState<string | null>(null);
+    const [revision, setRevision] = useState(0);
+    useEffect(() => {
+        if (!groupId) return;
+        const controller = new AbortController();
+        setStatusReady(false);
+        setStatusError(null);
+        const loadStatus = async () => {
+            try {
+                const response = await apiFetch(`/group/${encodeURIComponent(groupId)}`, { signal: controller.signal });
+                if (!response.ok) throw new Error(await getResponseErrorMessage(response, "Could not load this group. Try again."));
+                const group = await response.json();
+                if (!controller.signal.aborted) {
+                    setArchived(group.isActive === false);
+                    setStatusReady(true);
+                }
+            } catch (cause) {
+                if (!controller.signal.aborted) setStatusError(cause instanceof Error ? cause.message : "Could not load this group. Try again.");
+            }
+        };
+        void loadStatus();
+        return () => controller.abort();
+    }, [groupId, revision]);
+    if (groupId && !statusReady) return <div className="page-shell"><div className="page-container max-w-4xl">
+        <DesktopBackLink to={`/group/${groupId}`} label="Back to group" />
+        {statusError ? <div role="alert"><p>{statusError}</p><button type="button" className="ui-button ui-button-outline mt-4" onClick={() => setRevision((value) => value + 1)}>Try again</button></div> : <p role="status">Loading group…</p>}
+    </div></div>;
+    if (archived && groupId) return <ArchivedGroupMessage groupId={groupId} />;
 
     return (
         <div className="page-shell compact-mobile-page">

@@ -48,6 +48,8 @@ var (
 
 	// group
 	ErrGroupNotExist           = errors.New("invalid group")
+	ErrGroupUnsettled          = errors.New("settle all expenses and balances before archiving this group")
+	ErrInvalidGroupCursor      = errors.New("invalid archived group pagination")
 	ErrInvalidAction           = errors.New("invalid actions")
 	ErrUserNotPermitted        = errors.New("user has no permission")
 	ErrProtectedGroupMember    = errors.New("group creator and final member cannot be removed")

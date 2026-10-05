@@ -55,14 +55,19 @@ func (h *Handler) expenseFormGroup(groupID, userID string) (types.GetGroupRespon
 		groupMembers = append(groupMembers, *current)
 	}
 
+	lifecycle, err := types.ReadGroupLifecycle(h.groupStore, group, userID)
+	if err != nil {
+		return types.GetGroupResponse{}, err
+	}
 	return types.GetGroupResponse{
+		GroupLifecycle:   lifecycle,
 		CurrentUserID:    userID,
 		GroupName:        group.GroupName,
 		Description:      group.Description,
 		Currency:         group.Currency,
 		CurrencySettings: currencySettings,
-		CurrencyEditable: currencyEditable,
-		DetailsEditable:  group.CreateByUser.String() == userID,
+		CurrencyEditable: currencyEditable && lifecycle.IsActive,
+		DetailsEditable:  group.CreateByUser.String() == userID && lifecycle.IsActive,
 		GroupType:        group.GroupType,
 		Members:          groupMembers,
 	}, nil

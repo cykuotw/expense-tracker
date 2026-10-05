@@ -3,6 +3,7 @@ import { useNavigationReady, useNavigationState } from "../hooks/navigation";
 import { mdiPlus } from "@mdi/js";
 import Icon from "@mdi/react";
 import GroupCard from "../components/group/GroupCard";
+import ArchivedGroups from "../components/group/ArchivedGroups";
 import MobilePageHeader from "../components/MobilePageHeader";
 import { HomeProvider } from "../contexts/HomeContext";
 import { useHome } from "../contexts/HomeContextHooks";
@@ -137,13 +138,13 @@ const HomeContent = () => {
                                     ))
                                 ) : (
                                     <span className="rounded-xl bg-success/12 px-2.5 py-1 text-success">
-                                        All settled
+                                        Your net balances are zero
                                     </span>
                                 )}
                             </div>
                             <div className="mt-2 text-xs text-foreground/60">
                                 {groupCards.length} active group
-                                {groupCards.length === 1 ? "" : "s"} · {groupsWithBalances} unsettled
+                                {groupCards.length === 1 ? "" : "s"} · {groupsWithBalances} balances to review
                             </div>
                             {mobileBalanceDetails.length > 2 ? (
                                 <button
@@ -202,22 +203,18 @@ const HomeContent = () => {
                             <div className="mt-4 grid gap-4 lg:grid-cols-[0.7fr_1.3fr]">
                                 <div className="metric-card rounded-[1.5rem] p-5">
                                     <div className="text-sm text-foreground/60">
-                                        Unsettled groups
+                                        Your balances to review
                                     </div>
                                     <div className="mt-3 text-3xl font-bold tracking-[-0.04em] text-primary stat-number">
                                         {groupsWithBalances}
                                     </div>
                                     <div className="mt-2 text-sm text-foreground/70">
-                                        group
-                                        {groupsWithBalances === 1
-                                            ? ""
-                                            : "s"}{" "}
-                                        with open balances
+                                        group balance summaries
                                     </div>
                                 </div>
                                 <div className="metric-card rounded-[1.5rem] p-5">
                                     <div className="text-sm text-foreground/60">
-                                        Total open balances
+                                        Your net balance totals
                                     </div>
                                     {currenciesLoading && unsettledGroups.length > 0 ? (
                                         <div className="mt-4 rounded-2xl bg-background/80 px-4 py-3 text-sm text-foreground/60">
@@ -271,7 +268,7 @@ const HomeContent = () => {
                                         </div>
                                     ) : (
                                         <div className="mt-4 rounded-2xl bg-background/80 px-4 py-3 text-sm text-foreground/60">
-                                            All groups are settled.
+                                            Your net balances are zero. Group-wide settlement is checked separately for archiving.
                                         </div>
                                     )}
                                 </div>
@@ -281,11 +278,10 @@ const HomeContent = () => {
                         <>
                             <div className="section-label">Get started</div>
                             <h2 className="mt-3 text-2xl font-semibold tracking-[-0.03em] text-foreground">
-                                Create your first group
+                                No active groups
                             </h2>
                             <p className="mt-3 max-w-2xl text-sm leading-6 text-foreground/70">
-                                Start a group to track shared expenses and
-                                balances in one place.
+                                Create a group to track shared expenses, or open Archived groups below to view retained history.
                             </p>
                             <Link
                                 to="/create_group"
@@ -307,6 +303,7 @@ const HomeContent = () => {
                         ))}
                     </div>
                 ) : null}
+                <ArchivedGroups />
             </div>
         </div>
     );

@@ -72,8 +72,13 @@ func (h *Handler) handleGetGroupOverview(c *gin.Context) {
 			return
 		}
 	}
+	lifecycle, err := types.ReadGroupLifecycle(h.groupStore, group, userID)
+	if err != nil {
+		utils.WriteError(c, http.StatusInternalServerError, err)
+		return
+	}
 	utils.WriteJSON(c, http.StatusOK, types.GroupOverviewResponse{
-		Group:    types.GetGroupResponse{CurrentUserID: userID, GroupName: group.GroupName, Description: group.Description, Currency: group.Currency, CurrencySettings: currencySettings, GroupType: group.GroupType, Members: groupMembers},
+		Group:    types.GetGroupResponse{GroupLifecycle: lifecycle, CurrentUserID: userID, GroupName: group.GroupName, Description: group.Description, Currency: group.Currency, CurrencySettings: currencySettings, DetailsEditable: lifecycle.IsActive && lifecycle.CanManageLifecycle, GroupType: group.GroupType, Members: groupMembers},
 		Balance:  balances,
 		Expenses: expenses,
 	})

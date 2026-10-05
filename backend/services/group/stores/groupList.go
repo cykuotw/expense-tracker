@@ -16,11 +16,12 @@ func (s *Store) GetGroupListByUser(userID string) ([]types.GetGroupListResponse,
 				btrim(g.settlement_preview_currency) AS currency,
 				c.minor_unit_digits,
 				g.group_type,
+				g.create_by_user_id,
 				g.create_time_utc
 			FROM groups g
 			INNER JOIN group_member gm ON gm.group_id = g.id
 			INNER JOIN currency c ON c.code = g.settlement_preview_currency
-			WHERE gm.user_id = $1
+			WHERE gm.user_id = $1 AND g.is_active = TRUE
 		),
 		balance_net AS (
 			SELECT
@@ -54,11 +55,19 @@ func (s *Store) GetGroupListByUser(userID string) ([]types.GetGroupListResponse,
 		expense_activity AS (
 			SELECT
 				e.group_id,
-				MAX(e.update_time_utc) AS last_activity
+				MAX(e.update_time_utc) FILTER (WHERE e.is_deleted = FALSE) AS last_activity,
+				MAX(GREATEST(e.create_time_utc, e.update_time_utc, e.settle_time_utc, e.delete_time_utc)) AS archive_activity,
+				BOOL_OR(e.is_deleted = FALSE AND e.is_settled = FALSE) AS unsettled_expenses
 			FROM expense e
 			INNER JOIN member_groups mg ON mg.id = e.group_id
-			WHERE e.is_deleted = FALSE
 			GROUP BY e.group_id
+		),
+		group_accounting AS (
+			SELECT b.group_id, MAX(b.settle_time_utc) AS last_settlement,
+				BOOL_OR(b.is_outdated = FALSE AND b.is_settled = FALSE) AS unsettled_balances
+			FROM balance b
+			INNER JOIN member_groups mg ON mg.id = b.group_id
+			GROUP BY b.group_id
 		)
 		SELECT
 			mg.id,
@@ -90,10 +99,16 @@ func (s *Store) GetGroupListByUser(userID string) ([]types.GetGroupListResponse,
 				COALESCE(bn.currency_count, 0) > 1
 				AND COALESCE(bn.missing_rate, FALSE)
 			) AS settlement_preview_complete,
-			COALESCE(bn.currency_count, 0) > 1 AS uses_settlement_preview
+			COALESCE(bn.currency_count, 0) > 1 AS uses_settlement_preview,
+			mg.create_by_user_id = $1 AND mg.group_type IN ('trip', 'event')
+				AND NOT COALESCE(ea.unsettled_expenses, FALSE)
+				AND NOT COALESCE(ga.unsettled_balances, FALSE)
+				AND GREATEST(mg.create_time_utc, ea.archive_activity, ga.last_settlement)
+					<= NOW() - INTERVAL '90 days' AS archive_suggested
 		FROM member_groups mg
 		LEFT JOIN balance_net bn ON bn.group_id = mg.id
 		LEFT JOIN expense_activity ea ON ea.group_id = mg.id
+		LEFT JOIN group_accounting ga ON ga.group_id = mg.id
 		ORDER BY
 			CASE WHEN CASE
 				WHEN bn.currency_count > 1 THEN COALESCE(bn.preview_net, 0)
@@ -125,6 +140,7 @@ func (s *Store) GetGroupListByUser(userID string) ([]types.GetGroupListResponse,
 			&amount,
 			&group.SettlementPreviewComplete,
 			&group.UsesSettlementPreview,
+			&group.ArchiveSuggested,
 		); err != nil {
 			return nil, err
 		}

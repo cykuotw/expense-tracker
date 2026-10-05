@@ -102,7 +102,7 @@ func (h *Handler) handleUpdateGroupMember(c *gin.Context) {
 		utils.WriteError(c, http.StatusInternalServerError, err)
 		return
 	}
-	if group == nil || group.CreateByUser.String() != userID {
+	if group == nil || group.CreateByUser.String() != userID || !group.IsActive {
 		utils.WriteError(c, http.StatusNotFound, types.ErrGroupNotExist)
 		return
 	}
@@ -136,6 +136,10 @@ func (h *Handler) handleUpdateGroupMember(c *gin.Context) {
 	// update group member
 	err = h.store.UpdateGroupMember(payload.Action, payload.UserID, payload.GroupID)
 	if err != nil {
+		if errors.Is(err, types.ErrGroupNotExist) {
+			utils.WriteError(c, http.StatusNotFound, err)
+			return
+		}
 		utils.WriteError(c, http.StatusInternalServerError, err)
 		return
 	}
@@ -161,7 +165,7 @@ func (h *Handler) handleReplaceGroupMembers(c *gin.Context) {
 		utils.WriteError(c, http.StatusNotFound, types.ErrGroupNotExist)
 		return
 	}
-	if group == nil || group.CreateByUser.String() != userID {
+	if group == nil || group.CreateByUser.String() != userID || !group.IsActive {
 		utils.WriteError(c, http.StatusNotFound, types.ErrGroupNotExist)
 		return
 	}
@@ -185,6 +189,10 @@ func (h *Handler) handleReplaceGroupMembers(c *gin.Context) {
 	}
 	if batchStore, ok := h.store.(groupMemberBatchStore); ok {
 		if err := batchStore.ReplaceGroupMembers(payload.GroupID, group.CreateByUser.String(), memberIDs); err != nil {
+			if errors.Is(err, types.ErrGroupNotExist) {
+				utils.WriteError(c, http.StatusNotFound, err)
+				return
+			}
 			utils.WriteError(c, http.StatusInternalServerError, err)
 			return
 		}

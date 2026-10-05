@@ -26,6 +26,7 @@ import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
 
 import DesktopBackLink from "../components/DesktopBackLink";
+import ArchivedStatus from "../components/group/ArchivedStatus";
 import { useNavigationReady, useReturnNavigation } from "../hooks/navigation";
 import MobilePageHeader from "../components/MobilePageHeader";
 import { ExpenseDetailProvider } from "../contexts/ExpenseDetailContext";
@@ -145,6 +146,7 @@ const ExpenseDetailContent = () => {
                         </span>
                     }
                     action={
+                        expenseDetail.groupIsActive === false ? null :
                         <Button asChild size="icon" className="size-12">
                             <Link to={editRoute} aria-label="Edit expense">
                                 <Icon
@@ -185,7 +187,7 @@ const ExpenseDetailContent = () => {
                             Review the payment, split, and saved receipt details.
                         </p>
                     </div>
-                    <div className="page-actions w-full sm:w-auto">
+                    {expenseDetail.groupIsActive !== false ? <div className="page-actions w-full sm:w-auto">
                         <Button
                             asChild
                             size="lg"
@@ -193,8 +195,14 @@ const ExpenseDetailContent = () => {
                         >
                             <Link to={editRoute}>Edit expense</Link>
                         </Button>
-                    </div>
+                    </div> : null}
                 </header>
+
+                {expenseDetail.groupIsActive === false ? (
+                    <div className="mb-4 rounded-xl border border-border bg-muted px-4 py-3 shadow-sm">
+                        <ArchivedStatus label="Archived group · Read-only" />
+                    </div>
+                ) : null}
 
                 <div className="flex flex-col gap-4 md:gap-6">
                     <ExpenseSummary
@@ -230,7 +238,7 @@ const ExpenseDetailContent = () => {
                         ) : null}
                     </div>
 
-                    <DangerZone />
+                    {expenseDetail.groupIsActive === false ? null : <DangerZone />}
                 </div>
             </div>
         </main>

@@ -277,7 +277,7 @@ func updateGroupMemberStoreMock() *mockGroupStore {
 		if id != mockGroupId.String() {
 			return nil, types.ErrGroupNotExist
 		}
-		return &types.Group{CreateByUser: mockRequesterId}, nil
+		return &types.Group{CreateByUser: mockRequesterId, IsActive: true}, nil
 	}
 	store.CheckGroupExistByIdFn = func(id string) (bool, error) {
 		return id == mockGroupId.String(), nil

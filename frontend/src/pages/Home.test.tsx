@@ -81,7 +81,7 @@ describe("Home mobile summary", () => {
 
         const mobileSummary = screen.getByTestId("mobile-home-summary");
         expect(mobileSummary).toHaveTextContent("3 active groups");
-        expect(mobileSummary).toHaveTextContent("3 unsettled");
+        expect(mobileSummary).toHaveTextContent("3 balances to review");
         expect(
             within(mobileSummary).getByText("You are owed 10.00 CAD")
         ).toBeVisible();
@@ -133,6 +133,6 @@ describe("Home mobile summary", () => {
         render(<MemoryRouter><Home /></MemoryRouter>);
 
         expect(screen.getByText(/Balance totals unavailable/)).toBeVisible();
-        expect(screen.queryByText("All settled")).toBeNull();
+        expect(screen.queryByText("Your net balances are zero")).toBeNull();
     });
 });

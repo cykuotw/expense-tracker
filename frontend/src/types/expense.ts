@@ -21,6 +21,7 @@ export interface ExpenseData {
 }
 
 export interface ExpenseDetailData {
+	groupIsActive?: boolean;
     expenseId: string;
     description: string;
     createdByUserID: string;

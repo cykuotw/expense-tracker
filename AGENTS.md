@@ -8,21 +8,20 @@
 
 ## Development process
 
-- First read `.agents/tasks/todo.md`.
+- Read `.agents/tasks/todo.md` when selecting, resuming, or updating tracked work.
 - Before architecture, deployment, authentication, authorization, expense-domain, or other cross-cutting changes, read `ARCHITECTURE.md`.
 - For frontend changes, read the Frontend Browser Compatibility section of `ARCHITECTURE.md`.
-- Make a plan before code changes and obtain permission before implementing it. A short plan is sufficient for a small, localized change. Approval covers implementation, relevant checks, and fixes within the approved scope; ask again only for scope expansion or separately restricted operations.
+- Before non-trivial code changes, make a short plan. Once the user has requested implementation, proceed with implementation, relevant checks, and in-scope fixes. Ask again only before materially expanding scope or performing separately restricted, destructive, or high-risk operations.
 - A plan is not required for skill installation or task-tracking housekeeping such as updating todo/done indexes, moving task notes, or keeping those files aligned.
-- Update `.agents/tasks/active-plan.md` with the active implementation plan so other agents can follow the current attempt.
+- For multi-step, cross-cutting, or delegated implementation work, update `.agents/tasks/active-plan.md` so other agents can follow the current attempt. A conversational plan is sufficient for small, localized changes.
 - Keep `.agents/tasks/active-plan.md` for transient execution state only; durable task requirements belong in task note files.
-- Remove or clear `.agents/tasks/active-plan.md` before the final response when the implementation attempt is complete or abandoned.
+- Remove or clear only the completed or abandoned attempt from `.agents/tasks/active-plan.md` before the final response; preserve unrelated active work.
 - If the user limits writable files and excludes the plan file, keep the plan and handoff in the conversation. Do not modify an existing plan outside the approved scope.
 - Verify the requested behavior with checks appropriate to the change. For documentation-only changes, check references, consistency, and the diff; for behavior changes, run relevant tests and affected build or lint checks. Fix failures within scope, and report any remaining failure or unavailable check with its cause and next step. Do not describe unverified behavior as verified or release-ready, or claim speed or model-quality improvements without measurements.
 - If Safari verification required by `ARCHITECTURE.md` is unavailable, record the affected flow, platform, automated checks performed, and remaining manual steps in the handoff. Implementation may be ready for review, but browser verification remains incomplete and must be completed before release.
 - When blocked, preserve the remaining work and resumption steps in the active plan, or in the conversation when file writes are restricted. Implementation completion does not authorize task archival or release.
 - Deployment and repository Python tooling, including skill scripts, must run through `uv` (for example, `uv run python ...`); do not substitute the system `python3` environment.
-- For serverless Terraform resources whose attributes depend on `use_lambda_aliases`, verify both the pre-alias (`false`) and alias-aware (`true`) targeted plan paths before deployment. If alias cutover requires replacement, allow only the exact Terraform address and add a compatibility test with the real action sequence; never allow replacements by broad resource type. Keep `count`-controlled resource deletion allowlists and disablement tests synchronized with every conditional resource.
-- Treat API Gateway propagation after a Lambda alias or invoke-permission cutover as eventually consistent: post-cutover verification must retry transient `5xx` health responses within a bounded window, and CORS verification must use a bounded retry while asserting each route's required methods and headers. Keep pre-update compatibility checks explicit so a previously deployed Worker is not required to satisfy a newly introduced route contract before it is replaced.
+- For serverless deployment, Lambda alias, API Gateway propagation, or related Terraform changes, read `deployment/serverless/AGENTS.md`.
 
 ## Task tracking (read when creating or updating task notes)
 

@@ -4,9 +4,11 @@ import { RegisterProvider } from "../contexts/RegisterContext";
 import GoogleSignInButton from "../components/auth/GoogleSignInButton";
 import { GOOGLE_OAUTH_ENABLED } from "../configs/config";
 import { usePWAUpdateBlocker } from "../hooks/usePWAUpdateBlocker";
+import { useFormFocusVisibility } from "../hooks/useFormFocusVisibility";
 
 const RegisterContent = () => {
     usePWAUpdateBlocker(true);
+    const pageRef = useFormFocusVisibility();
     const {
         formData,
         loading,
@@ -22,7 +24,7 @@ const RegisterContent = () => {
     } = useRegister();
 
     return (
-        <div className="page-shell">
+        <div ref={pageRef} className="page-shell form-focus-page">
             <div className="page-container max-w-4xl">
                 <div className="page-header">
                     <div className="page-header__copy">
@@ -81,12 +83,13 @@ const RegisterContent = () => {
                         ) : null}
                         <form onSubmit={handleSubmit}>
                             <div className="grid gap-5 md:grid-cols-2">
-                                <div>
-                                    <label className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground/60">
+                                <div data-form-field>
+                                    <label htmlFor="registration-firstname" className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground/60">
                                         First name
                                     </label>
                                     <label className="ui-input-shell mt-2 flex items-center w-full bg-background">
                                         <input
+                                            id="registration-firstname"
                                             type="text"
                                             name="firstname"
                                             className="grow"
@@ -97,12 +100,13 @@ const RegisterContent = () => {
                                         />
                                     </label>
                                 </div>
-                                <div>
-                                    <label className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground/60">
+                                <div data-form-field>
+                                    <label htmlFor="registration-lastname" className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground/60">
                                         Last name
                                     </label>
                                     <label className="ui-input-shell mt-2 flex items-center w-full bg-background">
                                         <input
+                                            id="registration-lastname"
                                             type="text"
                                             name="lastname"
                                             className="grow"
@@ -113,12 +117,13 @@ const RegisterContent = () => {
                                         />
                                     </label>
                                 </div>
-                                <div>
-                                    <label className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground/60">
+                                <div data-form-field>
+                                    <label htmlFor="registration-nickname" className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground/60">
                                         Nickname (optional)
                                     </label>
                                     <label className="ui-input-shell mt-2 flex items-center w-full bg-background">
                                         <input
+                                            id="registration-nickname"
                                             type="text"
                                             name="nickname"
                                             className="grow"
@@ -128,7 +133,7 @@ const RegisterContent = () => {
                                         />
                                     </label>
                                 </div>
-                                <div>
+                                <div data-form-field>
                                     <label
                                         htmlFor="registration-email"
                                         className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground/60"
@@ -159,12 +164,13 @@ const RegisterContent = () => {
                                             : "Enter the email address for your new account."}
                                     </p>
                                 </div>
-                                <div className="md:col-span-2">
-                                    <label className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground/60">
+                                <div data-form-field className="md:col-span-2">
+                                    <label htmlFor="registration-password" className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground/60">
                                         Password
                                     </label>
                                     <label className="ui-input-shell mt-2 flex items-center w-full bg-background">
                                         <input
+                                            id="registration-password"
                                             type="password"
                                             name="password"
                                             className="grow"

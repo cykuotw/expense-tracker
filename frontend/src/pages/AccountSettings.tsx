@@ -8,6 +8,7 @@ import MobilePageHeader from "../components/MobilePageHeader";
 import NotificationSettings from "../components/pwa/NotificationSettings";
 import { AccountSettingsData } from "../types/account";
 import { usePWAUpdateBlocker } from "../hooks/usePWAUpdateBlocker";
+import { useFormFocusVisibility } from "../hooks/useFormFocusVisibility";
 
 const EMPTY_PROFILE = { firstname: "", lastname: "", nickname: "" };
 const EMPTY_PASSWORDS = {
@@ -171,6 +172,7 @@ function PasswordValidationMessage({
 
 export default function AccountSettings() {
     usePWAUpdateBlocker(true);
+    const pageRef = useFormFocusVisibility();
     const [account, setAccount] = useState<AccountSettingsData | null>(null);
     const [profile, setProfile] = useState(EMPTY_PROFILE);
     const [passwords, setPasswords] = useState(EMPTY_PASSWORDS);
@@ -476,7 +478,7 @@ export default function AccountSettings() {
     const inputClass = "ui-input mt-2 min-h-11 w-full bg-background";
 
     return (
-        <div className="page-shell compact-mobile-page">
+        <div ref={pageRef} className="page-shell compact-mobile-page form-focus-page">
             <div className="page-container max-w-5xl">
                 <MobilePageHeader title="Settings" />
                 <div className="page-header desktop-page-header">
@@ -500,7 +502,7 @@ export default function AccountSettings() {
                         </div>
                         <form className="mt-6 space-y-5" onSubmit={updateProfile}>
                             <div className="grid gap-5 sm:grid-cols-2">
-                                <label className="text-sm font-medium text-foreground">
+                                <label data-form-field className="text-sm font-medium text-foreground">
                                     First name
                                     <input
                                         className={inputClass}
@@ -510,7 +512,7 @@ export default function AccountSettings() {
                                         onChange={(event) => setProfile((current) => ({ ...current, firstname: event.target.value }))}
                                     />
                                 </label>
-                                <label className="text-sm font-medium text-foreground">
+                                <label data-form-field className="text-sm font-medium text-foreground">
                                     Last name
                                     <input
                                         className={inputClass}
@@ -521,7 +523,7 @@ export default function AccountSettings() {
                                     />
                                 </label>
                             </div>
-                            <label className="block text-sm font-medium text-foreground">
+                            <label data-form-field className="block text-sm font-medium text-foreground">
                                 Nickname
                                 <input
                                     className={inputClass}
@@ -531,7 +533,7 @@ export default function AccountSettings() {
                                     onChange={(event) => setProfile((current) => ({ ...current, nickname: event.target.value }))}
                                 />
                             </label>
-                            <div>
+                            <div data-form-field>
                                 <label htmlFor="account-email" className="block text-sm font-medium text-foreground">
                                     Email
                                 </label>
@@ -588,7 +590,7 @@ export default function AccountSettings() {
                                                 ? `password-guidance ${validationID} password-difference-validation`
                                                 : validationID;
                                         return (
-                                            <div key={field}>
+                                            <div data-form-field key={field}>
                                                 <label
                                                     htmlFor={inputID}
                                                     className="block text-sm font-medium text-foreground"

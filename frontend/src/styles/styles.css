@@ -332,6 +332,7 @@ textarea {
     padding-bottom: calc(1rem + env(safe-area-inset-bottom));
 }
 
+.form-focus-page,
 .expense-form-page {
     padding-bottom: calc(1rem + env(safe-area-inset-bottom) + var(--form-keyboard-space, 0px));
 }
@@ -924,6 +925,10 @@ textarea {
     .compact-mobile-page {
         padding-top: 2rem;
         padding-bottom: 2rem;
+    }
+
+    .form-focus-page {
+        padding-bottom: calc(2rem + var(--form-keyboard-space, 0px));
     }
 
     .ui-button.group-add-expense-fab {

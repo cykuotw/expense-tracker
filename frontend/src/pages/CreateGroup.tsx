@@ -12,9 +12,11 @@ import { useCurrencies } from "../hooks/useCurrencies";
 import { GroupMemberManager } from "../components/group/GroupMemberManager";
 import { AddMemberProvider } from "../contexts/AddMemberContext";
 import { usePWAUpdateBlocker } from "../hooks/usePWAUpdateBlocker";
+import { useFormFocusVisibility } from "../hooks/useFormFocusVisibility";
 
 const CreateGroupContent = () => {
     usePWAUpdateBlocker(true);
+    const pageRef = useFormFocusVisibility();
     const {
         groupName,
         setGroupName,
@@ -57,7 +59,7 @@ const CreateGroupContent = () => {
     }, [createdGroupId]);
 
     return (
-        <div className="page-shell compact-mobile-page">
+        <div ref={pageRef} className="page-shell compact-mobile-page form-focus-page">
             <div className="page-container max-w-5xl">
                 <MobilePageHeader
                     title={createdGroupId ? "Manage members" : "Create group"}
@@ -138,12 +140,13 @@ const CreateGroupContent = () => {
                                     <GroupTypePicker value={groupType} onChange={setGroupType} />
                                 </div>
                             </div>
-                            <div>
-                                <label className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground/60">
+                            <div data-form-field>
+                                <label htmlFor="create-group-name" className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground/60">
                                     Group name
                                 </label>
                                 <label className="ui-input-shell mt-2 flex items-center w-full bg-background">
                                     <input
+                                        id="create-group-name"
                                         type="text"
                                         className="grow"
                                         placeholder="Group Name"
@@ -154,12 +157,13 @@ const CreateGroupContent = () => {
                                     />
                                 </label>
                             </div>
-                            <div>
-                                <label className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground/60">
+                            <div data-form-field>
+                                <label htmlFor="create-group-description" className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground/60">
                                     Description
                                 </label>
                                 <label className="ui-input-shell mt-2 flex items-center w-full bg-background">
                                     <input
+                                        id="create-group-description"
                                         type="text"
                                         className="grow"
                                         placeholder="Group Description (optional)"

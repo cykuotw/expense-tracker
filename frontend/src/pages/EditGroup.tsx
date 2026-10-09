@@ -19,6 +19,7 @@ import { useCurrencies } from "../hooks/useCurrencies";
 import { GroupCurrencySettings, GroupInfo } from "../types/group";
 import { currencySettingsAreValid, legacyCurrencySettings } from "../lib/currencySettings";
 import { usePWAUpdateBlocker } from "../hooks/usePWAUpdateBlocker";
+import { useFormFocusVisibility } from "../hooks/useFormFocusVisibility";
 
 interface GroupForm {
     groupName: string;
@@ -41,6 +42,7 @@ const EMPTY_CURRENCY_SETTINGS: GroupCurrencySettings = {
 
 export default function EditGroup() {
     usePWAUpdateBlocker(true);
+    const pageRef = useFormFocusVisibility();
     const { id } = useParams();
     const { hash } = useLocation();
     const back = useReturnNavigation("/");
@@ -174,7 +176,7 @@ export default function EditGroup() {
     };
 
     return (
-        <div className="page-shell compact-mobile-page">
+        <div ref={pageRef} className="page-shell compact-mobile-page form-focus-page">
             <div className="page-container max-w-4xl">
                 <MobilePageHeader
                     title="Edit group"
@@ -327,7 +329,7 @@ function Field({
     disabled?: boolean;
 }) {
     return (
-        <label className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground/60">
+        <label data-form-field className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground/60">
             {label}
             <span className="ui-input-shell mt-2 flex w-full bg-background">
                 <input

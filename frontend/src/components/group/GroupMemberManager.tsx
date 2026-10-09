@@ -31,6 +31,7 @@ export function GroupMemberManager({
                     {relatedUserList.length !== 0 ? (
                         relatedUserList.map((user) => (
                             <label
+                                data-form-field
                                 className="grid min-h-12 cursor-pointer grid-cols-[auto_minmax(0,1fr)] items-center gap-3 rounded-2xl border border-border bg-background px-4 py-3"
                                 key={user.userId}
                             >
@@ -88,7 +89,7 @@ export function GroupMemberManager({
                     Invite by email
                 </div>
                 <div className="mt-4 space-y-4">
-                    <label className="ui-input-shell flex w-full items-center gap-2 bg-background">
+                    <label data-form-field className="ui-input-shell flex w-full items-center gap-2 bg-background">
                         <span className="sr-only">Registered user email</span>
                         <input
                             type="email"

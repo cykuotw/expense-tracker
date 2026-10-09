@@ -29,6 +29,7 @@ import {
     AdminUser,
 } from "../types/admin";
 import { USER_ROLES, UserRole } from "../types/role";
+import { useFormFocusVisibility } from "../hooks/useFormFocusVisibility";
 
 const EMPTY_DATA: AdminManagementData = { users: [], invitations: [] };
 
@@ -451,6 +452,7 @@ function InvitationActions({
 }
 
 export default function AdminUsers() {
+    const pageRef = useFormFocusVisibility();
     const { userID } = useAuth();
     const [data, setData] = useState<AdminManagementData>(EMPTY_DATA);
     const [loading, setLoading] = useState(true);
@@ -854,7 +856,7 @@ export default function AdminUsers() {
     };
 
     return (
-        <div className="page-shell compact-mobile-page">
+        <div ref={pageRef} className="page-shell compact-mobile-page form-focus-page">
             <div className="page-container">
                 <MobilePageHeader
                     title="User management"
@@ -946,7 +948,7 @@ export default function AdminUsers() {
                                 </div>
                                 <form onSubmit={createInvitation} className="w-full lg:max-w-xl">
                                     <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-                                        <div className="w-full">
+                                        <div data-form-field className="w-full">
                                             <label
                                                 htmlFor="invitation-email"
                                                 className="text-xs font-semibold uppercase tracking-[0.18em] text-foreground/60"

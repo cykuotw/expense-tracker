@@ -9,9 +9,11 @@ import { usePWAUpdateBlocker } from "../hooks/usePWAUpdateBlocker";
 import { useEffect, useState } from "react";
 import { apiFetch, getResponseErrorMessage } from "../lib/api";
 import ArchivedGroupMessage from "../components/group/ArchivedGroupMessage";
+import { useFormFocusVisibility } from "../hooks/useFormFocusVisibility";
 
 const AddMemberContent = () => {
     usePWAUpdateBlocker(true);
+    const pageRef = useFormFocusVisibility();
     const { groupId, loading } = useAddMember();
     const [archived, setArchived] = useState(false);
     const [statusReady, setStatusReady] = useState(false);
@@ -45,7 +47,7 @@ const AddMemberContent = () => {
     if (archived && groupId) return <ArchivedGroupMessage groupId={groupId} />;
 
     return (
-        <div className="page-shell compact-mobile-page">
+        <div ref={pageRef} className="page-shell compact-mobile-page form-focus-page">
             <div className="page-container max-w-5xl">
                 <MobilePageHeader
                     title="Add members"

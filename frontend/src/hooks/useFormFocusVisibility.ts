@@ -1,13 +1,13 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useState } from "react";
 import { formScrollBehavior, getFormViewport, revealDelta } from "../lib/formViewport";
 
 const controls = "input:not([type=hidden]), textarea, select, button, a[href], [tabindex]";
 
 export function useFormFocusVisibility() {
-    const pageRef = useRef<HTMLDivElement>(null);
+    // A callback ref reattaches listeners when loading/error content is replaced.
+    const [page, setPage] = useState<HTMLDivElement | null>(null);
 
     useEffect(() => {
-        const page = pageRef.current;
         if (!page) return;
         let timer: ReturnType<typeof setTimeout> | undefined;
         let manuallyScrolled = false;
@@ -16,7 +16,7 @@ export function useFormFocusVisibility() {
         const reveal = () => {
             const target = document.activeElement;
             if (!(target instanceof HTMLElement) || !page.contains(target) ||
-                target.closest("[data-picker-panel], dialog") || manuallyScrolled) return;
+                target.closest('[data-picker-panel], dialog, [role="dialog"], [role="alertdialog"]') || manuallyScrolled) return;
 
             const rect = target.getBoundingClientRect();
             if (!rect.height) return;
@@ -28,9 +28,13 @@ export function useFormFocusVisibility() {
             let top = controlRect.top;
             let bottom = controlRect.bottom;
             if (field) {
-                for (const label of field.querySelectorAll("label")) {
+                const labels = field.matches("label") ? [field] : field.querySelectorAll("label");
+                for (const label of labels) {
                     const labelRect = label.getBoundingClientRect();
-                    if (labelRect.height) top = Math.min(top, labelRect.top);
+                    if (labelRect.height) {
+                        top = Math.min(top, labelRect.top);
+                        bottom = Math.max(bottom, labelRect.bottom);
+                    }
                 }
             }
             for (const id of (target.getAttribute("aria-describedby") ?? "").split(/\s+/)) {
@@ -96,7 +100,7 @@ export function useFormFocusVisibility() {
             window.removeEventListener("touchmove", manualScroll);
             page.style.removeProperty("--form-keyboard-space");
         };
-    }, []);
+    }, [page]);
 
-    return pageRef;
+    return setPage;
 }

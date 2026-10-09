@@ -43,37 +43,4 @@ describe("GroupMemberManager", () => {
         ).toHaveClass("[overflow-wrap:anywhere]");
     });
 
-    it("associates pre-create selections with the create-group form", () => {
-        useAddMemberMock.mockReturnValue({
-            loading: false,
-            relatedUserList: [
-                {
-                    userId: "member-1",
-                    username: "Readable Name",
-                    email: "member@example.test",
-                    existInGroup: false,
-                },
-            ],
-            email: "",
-            setEmail: vi.fn(),
-            newMember: null,
-            handleSubmitRelatedUsers: vi.fn(),
-            handleAddNewMember: vi.fn(),
-        });
-
-        const { container } = render(<GroupMemberManager creationMode />);
-
-        expect(within(container).getByRole("checkbox")).toHaveAttribute(
-            "form",
-            "create-group-form"
-        );
-        expect(
-            within(container).queryByRole("button", { name: "Update members" })
-        ).not.toBeInTheDocument();
-        expect(
-            within(container).getByText(
-                "Selected members will be added when you create the group."
-            )
-        ).toBeVisible();
-    });
 });

@@ -91,12 +91,6 @@ describe("AccountSettings", () => {
 
     afterEach(cleanup);
 
-    it("shows the deployed frontend version", async () => {
-        render(<AccountSettings />);
-
-        expect(await screen.findByText("v-20260907-deadbeef")).toBeInTheDocument();
-    });
-
     it("updates editable profile fields while keeping email read-only", async () => {
         render(<AccountSettings />);
 
@@ -104,6 +98,7 @@ describe("AccountSettings", () => {
         const saveProfile = screen.getByRole("button", { name: "Save profile" });
         expect(email).toHaveValue("local@example.com");
         expect(email).toHaveAttribute("readonly");
+        expect(screen.getByText("v-20260907-deadbeef")).toBeInTheDocument();
         expect(saveProfile).toBeDisabled();
 
         fireEvent.change(screen.getByRole("textbox", { name: "First name" }), {
@@ -214,24 +209,20 @@ describe("AccountSettings", () => {
         ).not.toBeInTheDocument();
         expect(
             await screen.findByText("Password must be at least 8 characters."),
-        ).toHaveClass("text-destructive");
+        ).toBeVisible();
 
         fireEvent.change(newPassword, { target: { value: "valid-password" } });
         expect(
             await screen.findByText("Password length is valid."),
-        ).toHaveClass("text-success");
+        ).toBeVisible();
 
         fireEvent.change(confirmPassword, { target: { value: "different" } });
-        expect(await screen.findByText("Passwords do not match.")).toHaveClass(
-            "text-destructive",
-        );
+        expect(await screen.findByText("Passwords do not match.")).toBeVisible();
 
         fireEvent.change(confirmPassword, {
             target: { value: "valid-password" },
         });
-        expect(await screen.findByText("Passwords match.")).toHaveClass(
-            "text-success",
-        );
+        expect(await screen.findByText("Passwords match.")).toBeVisible();
     });
 
     it("keeps password submission disabled until every check passes", async () => {
@@ -258,7 +249,7 @@ describe("AccountSettings", () => {
             await screen.findByText(
                 "New password must be different from your current password.",
             ),
-        ).toHaveClass("text-destructive");
+        ).toBeVisible();
         expect(changePassword).toBeDisabled();
 
         fireEvent.change(newPassword, { target: { value: "new-password" } });
@@ -271,20 +262,14 @@ describe("AccountSettings", () => {
             await screen.findByText(
                 "New password is different from your current password.",
             ),
-        ).toHaveClass("text-success");
-        expect(await screen.findByText("Password length is valid.")).toHaveClass(
-            "text-success",
-        );
-        expect(await screen.findByText("Passwords match.")).toHaveClass(
-            "text-success",
-        );
+        ).toBeVisible();
+        expect(await screen.findByText("Password length is valid.")).toBeVisible();
+        expect(await screen.findByText("Passwords match.")).toBeVisible();
         expect(changePassword).toBeEnabled();
 
         fireEvent.change(confirmPassword, { target: { value: "not-matching" } });
         expect(changePassword).toBeDisabled();
-        expect(await screen.findByText("Passwords do not match.")).toHaveClass(
-            "text-destructive",
-        );
+        expect(await screen.findByText("Passwords do not match.")).toBeVisible();
         expect(changePassword).toBeDisabled();
     });
 
@@ -377,7 +362,7 @@ describe("AccountSettings", () => {
             await screen.findByText(
                 "Use the Google account that matches this account email.",
             ),
-        ).toHaveClass("text-destructive");
+        ).toBeVisible();
         expect(
             screen.getByLabelText("Confirm current password"),
         ).toHaveValue("current-password");

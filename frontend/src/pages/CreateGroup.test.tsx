@@ -91,6 +91,9 @@ describe("CreateGroup member management", () => {
             name: /Alex Member\s*alex@example\.com/,
         });
         expect(member).toHaveAttribute("form", "create-group-form");
+        expect(
+            screen.queryByRole("button", { name: "Update members" })
+        ).not.toBeInTheDocument();
         fireEvent.click(member);
 
         fireEvent.change(screen.getByPlaceholderText("Group Name"), {

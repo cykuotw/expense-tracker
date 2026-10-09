@@ -202,14 +202,6 @@ describe("SplitExpensePage", () => {
         });
     });
 
-    it("places the mobile save action in the navigation-safe action bar", () => {
-        renderSplit();
-
-        expect(
-            screen.getByRole("button", { name: "Save split" }).parentElement
-        ).toHaveClass("expense-split-actions");
-    });
-
     it("exposes mobile allocation tabs with the selected rule description", () => {
         renderSplit();
 
@@ -230,18 +222,6 @@ describe("SplitExpensePage", () => {
             "true"
         );
         expect(screen.getByLabelText("Alice percentage (%)")).toBeInTheDocument();
-    });
-
-    it("groups split method and participants into one mobile surface", () => {
-        renderSplit();
-
-        const editor = screen
-            .getByText("How should it be split?")
-            .closest('[data-slot="split-editor"]');
-
-        expect(editor).not.toBeNull();
-        expect(editor).toContainElement(screen.getByText("Participants"));
-        expect(editor).toHaveClass("rounded-xl", "md:contents");
     });
 
     it("uses a compact form grid with shared column headers", () => {

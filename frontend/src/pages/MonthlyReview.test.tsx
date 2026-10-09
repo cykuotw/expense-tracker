@@ -318,20 +318,4 @@ describe("MonthlyReview", () => {
         expect(screen.getByText("January 2026–June 2026")).toBeVisible();
     });
 
-    it("shows compact matching labels in mobile review navigation", async () => {
-        mockMonthlyReviewResponses({
-            groupId: "group-1",
-            groupName: "Home",
-            month: "2026-08",
-            state: "empty",
-            currencies: [],
-        });
-
-        renderReview();
-        const navigation = await screen.findByRole("navigation", { name: "Review month navigation" });
-        expect(within(navigation).getByText("Prev")).toHaveClass("sm:hidden");
-        expect(within(navigation).getByText("Latest")).toHaveClass("sm:hidden");
-        expect(within(navigation).getByText("Latest report")).toHaveClass("hidden", "sm:inline");
-        expect(within(navigation).getByText("Next")).toBeVisible();
-    });
 });

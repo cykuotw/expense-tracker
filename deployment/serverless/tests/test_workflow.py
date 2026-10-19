@@ -64,20 +64,20 @@ class WorkflowTest(unittest.TestCase):
         self.assertEqual(record["migrationVersion"], 37)
         context.aws.invoke_bootstrap.assert_not_called()
 
-    def test_current_release_schema_uses_recorded_version_when_known(self) -> None:
+    def test_forward_update_reads_live_state_even_when_recorded_schema_is_stale(self) -> None:
         context = mock.MagicMock()
         policy = mock.MagicMock()
-        with mock.patch.object(workflow, "_migration_state") as migration_state:
+        with mock.patch.object(workflow, "_migration_state", return_value=(40, False)) as migration_state:
             workflow._validate_current_release_schema(
                 context,
                 {"bootstrap_function_name": "bootstrap"},
                 policy,
                 37,
-                38,
             )
 
-        policy.validate_application_rollback.assert_called_once_with(37, 38, False)
-        migration_state.assert_not_called()
+        policy.validate_forward_update.assert_called_once_with(40, False)
+        policy.validate_application_rollback.assert_not_called()
+        migration_state.assert_called_once()
 
     def test_current_release_schema_recovers_zero_from_clean_live_state(self) -> None:
         context = mock.MagicMock()
@@ -92,20 +92,19 @@ class WorkflowTest(unittest.TestCase):
                 {"bootstrap_function_name": "bootstrap"},
                 policy,
                 0,
-                38,
             )
 
         migration_state.assert_called_once_with(
             context,
             {"bootstrap_function_name": "bootstrap"},
         )
-        policy.validate_application_rollback.assert_called_once_with(38, 38, False)
+        policy.validate_forward_update.assert_called_once_with(38, False)
         self.assertIn("live=000038", printed.call_args.args[0])
 
     def test_current_release_schema_propagates_unsafe_live_state(self) -> None:
         context = mock.MagicMock()
         policy = mock.MagicMock()
-        policy.validate_application_rollback.side_effect = workflow.migration_policy.MigrationPolicyError(
+        policy.validate_forward_update.side_effect = workflow.migration_policy.MigrationPolicyError(
             "database migration state is dirty"
         )
         with mock.patch.object(
@@ -121,10 +120,9 @@ class WorkflowTest(unittest.TestCase):
                 {"bootstrap_function_name": "bootstrap"},
                 policy,
                 0,
-                38,
             )
 
-        policy.validate_application_rollback.assert_called_once_with(38, 38, True)
+        policy.validate_forward_update.assert_called_once_with(38, True)
 
     def test_artifact_components_follow_update_scope(self) -> None:
         self.assertEqual(workflow._artifact_components("frontend"), frozenset())
@@ -489,6 +487,7 @@ class WorkflowTest(unittest.TestCase):
         self.assertTrue(store.put_candidate.call_args.kwargs["overwrite"])
         store.set_current.assert_not_called()
 
+    @mock.patch.object(workflow, "_migration_state", new=lambda *_: (35, False))
     def test_all_update_is_ordered_and_fail_fast(self) -> None:
         context = mock.MagicMock()
         context.repo_root = Path("/repo")
@@ -540,6 +539,7 @@ class WorkflowTest(unittest.TestCase):
         context.aws.activate_notification_function.assert_called_once_with("delivery")
         context.aws.restore_sender.assert_called_once_with("sender", 1)
 
+    @mock.patch.object(workflow, "_migration_state", new=lambda *_: (35, False))
     def test_backend_scope_does_not_publish_frontend(self) -> None:
         context = mock.MagicMock()
         context.repo_root = Path("/repo")
@@ -792,6 +792,7 @@ class WorkflowTest(unittest.TestCase):
         context.aws.pause_sender.assert_not_called()
         bootstrap.assert_not_called()
 
+    @mock.patch.object(workflow, "_migration_state", new=lambda *_: (35, False))
     def test_migration_failure_does_not_pause_sender(self) -> None:
         context = mock.MagicMock()
         context.repo_root = Path("/repo")
@@ -818,6 +819,7 @@ class WorkflowTest(unittest.TestCase):
         context.aws.pause_sender.assert_not_called()
         context.aws.restore_sender.assert_not_called()
 
+    @mock.patch.object(workflow, "_migration_state", new=lambda *_: (35, False))
     def test_backend_failure_restores_previous_sender_concurrency(self) -> None:
         context = mock.MagicMock()
         context.repo_root = Path("/repo")

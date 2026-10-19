@@ -529,7 +529,9 @@ def deploy(context: Context) -> None:
             _automatic_release_cleanup(context, outputs)
 
 
-def _require_complete(context: Context) -> dict[str, Any]:
+def _require_complete(
+    context: Context, *, require_healthy: bool = True
+) -> dict[str, Any]:
     with _terraform(context, False) as variables:
         state, outputs = _state(context, Terraform(context.terraform_root, variables))
     if state != "complete":
@@ -550,7 +552,12 @@ def _require_complete(context: Context) -> dict[str, Any]:
             require_security_headers=False,
         )
     except CommandError as error:
-        raise CommandError(f"updates require a healthy complete deployment: {error}") from error
+        if require_healthy:
+            raise CommandError(f"updates require a healthy complete deployment: {error}") from error
+        print(
+            f"warning=existing_application_unhealthy recovery=forward_fix: {error}",
+            flush=True,
+        )
     return outputs
 
 
@@ -909,28 +916,16 @@ def _validate_current_release_schema(
     outputs: dict[str, Any],
     policy: migration_policy.Manifest,
     recorded_version: int,
-    repository_version: int,
 ) -> None:
-    if recorded_version != 0:
-        policy.validate_application_rollback(
-            recorded_version,
-            repository_version,
-            False,
-        )
-        return
-
     live_version, dirty = _migration_state(context, outputs)
-    policy.validate_application_rollback(
-        live_version,
-        repository_version,
-        dirty,
-    )
-    print(
-        "warning=current_release_schema_missing "
-        f"recorded=000000 live={live_version:06d} "
-        "action=record_live_schema_on_success",
-        flush=True,
-    )
+    policy.validate_forward_update(live_version, dirty)
+    if recorded_version == 0:
+        print(
+            "warning=current_release_schema_missing "
+            f"recorded=000000 live={live_version:06d} "
+            "action=record_live_schema_on_success",
+            flush=True,
+        )
 
 
 def _changed_scopes(scope: str) -> list[str]:
@@ -1038,7 +1033,7 @@ def _delete_committed_candidate(store: ReleaseStore, release_id: str) -> None:
 def update(context: Context, scope: str) -> None:
     step("preflight")
     preflight(context, mutation=True)
-    outputs = _require_complete(context)
+    outputs = _require_complete(context, require_healthy=scope != "all")
     step("preflight", "pass")
     store = ReleaseStore(context.aws, context.config)
     current_pointer = store.get_current()
@@ -1071,8 +1066,6 @@ def update(context: Context, scope: str) -> None:
         step("artifacts", "pass")
     store.put_candidate(_candidate(release_id, created_at, scope))
     current_manifest: dict[str, Any] | None = None
-    promoted = False
-    frontend_attempted = False
     sender_name = (
         str(outputs["sender_function_name"])
         if scope in {"backend", "all"} and outputs.get("sender_function_name")
@@ -1099,7 +1092,6 @@ def update(context: Context, scope: str) -> None:
                 outputs,
                 policy,
                 current_schema,
-                expected_schema,
             )
 
         adding_ocr_boundary = scope in {"backend", "all"} and "ocr" not in current_manifest[
@@ -1198,8 +1190,9 @@ def update(context: Context, scope: str) -> None:
                     release_id,
                     preferred=target_backend,
                 )
-            aliases.promote_backend(context.aws, target_backend)
-            promoted = True
+            aliases.promote_backend(
+                context.aws, target_backend, restore_on_failure=False
+            )
             if adding_ocr_boundary:
                 alias_outputs = _apply_infrastructure_updates(context, "backend")
                 if alias_outputs is not None:
@@ -1212,7 +1205,6 @@ def update(context: Context, scope: str) -> None:
             step("backend", "pass")
         if scope in {"frontend", "all"}:
             step("frontend")
-            frontend_attempted = True
             target_frontend = publish_frontend(
                 context.aws,
                 context.repo_root,
@@ -1246,23 +1238,6 @@ def update(context: Context, scope: str) -> None:
         _delete_committed_candidate(store, release_id)
     except BaseException as deployment_error:
         recovery_errors: list[str] = []
-        if frontend_attempted and current_manifest is not None and current_manifest["frontend"] is not None:
-            try:
-                restore_frontend(
-                    context.aws,
-                    outputs,
-                    current_manifest["frontend"],
-                )
-            except Exception as recovery_error:
-                recovery_errors.append(f"frontend: {recovery_error}")
-        if promoted and current_manifest is not None:
-            try:
-                recovery_backend = dict(current_manifest["backend"])
-                if "ocr" not in recovery_backend and "ocr" in target_backend:
-                    recovery_backend["ocr"] = target_backend["ocr"]
-                aliases.promote_backend(context.aws, recovery_backend)
-            except Exception as recovery_error:
-                recovery_errors.append(f"backend: {recovery_error}")
         if sender_pause_attempted:
             try:
                 context.aws.restore_sender(sender_name, previous_sender_concurrency)
@@ -1281,9 +1256,16 @@ def update(context: Context, scope: str) -> None:
             )
         except Exception as recovery_error:
             recovery_errors.append(f"candidate status: {recovery_error}")
+        print(
+            "deployment_state=failed recovery=forward_fix "
+            "application_rollback=disabled; deployed changes were retained. "
+            "Fix the reported error and rerun ACTION=update SCOPE=all. "
+            "The current release pointer still identifies the last successful release.",
+            flush=True,
+        )
         if recovery_errors:
             raise CommandError(
-                "deployment failed and compensation was incomplete: "
+                "deployment failed and failure cleanup was incomplete: "
                 + "; ".join(recovery_errors)
             ) from deployment_error
         raise

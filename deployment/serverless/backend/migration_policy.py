@@ -87,6 +87,21 @@ class Manifest:
                 f"normal deployment rejects maintenance-required pending migrations: {rendered}"
             )
 
+    def validate_forward_update(self, current_version: int, dirty: bool) -> None:
+        self.validate_pending(current_version, dirty)
+        latest = self.migrations[-1].version if self.migrations else self.baseline_version
+        if current_version > latest:
+            raise MigrationPolicyError(
+                "database schema is newer than this deployment: "
+                f"current={current_version:06d} latest={latest:06d}"
+            )
+        known_versions = {0, self.baseline_version, *(entry.version for entry in self.migrations)}
+        if current_version not in known_versions:
+            raise MigrationPolicyError(
+                f"current database version {current_version:06d} is not described by the "
+                "repository migration manifest"
+            )
+
     def validate_application_rollback(
         self,
         target_version: int,

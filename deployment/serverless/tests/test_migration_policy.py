@@ -71,7 +71,7 @@ class MigrationPolicyTest(unittest.TestCase):
     def test_repository_manifest_matches_current_migrations(self) -> None:
         manifest = validate_repository(REPO)
         self.assertEqual(manifest.baseline_version, 35)
-        self.assertEqual(len(manifest.migrations), 4)
+        self.assertEqual(len(manifest.migrations), 5)
         migration = manifest.migrations[0]
         self.assertEqual(migration.version, 36)
         self.assertEqual(migration.name, "add_multi_currency_accounting")
@@ -87,6 +87,31 @@ class MigrationPolicyTest(unittest.TestCase):
         self.assertEqual(receipts.version, 39)
         self.assertEqual(receipts.name, "add_expense_receipts")
         self.assertEqual(confirmed_items.deployment, "online")
+
+    def test_forward_update_allows_category_migration_without_rollback_compatibility(self) -> None:
+        manifest = validate_repository(REPO)
+        self.assertEqual(manifest.migrations[-1].version, 40)
+        self.assertEqual(manifest.migrations[-1].application_rollback, "follow_up_required")
+        for current_version in (0, 35, 39, 40):
+            with self.subTest(current_version=current_version):
+                manifest.validate_forward_update(current_version, False)
+        with self.assertRaisesRegex(MigrationPolicyError, "application rollback is incompatible"):
+            manifest.validate_application_rollback(39, 40, False)
+
+    def test_forward_update_rejects_dirty_unknown_newer_and_maintenance_state(self) -> None:
+        manifest = validate_repository(REPO)
+        for current_version, dirty, message in (
+            (39, True, "dirty"),
+            (34, False, "not described"),
+            (41, False, "newer than this deployment"),
+        ):
+            with self.subTest(current_version=current_version, dirty=dirty):
+                with self.assertRaisesRegex(MigrationPolicyError, message):
+                    manifest.validate_forward_update(current_version, dirty)
+        self.write_sql(36, "example_expansion", "SELECT 1;")
+        self.write_manifest([entry(deployment="maintenance_required")])
+        with self.assertRaisesRegex(MigrationPolicyError, "maintenance-required"):
+            validate_directory(self.migrations).validate_forward_update(35, False)
 
     def test_shared_cross_language_fixtures(self) -> None:
         fixtures = REPO / "backend/internal/migrationpolicy/testdata"

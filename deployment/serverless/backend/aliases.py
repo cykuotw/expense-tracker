@@ -117,6 +117,8 @@ def validate_backend_versions(
 def promote_backend(
     client: AWSClient,
     backend: dict[str, Any],
+    *,
+    restore_on_failure: bool = True,
 ) -> dict[str, dict[str, str] | None]:
     validate_backend_versions(client, backend)
     previous: dict[str, dict[str, str] | None] = {}
@@ -141,6 +143,8 @@ def promote_backend(
             client.update_alias(function_name, target_version, revision)
             changed.append((function_name, old_version))
     except BaseException as promotion_error:
+        if not restore_on_failure:
+            raise
         recovery_errors: list[str] = []
         for function_name, old_version in reversed(changed):
             try:

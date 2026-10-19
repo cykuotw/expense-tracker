@@ -200,6 +200,21 @@ make deploy ACTION=destroy
 
 `SCOPE=backend` also publishes and invokes the bootstrap function first. This applies pending migrations and verifies first-administrator reconciliation before marker-dependent Worker code is published. Use `SCOPE=migrations` when only the migration/bootstrap step should run.
 
+Normal updates migrate forward to the latest repository schema, then publish
+the selected application components. They do not require compatibility with
+the previous application. Migration validation still rejects dirty or unknown
+database state, a database newer than this checkout, and pending migrations
+that require maintenance.
+
+If an update fails, applied migrations and application changes remain in place.
+The deployer records the failed candidate and restores paused notification
+concurrency, but does not restore older Lambda versions or frontend files.
+Fix the reported cause and rerun `make deploy ACTION=update SCOPE=all` from a
+clean committed checkout. Until that succeeds, the current release pointer
+describes the last successful deployment and may differ from the live components.
+All-scope updates report existing application health failures as warnings so a
+forward fix can proceed; API and frontend verification must pass after publication.
+
 ## Release history and application rollback
 
 Successful deployments publish immutable numbered Lambda versions, route all
@@ -259,8 +274,9 @@ Every other built file is copied into
 `releases/<release-id>/frontend/root/`, with a digest-checked snapshot
 descriptor. Activation verifies the descriptor, every referenced shared asset,
 and each mutable snapshot object before copying files to the live root and
-invalidating CloudFront. If a later deployment step fails, the deployer attempts
-to restore the prior aliases and frontend snapshot before reporting the error.
+invalidating CloudFront. Explicit `rollback` and `promote` commands retain their
+compatibility checks and attempt to restore prior artifacts if activation fails;
+normal updates use the forward-fix behavior described above.
 
 The same bounded cleanup runs automatically after each release becomes current;
 if it fails, the command reports that the release is already active and directs

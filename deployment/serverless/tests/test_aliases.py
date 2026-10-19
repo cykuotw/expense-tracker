@@ -137,6 +137,30 @@ class AliasTest(unittest.TestCase):
         with self.assertRaisesRegex(CommandError, "weighted"):
             aliases.current_backend(client, outputs())
 
+    def test_forward_update_keeps_changed_aliases_after_partial_promotion_failure(self) -> None:
+        client = mock.MagicMock()
+        backend = {
+            "worker": record("worker", "11"),
+            "bootstrap": record("bootstrap", "12"),
+            "sender": record("sender", "13"),
+            "delivery": record("delivery", "14"),
+            "errorNotifier": None,
+        }
+        client.function_version.side_effect = lambda name, version: record(name, version)
+        client.alias.side_effect = [
+            {"FunctionVersion": "2", "RevisionId": "bootstrap-old"},
+            {"FunctionVersion": "1", "RevisionId": "worker-old"},
+        ]
+        client.update_alias.side_effect = [{}, CommandError("worker promotion failed")]
+
+        with self.assertRaisesRegex(CommandError, "worker promotion failed"):
+            aliases.promote_backend(client, backend, restore_on_failure=False)
+
+        self.assertEqual(client.update_alias.call_args_list, [
+            mock.call("bootstrap", "12", "bootstrap-old"),
+            mock.call("worker", "11", "worker-old"),
+        ])
+
 
 if __name__ == "__main__":
     unittest.main()

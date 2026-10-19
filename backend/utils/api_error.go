@@ -250,6 +250,12 @@ func normalizeError(status int, err error) APIErrorResponse {
 	if errors.Is(err, types.ErrCurrencyMismatch) {
 		return APIErrorResponse{Error: err.Error(), Code: "currency_mismatch"}
 	}
+	if errors.Is(err, types.ErrInvalidCategoryBreakdown) {
+		return APIErrorResponse{Error: err.Error(), Code: "invalid_category_breakdown"}
+	}
+	if errors.Is(err, types.ErrCategoryBreakdownRequired) {
+		return APIErrorResponse{Error: err.Error(), Code: "category_breakdown_required"}
+	}
 	if errors.Is(err, types.ErrInvalidMoney) {
 		return APIErrorResponse{Error: err.Error(), Code: "invalid_money"}
 	}

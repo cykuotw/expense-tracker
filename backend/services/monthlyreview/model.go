@@ -39,15 +39,17 @@ type UserAmount struct {
 }
 
 type Expense struct {
-	ID          string `json:"id"`
-	Description string `json:"description"`
-	OccurredOn  string `json:"occurredOn"`
-	ExpenseType string `json:"expenseType"`
-	Category    string `json:"category"`
-	PayerID     string `json:"payerId"`
-	PayerName   string `json:"payerName"`
-	Total       string `json:"total"`
-	Settled     bool   `json:"settled"`
+	CategoryAmount string `json:"categoryAmount,omitempty"`
+	CategoryCount  int    `json:"categoryCount,omitzero"`
+	ID             string `json:"id"`
+	Description    string `json:"description"`
+	OccurredOn     string `json:"occurredOn"`
+	ExpenseType    string `json:"expenseType"`
+	Category       string `json:"category"`
+	PayerID        string `json:"payerId"`
+	PayerName      string `json:"payerName"`
+	Total          string `json:"total"`
+	Settled        bool   `json:"settled"`
 }
 
 type ExpensePage struct {

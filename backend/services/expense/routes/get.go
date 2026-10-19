@@ -97,6 +97,11 @@ func (h *Handler) handleGetExpenseList(c *gin.Context) {
 		return
 	}
 
+	breakdowns, err := h.store.GetCategoryBreakdownsByExpenseIDs(expenseIDs)
+	if err != nil {
+		utils.WriteError(c, http.StatusInternalServerError, err)
+		return
+	}
 	response := make([]types.ExpenseResponseBrief, 0, len(expensePage.Expenses))
 	for _, expense := range expensePage.Expenses {
 		payerUserIDs := make([]uuid.UUID, 0)
@@ -118,17 +123,21 @@ func (h *Handler) handleGetExpenseList(c *gin.Context) {
 		// get ledger detail
 		expenseType := typesByID[expense.ExpenseTypeID]
 		res := types.ExpenseResponseBrief{
-			ExpenseID:      expense.ID,
-			Description:    expense.Description,
-			Total:          expense.Total,
-			ExpenseTime:    expense.ExpenseTime,
-			OccurredOn:     expense.OccurredOn,
-			CurrentUser:    userID,
-			Currency:       currency,
-			IsSettled:      expense.IsSettled,
-			PayerUserIDs:   payerUserIDs,
-			PayerUsernames: payerUsernames,
-			ExpenseTypeID:  expense.ExpenseTypeID,
+			ExpenseID:         expense.ID,
+			CategoryBreakdown: effectiveCategoryBreakdown(expense, breakdowns[expense.ID.String()], expenseType),
+			Description:       expense.Description,
+			Total:             expense.Total,
+			ExpenseTime:       expense.ExpenseTime,
+			OccurredOn:        expense.OccurredOn,
+			CurrentUser:       userID,
+			Currency:          currency,
+			IsSettled:         expense.IsSettled,
+			PayerUserIDs:      payerUserIDs,
+			PayerUsernames:    payerUsernames,
+			ExpenseTypeID:     expense.ExpenseTypeID,
+		}
+		if expense.Currency != "" {
+			res.Currency = expense.Currency
 		}
 		if expenseType != nil {
 			res.ExpenseType = expenseType.Name

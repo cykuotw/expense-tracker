@@ -331,33 +331,25 @@ func (s *Store) GetTrend(ctx context.Context, groupID, userID uuid.UUID, endMont
 
 func (s *Store) currencySummaries(ctx context.Context, groupID uuid.UUID, month time.Time) ([]CurrencySummary, error) {
 	rows, err := s.db.QueryContext(ctx, `
-		SELECT expense.currency,
-			CASE
-				WHEN GROUPING(expense_type.category) = 0 THEN 'category'
-				WHEN GROUPING(expense.pay_by_user_id) = 0 THEN 'payer'
-				ELSE 'total'
-			END,
-			COALESCE(expense_type.category, ''),
-			COALESCE(expense.pay_by_user_id::text, ''),
-			COALESCE(users.username, ''),
-			SUM(expense.total)::text,
-			CASE
-				WHEN GROUPING(expense_type.category) = 1 AND GROUPING(expense.pay_by_user_id) = 1
-				THEN COUNT(*)::int
-				ELSE 0
-			END
-		FROM expense
-		JOIN expense_type ON expense_type.id = expense.exp_type_id
-		JOIN users ON users.id = expense.pay_by_user_id
-		WHERE expense.group_id = $1 AND expense.is_deleted IS FALSE
-			AND COALESCE(expense.occurred_on, (expense.expense_time_utc AT TIME ZONE 'UTC')::date) >= $2
-			AND COALESCE(expense.occurred_on, (expense.expense_time_utc AT TIME ZONE 'UTC')::date) < ($2::date + INTERVAL '1 month')
-		GROUP BY GROUPING SETS (
-			(expense.currency),
-			(expense.currency, expense_type.category),
-			(expense.currency, expense.pay_by_user_id, users.username)
-		)
-		ORDER BY 1, 2, 3, 5, 4`, groupID, month)
+        WITH scoped AS (
+            SELECT * FROM expense
+            WHERE group_id = $1 AND is_deleted IS FALSE
+                AND COALESCE(occurred_on, (expense_time_utc AT TIME ZONE 'UTC')::date) >= $2
+                AND COALESCE(occurred_on, (expense_time_utc AT TIME ZONE 'UTC')::date) < ($2::date + INTERVAL '1 month')
+        ), summary AS (
+            SELECT currency, 'total' AS kind, '' AS category, '' AS payer, '' AS username,
+                SUM(total)::text AS amount, COUNT(*)::int AS expense_count
+            FROM scoped GROUP BY currency
+            UNION ALL
+            SELECT e.currency, 'payer', '', e.pay_by_user_id::text, u.username, SUM(e.total)::text, 0
+            FROM scoped e JOIN users u ON u.id = e.pay_by_user_id
+            GROUP BY e.currency, e.pay_by_user_id, u.username
+            UNION ALL
+            SELECT e.currency, 'category', t.category, '', '', SUM(b.amount)::text, 0
+            FROM scoped e JOIN expense_effective_category b ON b.expense_id = e.id
+            JOIN expense_type t ON t.id = b.expense_type_id
+            GROUP BY e.currency, t.category
+        ) SELECT * FROM summary ORDER BY 1, 2, 3, 5, 4`, groupID, month)
 	if err != nil {
 		return nil, err
 	}
@@ -513,12 +505,12 @@ func (s *Store) ListExpenses(ctx context.Context, groupID, userID uuid.UUID, mon
 	orderColumns := dateExpression + ", expense.expense_time_utc, expense.id"
 	cursorColumns := "$4::date, $5::timestamptz, $6::uuid"
 	if options.Sort == "amount_desc" || options.Sort == "amount_asc" {
-		orderColumns = "expense.total, " + orderColumns
+		orderColumns = "category_amount.amount, " + orderColumns
 		cursorColumns = "$9::numeric, " + cursorColumns
 	}
 	orderBy := dateExpression + " " + direction + ", expense.expense_time_utc " + direction + ", expense.id " + direction
 	if options.Sort == "amount_desc" || options.Sort == "amount_asc" {
-		orderBy = "expense.total " + direction + ", " + orderBy
+		orderBy = "category_amount.amount " + direction + ", " + orderBy
 	}
 	var cursorTotal any
 	if cursorValue != "" && (options.Sort == "amount_desc" || options.Sort == "amount_asc") {
@@ -536,16 +528,21 @@ func (s *Store) ListExpenses(ctx context.Context, groupID, userID uuid.UUID, mon
         SELECT expense.id, expense.description,
             COALESCE(expense.occurred_on, (expense.expense_time_utc AT TIME ZONE 'UTC')::date),
             expense.expense_time_utc, expense_type.name, expense_type.category,
-            expense.pay_by_user_id, users.username, expense.total::text, expense.is_settled
+            expense.pay_by_user_id, users.username, expense.total::text, expense.is_settled, category_amount.amount::text,
+            (SELECT COUNT(*) FROM expense_category_breakdown b WHERE b.expense_id = expense.id)
         FROM expense
         JOIN expense_type ON expense_type.id = expense.exp_type_id
         JOIN users ON users.id = expense.pay_by_user_id
+        JOIN LATERAL (
+            SELECT SUM(b.amount) AS amount FROM expense_effective_category b
+            JOIN expense_type t ON t.id = b.expense_type_id
+            WHERE b.expense_id = expense.id AND ($8 = '' OR t.category = $8)
+        ) category_amount ON category_amount.amount IS NOT NULL
         JOIN monthly_review_publication publication
             ON publication.group_id = expense.group_id AND publication.review_month = $2
         WHERE expense.group_id = $1 AND expense.is_deleted IS FALSE AND expense.currency = $3
             AND COALESCE(expense.occurred_on, (expense.expense_time_utc AT TIME ZONE 'UTC')::date) >= $2
             AND COALESCE(expense.occurred_on, (expense.expense_time_utc AT TIME ZONE 'UTC')::date) < ($2::date + INTERVAL '1 month')
-            AND ($8 = '' OR expense_type.category = $8)
             AND ($4::date IS NULL OR (%s) %s (%s))
         ORDER BY %s
         LIMIT $7`, orderColumns, comparison, cursorColumns, orderBy),
@@ -565,10 +562,17 @@ func (s *Store) ListExpenses(ctx context.Context, groupID, userID uuid.UUID, mon
 		var expenseID, payerID uuid.UUID
 		if err := rows.Scan(&expenseID, &row.expense.Description, &row.cursor.OccurredOn,
 			&row.cursor.ExpenseTimeUTC, &row.expense.ExpenseType, &row.expense.Category,
-			&payerID, &row.expense.PayerName, &row.expense.Total, &row.expense.Settled); err != nil {
+			&payerID, &row.expense.PayerName, &row.expense.Total, &row.expense.Settled, &row.expense.CategoryAmount, &row.expense.CategoryCount); err != nil {
 			return ExpensePage{}, err
 		}
-		row.cursor.Total = row.expense.Total
+		row.cursor.Total = row.expense.CategoryAmount
+		if options.Category == "" {
+			row.expense.CategoryAmount = ""
+		}
+		if row.expense.CategoryCount > 1 {
+			row.expense.ExpenseType = "Multiple categories"
+			row.expense.Category = ""
+		}
 		row.cursor.Sort = options.Sort
 		row.cursor.Category = options.Category
 		row.cursor.Currency = currency

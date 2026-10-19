@@ -12,7 +12,7 @@ import {
     GroupMember,
     GroupMembersLoadStatus,
 } from "../types/group";
-import { ExpenseTypeItem } from "../types/expense";
+import { ExpenseCategoryAmount, ExpenseTypeItem } from "../types/expense";
 import { CurrencyMetadata } from "../lib/money";
 import type { PreparedReceipt } from "../lib/receiptEditor";
 import type { ConfirmedExpenseItem, OCRDraft, ReviewedReceiptDraft } from "../types/ocr";
@@ -25,6 +25,8 @@ export interface CreateExpenseContextType {
     setSelectedGroupId: Dispatch<SetStateAction<string | null>>;
     selectedExpenseTypeId: string;
     setSelectedExpenseTypeId: Dispatch<SetStateAction<string>>;
+    categoryBreakdown: ExpenseCategoryAmount[];
+    setCategoryBreakdown: Dispatch<SetStateAction<ExpenseCategoryAmount[]>>;
     total: string;
     totalInput: string;
     setTotalInput: Dispatch<SetStateAction<string>>;

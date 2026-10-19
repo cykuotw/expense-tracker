@@ -8,6 +8,8 @@ const FALLBACK_MESSAGES: Record<ExpenseSubmissionKind, string> = {
 };
 
 const CODE_MESSAGES: Record<string, string> = {
+    invalid_category_breakdown: "Check your categories: use different categories with positive amounts that add up to the expense total, and notes up to 200 characters.",
+    category_breakdown_required: "This expense has multiple categories. Reload it before editing to keep its category amounts.",
     invalid_occurred_on: "Choose a valid expense date and try again.",
     currency_mismatch:
         "This group's currency settings changed. Reload the page before trying again.",

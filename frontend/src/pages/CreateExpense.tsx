@@ -8,7 +8,7 @@ import { CreateExpenseProvider } from "../contexts/CreateExpenseContext";
 import { useCreateExpense } from "../hooks/CreateExpenseContextHooks";
 import AmountCalculator from "../components/expense/AmountCalculator";
 import { useFormFocusVisibility } from "../hooks/useFormFocusVisibility";
-import { ExpenseTypePicker } from "../components/expense/ExpenseTypePicker";
+import { ExpenseCategoryEditor } from "../components/expense/ExpenseCategoryEditor";
 import { ExpenseFormPicker } from "../components/expense/ExpenseFormPicker";
 import MobilePageHeader from "../components/MobilePageHeader";
 import { getGroupTypePresentation } from "../lib/groupTypePresentation";
@@ -34,6 +34,8 @@ const CreateExpenseContent = () => {
         groupId,
         selectedGroupId,
         setSelectedGroupId,
+        categoryBreakdown,
+        setCategoryBreakdown,
         selectedExpenseTypeId,
         setSelectedExpenseTypeId,
         totalInput,
@@ -202,19 +204,6 @@ const CreateExpenseContent = () => {
                             </div>
 
                             <div data-form-field className="col-span-2">
-                                <label className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground/60">
-                                    Expense type
-                                </label>
-                                <div className="mt-2">
-                                    <ExpenseTypePicker
-                                        expenseTypes={expenseTypes}
-                                        value={selectedExpenseTypeId}
-                                        onChange={setSelectedExpenseTypeId}
-                                    />
-                                </div>
-                            </div>
-
-                            <div data-form-field className="col-span-2">
                                 <label htmlFor="expense-description" className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground/60">
                                     Description
                                 </label>
@@ -274,6 +263,10 @@ const CreateExpenseContent = () => {
                                 </div>
                             </div>
                         </div>
+
+                        <ExpenseCategoryEditor rows={categoryBreakdown} onChange={setCategoryBreakdown}
+                            expenseTypes={expenseTypes} singleTypeId={selectedExpenseTypeId} onSingleTypeChange={setSelectedExpenseTypeId}
+                            total={totalInput} currency={currency} amountDigits={amountDigits} />
 
                         {receiptDetailsActive ? (
                             <ConfirmedReceiptDetails

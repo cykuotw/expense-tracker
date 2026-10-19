@@ -356,11 +356,25 @@ function ExpenseSummary({
                                     variant="secondary"
                                     className="h-auto max-w-full whitespace-normal py-1 text-left leading-4"
                                 >
-                                    {categoryLabel}
+                                    {(expenseDetail.categoryBreakdown?.length ?? 0) > 1 ? `${expenseDetail.categoryBreakdown!.length} categories` : categoryLabel}
                                 </Badge>
                             </dd>
                         </div>
                     </dl>
+                    {(expenseDetail.categoryBreakdown?.length ?? 0) > 1 ? (
+                        <section aria-label="Category amounts" className="flex flex-col gap-3">
+                            <h3 className="font-semibold">Category amounts</h3>
+                            <p className="text-sm text-muted-foreground">Parts of the total, including tax and fees. This is one expense.</p>
+                            <dl className="flex flex-col gap-3">
+                                {expenseDetail.categoryBreakdown!.map(row => (
+                                    <div key={row.expenseTypeId} className="flex flex-wrap justify-between gap-2 border-b border-border pb-3">
+                                        <dt className="min-w-0 break-words"><span className="block font-medium">{row.expenseType}</span><span className="block text-sm text-muted-foreground">{row.category}</span>{row.note ? <span className="block whitespace-pre-wrap break-words text-sm">{row.note}</span> : null}</dt>
+                                        <dd className="font-semibold tabular-nums">{formatExpenseMoney(row.amount, expenseDetail.currency, amountDigits)}</dd>
+                                    </div>
+                                ))}
+                            </dl>
+                        </section>
+                    ) : null}
                 </CardContent>
             </Card>
         </section>

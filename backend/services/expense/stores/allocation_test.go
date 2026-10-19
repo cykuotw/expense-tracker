@@ -48,12 +48,14 @@ func TestExpenseAllocationPersistenceAndLedgerReconciliation(t *testing.T) {
 
 	retainedLedgerID := uuid.New()
 	require.NoError(t, store.CreateLedger(types.Ledger{
-		ID: retainedLedgerID, ExpenseID: expenseRecord.ID,
+		Currency: "CAD",
+		ID:       retainedLedgerID, ExpenseID: expenseRecord.ID,
 		LenderUserID: expenseRecord.PayByUserId, BorrowerUesrID: firstBorrowerID,
 		Share: firstAmount,
 	}))
 	require.NoError(t, store.CreateLedger(types.Ledger{
-		ID: uuid.New(), ExpenseID: expenseRecord.ID,
+		Currency: "CAD",
+		ID:       uuid.New(), ExpenseID: expenseRecord.ID,
 		LenderUserID: expenseRecord.PayByUserId, BorrowerUesrID: secondBorrowerID,
 		Share: secondAmount,
 	}))
@@ -65,8 +67,8 @@ func TestExpenseAllocationPersistenceAndLedgerReconciliation(t *testing.T) {
 		{ExpenseID: expenseRecord.ID, UserID: replacementBorrowerID, Amount: &secondReplacementAmount},
 	}
 	replacementLedgers := []types.Ledger{
-		{BorrowerUesrID: firstBorrowerID, Share: decimal.RequireFromString("3.00")},
-		{BorrowerUesrID: replacementBorrowerID, Share: decimal.RequireFromString("7.00")},
+		{Currency: "CAD", BorrowerUesrID: firstBorrowerID, Share: decimal.RequireFromString("3.00")},
+		{Currency: "CAD", BorrowerUesrID: replacementBorrowerID, Share: decimal.RequireFromString("7.00")},
 	}
 	require.NoError(t, store.RunInTransaction(func(tx types.ExpenseTransactionStore) error {
 		return tx.ReconcileExpenseAllocationState(

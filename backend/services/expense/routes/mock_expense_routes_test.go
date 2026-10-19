@@ -30,6 +30,8 @@ var mockItems = []*types.Item{
 // expense store base mock
 
 type mockExpenseStore struct {
+	GetCategoryBreakdownsByExpenseIDsFn       func([]string) (map[string][]types.ExpenseCategoryAmount, error)
+	ReplaceExpenseCategoryBreakdownFn         func(uuid.UUID, []types.ExpenseCategoryAmount) error
 	RunInTransactionFn                        func(callback func(types.ExpenseTransactionStore) error) error
 	LockGroupCurrencyFn                       func(groupID string) (string, error)
 	CheckGroupParticipantsFn                  func(groupID string, userIDs []uuid.UUID) error
@@ -743,4 +745,17 @@ func getExpenseDetailUserStoreMock() *mockUserStore {
 		return &types.User{ID: mockUserID, Username: "test user"}, nil
 	}
 	return store
+}
+
+func (s *mockExpenseStore) GetCategoryBreakdownsByExpenseIDs(ids []string) (map[string][]types.ExpenseCategoryAmount, error) {
+	if s.GetCategoryBreakdownsByExpenseIDsFn != nil {
+		return s.GetCategoryBreakdownsByExpenseIDsFn(ids)
+	}
+	return nil, nil
+}
+func (s *mockExpenseStore) ReplaceExpenseCategoryBreakdown(id uuid.UUID, rows []types.ExpenseCategoryAmount) error {
+	if s.ReplaceExpenseCategoryBreakdownFn != nil {
+		return s.ReplaceExpenseCategoryBreakdownFn(id, rows)
+	}
+	return nil
 }

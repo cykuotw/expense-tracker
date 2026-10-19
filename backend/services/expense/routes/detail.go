@@ -133,10 +133,16 @@ func (h *Handler) expenseDetailResponse(c *gin.Context, expenseTypes []*types.Ex
 		}
 		groupActive = lifecycle.IsActive
 	}
+	breakdowns, err := h.store.GetCategoryBreakdownsByExpenseIDs([]string{expenseID})
+	if err != nil {
+		return types.ExpenseResponse{}, err
+	}
 	return types.ExpenseResponse{
+		CategoryBreakdown: effectiveCategoryBreakdown(expense, breakdowns[expenseID], &types.ExpenseType{Name: expenseType, Category: expenseCategory}),
 		GroupIsActive:     groupActive,
 		ID:                expense.ID,
 		Description:       expense.Description,
+		ProviderName:      expense.ProviderName,
 		CreatedByUserID:   expense.CreateByUserID,
 		CreatedByUsername: user.DisplayName(),
 		ExpenseTypeId:     expense.ExpenseTypeID,

@@ -13,10 +13,15 @@ import {
     GroupMember,
     GroupMembersLoadStatus,
 } from "../types/group";
-import { ExpenseDetailData, ExpenseTypeItem } from "../types/expense";
+import { ExpenseCategoryAmount, ExpenseDetailData, ExpenseTypeItem } from "../types/expense";
+import type { ReceiptExpenseValues } from "../lib/receiptDraft";
 import { CurrencyMetadata } from "../lib/money";
 
 export interface expenseFormData {
+    receiptDetails?: Omit<ReceiptExpenseValues, "total">;
+    providerName?: string;
+    invoiceUrl?: string;
+    categoryBreakdown?: ExpenseCategoryAmount[];
     groupId: string;
     expenseType: string;
     description: string;

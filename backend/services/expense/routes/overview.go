@@ -144,6 +144,10 @@ func (h *Handler) expenseListResponse(groupID string, page int64, order types.Ex
 	if err != nil {
 		return types.ExpenseResponsePage{}, err
 	}
+	breakdowns, err := h.store.GetCategoryBreakdownsByExpenseIDs(ids)
+	if err != nil {
+		return types.ExpenseResponsePage{}, err
+	}
 	result := make([]types.ExpenseResponseBrief, 0, len(pageData.Expenses))
 	for _, item := range pageData.Expenses {
 		payerIDs, payerNames := []uuid.UUID{}, []string{}
@@ -161,6 +165,7 @@ func (h *Handler) expenseListResponse(groupID string, page int64, order types.Ex
 			response.ExpenseType = expenseType.Name
 			response.ExpenseCategory = expenseType.Category
 		}
+		response.CategoryBreakdown = effectiveCategoryBreakdown(item, breakdowns[item.ID.String()], typesByID[item.ExpenseTypeID])
 		result = append(result, response)
 	}
 	return types.ExpenseResponsePage{Expenses: result, HasMore: pageData.HasMore}, nil

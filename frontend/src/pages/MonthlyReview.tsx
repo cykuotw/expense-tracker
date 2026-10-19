@@ -201,8 +201,10 @@ function ExpenseList({ summary, amountDigits, groupId, month, category, sort = "
                             <span className="block truncate font-semibold">{expense.description}</span>
                             <span className="block truncate text-xs text-foreground/60">{formatDateOnlyLong(expense.occurredOn)} · Paid by {expense.payerName}</span>
                         </span>
-                        <span className="flex flex-col items-end gap-1">
-                            <span className="font-semibold tabular-nums">{formatSignedMoney(expense.total, summary.currency, amountDigits)}</span>
+                        <span className="flex max-w-44 flex-col items-end gap-1 text-right">
+                            <span className="font-semibold tabular-nums">{category && expense.categoryAmount !== undefined ? <><span className="block text-xs font-normal text-muted-foreground">In this category</span>{formatSignedMoney(expense.categoryAmount, summary.currency, amountDigits)}</> : formatSignedMoney(expense.total, summary.currency, amountDigits)}</span>
+                            {category && expense.categoryAmount !== undefined ? <span className="text-xs text-muted-foreground">Expense total: {formatSignedMoney(expense.total, summary.currency, amountDigits)}</span> : null}
+                            {(expense.categoryCount ?? 0) > 1 ? <Badge variant="secondary">{expense.categoryCount} categories</Badge> : null}
                             {expense.settled ? <Badge variant="secondary">Settled</Badge> : null}
                         </span>
                     </Link>

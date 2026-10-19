@@ -15,7 +15,7 @@ func TestRepositoryManifestMatchesCurrentMigrations(t *testing.T) {
 	manifest, err := LoadDirectory(directory)
 	require.NoError(t, err)
 	assert.Equal(t, BaselineVersion, manifest.BaselineVersion)
-	require.Len(t, manifest.Migrations, 4)
+	require.Len(t, manifest.Migrations, 5)
 	assert.Equal(t, uint(36), manifest.Migrations[0].Version)
 	assert.Equal(t, "add_multi_currency_accounting", manifest.Migrations[0].Name)
 	assert.Equal(t, uint(37), manifest.Migrations[1].Version)
@@ -24,6 +24,8 @@ func TestRepositoryManifestMatchesCurrentMigrations(t *testing.T) {
 	assert.Equal(t, "expand_confirmed_item_contract", manifest.Migrations[2].Name)
 	assert.Equal(t, uint(39), manifest.Migrations[3].Version)
 	assert.Equal(t, "add_expense_receipts", manifest.Migrations[3].Name)
+	assert.Equal(t, uint(40), manifest.Migrations[4].Version)
+	assert.Equal(t, "add_expense_category_breakdown", manifest.Migrations[4].Name)
 	assert.NoError(t, manifest.ValidatePending(BaselineVersion, false))
 }
 

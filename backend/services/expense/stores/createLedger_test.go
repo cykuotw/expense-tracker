@@ -27,6 +27,7 @@ func TestCreateLedger(t *testing.T) {
 		{
 			name: "valid",
 			mockLedger: types.Ledger{
+				Currency:       "CAD",
 				ID:             uuid.New(),
 				ExpenseID:      uuid.New(),
 				LenderUserID:   uuid.New(),

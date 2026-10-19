@@ -16,6 +16,8 @@ export interface MonthlyReviewUserAmount {
 }
 
 export interface MonthlyReviewExpense {
+    categoryAmount?: string;
+    categoryCount?: number;
     id: string;
     description: string;
     occurredOn: string;

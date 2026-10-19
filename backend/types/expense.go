@@ -55,6 +55,8 @@ type ExpenseAllocationPayload struct {
 }
 
 type ExpenseTransactionStore interface {
+	GetCategoryBreakdownsByExpenseIDs(expenseIDs []string) (map[string][]ExpenseCategoryAmount, error)
+	ReplaceExpenseCategoryBreakdown(expenseID uuid.UUID, rows []ExpenseCategoryAmount) error
 	LockGroupCurrency(groupID string) (string, error)
 	CheckGroupParticipants(groupID string, userIDs []uuid.UUID) error
 	GetCurrencyAmountDigits(currency string) (int32, error)
@@ -90,6 +92,7 @@ type ExpenseTransactionStore interface {
 }
 
 type ExpenseStore interface {
+	GetCategoryBreakdownsByExpenseIDs(expenseIDs []string) (map[string][]ExpenseCategoryAmount, error)
 	RunInTransaction(func(ExpenseTransactionStore) error) error
 	GetExpenseCreateIdempotency(userID, key uuid.UUID) (*ExpenseCreateIdempotency, error)
 
@@ -125,27 +128,28 @@ type ExpenseController interface {
 
 // DB structure
 type Expense struct {
-	ID             uuid.UUID
-	Description    string
-	GroupID        uuid.UUID
-	CreateByUserID uuid.UUID
-	PayByUserId    uuid.UUID
-	ExpenseTypeID  uuid.UUID
-	CreateTime     time.Time
-	UpdateTime     time.Time
-	ExpenseTime    time.Time
-	OccurredOn     string
-	ProviderName   string
-	IsSettled      bool
-	SettleTime     time.Time
-	SubTotal       decimal.Decimal
-	TaxFeeTip      decimal.Decimal
-	Total          decimal.Decimal
-	Currency       string
-	InvoicePicUrl  string
-	AllocationMode ExpenseAllocationMode
-	IsDeleted      bool
-	DeleteTime     time.Time
+	CategoryBreakdown []ExpenseCategoryAmount
+	ID                uuid.UUID
+	Description       string
+	GroupID           uuid.UUID
+	CreateByUserID    uuid.UUID
+	PayByUserId       uuid.UUID
+	ExpenseTypeID     uuid.UUID
+	CreateTime        time.Time
+	UpdateTime        time.Time
+	ExpenseTime       time.Time
+	OccurredOn        string
+	ProviderName      string
+	IsSettled         bool
+	SettleTime        time.Time
+	SubTotal          decimal.Decimal
+	TaxFeeTip         decimal.Decimal
+	Total             decimal.Decimal
+	Currency          string
+	InvoicePicUrl     string
+	AllocationMode    ExpenseAllocationMode
+	IsDeleted         bool
+	DeleteTime        time.Time
 }
 
 type ExpenseType struct {
@@ -156,53 +160,56 @@ type ExpenseType struct {
 
 // Payloads
 type ExpensePayload struct {
-	Description    string                   `json:"description"`
-	GroupID        string                   `json:"groupId"`
-	CreateByUserID string                   `json:"createByUserId"`
-	PayByUserId    string                   `json:"payByUserId"`
-	ProviderName   string                   `json:"providerName"`
-	ExpenseTypeID  string                   `json:"expTypeId"`
-	SubTotal       decimal.Decimal          `json:"subTotal"`
-	TaxFeeTip      decimal.Decimal          `json:"taxFeeTip"`
-	Total          decimal.Decimal          `json:"total"`
-	Currency       string                   `json:"currency"`
-	InvoicePicUrl  string                   `json:"invoiceUrl"`
-	OccurredOn     *string                  `json:"occurredOn"`
-	Items          []ItemPayload            `json:"items"`
-	Allocation     ExpenseAllocationPayload `json:"allocation"`
-	Receipt        *ReceiptChoice           `json:"receipt,omitempty"`
+	CategoryBreakdown []ExpenseCategoryAmount  `json:"categoryBreakdown"`
+	Description       string                   `json:"description"`
+	GroupID           string                   `json:"groupId"`
+	CreateByUserID    string                   `json:"createByUserId"`
+	PayByUserId       string                   `json:"payByUserId"`
+	ProviderName      string                   `json:"providerName"`
+	ExpenseTypeID     string                   `json:"expTypeId"`
+	SubTotal          decimal.Decimal          `json:"subTotal"`
+	TaxFeeTip         decimal.Decimal          `json:"taxFeeTip"`
+	Total             decimal.Decimal          `json:"total"`
+	Currency          string                   `json:"currency"`
+	InvoicePicUrl     string                   `json:"invoiceUrl"`
+	OccurredOn        *string                  `json:"occurredOn"`
+	Items             []ItemPayload            `json:"items"`
+	Allocation        ExpenseAllocationPayload `json:"allocation"`
+	Receipt           *ReceiptChoice           `json:"receipt,omitempty"`
 }
 
 type ExpenseUpdatePayload struct {
-	Description   string                   `json:"description"`
-	GroupID       uuid.UUID                `json:"groupId"`
-	PayByUserId   string                   `json:"payByUserId"`
-	ExpenseTypeID uuid.UUID                `json:"expTypeId"`
-	ProviderName  string                   `json:"providerName"`
-	SubTotal      decimal.Decimal          `json:"subTotal"`
-	TaxFeeTip     decimal.Decimal          `json:"taxFeeTip"`
-	Total         decimal.Decimal          `json:"total"`
-	Currency      string                   `json:"currency"`
-	InvoicePicUrl string                   `json:"invoiceUrl"`
-	OccurredOn    *string                  `json:"occurredOn"`
-	Items         []ItemUpdatePayload      `json:"items"`
-	Allocation    ExpenseAllocationPayload `json:"allocation"`
+	CategoryBreakdown []ExpenseCategoryAmount  `json:"categoryBreakdown"`
+	Description       string                   `json:"description"`
+	GroupID           uuid.UUID                `json:"groupId"`
+	PayByUserId       string                   `json:"payByUserId"`
+	ExpenseTypeID     uuid.UUID                `json:"expTypeId"`
+	ProviderName      string                   `json:"providerName"`
+	SubTotal          decimal.Decimal          `json:"subTotal"`
+	TaxFeeTip         decimal.Decimal          `json:"taxFeeTip"`
+	Total             decimal.Decimal          `json:"total"`
+	Currency          string                   `json:"currency"`
+	InvoicePicUrl     string                   `json:"invoiceUrl"`
+	OccurredOn        *string                  `json:"occurredOn"`
+	Items             []ItemUpdatePayload      `json:"items"`
+	Allocation        ExpenseAllocationPayload `json:"allocation"`
 }
 
 type ExpenseResponseBrief struct {
-	ExpenseID       uuid.UUID       `json:"expenseId"`
-	Description     string          `json:"description"`
-	Total           decimal.Decimal `json:"total"`
-	ExpenseTime     time.Time       `json:"expenseTime"`
-	OccurredOn      string          `json:"occurredOn"`
-	CurrentUser     string          `json:"currentUser"`
-	Currency        string          `json:"currency"`
-	IsSettled       bool            `json:"isSettled"`
-	PayerUserIDs    []uuid.UUID     `json:"payerUserIds"`
-	PayerUsernames  []string        `json:"payerUsernames"`
-	ExpenseTypeID   uuid.UUID       `json:"expenseTypeId"`
-	ExpenseType     string          `json:"expenseType"`
-	ExpenseCategory string          `json:"expenseCategory"`
+	CategoryBreakdown []ExpenseCategoryAmount `json:"categoryBreakdown"`
+	ExpenseID         uuid.UUID               `json:"expenseId"`
+	Description       string                  `json:"description"`
+	Total             decimal.Decimal         `json:"total"`
+	ExpenseTime       time.Time               `json:"expenseTime"`
+	OccurredOn        string                  `json:"occurredOn"`
+	CurrentUser       string                  `json:"currentUser"`
+	Currency          string                  `json:"currency"`
+	IsSettled         bool                    `json:"isSettled"`
+	PayerUserIDs      []uuid.UUID             `json:"payerUserIds"`
+	PayerUsernames    []string                `json:"payerUsernames"`
+	ExpenseTypeID     uuid.UUID               `json:"expenseTypeId"`
+	ExpenseType       string                  `json:"expenseType"`
+	ExpenseCategory   string                  `json:"expenseCategory"`
 }
 
 type ExpenseResponsePage struct {
@@ -219,6 +226,8 @@ type GroupOverviewResponse struct {
 }
 
 type ExpenseResponse struct {
+	ProviderName      string                   `json:"providerName"`
+	CategoryBreakdown []ExpenseCategoryAmount  `json:"categoryBreakdown"`
 	GroupIsActive     bool                     `json:"groupIsActive"`
 	ID                uuid.UUID                `json:"expenseId"`
 	Description       string                   `json:"description"`

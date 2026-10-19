@@ -5,7 +5,7 @@ import { EditExpenseProvider } from "../contexts/EditExpenseContext";
 import { useEditExpense } from "../hooks/EditExpenseContextHooks";
 import AmountCalculator from "../components/expense/AmountCalculator";
 import { useFormFocusVisibility } from "../hooks/useFormFocusVisibility";
-import { ExpenseTypePicker } from "../components/expense/ExpenseTypePicker";
+import { ExpenseCategoryEditor } from "../components/expense/ExpenseCategoryEditor";
 import MobilePageHeader from "../components/MobilePageHeader";
 import { ExpenseDateInput } from "../components/expense/ExpenseDateInput";
 import { moneyInputPlaceholder, moneyInputStep } from "../lib/money";
@@ -16,6 +16,8 @@ import ExpenseSubmitButton from "../components/expense/ExpenseSubmitButton";
 import DesktopBackLink from "../components/DesktopBackLink";
 import { CurrencyPicker } from "../components/group/CurrencyPicker";
 import { usePWAUpdateBlocker } from "../hooks/usePWAUpdateBlocker";
+import { ConfirmedReceiptDetails } from "../components/expense/ConfirmedReceiptDetails";
+import { validateReceiptExpense } from "../lib/receiptDraft";
 import ExpenseReceiptAttachment from "../components/receipt/ExpenseReceiptAttachment";
 
 const EditExpenseContent = () => {
@@ -119,24 +121,6 @@ const EditExpenseContent = () => {
                             </div>
 
                             <div data-form-field className="col-span-2">
-                                <label className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground/60">
-                                    Expense type
-                                </label>
-                                <div className="mt-2">
-                                    <ExpenseTypePicker
-                                        expenseTypes={expenseTypes}
-                                        value={formData.expenseType}
-                                        onChange={(expenseType) =>
-                                            setFormData((current) => ({
-                                                ...current,
-                                                expenseType,
-                                            }))
-                                        }
-                                    />
-                                </div>
-                            </div>
-
-                            <div data-form-field className="col-span-2">
                                 <label htmlFor="expense-description" className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground/60">
                                     Description
                                 </label>
@@ -193,6 +177,23 @@ const EditExpenseContent = () => {
                                 </div>
                             </div>
                         </div>
+
+                        <ExpenseCategoryEditor rows={formData.categoryBreakdown ?? []}
+                            onChange={(categoryBreakdown) => setFormData(current => ({ ...current, categoryBreakdown }))}
+                            expenseTypes={expenseTypes} singleTypeId={formData.expenseType}
+                            onSingleTypeChange={(expenseType) => setFormData(current => ({ ...current, expenseType }))}
+                            total={formData.total} currency={formData.currency} amountDigits={amountDigits} />
+
+                        {formData.receiptDetails ? <ConfirmedReceiptDetails
+                            {...formData.receiptDetails}
+                            onMerchantChange={merchant => setFormData(current => ({ ...current, receiptDetails: { ...current.receiptDetails!, merchant } }))}
+                            onSubtotalChange={subtotal => setFormData(current => ({ ...current, receiptDetails: { ...current.receiptDetails!, subtotal } }))}
+                            onTaxChange={tax => setFormData(current => ({ ...current, receiptDetails: { ...current.receiptDetails!, tax } }))}
+                            onTipChange={tip => setFormData(current => ({ ...current, receiptDetails: { ...current.receiptDetails!, tip } }))}
+                            onItemsChange={items => setFormData(current => ({ ...current, receiptDetails: { ...current.receiptDetails!, items } }))}
+                            amountStep={amountDigits === null ? undefined : moneyInputStep(amountDigits)}
+                            validationMessage={validateReceiptExpense({ ...formData.receiptDetails, total: formData.total }, amountDigits).message}
+                        /> : null}
 
                         <div className="mt-4 md:mt-6">
                             {groupMembersLoadStatus === "error" ? (

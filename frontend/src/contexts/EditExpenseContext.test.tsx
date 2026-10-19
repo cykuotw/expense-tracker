@@ -203,6 +203,21 @@ describe("EditExpenseProvider error handling", () => {
         cleanup();
     });
 
+    it("preserves category notes, confirmed item IDs, and receipt amounts during a category-expense edit", async () => {
+        const detailed = { ...expenseDetail, providerName: "Costco", total: "300", subTotal: "280", taxFeeTip: "20",
+            categoryBreakdown: [{ expenseTypeId: "type-1", amount: "200", note: "Groceries" }, { expenseTypeId: "type-2", amount: "100", note: "Trolley" }],
+            items: [{ itemId: "item-1", itemName: "Purchases", itemSubTotal: "280", description: "Purchases", lineTotal: "280", quantity: null, unit: null, unitPrice: null }] };
+        apiFetchMock.mockImplementation((path: string) => Promise.resolve(jsonResponse(path.endsWith("edit-options") ? { ...editOptions(), expense: detailed } : {}, path.endsWith("edit-options") ? 200 : 403)));
+        render(<EditExpenseProvider><EditExpenseHarness /></EditExpenseProvider>);
+        await waitFor(() => expect(screen.getByTestId("member-load-status")).toHaveTextContent("ready"));
+        fireEvent.click(screen.getByRole("button", { name: "Change description" }));
+        fireEvent.submit(screen.getByRole("form", { name: "edit form" }));
+        await waitFor(() => expect(apiFetchMock.mock.calls.some(([path, init]) => path === "/expense/expense-1" && init.method === "PUT")).toBe(true));
+        const body = JSON.parse(apiFetchMock.mock.calls.find(([path, init]) => path === "/expense/expense-1" && init.method === "PUT")![1].body);
+        expect(body).toMatchObject({ total: "300.00", subTotal: "280.00", taxFeeTip: "20.00", providerName: "Costco", categoryBreakdown: [{ expenseTypeId: "type-1", amount: "200.00", note: "Groceries" }, { expenseTypeId: "type-2", amount: "100.00", note: "Trolley" }], items: [{ itemId: "item-1", description: "Purchases", lineTotal: "280.00" }] });
+        expect(body.categoryBreakdown[0]).not.toHaveProperty("clientId");
+    });
+
     it("loads all initial editor data with one page request", async () => {
         render(
             <EditExpenseProvider>

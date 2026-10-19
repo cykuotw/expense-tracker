@@ -240,6 +240,15 @@ and `frontend/src/lib/api.ts`. Do not duplicate endpoint details here.
   are optional supporting values. Item totals must equal the expense subtotal
   at the currency's configured precision. OCR confidence, provider metadata,
   and unconfirmed suggestions never enter this durable item contract.
+- An expense may classify its final total across 2–20 ordered, distinct expense
+  types. Exact positive category amounts include tax/fees and must sum to the
+  expense total at its currency precision. The rows share the expense mutation
+  transaction; they do not change participant allocations or create payments.
+  Expenses without category rows use their parent type and full total through
+  the effective-category view. The parent type of a split expense is only the
+  first row's compatibility projection. Category reports use effective amounts;
+  total/payer counts and amounts continue to use one parent expense. Updates
+  must explicitly preserve or remove an existing breakdown.
 - Each expense stores one canonical allocation mode and one allocation row per
   selected participant. The allocation rows preserve user-entered source values
   for equal, exact-amount, percentage, and equal-plus-adjustment modes; selected

@@ -22,6 +22,7 @@ func TestSettlementTransactionRollsBackExpenseAndBalanceMutations(t *testing.T) 
 	expenseTypeID := uuid.New()
 	expenseID := uuid.New()
 	balance := &types.Balance{
+		Currency:       "CAD",
 		ID:             uuid.New(),
 		SenderUserID:   counterpartyID,
 		ReceiverUserID: creatorID,
@@ -206,6 +207,7 @@ func TestRunInTransactionRestoresOutdatedBalanceAfterLaterFailure(t *testing.T) 
 	store := expense.NewStore(db)
 	groupID := uuid.New()
 	existingBalance := &types.Balance{
+		Currency:       "CAD",
 		ID:             uuid.New(),
 		SenderUserID:   uuid.New(),
 		ReceiverUserID: uuid.New(),
@@ -222,6 +224,7 @@ func TestRunInTransactionRestoresOutdatedBalanceAfterLaterFailure(t *testing.T) 
 		}
 
 		duplicateBalance := &types.Balance{
+			Currency:       "CAD",
 			ID:             existingBalance.ID,
 			SenderUserID:   uuid.New(),
 			ReceiverUserID: uuid.New(),

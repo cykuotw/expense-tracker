@@ -116,6 +116,7 @@ function CreateExpenseHarness() {
             >
                 Apply receipt
             </button>
+            <button type="button" onClick={() => context.setCategoryBreakdown([{ expenseTypeId: "type-2", amount: "200", note: "Groceries" }, { expenseTypeId: "type-3", amount: "100", note: "Trolley" }])}>Categorize purchase</button>
             <button type="submit">Create</button>
         </form>
     );
@@ -191,6 +192,21 @@ describe("CreateExpenseProvider error handling", () => {
 
     afterEach(() => {
         cleanup();
+    });
+
+    it("submits one purchase with canonical category amounts and reuses its retry key", async () => {
+        render(<CreateExpenseProvider><CreateExpenseHarness /></CreateExpenseProvider>);
+        await waitFor(() => expect(screen.getByTestId("member-load-status")).toHaveTextContent("ready"));
+        fireEvent.change(screen.getByLabelText("amount"), { target: { value: "300" } });
+        fireEvent.change(screen.getByLabelText("description"), { target: { value: "Costco" } });
+        fireEvent.click(screen.getByRole("button", { name: "Categorize purchase" }));
+        fireEvent.submit(screen.getByRole("form", { name: "expense form" }));
+        await waitFor(() => expect(screen.getByTestId("submission-error").textContent).not.toBe(""));
+        const first = apiFetchMock.mock.calls.find(([path]) => path === "/create_expense")![1];
+        expect(JSON.parse(first.body)).toMatchObject({ expTypeId: "type-2", total: "300.00", categoryBreakdown: [{ expenseTypeId: "type-2", amount: "200.00", note: "Groceries" }, { expenseTypeId: "type-3", amount: "100.00", note: "Trolley" }] });
+        fireEvent.submit(screen.getByRole("form", { name: "expense form" }));
+        await waitFor(() => expect(apiFetchMock.mock.calls.filter(([path]) => path === "/create_expense")).toHaveLength(2));
+        expect(apiFetchMock.mock.calls.filter(([path]) => path === "/create_expense")[1][1].headers["Idempotency-Key"]).toBe(first.headers["Idempotency-Key"]);
     });
 
     it("loads all initial form options with one page request", async () => {

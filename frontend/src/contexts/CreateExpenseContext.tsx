@@ -32,6 +32,7 @@ import { ExpenseAllocation } from "../types/allocation";
 import {
     CreateExpenseOptionsData,
     ExpenseCreateData,
+    ExpenseCategoryAmount,
     ExpenseTypeItem,
 } from "../types/expense";
 import {
@@ -46,6 +47,8 @@ import { validateReceiptExpense } from "../lib/receiptDraft";
 import type { PreparedReceipt } from "../lib/receiptEditor";
 import type { AccountSettingsData } from "../types/account";
 import type { ConfirmedExpenseItem, OCRDraft, ReviewedReceiptDraft } from "../types/ocr";
+
+import { calculateCategoryBreakdown, categoryBreakdownPayload } from "../lib/categoryBreakdown";
 
 const EMPTY_ALLOCATION: ExpenseAllocation = {
     mode: "equal",
@@ -75,6 +78,7 @@ export const CreateExpenseProvider = ({
     );
     const [selectedExpenseTypeId, setSelectedExpenseTypeId] = useState("");
     const [groupArchived, setGroupArchived] = useState(false);
+    const [categoryBreakdown, setCategoryBreakdown] = useState<ExpenseCategoryAmount[]>([]);
     const [totalInput, setTotalInput] = useState("");
     const [description, setDescription] = useState("");
     const [occurredOn, setOccurredOn] = useState(todayDateOnly);
@@ -145,8 +149,9 @@ export const CreateExpenseProvider = ({
         isDateOnly(occurredOn) &&
         allocationCalculation.valid &&
         receiptValidation.valid &&
+        calculateCategoryBreakdown(categoryBreakdown, totalInput, amountDigits).valid &&
         groupMembersLoadStatus === "ready" &&
-        Boolean(selectedGroupId && payer && selectedExpenseTypeId);
+        Boolean(selectedGroupId && payer && (categoryBreakdown[0]?.expenseTypeId ?? selectedExpenseTypeId));
 
     const reloadGroupMembers = useCallback(() => {
         setGroupMembersReloadVersion((version) => version + 1);
@@ -237,7 +242,8 @@ export const CreateExpenseProvider = ({
                 description,
                 groupId: selectedGroupId ?? "",
                 payByUserId: payer,
-                expTypeId: selectedExpenseTypeId,
+                expTypeId: categoryBreakdown[0]?.expenseTypeId ?? selectedExpenseTypeId,
+                categoryBreakdown: categoryBreakdownPayload(categoryBreakdown, amountDigits),
                 total: normalizedTotal,
                 currency,
                 allocation,
@@ -455,6 +461,8 @@ export const CreateExpenseProvider = ({
                 setSelectedGroupId,
                 selectedExpenseTypeId,
                 setSelectedExpenseTypeId,
+                categoryBreakdown,
+                setCategoryBreakdown,
                 total: totalInput,
                 totalInput,
                 setTotalInput,

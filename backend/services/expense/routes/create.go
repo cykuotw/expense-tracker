@@ -58,21 +58,22 @@ func (h *Handler) handleCreateExpense(c *gin.Context) {
 		return
 	}
 	expense := types.Expense{
-		ID:             expenseID,
-		Description:    payload.Description,
-		GroupID:        groupID,
-		CreateByUserID: creatorID,
-		PayByUserId:    payerID,
-		ExpenseTypeID:  expTypeID,
-		ProviderName:   payload.ProviderName,
-		IsSettled:      false,
-		SubTotal:       payload.SubTotal,
-		TaxFeeTip:      payload.TaxFeeTip,
-		Total:          payload.Total,
-		Currency:       payload.Currency,
-		InvoicePicUrl:  payload.InvoicePicUrl,
-		AllocationMode: payload.Allocation.Mode,
-		OccurredOn:     occurredOn,
+		ID:                expenseID,
+		CategoryBreakdown: payload.CategoryBreakdown,
+		Description:       payload.Description,
+		GroupID:           groupID,
+		CreateByUserID:    creatorID,
+		PayByUserId:       payerID,
+		ExpenseTypeID:     expTypeID,
+		ProviderName:      payload.ProviderName,
+		IsSettled:         false,
+		SubTotal:          payload.SubTotal,
+		TaxFeeTip:         payload.TaxFeeTip,
+		Total:             payload.Total,
+		Currency:          payload.Currency,
+		InvoicePicUrl:     payload.InvoicePicUrl,
+		AllocationMode:    payload.Allocation.Mode,
+		OccurredOn:        occurredOn,
 	}
 	allocations, err := parseExpenseAllocationPayload(expenseID, payload.Allocation)
 	if err != nil {
@@ -123,6 +124,9 @@ func (h *Handler) handleCreateExpense(c *gin.Context) {
 		if err != nil {
 			return err
 		}
+		if err := validateCategoryBreakdown(expense, payload.CategoryBreakdown, amountDigits); err != nil {
+			return err
+		}
 		ledgers, err := deriveExpenseLedgers(expense, allocations, amountDigits)
 		if err != nil {
 			return err
@@ -147,6 +151,11 @@ func (h *Handler) handleCreateExpense(c *gin.Context) {
 		}
 		if err := store.CreateExpense(expense); err != nil {
 			return err
+		}
+		if len(payload.CategoryBreakdown) > 0 {
+			if err := store.ReplaceExpenseCategoryBreakdown(expenseID, payload.CategoryBreakdown); err != nil {
+				return err
+			}
 		}
 		if pendingReceipt != nil {
 			if err := store.CreateExpenseReceipt(*pendingReceipt); err != nil {
@@ -182,7 +191,7 @@ func (h *Handler) handleCreateExpense(c *gin.Context) {
 			utils.WriteError(c, http.StatusConflict, err)
 			return
 		}
-		if errors.Is(err, types.ErrCurrencyMismatch) {
+		if errors.Is(err, types.ErrInvalidCategoryBreakdown) || errors.Is(err, types.ErrCurrencyMismatch) {
 			utils.WriteError(c, http.StatusBadRequest, err)
 			return
 		}

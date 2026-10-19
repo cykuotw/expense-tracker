@@ -94,6 +94,18 @@ func (h *Handler) handleUpdateExpense(c *gin.Context) {
 		if err != nil {
 			return err
 		}
+		if err := validateCategoryBreakdown(updatedExpense, payload.CategoryBreakdown, amountDigits); err != nil {
+			return err
+		}
+		if payload.CategoryBreakdown == nil {
+			existing, err := store.GetCategoryBreakdownsByExpenseIDs([]string{expense.ID.String()})
+			if err != nil {
+				return err
+			}
+			if len(existing[expense.ID.String()]) > 0 {
+				return types.ErrCategoryBreakdownRequired
+			}
+		}
 		ledgers, err := deriveExpenseLedgers(updatedExpense, allocations, amountDigits)
 		if err != nil {
 			return err
@@ -121,6 +133,11 @@ func (h *Handler) handleUpdateExpense(c *gin.Context) {
 		if err := store.UpdateExpense(updatedExpense); err != nil {
 			return err
 		}
+		if payload.CategoryBreakdown != nil {
+			if err := store.ReplaceExpenseCategoryBreakdown(expense.ID, payload.CategoryBreakdown); err != nil {
+				return err
+			}
+		}
 		if err := store.ReconcileExpenseAllocationState(expense.ID, payerID, allocations, ledgers); err != nil {
 			return err
 		}
@@ -134,7 +151,7 @@ func (h *Handler) handleUpdateExpense(c *gin.Context) {
 			utils.WriteError(c, http.StatusNotFound, err)
 			return
 		}
-		if errors.Is(err, types.ErrInvalidMoney) || errors.Is(err, types.ErrInvalidAction) || errors.Is(err, types.ErrUnsupportedCurrency) || errors.Is(err, types.ErrCurrencyDisabled) || errors.Is(err, types.ErrCurrencyMismatch) || errors.Is(err, types.ErrGroupParticipantNotAllowed) {
+		if errors.Is(err, types.ErrInvalidCategoryBreakdown) || errors.Is(err, types.ErrCategoryBreakdownRequired) || errors.Is(err, types.ErrInvalidMoney) || errors.Is(err, types.ErrInvalidAction) || errors.Is(err, types.ErrUnsupportedCurrency) || errors.Is(err, types.ErrCurrencyDisabled) || errors.Is(err, types.ErrCurrencyMismatch) || errors.Is(err, types.ErrGroupParticipantNotAllowed) {
 			utils.WriteError(c, http.StatusBadRequest, err)
 			return
 		}

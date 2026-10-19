@@ -46,6 +46,9 @@ import {
 import { legacyCurrencySettings } from "../lib/currencySettings";
 import ArchivedGroupMessage from "../components/group/ArchivedGroupMessage";
 
+import { validateReceiptExpense } from "../lib/receiptDraft";
+import { calculateCategoryBreakdown, categoryBreakdownPayload } from "../lib/categoryBreakdown";
+
 const EMPTY_FORM_DATA: expenseFormData = {
     groupId: "",
     expenseType: "",
@@ -61,6 +64,7 @@ const LOAD_EXPENSE_FALLBACK = "Failed to load expense.";
 function cloneExpenseFormData(formData: expenseFormData): expenseFormData {
     return {
         ...formData,
+        categoryBreakdown: formData.categoryBreakdown?.map(row => ({ ...row })),
         allocation: {
             ...formData.allocation,
             participants: formData.allocation.participants.map(
@@ -83,6 +87,8 @@ export const EditExpenseProvider = ({ children }: { children: ReactNode }) => {
     const [indicatorShow, setIndicatorShow] = useState(false);
     const [submissionError, setSubmissionError] = useState<string | null>(null);
     const submissionInFlightRef = useRef(false);
+    const originalItemIDs = useRef(new Set<string>());
+    const originalExpense = useRef<ExpenseDetailData | null>(null);
     const [mainFormVisited, setMainFormVisited] = useState(false);
     const [formData, setFormData] =
         useState<expenseFormData>(EMPTY_FORM_DATA);
@@ -120,13 +126,16 @@ export const EditExpenseProvider = ({ children }: { children: ReactNode }) => {
         amountDigits === null
             ? null
             : decimalToUnits(formData.total, amountDigits);
+    const receiptValidation = formData.receiptDetails ? validateReceiptExpense({ ...formData.receiptDetails, total: formData.total }, amountDigits) : null;
     const dataOk =
         !groupArchived &&
+        (receiptValidation?.valid ?? true) &&
         totalUnits !== null &&
         totalUnits > 0n &&
         formData.description.length > 0 &&
         isDateOnly(formData.occurredOn) &&
         allocationCalculation.valid &&
+        calculateCategoryBreakdown(formData.categoryBreakdown ?? [], formData.total, amountDigits).valid &&
         groupMembersLoadStatus === "ready" &&
         Boolean(formData.payerUserId && formData.expenseType);
     const hasChanges =
@@ -161,10 +170,21 @@ export const EditExpenseProvider = ({ children }: { children: ReactNode }) => {
                 occurredOn: formData.occurredOn,
                 groupId: formData.groupId,
                 payByUserId: formData.payerUserId,
-                expTypeId: formData.expenseType,
+                expTypeId: formData.categoryBreakdown?.[0]?.expenseTypeId ?? formData.expenseType,
+                categoryBreakdown: categoryBreakdownPayload(formData.categoryBreakdown ?? [], amountDigits),
                 total: unitsToDecimal(totalUnits, amountDigits),
                 currency: formData.currency,
                 allocation: formData.allocation,
+                providerName: formData.receiptDetails?.merchant ?? formData.providerName,
+                invoiceUrl: formData.invoiceUrl,
+                ...(!formData.receiptDetails && originalExpense.current?.currency === formData.currency && decimalToUnits(originalExpense.current.total, amountDigits) === totalUnits ? {
+                    subTotal: originalExpense.current.subTotal, taxFeeTip: originalExpense.current.taxFeeTip,
+                } : {}),
+                ...(receiptValidation?.valid && formData.receiptDetails ? {
+                    subTotal: receiptValidation.subTotal,
+                    taxFeeTip: receiptValidation.taxFeeTip,
+                    items: receiptValidation.items?.map((item, index) => ({ ...item, ...(originalItemIDs.current.has(formData.receiptDetails!.items[index].id) ? { itemId: formData.receiptDetails!.items[index].id } : {}) })),
+                } : {}),
             };
             const response = await apiFetch(`/expense/${expenseId}`, {
                 method: "PUT",
@@ -263,7 +283,17 @@ export const EditExpenseProvider = ({ children }: { children: ReactNode }) => {
                 }
                 const nextFormData: expenseFormData = {
                     groupId: data.groupId,
+                    providerName: data.providerName,
+                    invoiceUrl: data.invoiceUrl,
+                    ...(data.items.length > 0 || (decimalToUnits(data.taxFeeTip || "0", currencyAmountDigits(currencyOptions, data.currency)!) ?? 0n) > 0n ? {
+                        receiptDetails: {
+                            merchant: data.providerName ?? "", subtotal: data.subTotal, tax: data.taxFeeTip, tip: "",
+                            items: data.items.map(item => ({ id: item.itemId, description: item.description ?? item.itemName,
+                                quantity: item.quantity ?? "", unit: item.unit ?? "", unitPrice: item.unitPrice ?? "", lineTotal: item.lineTotal ?? item.itemSubTotal })),
+                        },
+                    } : {}),
                     expenseType: data.expenseTypeId,
+                    categoryBreakdown: (data.categoryBreakdown?.length ?? 0) > 1 ? data.categoryBreakdown!.map(row => ({ ...row, clientId: crypto.randomUUID() })) : [],
                     description: data.description,
                     occurredOn: data.occurredOn,
                     total: data.total,
@@ -278,6 +308,8 @@ export const EditExpenseProvider = ({ children }: { children: ReactNode }) => {
                 };
                 if (!active) return;
 
+                originalExpense.current = data;
+                originalItemIDs.current = new Set(data.items.map(item => item.itemId));
                 setReceipt(data.receipt);
                 setGroupList(asArray<GroupListItem>(options.groups));
                 setExpenseTypes(

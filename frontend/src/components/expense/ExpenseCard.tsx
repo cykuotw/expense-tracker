@@ -7,8 +7,8 @@ import { formatDateOnlyBrief, isDateOnly } from "../../lib/dateOnly";
 export default function ExpenseCard(expense: ExpenseData) {
     const { month: dateMonth, day: dateDay } = formatDateOnlyBrief(expense.occurredOn);
     const presentation = getExpenseTypePresentation(
-        expense.expenseCategory,
-        expense.expenseType
+        (expense.categoryBreakdown?.length ?? 0) > 1 ? "" : expense.expenseCategory,
+        (expense.categoryBreakdown?.length ?? 0) > 1 ? "Multiple categories" : expense.expenseType
     );
 
     return (
@@ -44,6 +44,7 @@ export default function ExpenseCard(expense: ExpenseData) {
                         ? `Paid by ${expense.payerUsernames[0]}`
                         : expense.expenseType}
                 </div>
+                {(expense.categoryBreakdown?.length ?? 0) > 1 ? <p className="mt-1 text-sm text-muted-foreground">{expense.categoryBreakdown!.length} categories</p> : null}
             </div>
             <div className="col-start-3 flex items-baseline justify-between gap-3 border-t border-border/70 pt-3 md:col-start-4 md:row-span-2 md:block md:border-0 md:pt-0 md:text-right">
                 <span className="text-xs font-semibold uppercase tracking-[0.16em] text-foreground/50">

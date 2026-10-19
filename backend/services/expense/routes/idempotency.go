@@ -12,22 +12,23 @@ import (
 )
 
 type canonicalExpenseCreate struct {
-	Description    string                       `json:"description"`
-	GroupID        string                       `json:"groupId"`
-	PayerID        string                       `json:"payByUserId"`
-	ExpenseTypeID  string                       `json:"expenseTypeId"`
-	ProviderName   string                       `json:"providerName"`
-	SubTotal       string                       `json:"subTotal"`
-	TaxFeeTip      string                       `json:"taxFeeTip"`
-	Total          string                       `json:"total"`
-	Currency       string                       `json:"currency"`
-	InvoiceURL     string                       `json:"invoiceUrl"`
-	AllocationMode types.ExpenseAllocationMode  `json:"allocationMode"`
-	OccurredOn     string                       `json:"occurredOn,omitempty"`
-	Items          []canonicalExpenseItem       `json:"items"`
-	Allocations    []canonicalExpenseAllocation `json:"allocations"`
-	ReceiptKeep    bool                         `json:"receiptKeep,omitempty"`
-	ReceiptToken   string                       `json:"receiptToken,omitempty"`
+	CategoryBreakdown []types.ExpenseCategoryAmount `json:"categoryBreakdown,omitempty"`
+	Description       string                        `json:"description"`
+	GroupID           string                        `json:"groupId"`
+	PayerID           string                        `json:"payByUserId"`
+	ExpenseTypeID     string                        `json:"expenseTypeId"`
+	ProviderName      string                        `json:"providerName"`
+	SubTotal          string                        `json:"subTotal"`
+	TaxFeeTip         string                        `json:"taxFeeTip"`
+	Total             string                        `json:"total"`
+	Currency          string                        `json:"currency"`
+	InvoiceURL        string                        `json:"invoiceUrl"`
+	AllocationMode    types.ExpenseAllocationMode   `json:"allocationMode"`
+	OccurredOn        string                        `json:"occurredOn,omitempty"`
+	Items             []canonicalExpenseItem        `json:"items"`
+	Allocations       []canonicalExpenseAllocation  `json:"allocations"`
+	ReceiptKeep       bool                          `json:"receiptKeep,omitempty"`
+	ReceiptToken      string                        `json:"receiptToken,omitempty"`
 }
 
 type canonicalExpenseItem struct {
@@ -57,11 +58,17 @@ func expenseCreateFingerprint(
 		occurredOn = expense.OccurredOn
 	}
 	canonical := canonicalExpenseCreate{
-		Description: expense.Description, GroupID: expense.GroupID.String(), PayerID: expense.PayByUserId.String(),
+		CategoryBreakdown: expense.CategoryBreakdown,
+		Description:       expense.Description, GroupID: expense.GroupID.String(), PayerID: expense.PayByUserId.String(),
 		ExpenseTypeID: expense.ExpenseTypeID.String(), ProviderName: expense.ProviderName,
 		SubTotal: expense.SubTotal.String(), TaxFeeTip: expense.TaxFeeTip.String(), Total: expense.Total.String(),
 		Currency: expense.Currency, InvoiceURL: expense.InvoicePicUrl, AllocationMode: expense.AllocationMode, OccurredOn: occurredOn,
 		Items: make([]canonicalExpenseItem, 0, len(items)), Allocations: make([]canonicalExpenseAllocation, 0, len(allocations)),
+	}
+	canonical.CategoryBreakdown = slices.Clone(expense.CategoryBreakdown)
+	for i := range canonical.CategoryBreakdown {
+		canonical.CategoryBreakdown[i].ExpenseType = ""
+		canonical.CategoryBreakdown[i].Category = ""
 	}
 	if len(receiptChoice) > 0 && receiptChoice[0] != nil {
 		canonical.ReceiptKeep = receiptChoice[0].Keep

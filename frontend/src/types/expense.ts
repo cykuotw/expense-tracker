@@ -4,7 +4,16 @@ import { GroupInfo, GroupListItem } from "./group";
 import { CurrencyMetadata } from "../lib/money";
 import { ExpenseAllocation } from "./allocation";
 
+export interface ExpenseCategoryAmount {
+    expenseTypeId: string;
+    amount: string;
+    note?: string;
+    expenseType?: string;
+    category?: string;
+}
+
 export interface ExpenseData {
+    categoryBreakdown?: ExpenseCategoryAmount[];
     expenseId: string;
     description: string;
     total: string;
@@ -21,6 +30,8 @@ export interface ExpenseData {
 }
 
 export interface ExpenseDetailData {
+    providerName?: string;
+    categoryBreakdown?: ExpenseCategoryAmount[];
 	groupIsActive?: boolean;
     expenseId: string;
     description: string;
@@ -51,6 +62,7 @@ export interface ExpenseTypeItem {
 }
 
 export interface ExpenseCreateData {
+    categoryBreakdown?: ExpenseCategoryAmount[];
     description: string;
     groupId: string;
     payByUserId: string;

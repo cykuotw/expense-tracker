@@ -31,12 +31,14 @@ func TestCreateBalance(t *testing.T) {
 			name: "valid",
 			mockBalances: []*types.Balance{
 				{
+					Currency:       "CAD",
 					ID:             uuid.New(),
 					SenderUserID:   uuid.New(),
 					ReceiverUserID: uuid.New(),
 					Share:          decimal.NewFromFloat(20.01),
 				},
 				{
+					Currency:       "CAD",
 					ID:             uuid.New(),
 					SenderUserID:   uuid.New(),
 					ReceiverUserID: uuid.New(),

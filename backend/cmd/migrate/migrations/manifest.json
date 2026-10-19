@@ -104,6 +104,30 @@
         "dataLossRisk": true,
         "notes": "The previous application ignores this additive table. Reversing it discards receipt association and cleanup state."
       }
+    },
+    {
+      "version": 40,
+      "name": "add_expense_category_breakdown",
+      "categories": [
+        "additive",
+        "constraint_tightening"
+      ],
+      "deployment": "online",
+      "backfill": {
+        "mode": "none",
+        "resumable": false,
+        "notes": "An effective-category view projects single-category historical expenses without rewriting their rows."
+      },
+      "locking": {
+        "risk": "low",
+        "notes": "Creates an empty child table, its uniqueness constraints, and a view. Foreign-key setup takes brief locks on expense and expense_type without a historical-row backfill."
+      },
+      "rollback": {
+        "application": "follow_up_required",
+        "schema": "manual_only",
+        "dataLossRisk": true,
+        "notes": "After multi-category writes, an older application cannot preserve or report those allocations. Keep this application version or restore compatible handling before rollback. Reversing the schema discards category amounts and notes."
+      }
     }
   ]
 }

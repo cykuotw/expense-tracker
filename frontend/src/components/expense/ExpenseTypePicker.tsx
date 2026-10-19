@@ -12,10 +12,16 @@ export function ExpenseTypePicker({
     expenseTypes,
     value,
     onChange,
+    label,
+    invalid = false,
+    describedBy,
 }: {
     expenseTypes: ExpenseTypeItem[];
     value: string;
     onChange: (id: string) => void;
+    label?: string;
+    invalid?: boolean;
+    describedBy?: string;
 }) {
     const [open, setOpen] = useState(false);
     const [query, setQuery] = useState("");
@@ -52,6 +58,9 @@ export function ExpenseTypePicker({
             trigger={
                 <button
                     type="button"
+                    aria-label={label}
+                    aria-invalid={invalid || undefined}
+                    aria-describedby={describedBy}
                     aria-expanded={open}
                     aria-haspopup="listbox"
                     className="flex min-h-14 w-full items-center gap-3 rounded-2xl border border-border bg-background px-4 py-2 text-left transition hover:border-primary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary md:min-h-20 md:py-3"

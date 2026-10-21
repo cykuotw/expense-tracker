@@ -1,7 +1,8 @@
 # Improvement evidence is separate from retained product receipts. Capture stays
 # disabled in runtime projections until consent/purge verification is complete.
 resource "aws_s3_bucket" "ocr_evidence" {
-  bucket_prefix = "${substr(local.resource_prefix, 0, 35)}-ocr-evidence-"
+  # The AWS provider allows at most 37 characters before its generated suffix.
+  bucket_prefix = "${substr(local.resource_prefix, 0, 23)}-ocr-evidence-"
   force_destroy = false
   tags          = merge(local.common_tags, { Component = "ocr-evidence" })
 }

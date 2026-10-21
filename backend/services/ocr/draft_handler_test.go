@@ -50,9 +50,9 @@ func TestNewDraftHandlerUsesBoundedStageTimeouts(t *testing.T) {
 	handler := NewDraftHandler(RuntimeConfig{}, &replayStub{}, &providerStub{}, nil)
 
 	assert.Equal(t, 10*time.Second, handler.preprocessTimeout)
-	assert.Equal(t, 15*time.Second, handler.providerTimeout)
+	assert.Equal(t, 30*time.Second, handler.providerTimeout)
 	assert.Equal(t, 3*time.Second, handler.receiptStoreTimeout)
-	assert.Less(t, handler.preprocessTimeout+handler.providerTimeout+handler.receiptStoreTimeout, 30*time.Second)
+	assert.Less(t, handler.preprocessTimeout+handler.providerTimeout+handler.receiptStoreTimeout+2*time.Second, 60*time.Second)
 }
 
 func TestDraftHandlerReturnsNormalizedEditableDraft(t *testing.T) {

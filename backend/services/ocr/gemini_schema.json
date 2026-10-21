@@ -24,7 +24,7 @@
     },
     "tax": {
       "type": "string",
-      "description": "Printed total tax as a decimal string. Empty if missing; do not assume zero."
+      "description": "Printed total tax, or exact sum of clearly printed separate tax amounts when no total tax is printed. Count each amount once; never sum percentages or duplicate a total and its components. Empty if missing or uncertain; do not assume zero or derive from other totals."
     },
     "tip": {
       "type": "string",
@@ -43,19 +43,19 @@
         "properties": {
           "description": {
             "type": "string",
-            "description": "Purchased item description as printed."
+            "description": "Readable purchased-product description supported by the receipt, or Deposit for one combined clearly identified charged container-deposit item. Remove quantity prefixes and tidy clear abbreviations; preserve ambiguous text rather than guessing."
           },
           "quantity": {
             "type": "string",
-            "description": "Explicitly printed quantity as a decimal string. Empty if missing."
+            "description": "Explicitly printed purchase quantity as a decimal string. Product-name numbers, fat percentages, sizes and package descriptions are not quantities. For weighted products require clear purchase weight and matching unit-price evidence. Empty when missing, uncertain, or for the combined Deposit item; the application separately marks supported quantity-one inference."
           },
           "unitPrice": {
             "type": "string",
-            "description": "Explicitly printed unit price as a decimal string. Empty if missing."
+            "description": "Merchandise unit price after clearly attached charged discounts and excluding any deposit split into Deposit. Use a printed unit price, exact net merchandise line total divided by printed quantity (at most three decimal places), or the net merchandise line total for a clearly single-unit fixed-price product. For weighted products require a clearly printed price per matching weight unit. Empty if uncertain, division is inexact, or for the combined Deposit item; do not substitute a deposit-inclusive derived price."
           },
           "lineTotal": {
             "type": "string",
-            "description": "Printed total for this item row as a decimal string. Empty if unreadable."
+            "description": "Net charged product-line amount after clearly attached charged discounts and subtracting a clearly included deposit only when that deposit is split into Deposit. For Deposit, the combined clearly identified charged deposit amount counted once. If the deposit split is uncertain, preserve the charged product amount without inventing a Deposit item. Do not deduct informational savings again or alter amounts to force reconciliation. Empty if unreadable."
           }
         }
       }

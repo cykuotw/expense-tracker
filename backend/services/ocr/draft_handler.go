@@ -15,7 +15,7 @@ import (
 
 const (
 	defaultPreprocessTimeout   = 10 * time.Second
-	defaultProviderTimeout     = 15 * time.Second
+	defaultProviderTimeout     = 30 * time.Second
 	defaultReceiptStoreTimeout = 3 * time.Second
 )
 

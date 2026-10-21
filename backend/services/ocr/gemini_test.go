@@ -35,6 +35,7 @@ func TestGeminiStrictExtractionAndProviderTransport(t *testing.T) {
 	defer server.Close()
 	provider, err := NewGeminiProvider("test-secret", DefaultGeminiModel)
 	require.NoError(t, err)
+	require.Equal(t, defaultProviderTimeout, provider.client.Timeout)
 	provider.endpoint = server.URL
 	result, err := provider.AnalyzeExpense(t.Context(), []byte("normalized JPEG"))
 	require.NoError(t, err)

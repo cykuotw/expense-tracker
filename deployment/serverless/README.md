@@ -582,6 +582,16 @@ allowances.
   temporary S3 writes. Receipt images are validated and re-encoded before a
   bounded synchronous Gemini request. The prompt and extraction schema are
   versioned with the backend; model output is validated and remains editable.
+  Gemini HTTP and handler provider-stage timeouts are 30 seconds. Lambda allows
+  60 seconds for preprocessing and optional storage; the browser's overall
+  capability/upload/response timer is also 60 seconds. API Gateway's HTTP API
+  integration still caps the entire OCR request at
+  [30 seconds](https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-quotas.html). These allowances
+  cannot guarantee a full 30 seconds of model time through the public endpoint:
+  a slow synchronous scan can return a gateway timeout while Lambda finishes.
+  Direct provider benchmarks measure that boundary separately from browser/API
+  latency. Do not automatically retry a timed-out generation; its billing and
+  completion may be unknown.
 - Gemini provider failures and timeouts emit content-free structured outcomes
   and the `OCRProviderFailure` metric. Full-path latency, usage and receipt
   correctness must be measured with the selected model before claiming quality

@@ -61,7 +61,7 @@ func NewGeminiProvider(key, model string) (*GeminiProvider, error) {
 	return &GeminiProvider{
 		key: key, model: model,
 		endpoint: "https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent",
-		client:   &http.Client{Timeout: 18 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }},
+		client:   &http.Client{Timeout: 30 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }},
 	}, nil
 }
 

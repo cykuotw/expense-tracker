@@ -52,7 +52,7 @@ Daily EventBridge -------------------------> Delivery Lambda (VPC)
   configuration is published.
 - **OCR boundary:** the authenticated Worker checks the `receipt_ocr` grant and
   mints a 60-second account/request-bound capability. API Gateway forwards one
-  JPEG/PNG image, up to 3.5 MiB, to the separate 512 MB, 30-second OCR Lambda
+  JPEG/PNG image, up to 3.5 MiB, to the separate 512 MB, 60-second OCR Lambda
   outside the VPC. It validates dimensions, strips metadata, claims a DynamoDB
   replay key, and sends the normalized image to Gemini over HTTPS. A versioned
   prompt and JSON Schema produce editable draft fields; server-side parsing
@@ -68,6 +68,11 @@ Daily EventBridge -------------------------> Delivery Lambda (VPC)
   Successful OCR draft responses expose a numeric per-scan usage summary for a
   collapsed review disclosure. This transient metadata is excluded from
   confirmed expenses and serialized extraction/evidence draft fields.
+  Gemini HTTP and provider-stage limits are 30 seconds. The browser allows
+  60 seconds for capability acquisition/upload/response; API Gateway still has
+  a 30-second integration ceiling for the whole OCR request. Lambda overhead
+  allowances do not extend that public ceiling: slower synchronous scans can
+  return a gateway timeout even when a direct provider trial succeeds.
 - **Receipt lifecycle:** keeping a photo is separate from scanning. The OCR
   writer places explicitly requested images in a private temporary S3 prefix;
   the Worker finalizes confirmed associations using deterministic copy/delete

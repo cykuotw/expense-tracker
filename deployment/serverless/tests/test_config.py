@@ -15,6 +15,20 @@ from config import ConfigError, initialize, load, template
 
 
 class ConfigTest(unittest.TestCase):
+    def test_gemini_key_is_ocr_only_and_activation_requires_filled_key(self) -> None:
+        self.write()
+        config = load(self.path, Path("/unrelated/repository"))
+        with self.assertRaisesRegex(ConfigError, "gemini_api_key must be filled"):
+            config.require_gemini_key()
+        self.value["backend"]["gemini_api_key"] = "test-private-gemini-key"
+        self.write()
+        config = load(self.path, Path("/unrelated/repository"))
+        config.require_gemini_key()
+        self.assertEqual(config.ocr_environment("replay", "receipts", "evidence")["Variables"]["GEMINI_API_KEY"], "test-private-gemini-key")
+        self.assertNotIn("GEMINI_API_KEY", config.worker_environment("db", "receipts", "evidence")["Variables"])
+        self.assertNotIn("test-private-gemini-key", json.dumps(config.terraform_variables(temporary_access=False)))
+        self.assertEqual(config.ocr_environment("replay", "receipts", "evidence")["Variables"]["OCR_EVIDENCE_CAPTURE_ENABLED"], "false")
+
     def setUp(self) -> None:
         self.temporary = tempfile.TemporaryDirectory()
         self.root = Path(self.temporary.name)
@@ -79,6 +93,8 @@ class ConfigTest(unittest.TestCase):
             "FRONTEND_ORIGIN": "https://expense.example.com",
             "OCR_CAPABILITY_SECRET": "o" * 32,
             "OCR_REPLAY_TABLE": "ocr-replay-table",
+            "GEMINI_API_KEY": "", "GEMINI_MODEL": "gemini-3.8-flash",
+            "OCR_EVIDENCE_BUCKET": "", "OCR_EVIDENCE_CAPTURE_ENABLED": "false",
             "RECEIPT_BUCKET": "private-receipts",
             "RECEIPT_STORAGE_ENABLED": "false",
         })

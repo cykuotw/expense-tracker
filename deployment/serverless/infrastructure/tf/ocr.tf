@@ -56,9 +56,6 @@ resource "aws_iam_role_policy" "ocr" {
         Effect = "Allow", Action = ["dynamodb:PutItem"], Resource = aws_dynamodb_table.ocr_replay.arn
       },
       {
-        Effect = "Allow", Action = ["textract:AnalyzeExpense"], Resource = "*"
-      },
-      {
         Effect = "Allow", Action = ["s3:PutObject"], Resource = "${aws_s3_bucket.receipt.arn}/temporary/*"
       }
     ]
@@ -102,8 +99,8 @@ resource "aws_cloudwatch_metric_alarm" "ocr_runtime" {
 
   metric_query {
     id          = "signal"
-    expression  = "errors + throttles + provider_throttles + provider_server_errors + provider_user_errors"
-    label       = "OCR runtime and Textract errors or throttles"
+    expression  = "errors + throttles"
+    label       = "OCR runtime errors or throttles"
     return_data = true
   }
 
@@ -133,46 +130,29 @@ resource "aws_cloudwatch_metric_alarm" "ocr_runtime" {
     }
   }
 
-  metric_query {
-    id = "provider_throttles"
-    metric {
-      metric_name = "ThrottledCount"
-      namespace   = "AWS/Textract"
-      period      = 60
-      stat        = "Sum"
-      dimensions = {
-        Operation = "AnalyzeExpense"
-      }
-    }
-  }
-
-  metric_query {
-    id = "provider_server_errors"
-    metric {
-      metric_name = "ServerErrorCount"
-      namespace   = "AWS/Textract"
-      period      = 60
-      stat        = "Sum"
-      dimensions = {
-        Operation = "AnalyzeExpense"
-      }
-    }
-  }
-
-  metric_query {
-    id = "provider_user_errors"
-    metric {
-      metric_name = "UserErrorCount"
-      namespace   = "AWS/Textract"
-      period      = 60
-      stat        = "Sum"
-      dimensions = {
-        Operation = "AnalyzeExpense"
-      }
-    }
-  }
-
   tags = merge(local.common_tags, {
     Component = "ocr"
   })
+}
+
+resource "aws_cloudwatch_log_metric_filter" "ocr_provider_failure" {
+  name           = "${local.resource_prefix}-ocr-provider-failure"
+  log_group_name = aws_cloudwatch_log_group.ocr.name
+  pattern        = "{ $.event = \"ocr_draft_pipeline_completed\" && ($.outcome = \"provider_error\" || $.outcome = \"provider_timeout\" || $.outcome = \"provider_rejected\") }"
+  metric_transformation {
+    name      = "OCRProviderFailure"
+    namespace = "ExpenseTracker/OCR"
+    value     = "1"
+  }
+}
+resource "aws_cloudwatch_metric_alarm" "ocr_provider_failure" {
+  alarm_name          = "${local.resource_prefix}-ocr-provider-failure"
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  evaluation_periods  = 1
+  threshold           = 1
+  metric_name         = "OCRProviderFailure"
+  namespace           = "ExpenseTracker/OCR"
+  period              = 60
+  statistic           = "Sum"
+  treat_missing_data  = "notBreaching"
 }

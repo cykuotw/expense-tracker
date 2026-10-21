@@ -1,0 +1,65 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "merchant", "date", "currencySuggestion", "subtotal",
+    "tax", "tip", "total", "items"
+  ],
+  "properties": {
+    "merchant": {
+      "type": "string",
+      "description": "Visible storefront or brand name, preferred over the legal operating company. Empty if unreadable or unsupported by the image."
+    },
+    "date": {
+      "type": "string",
+      "description": "Transaction date in YYYY-MM-DD format. Empty if missing or ambiguous."
+    },
+    "currencySuggestion": {
+      "type": "string",
+      "description": "Three-letter ISO currency code supported by the receipt. Empty if uncertain; a dollar sign alone does not establish a currency."
+    },
+    "subtotal": {
+      "type": "string",
+      "description": "Printed subtotal as a decimal string without currency symbols or grouping separators. Empty if missing."
+    },
+    "tax": {
+      "type": "string",
+      "description": "Printed total tax as a decimal string. Empty if missing; do not assume zero."
+    },
+    "tip": {
+      "type": "string",
+      "description": "Printed tip as a decimal string. Empty if missing."
+    },
+    "total": {
+      "type": "string",
+      "description": "Final receipt total as a decimal string. Exclude cash tendered, change and loyalty balances."
+    },
+    "items": {
+      "type": "array",
+      "maxItems": 200,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["description", "quantity", "unitPrice", "lineTotal"],
+        "properties": {
+          "description": {
+            "type": "string",
+            "description": "Purchased item description as printed."
+          },
+          "quantity": {
+            "type": "string",
+            "description": "Explicitly printed quantity as a decimal string. Empty if missing."
+          },
+          "unitPrice": {
+            "type": "string",
+            "description": "Explicitly printed unit price as a decimal string. Empty if missing."
+          },
+          "lineTotal": {
+            "type": "string",
+            "description": "Printed total for this item row as a decimal string. Empty if unreadable."
+          }
+        }
+      }
+    }
+  }
+}

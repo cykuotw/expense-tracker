@@ -1,9 +1,11 @@
 package expense
 
 import (
+	"context"
 	"expense-tracker/backend/services/middleware/extractors"
 	"expense-tracker/backend/services/middleware/validation"
 	"expense-tracker/backend/types"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 
@@ -19,6 +21,18 @@ type Handler struct {
 	receiptObjects        *receiptObjectStore
 	receiptSecret         []byte
 	receiptStorageEnabled bool
+	receiptView           func(context.Context, string) (string, error)
+	evidenceCleanup       func(context.Context, string) error
+	evidenceReconcile     func(context.Context, string) error
+}
+
+func WithEvidenceCleanup(cleanup func(context.Context, string) error, reconcile ...func(context.Context, string) error) func(*Handler) {
+	return func(h *Handler) {
+		h.evidenceCleanup = cleanup
+		if len(reconcile) > 0 {
+			h.evidenceReconcile = reconcile[0]
+		}
+	}
 }
 
 func NewHandler(store types.ExpenseStore, userStore types.UserStore, groupStore types.GroupStore, controller types.ExpenseController, options ...func(*Handler)) *Handler {
@@ -41,6 +55,16 @@ func WithReceiptStorage(client *s3.Client, bucket string, secret []byte, enabled
 			h.receiptObjects = &receiptObjectStore{client: client, bucket: bucket}
 			h.receiptSecret = append([]byte(nil), secret...)
 			h.receiptStorageEnabled = enabled
+			presigner := s3.NewPresignClient(client)
+			h.receiptView = func(ctx context.Context, key string) (string, error) {
+				cache := "private, no-store"
+				contentType := "image/jpeg"
+				result, err := presigner.PresignGetObject(ctx, &s3.GetObjectInput{Bucket: &bucket, Key: &key, ResponseCacheControl: &cache, ResponseContentType: &contentType}, func(o *s3.PresignOptions) { o.Expires = 45 * time.Second })
+				if err != nil {
+					return "", err
+				}
+				return result.URL, nil
+			}
 		}
 	}
 }
@@ -71,6 +95,9 @@ func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 		extractors.ExtractExpenseFromStore(h.store),
 		validation.ValidateGroupUserPairExist(h.groupStore),
 		h.handleGetExpenseDetail)
+	router.POST("/expense/:expenseId/receipt/view",
+		extractors.ExtractExpenseFromStore(h.store),
+		validation.ValidateGroupUserPairExist(h.groupStore), h.handleReceiptView)
 	router.PUT("/expense/:expenseId/receipt",
 		extractors.ExtractExpenseFromStore(h.store),
 		validation.ValidateGroupUserPairExist(h.groupStore),

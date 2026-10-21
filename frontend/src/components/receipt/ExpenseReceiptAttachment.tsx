@@ -5,6 +5,8 @@ import { useAuth } from "@/hooks/AuthContextHooks";
 import type { PreparedReceipt } from "@/lib/receiptEditor";
 import type { ExpenseDetailData } from "@/types/expense";
 import type { AccountSettingsData } from "@/types/account";
+import ReceiptViewer from "./ReceiptViewer";
+import { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "@/components/ui/alert-dialog";
 
 const ReceiptEditor = lazy(() => import("./ReceiptEditor"));
 type ReceiptState = ExpenseDetailData["receipt"];
@@ -84,9 +86,10 @@ export default function ExpenseReceiptAttachment({ expenseId, initialReceipt }: 
         <section className="mt-6 rounded-2xl border border-border bg-muted/20 p-4" aria-label="Receipt photo">
             <h2 className="font-semibold">Receipt photo</h2>
             <p className="mt-1 text-sm text-muted-foreground" role="status" aria-live="polite">
-                {busy ? "Saving receipt change…" : receipt ? `Status: ${receipt.status}. The photo is private and cannot be previewed yet.` : "No photo is kept with this expense."}
+                {busy ? "Saving receipt change…" : receipt ? `Status: ${receipt.status}.` : "No photo is kept with this expense."}
             </p>
             {error ? <p className="mt-2 text-sm text-destructive" role="alert">{error}</p> : null}
+            {receipt?.status === "finalized" ? <ReceiptViewer expenseId={expenseId} /> : null}
             <div className="mt-3 flex flex-wrap gap-2">
                 {available && !editing ? (
                     <button type="button" className="ui-button ui-button-outline min-h-11" disabled={busy} onClick={() => setEditing(true)}>
@@ -94,9 +97,9 @@ export default function ExpenseReceiptAttachment({ expenseId, initialReceipt }: 
                     </button>
                 ) : null}
                 {receipt && receipt.status !== "deleting" ? (
-                    <button type="button" className="ui-button ui-button-outline min-h-11" disabled={busy} onClick={() => void submit({ key: crypto.randomUUID(), body: { keep: false } })}>
-                        Remove photo
-                    </button>
+                    <AlertDialog><AlertDialogTrigger asChild><button type="button" className="ui-button ui-button-outline min-h-11" disabled={busy}>Remove photo</button></AlertDialogTrigger>
+                        <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Remove this receipt photo?</AlertDialogTitle><AlertDialogDescription>The saved photo will be permanently deleted, and related improvement evidence will be queued for deletion. Your expense, item details, and balances will remain.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel className="min-h-11">Keep photo</AlertDialogCancel><AlertDialogAction className="min-h-11" onClick={() => void submit({ key: crypto.randomUUID(), body: { keep: false } })}>Remove photo</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
+                    </AlertDialog>
                 ) : null}
                 {mutationRef.current ? (
                     <button type="button" className="ui-button ui-button-outline min-h-11" disabled={busy} onClick={() => void submit(mutationRef.current!)}>

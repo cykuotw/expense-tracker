@@ -34,7 +34,7 @@ def runtime_config() -> SimpleNamespace:
         observability=SimpleNamespace(discord_webhook_url=None),
         error_alerting_enabled=False,
         bootstrap_environment=lambda _host: {"SAFE": "value"},
-        worker_environment=lambda _host, _bucket: {"Variables": {"SAFE": "worker"}},
+        worker_environment=lambda _host, _bucket, _evidence="": {"Variables": {"SAFE": "worker"}},
         delivery_environment=lambda _host: {"Variables": {"SAFE": "delivery"}},
         sender_environment=lambda function: {"Variables": {"DELIVERY": function}},
         notifier_environment=lambda: {"Variables": {"SAFE": "notifier"}},

@@ -120,16 +120,23 @@ func (h *CapabilityHandler) handleCreate(c *gin.Context) {
 		return
 	}
 	normalizedType := strings.ToLower(strings.TrimSpace(payload.ContentType))
-	mint := MintCapability
-	if payload.KeepReceipt {
-		mint = MintReceiptRetentionCapability
+	var revision int64
+	if consent, ok := h.store.(interface {
+		GetOCRConsentRevision(context.Context, string) (int64, error)
+	}); ok {
+		revision, err = consent.GetOCRConsentRevision(c.Request.Context(), userID)
+		if err != nil {
+			utils.WriteError(c, http.StatusServiceUnavailable, errors.New("OCR consent is temporarily unavailable"))
+			return
+		}
 	}
-	token, expiresAt, err := mint(
+	token, expiresAt, err := MintConsentedCapability(
 		h.secret,
 		h.now(),
 		userID,
 		requestID.String(),
 		normalizedType,
+		payload.KeepReceipt, revision,
 	)
 	if err != nil {
 		utils.WriteError(c, http.StatusInternalServerError, err)

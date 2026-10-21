@@ -185,6 +185,11 @@ func (h *Handler) writeReceiptCleanup(c *gin.Context, expenseID uuid.UUID) {
 		return
 	}
 	pending := false
+	if h.evidenceCleanup != nil {
+		if err := h.evidenceCleanup(c.Request.Context(), expenseID.String()); err != nil {
+			pending = true
+		}
+	}
 	for _, receipt := range receipts {
 		result, err := h.reconcileReceipt(c.Request.Context(), receipt.ID)
 		if err != nil || result.Status != "deleted" {
@@ -313,6 +318,11 @@ func (h *Handler) handleReceiptReconcile(c *gin.Context) {
 		return
 	}
 	pendingCleanup := false
+	if h.evidenceReconcile != nil {
+		if err := h.evidenceReconcile(c.Request.Context(), expense.ID.String()); err != nil {
+			pendingCleanup = true
+		}
+	}
 	for _, cleanup := range cleanups {
 		result, err := h.reconcileReceipt(c.Request.Context(), cleanup.ID)
 		if err != nil || result.Status != "deleted" {

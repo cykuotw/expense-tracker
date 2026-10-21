@@ -128,6 +128,32 @@
         "dataLossRisk": true,
         "notes": "After multi-category writes, an older application cannot preserve or report those allocations. Keep this application version or restore compatible handling before rollback. Reversing the schema discards category amounts and notes."
       }
+    },
+    {
+      "version": 41,
+      "name": "add_ocr_improvement_evidence",
+      "categories": [
+        "additive",
+        "constraint_tightening",
+        "index",
+        "backfill"
+      ],
+      "deployment": "online",
+      "backfill": {
+        "mode": "bounded",
+        "resumable": true,
+        "notes": "No historical rows are rewritten at installation. Registered cleanup triggers restrict future updates to one expense; repeated cleanup is idempotent."
+      },
+      "locking": {
+        "risk": "low",
+        "notes": "Creates empty tables and bounded foreign-key metadata locks without rewriting existing rows."
+      },
+      "rollback": {
+        "application": "compatible",
+        "schema": "manual_only",
+        "dataLossRisk": true,
+        "notes": "Older code ignores these tables. Schema reversal discards consent and evidence tracking; purge objects before any reversal."
+      }
     }
   ]
 }

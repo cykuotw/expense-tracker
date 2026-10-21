@@ -1,4 +1,5 @@
 import { useState } from "react";
+import ReceiptViewer from "@/components/receipt/ReceiptViewer";
 import { Link } from "react-router-dom";
 
 import Icon from "@mdi/react";
@@ -238,6 +239,7 @@ const ExpenseDetailContent = () => {
                         ) : null}
                     </div>
 
+                    {expenseDetail.receipt?.status === "finalized" ? <section className="rounded-2xl border border-border p-4" aria-label="Receipt photo"><h2 className="mb-3 font-semibold">Receipt photo</h2><ReceiptViewer expenseId={expenseId} /></section> : null}
                     {expenseDetail.groupIsActive === false ? null : <DangerZone />}
                 </div>
             </div>

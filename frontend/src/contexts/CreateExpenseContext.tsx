@@ -97,6 +97,7 @@ export const CreateExpenseProvider = ({
     const [receiptRetentionAvailable, setReceiptRetentionAvailable] = useState(false);
     const [keepReceipt, setKeepReceipt] = useState(false);
     const [receiptToken, setReceiptToken] = useState<string | null>(null);
+    const evidenceTokenRef = useRef<string | null>(null);
     const [receiptExpiresAt, setReceiptExpiresAt] = useState<string | null>(null);
     const discardReceiptToken = useCallback(() => {
         setReceiptToken(null);
@@ -167,6 +168,7 @@ export const CreateExpenseProvider = ({
         setOCRDraft(null);
         setOCRError(null);
         if (!preserveRetention) {
+            evidenceTokenRef.current = null;
             setReceiptToken(null);
             setReceiptExpiresAt(null);
         }
@@ -181,6 +183,7 @@ export const CreateExpenseProvider = ({
         ocrAbortRef.current?.abort("replaced");
         const controller = new AbortController();
         ocrAbortRef.current = controller;
+        evidenceTokenRef.current = null;
         setOCRStatus("scanning");
         setOCRDraft(null);
         setOCRError(null);
@@ -191,6 +194,7 @@ export const CreateExpenseProvider = ({
             if (ocrAbortRef.current !== controller) return;
             setOCRDraft(result.draft);
             setReceiptToken(result.receiptToken);
+            evidenceTokenRef.current = result.evidenceToken ?? null;
             setReceiptExpiresAt(result.receiptExpiresAt);
             setOCRStatus("ready");
         } catch (error) {
@@ -282,11 +286,20 @@ export const CreateExpenseProvider = ({
                 return;
             }
 
+            const result = await response.json().catch(() => null) as { expenseId?: string; receipt?: { status?: string } } | null;
+            if (result?.expenseId && evidenceTokenRef.current) {
+                try {
+                    await apiFetch(`/expense/${result.expenseId}/ocr-evidence`, {
+                        method: "POST", headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ token: evidenceTokenRef.current }), signal: AbortSignal.timeout(3000),
+                    });
+                } catch { /* Optional evidence never blocks or retries the accounting mutation. */ }
+            }
             if (response.status === 202) {
                 setSubmissionError("Expense saved. The receipt photo is still being secured. Tap Retry to finish it.");
                 return;
             }
-            const result = await response.json().catch(() => null) as { receipt?: { status?: string } } | null;
+            evidenceTokenRef.current = null;
             submissionIntentRef.current = null;
             clearReceiptWorkflow();
             if (result?.receipt?.status === "failed") {

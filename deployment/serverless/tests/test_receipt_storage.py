@@ -18,7 +18,7 @@ class ReceiptStorageDeploymentTest(unittest.TestCase):
     def test_ocr_runtime_projection_disables_receipt_storage(self) -> None:
         config = SimpleNamespace(
             frontend_origin="https://app.example.com",
-            backend=SimpleNamespace(ocr_capability_secret="test-secret"),
+            backend=SimpleNamespace(ocr_capability_secret="test-secret", gemini_api_key="", gemini_model="gemini-3.8-flash", ocr_evidence_capture_enabled=False),
         )
         variables = Config.ocr_environment(config, "ocr-replay", "private-receipts")["Variables"]
         self.assertEqual(variables["RECEIPT_STORAGE_ENABLED"], "false")
@@ -27,6 +27,16 @@ class ReceiptStorageDeploymentTest(unittest.TestCase):
 
     def test_private_storage_is_in_backend_and_all_targeted_updates(self) -> None:
         addresses = {
+            "aws_s3_bucket.ocr_evidence",
+            "aws_s3_bucket_public_access_block.ocr_evidence",
+            "aws_s3_bucket_ownership_controls.ocr_evidence",
+            "aws_s3_bucket_server_side_encryption_configuration.ocr_evidence",
+            "aws_s3_bucket_lifecycle_configuration.ocr_evidence",
+            "aws_s3_bucket_policy.ocr_evidence",
+            "aws_iam_role.ocr_evidence_replay",
+            "aws_iam_role_policy.ocr_evidence_replay",
+            "aws_iam_role_policy.ocr_evidence_writer",
+            "aws_iam_role_policy.ocr_evidence_worker",
             "aws_s3_bucket.receipt",
             "aws_s3_bucket_public_access_block.receipt",
             "aws_s3_bucket_ownership_controls.receipt",
@@ -51,6 +61,8 @@ class ReceiptStorageDeploymentTest(unittest.TestCase):
                 context.config.error_alerting_enabled = False
                 terraform = mock.MagicMock()
                 terraform.show_plan.return_value = {"resource_changes": [
+                    {"address": "aws_s3_bucket.ocr_evidence", "change": {"actions": ["create"]}},
+                    {"address": "aws_iam_role_policy.ocr_evidence_worker", "change": {"actions": ["create"]}},
                     {"address": "aws_s3_bucket.receipt", "change": {"actions": ["create"]}},
                     {"address": "aws_iam_role_policy.ocr", "change": {"actions": ["update"]}},
                     {"address": "aws_iam_role_policy.worker", "change": {"actions": ["update"]}},
@@ -60,6 +72,8 @@ class ReceiptStorageDeploymentTest(unittest.TestCase):
                     workflow._apply_infrastructure_updates(context, "backend", use_lambda_aliases=aliases)
                 self.assertEqual(variables.call_args.kwargs["use_lambda_aliases"], aliases)
                 self.assertIn("aws_s3_bucket.receipt", terraform.plan.call_args.kwargs["targets"])
+                self.assertIn("aws_s3_bucket.ocr_evidence", terraform.plan.call_args.kwargs["targets"])
+                self.assertIn("aws_iam_role_policy.ocr_evidence_worker", terraform.plan.call_args.kwargs["targets"])
                 self.assertIn("aws_iam_role_policy.worker", terraform.plan.call_args.kwargs["targets"])
                 self.assertIn("aws_s3_bucket_policy.receipt", terraform.plan.call_args.kwargs["targets"])
                 terraform.apply.assert_called_once()

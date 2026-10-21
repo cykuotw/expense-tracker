@@ -13,11 +13,9 @@ import (
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-lambda-go/lambdacontext"
-	"github.com/aws/aws-sdk-go-v2/aws/retry"
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
-	"github.com/aws/aws-sdk-go-v2/service/textract"
 )
 
 func main() {
@@ -32,16 +30,15 @@ func main() {
 		logger.Error("ocr_aws_configuration_load_failed", slog.String("error_type", fmt.Sprintf("%T", err)))
 		os.Exit(1)
 	}
-	textractClient := textract.NewFromConfig(awsConfig, func(options *textract.Options) {
-		options.Retryer = retry.NewStandard(func(retryOptions *retry.StandardOptions) {
-			retryOptions.MaxAttempts = 2
-			retryOptions.MaxBackoff = 500 * time.Millisecond
-		})
-	})
+	provider, err := ocr.NewGeminiProvider(runtimeConfig.GeminiAPIKey, runtimeConfig.GeminiModel)
+	if err != nil {
+		logger.Error("ocr_gemini_configuration_failed")
+		os.Exit(1)
+	}
 	handler := ocr.NewDraftHandler(
 		runtimeConfig,
 		ocr.NewDynamoReplayStore(dynamodb.NewFromConfig(awsConfig), runtimeConfig.ReplayTable),
-		ocr.NewTextractProvider(textractClient),
+		provider,
 		func(observation ocr.DraftObservation) {
 			if observation.ReceiptStorageOutcome == "failed" {
 				logger.Error("receipt_storage_write_failed")
@@ -68,6 +65,9 @@ func main() {
 		handler.SetTemporaryReceiptStore(store)
 	}
 	logger.Info("ocr_serverless_started")
+	if runtimeConfig.EvidenceCaptureEnabled {
+		handler.SetEvidenceWriter(&ocr.EvidenceWriter{Client: s3.NewFromConfig(awsConfig), Bucket: runtimeConfig.EvidenceBucket, Secret: runtimeConfig.CapabilitySecret})
+	}
 
 	lambda.Start(func(ctx context.Context, request events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {
 		startedAt := time.Now()

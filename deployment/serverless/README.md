@@ -578,17 +578,81 @@ allowances.
 - The OCR Lambda begins at reserved concurrency `0`; Python publishes its
   minimal environment and activates it at `1`. It has no VPC attachment,
   database variables, NAT Gateway, or paid VPC endpoint. Its data-plane
-  permissions are limited to the conditional DynamoDB replay claim and
-  `textract:AnalyzeExpense`. The OCR boundary validates and re-encodes receipt
-  images before making a bounded synchronous provider request.
-- Native `AWS/Textract` metrics for `AnalyzeExpense` expose successful request
-  count, provider latency, throttles, and provider errors. At the current
-  `ca-central-1` price, monthly provider cost can be estimated as
-  `SuccessfulRequestCount * USD 0.01` for the first one million pages.
+  permissions cover the conditional DynamoDB replay claim and narrowly scoped
+  temporary S3 writes. Receipt images are validated and re-encoded before a
+  bounded synchronous Gemini request. The prompt and extraction schema are
+  versioned with the backend; model output is validated and remains editable.
+- Gemini provider failures and timeouts emit content-free structured outcomes
+  and the `OCRProviderFailure` metric. Full-path latency, usage and receipt
+  correctness must be measured with the selected model before claiming quality
+  or cost improvements; historical Textract per-page prices do not apply.
 - The raw execute-api endpoint is disabled only after custom-domain and frontend checks pass.
-- The private receipt bucket is created unversioned with Block Public Access, bucket-owner enforcement, SSE-S3, an HTTPS-only policy, an explicit object-read deny, and a one-day `temporary/` lifecycle. The OCR role can only put objects under that prefix. The OCR runtime is deployed with `RECEIPT_STORAGE_ENABLED=false`; ordinary scans and the current frontend never request retention. Do not enable writes until an explicit `Keep receipt` choice, Phase 8 association, Phase 9 authorized viewing/deletion, and measured temporary-retention behavior are ready. S3 lifecycle eligibility is day-based and physical deletion may lag; the signed token and object metadata impose shorter logical expiry. CloudWatch tracks privacy-safe write failures and daily temporary-object backlog.
+- The private receipt bucket is unversioned, encrypted and blocked from public
+  access. Temporary photos expire after one day. The Worker finalizes an explicit
+  retention choice and authorizes each short-lived receipt view. Images and URLs
+  stay outside application caches; metadata removal is not automatic pixel
+  redaction. Receipt retention remains disabled in default runtime projections
+  until the full retention/view/delete flow is operationally verified.
+- Improvement evidence uses its own private bucket and separate offline replay
+  role. Normal application roles cannot read confirmed evidence. Unconfirmed
+  samples expire after one day; confirmed samples are retained until opt-out or
+  authorized purge. Capture defaults off and must remain off until consent,
+  capture, failure recovery, and complete deletion pass end-to-end verification.
+
 - Post-cutover API verification allows up to 60 seconds for API Gateway, Lambda alias, and invoke-permission propagation. It retries transient `5xx` health responses and verifies the OCR draft preflight specifically permits `POST` plus `Content-Type`, `Authorization`, `X-OCR-Account-ID`, and `X-OCR-Request-ID`; the pre-update health gate deliberately defers this new contract until the Worker has been promoted.
 - Normal updates use narrowly targeted Terraform plans for supported API, CloudFront, notification, and database-support infrastructure changes; Lambda code and runtime environments remain owned by the deployment runtime after initial creation. Deletions are limited to the two retired invitation routes, the obsolete notification HTTPS egress rule, and the eight conditional alerting resources when alerting is explicitly disabled. Replacement is allowed only for explicitly listed Lambda permissions and Worker/OCR log subscription filters whose destination changes during alias cutover; all unrelated replacements are rejected.
 - Before an update and immediately after any targeted infrastructure apply, the deployer removes only unmanaged Worker/OCR/Bootstrap/Sender/Delivery/Error Notifier runtime environments if an AWS provider response persisted them into local state, then verifies that no configured protected value remains anywhere in Terraform artifacts.
 - Destroy deletes Lambdas first, waits for their owned ENIs, then runs `terraform destroy -refresh=false`.
 - A deployment failure keeps persistent resources for an explicit resume; it never performs automatic rollback or destroy.
+
+## Gemini OCR configuration and evidence operations
+
+Set `backend.gemini_api_key` in the external deployment config before a backend
+or all-scope deployment. An empty placeholder is accepted when preparing config,
+but runtime publication is blocked until it is filled. Local OCR tooling uses
+`GEMINI_API_KEY`. `backend.gemini_model` / `GEMINI_MODEL` select the model; the
+current default is `gemini-3.8-flash`, listed as stable in the
+[Gemini model catalogue](https://ai.google.dev/gemini-api/docs/models).
+Deployment config is authoritative for deployed runtime values; local environment
+values are for local tooling. The key is projected only into the OCR runtime,
+never the Worker, frontend, Terraform state, or release manifests.
+
+Review the selected API tier's [data-use terms](https://ai.google.dev/gemini-api/terms)
+before submitting receipts. The application improvement preference controls our
+retention only and makes no promise about Google's processing or retention.
+`backend.ocr_evidence_capture_enabled` defaults to `false`; enable it only after
+operational consent/purge verification. Bucket names are projected through
+`OCR_EVIDENCE_BUCKET`. Ordinary OCR and receipt views need no improvement opt-in.
+
+Receipt-view URLs expire after 45 seconds and use `private, no-store`. A previously
+issued URL remains a bearer capability until it expires. Existing group members
+may view receipts in archived groups; restore the group before changing receipts.
+Soft deletion hides the photo and schedules object cleanup. Permanent expense
+purge must complete receipt and evidence cleanup before removing associations.
+
+The bounded operator tool supports these actions using the configured database
+and AWS credentials. Use `request-account-purge` once, then wait two minutes for
+issued OCR requests to finish and retry `purge-account` until deletion completes.
+`cleanup` processes at most ten pending accounts and ten affected expenses per
+invocation; rerun it for pending work. Failure preserves pending state.
+
+```bash
+go run ./backend/cmd/ocr-evidence -action request-account-purge -id <account-uuid>
+go run ./backend/cmd/ocr-evidence -action purge-account -id <account-uuid>
+go run ./backend/cmd/ocr-evidence -action purge-expense -id <expense-uuid>
+go run ./backend/cmd/ocr-evidence -action cleanup
+```
+
+Offline replay accepts a locally downloaded Gemini response or compressed
+consented evidence bundle. It needs no Gemini key, performs no provider call,
+and writes normalized receipt data to stdout: keep that output in approved
+private storage. Use the distinct replay role to read confirmed evidence;
+normal receipt/application endpoints never expose bundles.
+
+```bash
+go run ./backend/cmd/ocr-evidence -action replay -file <private-local-response.json.gz>
+```
+
+Replay validates saved extraction through the supported adapter and current
+schema. It does not rerun image understanding or measure a changed prompt/model.
+Those comparisons require separately authorized, billable provider calls.

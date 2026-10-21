@@ -15,7 +15,7 @@ func TestRepositoryManifestMatchesCurrentMigrations(t *testing.T) {
 	manifest, err := LoadDirectory(directory)
 	require.NoError(t, err)
 	assert.Equal(t, BaselineVersion, manifest.BaselineVersion)
-	require.Len(t, manifest.Migrations, 5)
+	require.Len(t, manifest.Migrations, 6)
 	assert.Equal(t, uint(36), manifest.Migrations[0].Version)
 	assert.Equal(t, "add_multi_currency_accounting", manifest.Migrations[0].Name)
 	assert.Equal(t, uint(37), manifest.Migrations[1].Version)

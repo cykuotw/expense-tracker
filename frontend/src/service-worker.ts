@@ -1,7 +1,7 @@
 /// <reference lib="webworker" />
 import { cleanupOutdatedCaches, createHandlerBoundToURL, precacheAndRoute } from "workbox-precaching";
 import { NavigationRoute, registerRoute } from "workbox-routing";
-import { NetworkFirst } from "workbox-strategies";
+import { NetworkFirst, NetworkOnly } from "workbox-strategies";
 import { ExpirationPlugin } from "workbox-expiration";
 import { notificationDestination } from "./lib/notificationNavigation";
 
@@ -26,6 +26,7 @@ self.addEventListener("activate", (event) => {
     event.waitUntil(self.clients.claim());
 });
 
+registerRoute(({ url }) => url.pathname.startsWith("/api/") || url.searchParams.has("X-Amz-Signature"), new NetworkOnly());
 registerRoute(new NavigationRoute(createHandlerBoundToURL("index.html"), { denylist: [/^\/api\//, /^\/auth\//] }));
 registerRoute(({ url }) => url.pathname.endsWith("/runtime-config.js"), new NetworkFirst({ cacheName: "runtime-config", networkTimeoutSeconds: 3, plugins: [new ExpirationPlugin({ maxEntries: 1, maxAgeSeconds: 60 * 60 * 24 })] }));
 self.addEventListener("push", (event) => {

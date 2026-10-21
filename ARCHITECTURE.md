@@ -50,32 +50,39 @@ Daily EventBridge -------------------------> Delivery Lambda (VPC)
 - **Worker Lambda:** runs the Go/Gin HTTP application. API Gateway is the
   public API entry point; the Worker is activated only after deployment
   configuration is published.
-- **OCR boundary:** the authenticated Worker checks the account's
-  `receipt_ocr` grant and mints a 60-second capability using a dedicated secret.
-  The capability binds issuer `expense-tracker-worker`, audience
-  `expense-tracker-ocr`, account, grant, request UUID, JPEG/PNG media type, and
-  the 3.5 MiB byte limit; it carries no group or expense authority. API Gateway
-  sends the raw receipt body to a separate 512 MB, 12-second OCR Lambda outside
-  the VPC. That Lambda has no database configuration and rejects duplicate
-  capabilities with a conditional, TTL-backed DynamoDB claim. The OCR runtime
-  validates the decoded image dimensions and pixel budget, re-encodes it as a
-  metadata-free JPEG, claims the capability once, and makes a bounded Textract
-  `AnalyzeExpense` request. It returns provider-neutral editable draft fields
-  with confidence and provenance; it performs no expense mutation. Phase 7 adds
-  a private, unversioned S3 temporary-receipt bucket with a one-day lifecycle
-  rule and a narrowly scoped OCR `PutObject` permission. The runtime projects
-  `RECEIPT_STORAGE_ENABLED=false`, and the browser requests no retention, so
-  ordinary OCR drafts still store no image. Only an explicit retention-capability
-  claim together with a separately enabled runtime can write the server-validated,
-  re-encoded JPEG. No application role can read receipt objects; the bucket
-  explicitly denies object reads until authorized viewing is introduced. The
-  temporary writer returns an account-bound signed token but no object key as
-  client-selected authority. The one-day lifecycle is provisional while
-  completion-time and normalized-size distributions are measured. Its IAM role
-  otherwise grants `textract:AnalyzeExpense` plus the replay claim and logging
-  permissions. Both capability minting and draft routes are
-  throttled to 1 request/second with burst 1, and OCR reserved concurrency is
-  one after deployment activation.
+- **OCR boundary:** the authenticated Worker checks the `receipt_ocr` grant and
+  mints a 60-second account/request-bound capability. API Gateway forwards one
+  JPEG/PNG image, up to 3.5 MiB, to the separate 512 MB, 30-second OCR Lambda
+  outside the VPC. It validates dimensions, strips metadata, claims a DynamoDB
+  replay key, and sends the normalized image to Gemini over HTTPS. A versioned
+  prompt and JSON Schema produce editable draft fields; server-side parsing
+  rejects invalid output and never fabricates model confidence. Only the OCR
+  runtime receives the Gemini API key. It has no database access or expense
+  mutation authority. Both OCR routes are throttled to 1 request/second with
+  burst 1, and the OCR function has reserved concurrency one after activation.
+- **Receipt lifecycle:** keeping a photo is separate from scanning. The OCR
+  writer places explicitly requested images in a private temporary S3 prefix;
+  the Worker finalizes confirmed associations using deterministic copy/delete
+  operations and tracks pending cleanup. Current group members with active
+  accounts can explicitly request a 45-second, no-store view of a finalized
+  receipt. No URL is included in normal expense responses. Archived groups
+  retain read access; receipt mutations require the existing active-group
+  boundary. Soft-deleted expenses cannot expose their receipt. Replacement and
+  deletion retain retryable object/database cleanup state.
+- **Improvement evidence:** a separate versioned, default-off user preference
+  controls application evidence retention, independently of product receipt
+  retention and Google's service terms. The Worker binds the consent revision
+  into the capability and rechecks it at confirmation. Capture is separately
+  disabled by default. Consented images, extraction responses, normalized
+  drafts, and immutable confirmed snapshots use a separate private, unversioned
+  evidence bucket. The OCR role can only write temporary evidence; the Worker
+  can finalize it and purge objects but cannot read confirmed bundles. A
+  separate operator-assumed replay role can read confirmed bundles. Metadata
+  stores version identifiers rather than receipt content or credentials.
+  Opt-out stops new consented capabilities and tracks bounded, retryable purge;
+  deletion waits for issued capabilities to finish before verifying completion.
+  Unconfirmed objects expire through a one-day lifecycle; confirmed evidence
+  has no fixed expiry and is removed on opt-out or explicit purge.
 - **Bootstrap Lambda:** performs explicit migration and bootstrap work before
   Worker releases that depend on it. Migrations are never a request-time
   responsibility.
@@ -249,6 +256,10 @@ and `frontend/src/lib/api.ts`. Do not duplicate endpoint details here.
   first row's compatibility projection. Category reports use effective amounts;
   total/payer counts and amounts continue to use one parent expense. Updates
   must explicitly preserve or remove an existing breakdown.
+- Item price history reads only confirmed item/expense values under current
+  group membership and active-account authorization. Search uses bounded
+  keyset pagination, preserves original currencies and optional quantities,
+  and never calls an OCR provider or rewrites older merchant names.
 - Each expense stores one canonical allocation mode and one allocation row per
   selected participant. The allocation rows preserve user-entered source values
   for equal, exact-amount, percentage, and equal-plus-adjustment modes; selected

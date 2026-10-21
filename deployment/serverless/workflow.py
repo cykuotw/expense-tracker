@@ -336,6 +336,7 @@ def plan(context: Context) -> None:
 
 
 def deploy(context: Context) -> None:
+    context.config.require_gemini_key()
     preflight(context, mutation=True)
     with tempfile.TemporaryDirectory(prefix="expense-serverless-deploy-") as temporary:
         temporary_root = Path(temporary)
@@ -580,6 +581,16 @@ def _infrastructure_targets(scope: str) -> tuple[str, ...]:
         )
         targets.append("aws_apigatewayv2_stage.default")
         targets.extend((
+            "aws_s3_bucket.ocr_evidence",
+            "aws_s3_bucket_public_access_block.ocr_evidence",
+            "aws_s3_bucket_ownership_controls.ocr_evidence",
+            "aws_s3_bucket_server_side_encryption_configuration.ocr_evidence",
+            "aws_s3_bucket_lifecycle_configuration.ocr_evidence",
+            "aws_s3_bucket_policy.ocr_evidence",
+            "aws_iam_role.ocr_evidence_replay",
+            "aws_iam_role_policy.ocr_evidence_replay",
+            "aws_iam_role_policy.ocr_evidence_writer",
+            "aws_iam_role_policy.ocr_evidence_worker",
             "aws_s3_bucket.receipt",
             "aws_s3_bucket_public_access_block.receipt",
             "aws_s3_bucket_ownership_controls.receipt",
@@ -596,6 +607,8 @@ def _infrastructure_targets(scope: str) -> tuple[str, ...]:
             "aws_cloudwatch_log_group.ocr",
             "aws_lambda_function.ocr",
             "aws_cloudwatch_metric_alarm.ocr_runtime",
+            "aws_cloudwatch_log_metric_filter.ocr_provider_failure",
+            "aws_cloudwatch_metric_alarm.ocr_provider_failure",
             "aws_lambda_permission.ocr_logs_error_notifier",
             "aws_cloudwatch_log_subscription_filter.ocr_error_notifier",
             "aws_iam_role.error_notifier",
@@ -1032,6 +1045,8 @@ def _delete_committed_candidate(store: ReleaseStore, release_id: str) -> None:
 
 def update(context: Context, scope: str) -> None:
     step("preflight")
+    if scope in {"backend", "all"}:
+        context.config.require_gemini_key()
     preflight(context, mutation=True)
     outputs = _require_complete(context, require_healthy=scope != "all")
     step("preflight", "pass")

@@ -238,7 +238,6 @@ const GroupDetailContent = () => {
                         />
                         <span>Settle up</span>
                     </button> : null}
-                    <Link to={`/group/${groupId}/item-history`} className="ui-button ui-button-outline min-h-12">Item price history</Link>
                     {groupinfo?.groupType === "home" ? (
                         <Link
                             to={`/group/${groupId}/monthly-review/${previousMonth}`}

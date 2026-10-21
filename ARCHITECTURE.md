@@ -269,10 +269,6 @@ and `frontend/src/lib/api.ts`. Do not duplicate endpoint details here.
   first row's compatibility projection. Category reports use effective amounts;
   total/payer counts and amounts continue to use one parent expense. Updates
   must explicitly preserve or remove an existing breakdown.
-- Item price history reads only confirmed item/expense values under current
-  group membership and active-account authorization. Search uses bounded
-  keyset pagination, preserves original currencies and optional quantities,
-  and never calls an OCR provider or rewrites older merchant names.
 - Each expense stores one canonical allocation mode and one allocation row per
   selected participant. The allocation rows preserve user-entered source values
   for equal, exact-amount, percentage, and equal-plus-adjustment modes; selected

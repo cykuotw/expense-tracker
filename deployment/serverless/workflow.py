@@ -483,7 +483,7 @@ def deploy(context: Context) -> None:
                     outputs,
                     release_id,
                 )
-                verify_frontend(context.config)
+                verify_frontend(context.config, receipt_bucket=str(outputs["receipt_bucket_name"]))
                 verify_session(context.config)
                 verify_google_exchange(context.config)
                 step("raw API cutover")
@@ -1228,7 +1228,7 @@ def update(context: Context, scope: str) -> None:
                 release_id,
                 target_frontend,
             )
-            verify_frontend(context.config)
+            verify_frontend(context.config, receipt_bucket=str(outputs["receipt_bucket_name"]))
             step("frontend", "pass")
         database = _database_record_from_bootstrap_response(
             context,
@@ -1385,7 +1385,7 @@ def activate_release(
                 outputs,
                 desired_frontend,
             )
-            verify_frontend(context.config)
+            verify_frontend(context.config, receipt_bucket=str(outputs["receipt_bucket_name"]))
         context.aws.restore_sender(sender_name, sender_concurrency)
         manifest = _manifest(
             release_id=release_id,

@@ -39,6 +39,7 @@ class ForwardUpdateTest(unittest.TestCase):
         context.config.error_alerting_enabled = False
         context.aws.pause_sender.return_value = 1
         outputs = {
+            "receipt_bucket_name": "private-receipts",
             "bootstrap_function_name": "bootstrap",
             "worker_function_name": "worker",
             "sender_function_name": "sender",
@@ -98,6 +99,7 @@ class ForwardUpdateTest(unittest.TestCase):
             self.assertEqual(store.put_candidate.call_args.args[0]["status"], "failed")
             cleanup.assert_not_called()
         else:
+            verify_frontend.assert_called_once_with(context.config, receipt_bucket="private-receipts")
             manifest = store.put_release.call_args.args[0]
             self.assertEqual(manifest["database"]["migrationVersion"], 41)
             self.assertEqual(manifest["backend"]["worker"], target)

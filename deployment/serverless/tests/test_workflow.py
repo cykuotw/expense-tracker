@@ -382,6 +382,7 @@ class WorkflowTest(unittest.TestCase):
         context.config.observability.discord_webhook_url = None
         context.config.error_alerting_enabled = False
         outputs = {
+            "receipt_bucket_name": "private-receipts",
             "database_temporary_public_ipv4": "203.0.113.5",
             "database_host": "10.0.0.5",
             "worker_function_name": "worker",
@@ -498,6 +499,7 @@ class WorkflowTest(unittest.TestCase):
         context.config.error_alerting_enabled = False
         context.aws = mock.MagicMock()
         outputs = {
+            "receipt_bucket_name": "private-receipts",
             "worker_function_name": "worker",
             "sender_function_name": "sender",
             "delivery_function_name": "delivery",
@@ -609,7 +611,7 @@ class WorkflowTest(unittest.TestCase):
         context.repo_root = Path("/repo")
         context.serverless_root = Path("/repo/deployment/serverless")
         context.terraform_root = context.serverless_root / "infrastructure/tf"
-        outputs = {"frontend_bucket_name": "bucket"}
+        outputs = {"frontend_bucket_name": "bucket", "receipt_bucket_name": "private-receipts"}
         store = mock.MagicMock()
         store.get_current.return_value = {"currentReleaseId": RELEASE_ID}
         active = managed_manifest()

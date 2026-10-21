@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 import sys
 import unittest
 from pathlib import Path
@@ -19,6 +20,7 @@ def config() -> SimpleNamespace:
         frontend_origin="https://app.example.com",
         api_origin="https://api.example.com",
         backend=SimpleNamespace(google_client_id="client-id"),
+        aws=SimpleNamespace(region="ca-central-1"),
     )
 
 
@@ -63,6 +65,30 @@ class FrontendVerifyTest(unittest.TestCase):
         self.verify_runtime(
             {**EXPECTED, "frontendVersion": "v-deadbeef01234567"}
         )
+
+    def test_receipt_csp_matches_terraform_and_rejects_missing_or_wrong_bucket(self) -> None:
+        source = (ROOT / "infrastructure/tf/frontend.tf").read_text()
+        directives = source.split('frontend_csp = ', 1)[1].split('])};"', 1)[0]
+        policy = "; ".join(re.findall(r'^\s+"(.*)",?$', directives, re.MULTILINE)) + ";"
+        policy = policy.replace('${var.api_hostname}', 'api.example.com').replace(
+            '${aws_s3_bucket.receipt.bucket_regional_domain_name}',
+            'private-receipts.s3.ca-central-1.amazonaws.com',
+        )
+        headers = {
+            "referrer-policy": "strict-origin-when-cross-origin",
+            "x-content-type-options": "nosniff",
+            "x-frame-options": "DENY",
+            "content-security-policy": policy,
+        }
+        value = {**EXPECTED, "frontendVersion": "v-deadbeef01234567"}
+        self.verify_runtime(value, document_headers=headers, receipt_bucket="private-receipts")
+        for invalid in (
+            policy.replace(' https://private-receipts.s3.ca-central-1.amazonaws.com', ''),
+            policy.replace('private-receipts.s3.', 'other-bucket.s3.'),
+            policy.replace('private-receipts.s3.', '*.s3.'),
+        ):
+            with self.subTest(policy=invalid), self.assertRaisesRegex(CommandError, "content-security-policy"):
+                self.verify_runtime(value, document_headers={**headers, "content-security-policy": invalid}, receipt_bucket="private-receipts")
 
     def test_upgrade_check_accepts_legacy_runtime_and_headers(self) -> None:
         self.verify_runtime(

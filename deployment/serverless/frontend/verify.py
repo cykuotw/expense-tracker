@@ -24,7 +24,7 @@ FRONTEND_VERSION_PATTERN = re.compile(
 )
 
 
-def _csp(api_origin: str) -> str:
+def _csp(api_origin: str, receipt_image_origin: str = "") -> str:
     return "; ".join(
         (
             "default-src 'self'",
@@ -37,19 +37,19 @@ def _csp(api_origin: str) -> str:
             "frame-src https://accounts.google.com/gsi/",
             "style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/style",
             "font-src 'self' https://fonts.gstatic.com",
-            "img-src 'self' data: blob:",
+            "img-src 'self' data: blob:" + (f" {receipt_image_origin}" if receipt_image_origin else ""),
             "manifest-src 'self'",
             "worker-src 'self'",
         )
     ) + ";"
 
 
-def _security_headers(config: Config, headers: dict[str, str]) -> None:
+def _security_headers(config: Config, headers: dict[str, str], receipt_image_origin: str = "") -> None:
     expected = {
         "referrer-policy": "strict-origin-when-cross-origin",
         "x-content-type-options": "nosniff",
         "x-frame-options": "DENY",
-        "content-security-policy": _csp(config.api_origin),
+        "content-security-policy": _csp(config.api_origin, receipt_image_origin),
     }
     for name, value in expected.items():
         if headers.get(name) != value:
@@ -63,12 +63,17 @@ def verify(
     *,
     require_frontend_version: bool = True,
     require_security_headers: bool = True,
+    receipt_bucket: str = "",
 ) -> None:
     status, document, headers = _get(config.frontend_origin)
     if status != 200 or "runtime-config.js" not in document:
         raise CommandError("deployed frontend document check failed")
     if require_security_headers:
-        _security_headers(config, headers)
+        receipt_image_origin = (
+            f"https://{receipt_bucket}.s3.{config.aws.region}.amazonaws.com"
+            if receipt_bucket else ""
+        )
+        _security_headers(config, headers, receipt_image_origin)
     status, runtime, _ = _get(f"{config.frontend_origin}/runtime-config.js")
     if status != 200:
         raise CommandError("deployed frontend runtime config is unavailable")

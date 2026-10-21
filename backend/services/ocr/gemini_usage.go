@@ -21,6 +21,31 @@ type GeminiUsageObservation struct {
 	PricingVersion                          string
 }
 
+// ScanUsage is an allowlisted, per-request summary for the receipt review UI.
+// It is not part of the confirmed expense or improvement-evidence payload.
+type ScanUsage struct {
+	Model            string      `json:"model"`
+	Tokens           *ScanTokens `json:"tokens"`
+	EstimatedCostUSD *float64    `json:"estimatedCostUsd"`
+}
+
+type ScanTokens struct {
+	Input       int64 `json:"input"`
+	Output      int64 `json:"output"`
+	Thinking    int64 `json:"thinking"`
+	CachedInput int64 `json:"cachedInput"`
+	Total       int64 `json:"total"`
+}
+
+func (o GeminiUsageObservation) scanUsage(now time.Time) *ScanUsage {
+	o.estimateCost(now)
+	summary := &ScanUsage{Model: o.Model, EstimatedCostUSD: o.EstimatedCostUSD}
+	if u := o.Usage; u != nil {
+		summary.Tokens = &ScanTokens{Input: u.Input, Output: u.Output, Thinking: u.Thinking, CachedInput: u.CachedInput, Total: u.Total}
+	}
+	return summary
+}
+
 // LogAttrs is an explicit allowlist. Do not add raw requests/responses here.
 func (o GeminiUsageObservation) LogAttrs() []slog.Attr {
 	attributes := []slog.Attr{

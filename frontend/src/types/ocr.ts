@@ -1,5 +1,11 @@
 export type OCRProvenance = "provider" | "inferred";
 
+export interface OCRScanUsage {
+    model: string;
+    tokens: { input: number; output: number; thinking: number; cachedInput: number; total: number } | null;
+    estimatedCostUsd: number | null;
+}
+
 export interface OCRField {
     value: string;
     confidence?: number;

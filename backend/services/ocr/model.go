@@ -35,6 +35,7 @@ type Item struct {
 
 // Result is provider-neutral OCR output suitable for an editable expense draft.
 type Result struct {
+	Usage    *ScanUsage          `json:"-"`
 	Evidence *ExtractionEvidence `json:"-"`
 	Merchant Field               `json:"merchant"`
 	Date     Field               `json:"date"`

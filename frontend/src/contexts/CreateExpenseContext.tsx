@@ -46,7 +46,7 @@ import { requestReceiptDraftWithRetention, ReceiptOCRError } from "../lib/receip
 import { validateReceiptExpense } from "../lib/receiptDraft";
 import type { PreparedReceipt } from "../lib/receiptEditor";
 import type { AccountSettingsData } from "../types/account";
-import type { ConfirmedExpenseItem, OCRDraft, ReviewedReceiptDraft } from "../types/ocr";
+import type { ConfirmedExpenseItem, OCRDraft, OCRScanUsage, ReviewedReceiptDraft } from "../types/ocr";
 
 import { calculateCategoryBreakdown, categoryBreakdownPayload } from "../lib/categoryBreakdown";
 
@@ -106,6 +106,7 @@ export const CreateExpenseProvider = ({
     }, []);
     const [ocrStatus, setOCRStatus] = useState<"idle" | "scanning" | "ready" | "error">("idle");
     const [ocrDraft, setOCRDraft] = useState<OCRDraft | null>(null);
+    const [ocrUsage, setOCRUsage] = useState<OCRScanUsage | null>(null);
     const [ocrError, setOCRError] = useState<string | null>(null);
     const ocrAbortRef = useRef<AbortController | null>(null);
     const previousGroupRef = useRef(selectedGroupId);
@@ -166,6 +167,7 @@ export const CreateExpenseProvider = ({
         ocrAbortRef.current = null;
         setOCRStatus("idle");
         setOCRDraft(null);
+        setOCRUsage(null);
         setOCRError(null);
         if (!preserveRetention) {
             evidenceTokenRef.current = null;
@@ -176,6 +178,7 @@ export const CreateExpenseProvider = ({
 
     const startReceiptOCR = useCallback(async (receipt: PreparedReceipt) => {
         if (!userID || receiptOCREnabled !== true) {
+            setOCRUsage(null);
             setOCRStatus("error");
             setOCRError("Receipt scanning is not available for this account.");
             return;
@@ -186,6 +189,7 @@ export const CreateExpenseProvider = ({
         evidenceTokenRef.current = null;
         setOCRStatus("scanning");
         setOCRDraft(null);
+        setOCRUsage(null);
         setOCRError(null);
         setReceiptToken(null);
         setReceiptExpiresAt(null);
@@ -193,6 +197,7 @@ export const CreateExpenseProvider = ({
             const result = await requestReceiptDraftWithRetention(receipt, userID, keepReceipt, controller.signal);
             if (ocrAbortRef.current !== controller) return;
             setOCRDraft(result.draft);
+            setOCRUsage(result.usage ?? null);
             setReceiptToken(result.receiptToken);
             evidenceTokenRef.current = result.evidenceToken ?? null;
             setReceiptExpiresAt(result.receiptExpiresAt);
@@ -513,6 +518,7 @@ export const CreateExpenseProvider = ({
                 discardReceiptToken,
                 ocrStatus,
                 ocrDraft,
+                ocrUsage,
                 ocrError,
                 startReceiptOCR,
                 applyReviewedReceipt,

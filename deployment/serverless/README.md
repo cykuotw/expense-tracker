@@ -628,6 +628,13 @@ response includes valid usage metadata. Timeouts, HTTP errors, unreadable or
 oversized responses may have unavailable usage; they are not reported as free.
 Offline replay produces no billable-usage event.
 
+Successful draft responses also include an optional, per-request `usage`
+summary. Receipt review shows it under a collapsed **Scan usage** disclosure,
+with model, token counts, and an explicitly labeled USD estimate. This metadata
+is transient: it clears on rescan/discard and is not saved to the expense or
+included in improvement-evidence draft fields. Missing telemetry does not block
+the receipt draft, and unavailable estimates are never displayed as zero.
+
 For `gemini-3.8-flash`, numeric `estimated_cost_usd` uses the versioned standard
 paid-tier [Google pricing](https://ai.google.dev/gemini-api/docs/pricing),
 verified on 2026-10-20. The snapshot includes the published January 1, 2027 rate

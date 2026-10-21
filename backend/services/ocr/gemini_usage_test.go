@@ -58,7 +58,7 @@ func TestGeminiUsageLoggingIncludesRejectedOutputAndNeverReceiptContent(t *testi
 				observations++
 				logger.LogAttrs(ctx, slog.LevelInfo, "ocr_gemini_usage", o.LogAttrs()...)
 			})
-			_, err = provider.AnalyzeExpense(t.Context(), []byte("private-image-bytes"))
+			result, err := provider.AnalyzeExpense(t.Context(), []byte("private-image-bytes"))
 			if test.wantError {
 				require.Error(t, err)
 			} else {
@@ -81,6 +81,20 @@ func TestGeminiUsageLoggingIncludesRejectedOutputAndNeverReceiptContent(t *testi
 			} else {
 				require.NotContains(t, event, "estimated_cost_usd")
 				require.NotContains(t, event, "input_tokens")
+			}
+			if !test.wantError {
+				require.NotNil(t, result.Usage)
+				require.Equal(t, DefaultGeminiModel, result.Usage.Model)
+				if test.costStatus == "estimated" {
+					require.Equal(t, event["estimated_cost_usd"], *result.Usage.EstimatedCostUSD)
+					require.Equal(t, int64(1000), result.Usage.Tokens.Input)
+				} else {
+					require.Nil(t, result.Usage.Tokens)
+					require.Nil(t, result.Usage.EstimatedCostUSD)
+				}
+				raw, marshalErr := json.Marshal(result)
+				require.NoError(t, marshalErr)
+				require.NotContains(t, string(raw), "estimatedCostUsd")
 			}
 			for _, private := range []string{"private-api-key", "private-receipt-content", "private-provider-content", "private-image-bytes", "Shoppers Drug Mart", "NEILSON MILK", GeminiPrompt} {
 				require.NotContains(t, logs.String(), private)

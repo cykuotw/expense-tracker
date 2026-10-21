@@ -7,7 +7,7 @@ vi.mock("./api", async () => {
 });
 vi.mock("../configs/config", () => ({ API_URL: "https://api.example.test/api/v0" }));
 
-import { OCR_CLIENT_TIMEOUT_MS, parseOCRDraft, ReceiptOCRError, requestReceiptDraft, requestReceiptDraftWithRetention } from "./receiptOcr";
+import { OCR_CLIENT_TIMEOUT_MS, parseOCRDraft, parseOCRScanUsage, ReceiptOCRError, requestReceiptDraft, requestReceiptDraftWithRetention } from "./receiptOcr";
 
 const field = (value: string, provenance = "provider") => ({ value, provenance });
 const draft = {
@@ -32,6 +32,18 @@ function jsonResponse(value: unknown, status = 200) {
 }
 
 describe("receipt OCR client", () => {
+    it("parses optional usage and drops malformed telemetry independently of the draft", () => {
+        const tokens = { input: 1000, output: 100, thinking: 50, cachedInput: 200, total: 1150 };
+        const usage = { model: "gemini-3.8-flash", tokens, estimatedCostUsd: 0.0011775 };
+        expect(parseOCRScanUsage(usage)).toEqual(usage);
+        expect(parseOCRScanUsage(undefined)).toBeNull();
+        for (const invalid of [{ ...tokens, input: -1 }, { ...tokens, output: 0.5 }, { ...tokens, cachedInput: 1001 }, { ...tokens, total: 1 }]) {
+            expect(parseOCRScanUsage({ ...usage, tokens: invalid })).toEqual({ ...usage, tokens: null, estimatedCostUsd: null });
+        }
+        for (const invalid of [NaN, Infinity, -1, "0.001"]) {
+            expect(parseOCRScanUsage({ ...usage, estimatedCostUsd: invalid })?.estimatedCostUsd).toBeNull();
+        }
+    });
     beforeEach(() => {
         vi.spyOn(crypto, "randomUUID").mockReturnValue("00000000-0000-4000-8000-000000000001");
     });
@@ -85,6 +97,16 @@ describe("receipt OCR client", () => {
         });
         const body = JSON.parse((apiFetchMock.mock.lastCall![1] as RequestInit).body as string);
         expect(body.keepReceipt).toBe(true);
+    });
+
+    it("returns per-request usage alongside the draft without requiring retention", async () => {
+        apiFetchMock.mockResolvedValue(jsonResponse({ token: "capability", requestId: "00000000-0000-4000-8000-000000000001", contentType: "image/jpeg", maxBytes: 3_670_016, expiresAt: "2026-09-27T12:00:00Z" }, 201));
+        const usage = { model: "gemini-3.8-flash", tokens: { input: 100, output: 20, thinking: 0, cachedInput: 0, total: 120 }, estimatedCostUsd: 0.00015 };
+        vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse({ requestId: "00000000-0000-4000-8000-000000000001", draft, usage })));
+        const result = await requestReceiptDraftWithRetention(receipt, "account-1", false);
+        expect(result.usage).toEqual(usage);
+        expect(result.draft.merchant.value).toBe("Cafe");
+        expect(result.receiptToken).toBeNull();
     });
 
     it("maps a revoked grant to an actionable safe error", async () => {

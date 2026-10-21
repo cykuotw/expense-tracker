@@ -58,6 +58,7 @@ func TestNewDraftHandlerUsesBoundedStageTimeouts(t *testing.T) {
 func TestDraftHandlerReturnsNormalizedEditableDraft(t *testing.T) {
 	now, accountID, requestID, token, secret := draftFixture(t, "image/jpeg")
 	provider := &providerStub{result: Result{
+		Usage:    &ScanUsage{Model: DefaultGeminiModel, Tokens: &ScanTokens{Input: 100, Output: 20, Thinking: 10, Total: 130}},
 		Merchant: Field{Value: "Example Market", Confidence: 91},
 		Subtotal: Field{Value: "$4.00", Confidence: 95},
 		Total:    Field{Value: "$4.00", Confidence: 96},
@@ -90,6 +91,11 @@ func TestDraftHandlerReturnsNormalizedEditableDraft(t *testing.T) {
 	var payload DraftResponse
 	require.NoError(t, json.Unmarshal([]byte(response.Body), &payload))
 	assert.Equal(t, requestID, payload.RequestID)
+	require.NotNil(t, payload.Usage)
+	assert.Equal(t, int64(100), payload.Usage.Tokens.Input)
+	assert.Nil(t, payload.Usage.EstimatedCostUSD)
+	assert.Nil(t, payload.Draft.Usage, "usage must stay outside persisted extraction fields")
+	assert.Equal(t, 1, strings.Count(response.Body, `"usage"`))
 	assert.Equal(t, ProvenanceProvider, payload.Draft.Merchant.Provenance)
 	assert.True(t, payload.Draft.Merchant.RequiresReview)
 	assert.Equal(t, ProvenanceInferred, payload.Draft.Tax.Provenance)

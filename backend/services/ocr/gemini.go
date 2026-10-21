@@ -119,6 +119,7 @@ func (p *GeminiProvider) AnalyzeExpense(ctx context.Context, document []byte) (R
 	result.Evidence = &ExtractionEvidence{Provider: "gemini", Model: p.model, ModelVersion: version,
 		PromptDigest: contentDigest([]byte(GeminiPrompt)), SchemaDigest: contentDigest(GeminiSchema), AdapterVersion: GeminiAdapterVersion, Response: raw}
 	observation.Outcome = "success"
+	result.Usage = observation.scanUsage(startedAt)
 	return result, nil
 }
 

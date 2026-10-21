@@ -2,14 +2,21 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CreateExpenseProvider } from "./CreateExpenseContext";
 import { useCreateExpense } from "../hooks/CreateExpenseContextHooks";
+import type { ReceiptDraftResult } from "../lib/receiptOcr";
 
-const { apiFetchMock, navigateMock, toastErrorMock, toastSuccessMock } =
+const { apiFetchMock, navigateMock, toastErrorMock, toastSuccessMock, receiptDraftMock } =
     vi.hoisted(() => ({
         apiFetchMock: vi.fn(),
         navigateMock: vi.fn(),
         toastErrorMock: vi.fn(),
         toastSuccessMock: vi.fn(),
+        receiptDraftMock: vi.fn(),
     }));
+
+vi.mock("../lib/receiptOcr", async () => ({
+    ...await vi.importActual<typeof import("../lib/receiptOcr")>("../lib/receiptOcr"),
+    requestReceiptDraftWithRetention: (...args: unknown[]) => receiptDraftMock(...args),
+}));
 
 vi.mock("../hooks/AuthContextHooks", () => ({
     useAuth: () => ({ userID: "user-1" }),
@@ -50,6 +57,10 @@ function CreateExpenseHarness() {
 
     return (
         <form aria-label="expense form" onSubmit={context.handleCreateExpense}>
+            <button type="button" disabled={context.receiptOCREnabled !== true} onClick={() => void context.startReceiptOCR({ blob: new Blob(["jpeg"], { type: "image/jpeg" }), width: 10, height: 20, quality: 0.8 })}>Start test scan</button>
+            <button type="button" onClick={() => context.clearReceiptWorkflow()}>Discard test scan</button>
+            <output data-testid="scan-usage">{context.ocrUsage ? JSON.stringify(context.ocrUsage) : "none"}</output>
+            <output data-testid="scan-status">{context.ocrStatus}</output>
             <input
                 aria-label="amount"
                 type="number"
@@ -123,6 +134,32 @@ function CreateExpenseHarness() {
 }
 
 describe("CreateExpenseProvider error handling", () => {
+    it("clears usage on rescan and discard and ignores a discarded scan completing late", async () => {
+        const blank = { value: "" };
+        const result: ReceiptDraftResult = {
+            draft: { merchant: { value: "Shop" }, date: blank, currencySuggestion: blank, subtotal: blank, tax: blank, tip: blank, total: { value: "10" }, items: [] },
+            receiptToken: null, receiptExpiresAt: null,
+            usage: { model: "gemini-3.8-flash", tokens: { input: 100, output: 20, thinking: 0, cachedInput: 0, total: 120 }, estimatedCostUsd: 0.00015 },
+        };
+        let finishLate!: (value: ReceiptDraftResult) => void;
+        receiptDraftMock.mockReset().mockResolvedValueOnce(result).mockImplementationOnce(() => new Promise<ReceiptDraftResult>((resolve) => { finishLate = resolve; }));
+        render(<CreateExpenseProvider><CreateExpenseHarness /></CreateExpenseProvider>);
+        const start = screen.getByRole("button", { name: "Start test scan" });
+        await waitFor(() => expect(start).toBeEnabled());
+        fireEvent.click(start);
+        await waitFor(() => expect(screen.getByTestId("scan-usage")).toHaveTextContent("0.00015"));
+        fireEvent.click(start);
+        expect(screen.getByTestId("scan-status")).toHaveTextContent("scanning");
+        expect(screen.getByTestId("scan-usage")).toHaveTextContent("none");
+        fireEvent.click(screen.getByRole("button", { name: "Discard test scan" }));
+        finishLate(result);
+        await waitFor(() => expect(screen.getByTestId("scan-status")).toHaveTextContent("idle"));
+        expect(screen.getByTestId("scan-usage")).toHaveTextContent("none");
+        receiptDraftMock.mockResolvedValueOnce({ ...result, usage: undefined });
+        fireEvent.click(start);
+        await waitFor(() => expect(screen.getByTestId("scan-status")).toHaveTextContent("ready"));
+        expect(screen.getByTestId("scan-usage")).toHaveTextContent("none");
+    });
     beforeEach(() => {
         vi.clearAllMocks();
         apiFetchMock.mockImplementation((path: string) => {

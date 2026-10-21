@@ -5,6 +5,7 @@ import type {
     EditableOCRField,
     OCRDraft,
     OCRField,
+    OCRScanUsage,
 } from "../types/ocr";
 import type { PreparedReceipt } from "./receiptEditor";
 
@@ -130,10 +131,32 @@ async function errorFromResponse(response: Response, fallback: string) {
 }
 
 export interface ReceiptDraftResult {
+	usage?: OCRScanUsage | null;
 	 evidenceToken?: string | null;
     draft: OCRDraft;
     receiptToken: string | null;
     receiptExpiresAt: string | null;
+}
+
+// Optional telemetry must never make a usable receipt draft fail.
+export function parseOCRScanUsage(value: unknown): OCRScanUsage | null {
+    if (!isRecord(value) || typeof value.model !== "string" || !/^gemini-[a-zA-Z0-9.-]{1,80}$/.test(value.model)) return null;
+    const raw = value.tokens;
+    let tokens: OCRScanUsage["tokens"] = null;
+    if (isRecord(raw)) {
+        const { input, output, thinking, cachedInput, total } = raw;
+        const count = (n: unknown): n is number => typeof n === "number" && Number.isSafeInteger(n) && n >= 0 && n <= 1_000_000_000;
+        if (count(input) && count(output) && count(thinking) && count(cachedInput) && count(total)
+            && cachedInput <= input && input + output + thinking <= total) {
+            tokens = { input, output, thinking, cachedInput, total };
+        }
+    }
+    const cost = value.estimatedCostUsd;
+    return {
+        model: value.model,
+        tokens,
+        estimatedCostUsd: tokens && typeof cost === "number" && Number.isFinite(cost) && cost >= 0 ? cost : null,
+    };
 }
 
 export async function requestReceiptDraftWithRetention(
@@ -208,7 +231,7 @@ export async function requestReceiptDraftWithRetention(
             );
         }
         const evidenceToken = typeof value.evidenceToken === "string" ? value.evidenceToken : null;
-        return { draft, receiptToken, receiptExpiresAt, evidenceToken };
+        return { draft, receiptToken, receiptExpiresAt, evidenceToken, usage: parseOCRScanUsage(value.usage) };
     } catch (error) {
         if (error instanceof ReceiptOCRError) throw error;
         if (controller.signal.aborted) {

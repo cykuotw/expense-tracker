@@ -51,6 +51,7 @@ type DraftHandler struct {
 }
 
 type DraftResponse struct {
+	Usage            *ScanUsage `json:"usage,omitempty"`
 	EvidenceToken    string     `json:"evidenceToken,omitempty"`
 	RequestID        string     `json:"requestId"`
 	Draft            Result     `json:"draft"`
@@ -179,7 +180,7 @@ func (h *DraftHandler) Handle(ctx context.Context, request events.APIGatewayV2HT
 		return h.retryableError("receipt scanning is temporarily unavailable; you can retry or enter the expense manually", origin), nil
 	}
 
-	responsePayload := DraftResponse{RequestID: claims.ID, Draft: PrepareDraft(extraction)}
+	responsePayload := DraftResponse{RequestID: claims.ID, Draft: PrepareDraft(extraction), Usage: extraction.Usage}
 	if h.evidenceWriter != nil && claims.ConsentRevision > 0 {
 		work, cancel := context.WithTimeout(ctx, 2*time.Second)
 		responsePayload.EvidenceToken, _ = h.evidenceWriter.Store(work, claims, processed.Bytes, responsePayload.Draft, h.now())

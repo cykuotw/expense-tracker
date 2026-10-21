@@ -16,6 +16,7 @@ import { editableOCRDraft } from "@/lib/receiptOcr";
 import { validateReceiptExpense } from "@/lib/receiptDraft";
 import { isDateOnly } from "@/lib/dateOnly";
 import { moneyInputStep } from "@/lib/money";
+import ReceiptScanUsage from "./ReceiptScanUsage";
 import type { EditableOCRDraft, EditableOCRField, ReviewedReceiptDraft } from "@/types/ocr";
 
 function ReviewCue({ field, id }: { field: EditableOCRField; id?: string }) {
@@ -73,6 +74,7 @@ export default function ReceiptDraftReview({ photoURL, onEditPhoto }: ReceiptDra
         occurredOn,
         ocrStatus,
         ocrDraft,
+        ocrUsage,
         ocrError,
         applyReviewedReceipt,
         clearReceiptWorkflow,
@@ -307,6 +309,7 @@ export default function ReceiptDraftReview({ photoURL, onEditPhoto }: ReceiptDra
                             />
                         </div>
                     </details>
+                    {ocrUsage ? <ReceiptScanUsage usage={ocrUsage} /> : null}
                     <div className="receipt-workspace-actions flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                         <p className="hidden text-sm text-muted-foreground sm:block">You’ll choose who paid and how to split next.</p>
                         <Button type="button" className="min-h-12 w-full sm:w-auto" disabled={!reviewValidation?.valid || !dateValid} onClick={apply}><Icon path={mdiCheck} size={0.85} data-icon="inline-start" aria-hidden="true" />Use reviewed values</Button>

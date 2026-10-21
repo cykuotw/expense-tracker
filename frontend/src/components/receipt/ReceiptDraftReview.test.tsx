@@ -47,6 +47,33 @@ describe("ReceiptDraftReview", () => {
     const applyReviewedReceipt = vi.fn();
     const clearReceiptWorkflow = vi.fn();
 
+    it("shows per-scan USD usage behind a disclosure without changing reviewed values", () => {
+        useCreateExpenseMock.mockReturnValue({ ...useCreateExpenseMock(), ocrUsage: {
+            model: "gemini-3.8-flash", estimatedCostUsd: 0.0011775,
+            tokens: { input: 1000, output: 100, thinking: 50, cachedInput: 200, total: 1150 },
+        } });
+        renderReview(false);
+        const summary = screen.getByText("Scan usage").closest("summary")!;
+        expect(summary.closest("details")).not.toHaveAttribute("open");
+        expect(within(summary).getByText("US$0.001178")).toBeInTheDocument();
+        fireEvent.click(summary);
+        expect(summary.closest("details")).toHaveAttribute("open");
+        expect(screen.getByText("Thinking tokens").nextElementSibling).toHaveTextContent("50");
+        expect(screen.getByText("Cached input (included above)").nextElementSibling).toHaveTextContent("200");
+        expect(screen.getByText(/separate from your expense amount/)).toBeInTheDocument();
+        expect(screen.getByLabelText(/^Total/)).toHaveValue(10);
+    });
+
+    it("shows unavailable usage without claiming zero cost", () => {
+        useCreateExpenseMock.mockReturnValue({ ...useCreateExpenseMock(), ocrUsage: {
+            model: "gemini-unknown", estimatedCostUsd: null, tokens: null,
+        } });
+        renderReview(false);
+        fireEvent.click(screen.getByText("Scan usage").closest("summary")!);
+        expect(screen.getByText("Token usage was not available for this scan.")).toBeInTheDocument();
+        expect(screen.queryByText("US$0.000000")).not.toBeInTheDocument();
+    });
+
     beforeEach(() => {
         vi.clearAllMocks();
         useCreateExpenseMock.mockReturnValue({

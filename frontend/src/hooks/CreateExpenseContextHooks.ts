@@ -15,7 +15,7 @@ import {
 import { ExpenseCategoryAmount, ExpenseTypeItem } from "../types/expense";
 import { CurrencyMetadata } from "../lib/money";
 import type { PreparedReceipt } from "../lib/receiptEditor";
-import type { ConfirmedExpenseItem, OCRDraft, ReviewedReceiptDraft } from "../types/ocr";
+import type { ConfirmedExpenseItem, OCRDraft, OCRScanUsage, ReviewedReceiptDraft } from "../types/ocr";
 
 export type OCRWorkflowStatus = "idle" | "scanning" | "ready" | "error";
 
@@ -65,6 +65,7 @@ export interface CreateExpenseContextType {
     discardReceiptToken: () => void;
     ocrStatus: OCRWorkflowStatus;
     ocrDraft: OCRDraft | null;
+    ocrUsage: OCRScanUsage | null;
     ocrError: string | null;
     startReceiptOCR: (receipt: PreparedReceipt) => Promise<void>;
     applyReviewedReceipt: (draft: ReviewedReceiptDraft) => void;

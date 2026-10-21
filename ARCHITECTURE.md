@@ -65,6 +65,9 @@ Daily EventBridge -------------------------> Delivery Lambda (VPC)
   Thinking and cached input are accounted for separately; missing usage is
   explicitly unavailable. These logs do not contain receipt text or images and
   do not replace provider billing. Offline replay emits no usage charge event.
+  Successful OCR draft responses expose a numeric per-scan usage summary for a
+  collapsed review disclosure. This transient metadata is excluded from
+  confirmed expenses and serialized extraction/evidence draft fields.
 - **Receipt lifecycle:** keeping a photo is separate from scanning. The OCR
   writer places explicitly requested images in a private temporary S3 prefix;
   the Worker finalizes confirmed associations using deterministic copy/delete

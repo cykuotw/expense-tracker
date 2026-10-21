@@ -13,12 +13,13 @@ type GeminiTokenUsage struct {
 }
 
 type GeminiUsageObservation struct {
-	Model, Outcome, UsageStatus, CostStatus string
-	HTTPStatus                              int
-	LatencyMillis                           int64
-	Usage                                   *GeminiTokenUsage
-	EstimatedCostUSD                        *float64
-	PricingVersion                          string
+	Model, Outcome, UsageStatus, CostStatus  string
+	ProviderErrorStatus, ProviderErrorReason string
+	HTTPStatus                               int
+	LatencyMillis                            int64
+	Usage                                    *GeminiTokenUsage
+	EstimatedCostUSD                         *float64
+	PricingVersion                           string
 }
 
 // ScanUsage is an allowlisted, per-request summary for the receipt review UI.
@@ -53,6 +54,12 @@ func (o GeminiUsageObservation) LogAttrs() []slog.Attr {
 		slog.String("outcome", o.Outcome), slog.Int("http_status", o.HTTPStatus),
 		slog.Int64("provider_latency_ms", o.LatencyMillis),
 		slog.String("usage_status", o.UsageStatus), slog.String("cost_status", o.CostStatus),
+	}
+	if o.ProviderErrorStatus != "" {
+		attributes = append(attributes, slog.String("provider_error_status", o.ProviderErrorStatus))
+	}
+	if o.ProviderErrorReason != "" {
+		attributes = append(attributes, slog.String("provider_error_reason", o.ProviderErrorReason))
 	}
 	if u := o.Usage; u != nil {
 		attributes = append(attributes,

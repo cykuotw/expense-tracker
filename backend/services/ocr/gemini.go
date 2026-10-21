@@ -100,6 +100,9 @@ func (p *GeminiProvider) AnalyzeExpense(ctx context.Context, document []byte) (R
 	defer response.Body.Close()
 	observation.HTTPStatus = response.StatusCode
 	observation.Outcome = "http_error"
+	if response.StatusCode != http.StatusOK {
+		observation.ProviderErrorStatus, observation.ProviderErrorReason = geminiErrorCategory(response.Body)
+	}
 	if response.StatusCode == http.StatusTooManyRequests {
 		return Result{}, ErrProviderThrottled
 	}
@@ -121,6 +124,38 @@ func (p *GeminiProvider) AnalyzeExpense(ctx context.Context, document []byte) (R
 	observation.Outcome = "success"
 	result.Usage = observation.scanUsage(startedAt)
 	return result, nil
+}
+
+// Error messages can echo request content. Retain only recognized enum values.
+func geminiErrorCategory(body io.Reader) (string, string) {
+	const maxErrorBytes = 16 * 1024
+	raw, err := io.ReadAll(io.LimitReader(body, maxErrorBytes+1))
+	if err != nil || len(raw) > maxErrorBytes {
+		return "UNKNOWN", ""
+	}
+	var envelope struct {
+		Error struct {
+			Status  string `json:"status"`
+			Details []struct {
+				Reason string `json:"reason"`
+			} `json:"details"`
+		} `json:"error"`
+	}
+	if json.Unmarshal(raw, &envelope) != nil {
+		return "UNKNOWN", ""
+	}
+	status := "UNKNOWN"
+	switch envelope.Error.Status {
+	case "INVALID_ARGUMENT", "FAILED_PRECONDITION", "PERMISSION_DENIED", "UNAUTHENTICATED", "NOT_FOUND", "RESOURCE_EXHAUSTED", "INTERNAL", "UNAVAILABLE", "DEADLINE_EXCEEDED":
+		status = envelope.Error.Status
+	}
+	for _, detail := range envelope.Error.Details {
+		switch detail.Reason {
+		case "API_KEY_INVALID", "API_KEY_EXPIRED", "API_KEY_SERVICE_BLOCKED", "API_KEY_HTTP_REFERRER_BLOCKED", "API_KEY_IP_ADDRESS_BLOCKED", "SERVICE_DISABLED", "BILLING_DISABLED", "CONSUMER_INVALID", "RATE_LIMIT_EXCEEDED", "RESOURCE_QUOTA_EXCEEDED":
+			return status, detail.Reason
+		}
+	}
+	return status, ""
 }
 
 func ReplayEvidence(evidence ExtractionEvidence) (Result, error) {
@@ -220,6 +255,8 @@ func matchesSchema(value any, schema map[string]any) bool {
 		return true
 	case "array":
 		array, ok := value.([]any)
+		// Keep the row limit here: maxItems:200 in the provider schema caused
+		// HTTP 400 in live comparisons, while omitting that constraint worked.
 		if !ok || len(array) > 200 {
 			return false
 		}

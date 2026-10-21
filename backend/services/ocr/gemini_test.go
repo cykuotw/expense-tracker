@@ -27,6 +27,9 @@ func TestGeminiStrictExtractionAndProviderTransport(t *testing.T) {
 		require.NoError(t, json.Unmarshal(body, &request))
 		require.Contains(t, request, "systemInstruction")
 		require.Contains(t, request["generationConfig"].(map[string]any), "responseJsonSchema")
+		schema := request["generationConfig"].(map[string]any)["responseJsonSchema"].(map[string]any)
+		items := schema["properties"].(map[string]any)["items"].(map[string]any)
+		require.NotContains(t, items, "maxItems", "keep row limits in the server parser to avoid Gemini schema rejection")
 		_, _ = w.Write([]byte(envelope(sampleExtraction, "STOP")))
 	}))
 	defer server.Close()
@@ -38,8 +41,12 @@ func TestGeminiStrictExtractionAndProviderTransport(t *testing.T) {
 	require.Equal(t, "Shoppers Drug Mart", result.Merchant.Value)
 	require.Zero(t, result.Merchant.Confidence)
 	require.NotNil(t, result.Evidence)
-	_,err=ReplayEvidence(*result.Evidence);require.NoError(t,err)
-	changed:=*result.Evidence;changed.SchemaDigest="unknown-schema";_,err=ReplayEvidence(changed);require.ErrorIs(t,err,ErrProviderRejected)
+	_, err = ReplayEvidence(*result.Evidence)
+	require.NoError(t, err)
+	changed := *result.Evidence
+	changed.SchemaDigest = "unknown-schema"
+	_, err = ReplayEvidence(changed)
+	require.ErrorIs(t, err, ErrProviderRejected)
 	draft := PrepareDraft(result)
 	require.Equal(t, ProvenanceInferred, draft.Tax.Provenance)
 	require.Equal(t, "0", draft.Tax.Value)
@@ -67,12 +74,16 @@ func TestGeminiRejectsInvalidOrUnboundedOutput(t *testing.T) {
 	}
 	var data map[string]any
 	require.NoError(t, json.Unmarshal([]byte(sampleExtraction), &data))
-	rows := make([]any, 201)
+	rows := make([]any, 200)
 	for i := range rows {
 		rows[i] = data["items"].([]any)[0]
 	}
 	data["items"] = rows
 	raw, _ := json.Marshal(data)
 	_, err := ParseGeminiExtraction(raw)
+	require.NoError(t, err, "the full 200-item application limit remains supported")
+	data["items"] = append(rows, rows[0])
+	raw, _ = json.Marshal(data)
+	_, err = ParseGeminiExtraction(raw)
 	require.ErrorIs(t, err, ErrProviderRejected)
 }

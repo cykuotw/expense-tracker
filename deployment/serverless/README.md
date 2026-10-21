@@ -659,6 +659,23 @@ fields @timestamp, event, model, input_tokens, output_tokens, thinking_tokens, e
 Check events with `cost_status != "estimated"` separately; the sum above excludes
 those calls and must not be treated as a complete bill.
 
+For provider HTTP errors, the same event includes allowlisted
+`provider_error_status` and, when recognized, `provider_error_reason` (for
+example `INVALID_ARGUMENT` / `API_KEY_INVALID`). Error bodies are bounded to
+16 KiB; provider messages, request content, and error metadata are never logged.
+The browser may see a generic 503 even when Gemini rejected the request with
+400; inspect `http_status` and the safe category in the OCR log group before
+assuming an upload problem or a temporary provider outage.
+
+Keep the 200-item receipt limit in the server parser rather than adding
+`maxItems: 200` to the schema sent to Gemini. In a controlled text-only check,
+the full receipt schema returned 400 while the identical prompt/schema with
+only that constraint removed returned 200. Plain generation and a one-field
+JSON schema also succeeded. The server still accepts 200 items and rejects 201;
+required fields, types, extra-field rejection, and money/date validation remain
+enforced. This is a compatibility fix for this receipt schema/model combination,
+not a claim that Gemini never supports `maxItems`.
+
 Review the selected API tier's [data-use terms](https://ai.google.dev/gemini-api/terms)
 before submitting receipts. The application improvement preference controls our
 retention only and makes no promise about Google's processing or retention.

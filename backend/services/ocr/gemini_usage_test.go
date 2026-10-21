@@ -40,6 +40,7 @@ func TestGeminiUsageLoggingIncludesRejectedOutputAndNeverReceiptContent(t *testi
 		{"missing usage", response(string(encoded), "STOP", "null"), "success", "missing", "usage_unavailable", 200, false, false},
 		{"invalid usage", response(string(encoded), "STOP", `{"promptTokenCount":100,"totalTokenCount":1}`), "success", "invalid", "usage_unavailable", 200, false, false},
 		{"throttled", `{"error":"private-receipt-content"}`, "http_error", "unavailable", "usage_unavailable", 429, false, true},
+		{"bad request", `{"error":{"status":"INVALID_ARGUMENT","message":"private-api-key private-receipt-content","details":[{"reason":"API_KEY_INVALID","metadata":{"key":"private-api-key"}}]}}`, "http_error", "unavailable", "usage_unavailable", 400, false, true},
 		{"network", "", "request_failed", "unavailable", "usage_unavailable", 0, true, true},
 	} {
 		t.Run(test.name, func(t *testing.T) {
@@ -71,6 +72,11 @@ func TestGeminiUsageLoggingIncludesRejectedOutputAndNeverReceiptContent(t *testi
 			require.Equal(t, test.outcome, event["outcome"])
 			require.Equal(t, test.usageStatus, event["usage_status"])
 			require.Equal(t, test.costStatus, event["cost_status"])
+			if test.name == "bad request" {
+				require.Equal(t, float64(400), event["http_status"])
+				require.Equal(t, "INVALID_ARGUMENT", event["provider_error_status"])
+				require.Equal(t, "API_KEY_INVALID", event["provider_error_reason"])
+			}
 			if test.costStatus == "estimated" {
 				require.Equal(t, float64(1000), event["input_tokens"])
 				require.Equal(t, float64(100), event["output_tokens"])
@@ -102,6 +108,20 @@ func TestGeminiUsageLoggingIncludesRejectedOutputAndNeverReceiptContent(t *testi
 			_, _, _ = ReplayGeminiResponse([]byte(test.body))
 			require.Equal(t, 1, observations, "offline replay must not emit billable usage")
 		})
+	}
+}
+
+func TestGeminiErrorCategoryIsBoundedAndAllowlisted(t *testing.T) {
+	for _, test := range []struct{ body, status, reason string }{
+		{`{"error":{"status":"FAILED_PRECONDITION","message":"private receipt"}}`, "FAILED_PRECONDITION", ""},
+		{`{"error":{"status":"private receipt","details":[{"reason":"private-key"}]}}`, "UNKNOWN", ""},
+		{`{"error":{"status":"PERMISSION_DENIED","details":[{"reason":"SERVICE_DISABLED"}]}}`, "PERMISSION_DENIED", "SERVICE_DISABLED"},
+		{`not json`, "UNKNOWN", ""},
+		{strings.Repeat("x", 16*1024+1), "UNKNOWN", ""},
+	} {
+		status, reason := geminiErrorCategory(strings.NewReader(test.body))
+		require.Equal(t, test.status, status)
+		require.Equal(t, test.reason, reason)
 	}
 }
 

@@ -35,6 +35,13 @@ func main() {
 		logger.Error("ocr_gemini_configuration_failed")
 		os.Exit(1)
 	}
+	provider.SetUsageObserver(func(ctx context.Context, observation ocr.GeminiUsageObservation) {
+		attributes := observation.LogAttrs()
+		if lambdaContext, ok := lambdacontext.FromContext(ctx); ok {
+			attributes = append(attributes, slog.String("aws_request_id", lambdaContext.AwsRequestID))
+		}
+		logger.LogAttrs(ctx, slog.LevelInfo, "ocr_gemini_usage", attributes...)
+	})
 	handler := ocr.NewDraftHandler(
 		runtimeConfig,
 		ocr.NewDynamoReplayStore(dynamodb.NewFromConfig(awsConfig), runtimeConfig.ReplayTable),

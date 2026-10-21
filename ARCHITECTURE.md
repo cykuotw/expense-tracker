@@ -60,6 +60,11 @@ Daily EventBridge -------------------------> Delivery Lambda (VPC)
   runtime receives the Gemini API key. It has no database access or expense
   mutation authority. Both OCR routes are throttled to 1 request/second with
   burst 1, and the OCR function has reserved concurrency one after activation.
+  Each Gemini HTTP attempt emits content-free token usage and a versioned,
+  standard paid-tier USD estimate when supported usage/pricing is available.
+  Thinking and cached input are accounted for separately; missing usage is
+  explicitly unavailable. These logs do not contain receipt text or images and
+  do not replace provider billing. Offline replay emits no usage charge event.
 - **Receipt lifecycle:** keeping a photo is separate from scanning. The OCR
   writer places explicitly requested images in a private temporary S3 prefix;
   the Worker finalizes confirmed associations using deterministic copy/delete

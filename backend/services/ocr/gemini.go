@@ -46,6 +46,12 @@ func contentDigest(data []byte) string {
 type GeminiProvider struct {
 	client               *http.Client
 	key, model, endpoint string
+	observeUsage         func(context.Context, GeminiUsageObservation)
+}
+
+// SetUsageObserver must be called before serving requests.
+func (p *GeminiProvider) SetUsageObserver(observer func(context.Context, GeminiUsageObservation)) {
+	p.observeUsage = observer
 }
 
 func NewGeminiProvider(key, model string) (*GeminiProvider, error) {
@@ -75,6 +81,15 @@ func (p *GeminiProvider) AnalyzeExpense(ctx context.Context, document []byte) (R
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("x-goog-api-key", p.key)
+	startedAt := time.Now()
+	observation := GeminiUsageObservation{Model: p.model, Outcome: "request_failed", UsageStatus: "unavailable"}
+	defer func() {
+		observation.LatencyMillis = time.Since(startedAt).Milliseconds()
+		observation.estimateCost(startedAt)
+		if p.observeUsage != nil {
+			p.observeUsage(ctx, observation)
+		}
+	}()
 	response, err := p.client.Do(req)
 	if err != nil {
 		if ctx.Err() != nil {
@@ -83,22 +98,27 @@ func (p *GeminiProvider) AnalyzeExpense(ctx context.Context, document []byte) (R
 		return Result{}, ErrProviderRequestFailed
 	}
 	defer response.Body.Close()
+	observation.HTTPStatus = response.StatusCode
+	observation.Outcome = "http_error"
 	if response.StatusCode == http.StatusTooManyRequests {
 		return Result{}, ErrProviderThrottled
 	}
 	if response.StatusCode != http.StatusOK {
 		return Result{}, ErrProviderRequestFailed
 	}
+	observation.Outcome = "response_rejected"
 	raw, err := io.ReadAll(io.LimitReader(response.Body, 2*1024*1024+1))
 	if err != nil || len(raw) > 2*1024*1024 {
 		return Result{}, ErrProviderRejected
 	}
+	observation.Usage, observation.UsageStatus = parseGeminiUsage(raw)
 	result, version, err := ReplayGeminiResponse(raw)
 	if err != nil {
 		return Result{}, err
 	}
 	result.Evidence = &ExtractionEvidence{Provider: "gemini", Model: p.model, ModelVersion: version,
 		PromptDigest: contentDigest([]byte(GeminiPrompt)), SchemaDigest: contentDigest(GeminiSchema), AdapterVersion: GeminiAdapterVersion, Response: raw}
+	observation.Outcome = "success"
 	return result, nil
 }
 

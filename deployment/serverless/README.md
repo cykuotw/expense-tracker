@@ -617,6 +617,41 @@ Deployment config is authoritative for deployed runtime values; local environmen
 values are for local tooling. The key is projected only into the OCR runtime,
 never the Worker, frontend, Terraform state, or release manifests.
 
+Each attempted Gemini HTTP call emits an `ocr_gemini_usage` JSON event in the OCR
+Lambda log group. It contains `model`, `outcome`, `http_status`, latency,
+`usage_status`, and `cost_status`; available usage adds `input_tokens`,
+`output_tokens`, `thinking_tokens`, `cached_input_tokens`, `tool_input_tokens`,
+and `total_tokens`. Input includes the image and prompt. Output counts exclude
+thinking, which is logged separately and included in the cost estimate.
+Rejected or truncated model output still logs usage when the complete provider
+response includes valid usage metadata. Timeouts, HTTP errors, unreadable or
+oversized responses may have unavailable usage; they are not reported as free.
+Offline replay produces no billable-usage event.
+
+For `gemini-3.8-flash`, numeric `estimated_cost_usd` uses the versioned standard
+paid-tier [Google pricing](https://ai.google.dev/gemini-api/docs/pricing),
+verified on 2026-10-20. The snapshot includes the published January 1, 2027 rate
+transition. Cached input is charged once at its discounted rate; thinking is
+charged at the output rate. Unknown models, nonstandard tiers, unsupported
+tool usage, or missing/inconsistent usage omit the estimate and expose a
+`cost_status` reason. Update the source-controlled pricing snapshot when
+changing models or when Google revises its prices. No additional environment or
+deployment config is required. This estimates Gemini generation charges only;
+free-tier allowances, credits, discounts, taxes, and AWS/storage/log charges are
+excluded. Google billing remains authoritative. Logs contain no receipt pixels,
+merchant/item text, prompt, provider payload, or API key.
+
+Example CloudWatch Logs Insights query for the OCR log group:
+
+```text
+fields @timestamp, event, model, input_tokens, output_tokens, thinking_tokens, estimated_cost_usd
+| filter event = "ocr_gemini_usage" and cost_status = "estimated"
+| stats count(*) as estimated_calls, sum(input_tokens) as input_tokens, sum(output_tokens) as output_tokens, sum(thinking_tokens) as thinking_tokens, sum(estimated_cost_usd) as estimated_gemini_usd by bin(1d), model
+```
+
+Check events with `cost_status != "estimated"` separately; the sum above excludes
+those calls and must not be treated as a complete bill.
+
 Review the selected API tier's [data-use terms](https://ai.google.dev/gemini-api/terms)
 before submitting receipts. The application improvement preference controls our
 retention only and makes no promise about Google's processing or retention.

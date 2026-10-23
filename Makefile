@@ -2,7 +2,7 @@ BUILD_DIR ?= bin
 GOOS ?= linux
 GOARCH ?= amd64
 CI_ENV_FILE ?= backend/.env.ci
-GOVULNCHECK_VERSION ?= v1.1.4
+GOVULNCHECK_VERSION ?= v1.9.0
 .PHONY: \
 	all \
 	app \

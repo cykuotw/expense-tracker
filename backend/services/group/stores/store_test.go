@@ -259,11 +259,13 @@ func TestGetGroupListByUser(t *testing.T) {
 	db := openTestDB(t)
 	mockGroupID := uuid.New()
 	mockGroup := types.Group{
-		ID: mockGroupID,
+		ID:       mockGroupID,
+		IsActive: true,
 	}
 	mockGroupID2 := uuid.New()
 	mockGroup2 := types.Group{
-		ID: mockGroupID2,
+		ID:       mockGroupID2,
+		IsActive: true,
 	}
 	mockUserID := uuid.New()
 	mockUser := types.User{

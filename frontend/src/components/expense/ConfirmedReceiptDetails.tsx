@@ -3,7 +3,7 @@ import Icon from "@mdi/react";
 import { mdiArrowDown, mdiArrowUp, mdiDeleteOutline, mdiPlus, mdiChevronDown } from "@mdi/js";
 
 import { Button } from "@/components/ui/button";
-import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Field, FieldGroup, FieldLabel, FieldDescription } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
@@ -36,7 +36,7 @@ const newItem = (): ConfirmedExpenseItem => ({
     lineTotal: "",
 });
 
-function ItemField({ label, value, onChange, numeric = false, type = "text", step, maxLength }: {
+function ItemField({ label, value, onChange, numeric = false, type = "text", step, maxLength, description }: {
     label: string;
     value: string;
     onChange: (value: string) => void;
@@ -44,14 +44,17 @@ function ItemField({ label, value, onChange, numeric = false, type = "text", ste
     type?: "text" | "number";
     step?: string;
     maxLength?: number;
+    description?: string;
 }) {
     const id = useId();
     return (
         <Field className="min-w-0 gap-2">
             <FieldLabel htmlFor={id}>{label}</FieldLabel>
             <Input id={id} variant="expense" value={value} onChange={(event) => onChange(event.target.value)}
+                aria-describedby={description ? `${id}-description` : undefined}
                 type={type} min={type === "number" ? 0 : undefined} step={step}
                 inputMode={numeric ? "decimal" : undefined} maxLength={maxLength} />
+            {description ? <FieldDescription id={`${id}-description`}>{description}</FieldDescription> : null}
         </Field>
     );
 }
@@ -107,7 +110,9 @@ export function ConfirmedReceiptDetails({
                         ["Tax", tax, onTaxChange],
                         ["Tip", tip, onTipChange],
                     ] as const).map(([label, value, onChange]) => (
-                        <ItemField key={label} label={label} value={value} onChange={onChange} numeric type="number" step={amountStep} />
+                        <ItemField key={label} label={label === "Subtotal" ? "Subtotal (optional)" : label}
+                            description={label === "Subtotal" ? "Leave blank to use total minus tax and tip." : undefined}
+                            value={value} onChange={onChange} numeric type="number" step={amountStep} />
                     ))}
                 </FieldGroup>
                 <Separator />

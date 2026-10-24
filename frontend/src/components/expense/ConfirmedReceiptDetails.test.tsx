@@ -27,6 +27,7 @@ describe("Create Expense receipt items", () => {
     it("starts with compact item summaries and opens one item at a time", () => {
         render(<Harness />);
 
+        expect(screen.getByLabelText("Subtotal (optional)")).toHaveAccessibleDescription("Leave blank to use total minus tax and tip.");
         expect(screen.getByRole("button", { name: "Item 1: Coffee, 5.00" })).toHaveAttribute("aria-expanded", "false");
         expect(screen.queryByLabelText("Description")).not.toBeInTheDocument();
 

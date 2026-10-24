@@ -6,7 +6,7 @@ import { mdiArrowLeft, mdiCameraRetakeOutline, mdiCheck } from "@mdi/js";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Field, FieldGroup, FieldLabel, FieldError } from "@/components/ui/field";
+import { Field, FieldGroup, FieldLabel, FieldError, FieldDescription } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { ConfirmedReceiptDetails } from "@/components/expense/ConfirmedReceiptDetails";
@@ -29,13 +29,14 @@ function FieldSource({ field }: { field: EditableOCRField }) {
 }
 
 function ReviewField({
-    label, field, onChange, type = "text", step,
+    label, field, onChange, type = "text", step, description,
 }: {
     label: string;
     field: EditableOCRField;
     onChange: (field: EditableOCRField) => void;
     type?: "text" | "number";
     step?: string;
+    description?: string;
 }) {
     const id = useId();
     const hasInferredSource = !field.edited && field.provenance === "inferred";
@@ -53,9 +54,10 @@ function ReviewField({
                 min={type === "number" ? 0 : undefined}
                 inputMode={type === "number" ? "decimal" : undefined}
                 value={field.value}
-                aria-describedby={[hasInferredSource ? `${id}-source` : null, field.requiresReview && !field.edited ? `${id}-review` : null].filter(Boolean).join(" ") || undefined}
+                aria-describedby={[description ? `${id}-description` : null, hasInferredSource ? `${id}-source` : null, field.requiresReview && !field.edited ? `${id}-review` : null].filter(Boolean).join(" ") || undefined}
                 onChange={(event) => onChange({ ...field, value: event.target.value, edited: true })}
             />
+            {description ? <FieldDescription id={`${id}-description`}>{description}</FieldDescription> : null}
             {hasInferredSource ? <div id={`${id}-source`}><FieldSource field={field} /></div> : null}
         </Field>
     );
@@ -128,7 +130,7 @@ export default function ReceiptDraftReview({ photoURL, onEditPhoto }: ReceiptDra
             merchant: draft.merchant.value.trim(),
             date: draft.date.value,
             currencySuggestion: draft.currencySuggestion.value.trim(),
-            subtotal: draft.subtotal.value,
+            subtotal: reviewValidation.subTotal ?? draft.subtotal.value,
             tax: draft.tax.value,
             tip: draft.tip.value,
             total: draft.total.value,
@@ -271,7 +273,7 @@ export default function ReceiptDraftReview({ photoURL, onEditPhoto }: ReceiptDra
                             <section aria-labelledby="amounts-title">
                                 <h3 id="amounts-title" className="text-sm font-semibold">Amounts</h3>
                                 <FieldGroup className="mt-3 grid grid-cols-2 items-start gap-4">
-                                    <ReviewField label="Subtotal" field={draft.subtotal} type="number" step={amountDigits === null ? undefined : moneyInputStep(amountDigits)} onChange={(field) => updateSummary("subtotal", field)} />
+                                    <ReviewField label="Subtotal (optional)" description="Leave blank to use total minus tax and tip." field={draft.subtotal} type="number" step={amountDigits === null ? undefined : moneyInputStep(amountDigits)} onChange={(field) => updateSummary("subtotal", field)} />
                                     <ReviewField label="Tax" field={draft.tax} type="number" step={amountDigits === null ? undefined : moneyInputStep(amountDigits)} onChange={(field) => updateSummary("tax", field)} />
                                     <ReviewField label="Tip" field={draft.tip} type="number" step={amountDigits === null ? undefined : moneyInputStep(amountDigits)} onChange={(field) => updateSummary("tip", field)} />
                                 </FieldGroup>

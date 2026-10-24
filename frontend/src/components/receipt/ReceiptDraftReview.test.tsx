@@ -126,6 +126,25 @@ describe("ReceiptDraftReview", () => {
         expect(screen.getByText(/No receipt date was found/)).toBeInTheDocument();
     });
 
+    it.each([
+        { tax: "", tip: "", total: "10.00" },
+        { tax: "1.00", tip: "0.50", total: "11.50" },
+    ])("accepts OCR without subtotal and applies its derived value with tax=$tax and tip=$tip", ({ tax, tip, total }) => {
+        useCreateExpenseMock.mockReturnValue({
+            ...useCreateExpenseMock(),
+            ocrDraft: { ...draft, subtotal: provider(""), tax: provider(tax), tip: provider(tip), total: provider(total) },
+        });
+        renderReview();
+        expect(screen.getByLabelText("Subtotal (optional)")).toHaveValue(null);
+        expect(screen.getByLabelText("Subtotal (optional)")).toHaveAccessibleDescription("Leave blank to use total minus tax and tip.");
+        const apply = screen.getByRole("button", { name: /Use reviewed values/i });
+        expect(apply).toBeEnabled();
+        fireEvent.click(apply);
+        expect(applyReviewedReceipt).toHaveBeenCalledWith(expect.objectContaining({
+            subtotal: "10.00", tax, tip, total,
+        }));
+    });
+
     it("starts with the breakdown collapsed and opens item controls on demand", () => {
         renderReview(false);
         expect(screen.getByText("Breakdown").closest("details")).not.toHaveAttribute("open");

@@ -43,9 +43,12 @@ export function validateReceiptExpense(
     if (!hasBreakdown) return { valid: true, message: null, items: [] };
 
     const totalUnits = decimalToUnits(values.total, amountDigits);
-    const subtotalUnits = decimalToUnits(values.subtotal, amountDigits);
+    let subtotalUnits = decimalToUnits(values.subtotal, amountDigits);
     const taxUnits = optionalUnits(values.tax, amountDigits);
     const tipUnits = optionalUnits(values.tip, amountDigits);
+    if (values.subtotal.trim() === "" && totalUnits !== null && taxUnits !== null && tipUnits !== null) {
+        subtotalUnits = totalUnits - taxUnits - tipUnits;
+    }
     if (
         totalUnits === null || totalUnits <= 0n || subtotalUnits === null ||
         subtotalUnits < 0n || taxUnits === null || taxUnits < 0n ||

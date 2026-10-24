@@ -154,6 +154,31 @@
         "dataLossRisk": true,
         "notes": "Older code ignores these tables. Schema reversal discards consent and evidence tracking; purge objects before any reversal."
       }
+    },
+    {
+      "version": 42,
+      "name": "add_ocr_usage",
+      "categories": [
+        "additive",
+        "constraint_tightening",
+        "index"
+      ],
+      "deployment": "online",
+      "backfill": {
+        "mode": "none",
+        "resumable": false,
+        "notes": "New per-attempt accounting only; historical scans cannot be reconstructed."
+      },
+      "locking": {
+        "risk": "low",
+        "notes": "Creates an empty table and index, with a brief foreign-key lock on users; existing receipt and expense rows are unchanged."
+      },
+      "rollback": {
+        "application": "compatible",
+        "schema": "manual_only",
+        "dataLossRisk": true,
+        "notes": "Previous application ignores the additive table. Schema reversal discards accounting records."
+      }
     }
   ]
 }

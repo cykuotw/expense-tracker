@@ -57,6 +57,9 @@ resource "aws_iam_role_policy" "ocr" {
       },
       {
         Effect = "Allow", Action = ["s3:PutObject"], Resource = "${aws_s3_bucket.receipt.arn}/temporary/*"
+      },
+      {
+        Effect = "Allow", Action = ["lambda:InvokeFunction"], Resource = var.use_lambda_aliases ? local.worker_live_arn : aws_lambda_function.worker.arn
       }
     ]
   })

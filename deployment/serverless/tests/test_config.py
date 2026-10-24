@@ -29,6 +29,13 @@ class ConfigTest(unittest.TestCase):
         self.assertNotIn("test-private-gemini-key", json.dumps(config.terraform_variables(temporary_access=False)))
         self.assertNotIn("OCR_EVIDENCE_CAPTURE_ENABLED", config.ocr_environment("replay", "receipts")["Variables"])
 
+    def test_ocr_usage_target_is_private_runtime_only(self) -> None:
+        self.write()
+        config = load(self.path, Path("/unrelated/repository"))
+        self.assertEqual(config.ocr_environment("replay", "receipts", "worker:live")["Variables"]["OCR_USAGE_FUNCTION_NAME"], "worker:live")
+        self.assertNotIn("OCR_USAGE_FUNCTION_NAME", config.worker_environment("db")["Variables"])
+        self.assertNotIn("OCR_USAGE_FUNCTION_NAME", config.terraform_variables(temporary_access=False))
+
     def test_retired_capture_setting_is_ignored_and_not_generated(self) -> None:
         self.assertNotIn("ocr_evidence_capture_enabled", template()["backend"])
         self.value["backend"]["ocr_evidence_capture_enabled"] = True
@@ -166,6 +173,7 @@ class ConfigTest(unittest.TestCase):
             "FRONTEND_ORIGIN": "https://expense.example.com",
             "OCR_CAPABILITY_SECRET": "o" * 32,
             "OCR_REPLAY_TABLE": "ocr-replay-table",
+            "OCR_USAGE_FUNCTION_NAME": "",
             "GEMINI_API_KEY": "", "GEMINI_MODEL": "gemini-3.8-flash",
             "RECEIPT_BUCKET": "private-receipts",
             "RECEIPT_STORAGE_ENABLED": "false",

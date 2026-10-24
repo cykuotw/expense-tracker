@@ -700,7 +700,7 @@ change was made directly in AWS, add the matching allowlist entry before the nex
 Terraform deployment so it does not remove that grant. Removing an entry revokes
 this bucket-policy grant and restores the object-read deny for that principal.
 
-## Gemini OCR configuration and historical evidence cleanup
+## Gemini OCR configuration and usage accounting
 
 Set `backend.gemini_api_key` in the external deployment config before a backend
 or all-scope deployment. An empty placeholder is accepted when preparing config,
@@ -722,6 +722,35 @@ Rejected or truncated model output still logs usage when the complete provider
 response includes valid usage metadata. Timeouts, HTTP errors, unreadable or
 oversized responses may have unavailable usage; they are not reported as free.
 Offline replay produces no billable-usage event.
+
+Migration `000042` adds `ocr_usage` independently of receipts and expenses.
+The deployer sets `OCR_USAGE_FUNCTION_NAME` to the Worker live alias; OCR's IAM
+role permits invocation of that target only (unqualified during pre-alias
+infrastructure preparation). The OCR runtime still has no database credentials.
+Per-attempt records store account/request IDs, model, outcome, token counts,
+latency, nullable estimated USD cost and pricing version. Raw images, prompts,
+responses and credentials are excluded. `request_id` is unique, so retries do
+not count a scan twice. Failed provider attempts retain whatever valid usage is
+available; unavailable values remain NULL. No historical backfill is possible.
+
+Submission waits up to two seconds for Lambda's asynchronous acceptance, then
+returns to the scan flow. Processing failures retry under Lambda's bounded
+asynchronous policy; `ocr_usage_enqueue_failed` and Worker errors must be
+investigated. There is no durable failure queue in this implementation. An
+accepted event is not proof of a completed database write, and cost totals may
+be incomplete after exhausted retries or abrupt runtime termination. Logging
+failure never triggers another paid provider request. Publish the compatible
+Worker before enabling the new OCR version and verify a scan creates one row.
+
+```sql
+SELECT request_id, model, outcome, input_tokens, output_tokens, thinking_tokens,
+       cached_input_tokens, total_tokens, estimated_cost_usd, cost_status,
+       pricing_version, recorded_at
+FROM ocr_usage
+ORDER BY recorded_at DESC
+LIMIT 20;
+```
+
 
 Successful draft responses also include an optional, per-request `usage`
 summary. Receipt review shows it under a collapsed **Scan usage** disclosure,

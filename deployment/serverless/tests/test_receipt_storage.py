@@ -66,6 +66,7 @@ class ReceiptStorageDeploymentTest(unittest.TestCase):
                 self.assertIn("aws_s3_bucket.ocr_evidence", terraform.plan.call_args.kwargs["targets"])
                 self.assertIn("aws_iam_role_policy.ocr_evidence_worker", terraform.plan.call_args.kwargs["targets"])
                 self.assertIn("aws_iam_role_policy.worker", terraform.plan.call_args.kwargs["targets"])
+                self.assertIn("aws_iam_role_policy.ocr", terraform.plan.call_args.kwargs["targets"])
                 self.assertIn("aws_s3_bucket_policy.receipt", terraform.plan.call_args.kwargs["targets"])
                 terraform.apply.assert_called_once()
 

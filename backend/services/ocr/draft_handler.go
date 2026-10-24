@@ -158,7 +158,7 @@ func (h *DraftHandler) Handle(ctx context.Context, request events.APIGatewayV2HT
 	}
 
 	providerStarted := time.Now()
-	providerContext, cancelProvider := context.WithTimeout(ctx, h.providerTimeout)
+	providerContext, cancelProvider := context.WithTimeout(withUsageIdentity(ctx, claims.Subject, claims.ID), h.providerTimeout)
 	observation.ProviderInvoked = true
 	extraction, providerErr := h.provider.AnalyzeExpense(providerContext, processed.Bytes)
 	cancelProvider()

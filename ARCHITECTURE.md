@@ -67,7 +67,14 @@ Daily EventBridge -------------------------> Delivery Lambda (VPC)
   do not replace provider billing. Offline replay emits no usage charge event.
   Successful OCR draft responses expose a numeric per-scan usage summary for a
   collapsed review disclosure. This transient metadata is excluded from
-  confirmed expenses and serialized extraction draft fields.
+  confirmed expenses and serialized extraction draft fields. Separately, each
+  provider attempt submits a content-free usage event through IAM-only async
+  invocation of the existing Worker live alias. The Worker stores tokens,
+  outcome, model and versioned USD estimate in `ocr_usage`; request ID deduplicates
+  delivery retries. Unknown counts/cost remain NULL. This adds no public route
+  or OCR database credentials. Enqueue failures are logged without retrying the
+  paid scan; Lambda async retries are bounded, so telemetry is best effort and
+  does not replace billing. Account deletion unlinks rather than deletes usage.
   Gemini HTTP and provider-stage limits are 30 seconds. The browser allows
   60 seconds for capability acquisition/upload/response; API Gateway still has
   a 30-second integration ceiling for the whole OCR request. Lambda overhead

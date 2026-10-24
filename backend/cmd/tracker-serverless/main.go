@@ -2,17 +2,18 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"expense-tracker/backend/config"
 	dbstore "expense-tracker/backend/db"
 	"expense-tracker/backend/internal/observability"
 	"expense-tracker/backend/internal/requestserver"
 	"expense-tracker/backend/internal/serverless"
 	trackerapp "expense-tracker/backend/internal/tracker"
+	"expense-tracker/backend/services/ocrusage"
 	"fmt"
 	"log/slog"
 	"os"
 
-	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/awslabs/aws-lambda-go-api-proxy/httpadapter"
 )
@@ -51,7 +52,8 @@ func main() {
 	adapter := httpadapter.NewV2(handler)
 	logger.Info("serverless_worker_started")
 
-	lambda.Start(func(ctx context.Context, req events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {
-		return adapter.ProxyWithContext(ctx, req)
+	usageStore := ocrusage.NewStore(storage)
+	lambda.Start(func(ctx context.Context, raw json.RawMessage) (any, error) {
+		return serverless.HandleWorkerEvent(ctx, raw, usageStore, adapter.ProxyWithContext)
 	})
 }

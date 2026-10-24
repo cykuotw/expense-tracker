@@ -9,12 +9,14 @@ import (
 
 	"expense-tracker/backend/internal/observability"
 	"expense-tracker/backend/services/ocr"
+	"expense-tracker/backend/services/ocrusage"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-lambda-go/lambdacontext"
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
+	awslambda "github.com/aws/aws-sdk-go-v2/service/lambda"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 )
 
@@ -35,12 +37,24 @@ func main() {
 		logger.Error("ocr_gemini_configuration_failed")
 		os.Exit(1)
 	}
+	usageClient := awslambda.NewFromConfig(awsConfig)
+	usageTarget := os.Getenv("OCR_USAGE_FUNCTION_NAME")
+	if usageTarget == "" {
+		logger.Error("ocr_usage_target_not_configured")
+		os.Exit(1)
+	}
 	provider.SetUsageObserver(func(ctx context.Context, observation ocr.GeminiUsageObservation) {
 		attributes := observation.LogAttrs()
 		if lambdaContext, ok := lambdacontext.FromContext(ctx); ok {
 			attributes = append(attributes, slog.String("aws_request_id", lambdaContext.AwsRequestID))
 		}
 		logger.LogAttrs(ctx, slog.LevelInfo, "ocr_gemini_usage", attributes...)
+		// Provider timeouts cancel ctx; keep a short independent admission budget.
+		usageCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 2*time.Second)
+		defer cancel()
+		if err := ocrusage.Enqueue(usageCtx, usageClient, usageTarget, ocr.UsageRecord(ctx, observation, time.Now())); err != nil {
+			logger.Error("ocr_usage_enqueue_failed", slog.Bool("alertable", true))
+		}
 	})
 	handler := ocr.NewDraftHandler(
 		runtimeConfig,

@@ -301,12 +301,13 @@ class Config:
             "WEB_PUSH_VAPID_PUBLIC_KEY": self.backend.web_push_vapid_public_key,
         }}
 
-    def ocr_environment(self, replay_table: str, receipt_bucket: str) -> dict[str, dict[str, str]]:
+    def ocr_environment(self, replay_table: str, receipt_bucket: str, usage_function: str = "") -> dict[str, dict[str, str]]:
         return {"Variables": {
             "MODE": "release",
             "FRONTEND_ORIGIN": self.frontend_origin,
             "OCR_CAPABILITY_SECRET": self.backend.ocr_capability_secret,
             "OCR_REPLAY_TABLE": replay_table,
+            "OCR_USAGE_FUNCTION_NAME": usage_function,
             "GEMINI_API_KEY": self.backend.gemini_api_key,
             "GEMINI_MODEL": self.backend.gemini_model,
             **self._receipt_environment(receipt_bucket),

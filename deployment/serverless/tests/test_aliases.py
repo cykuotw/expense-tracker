@@ -94,6 +94,17 @@ class AliasTest(unittest.TestCase):
             ],
         )
 
+    def test_worker_promotes_before_ocr_usage_producer(self) -> None:
+        client = mock.MagicMock()
+        backend = {key: record(key, "12" if key == "ocr" else "11") for key in aliases.OUTPUT_KEYS}
+        backend["errorNotifier"] = None
+        client.function_version.side_effect = lambda name, version: record(name, version)
+        client.alias.side_effect = lambda name: {"FunctionVersion": "1", "RevisionId": f"{name}-old"}
+        aliases.promote_backend(client, backend)
+        calls = client.update_alias.call_args_list
+        self.assertLess(calls.index(mock.call("worker", "11", "worker-old")),
+                        calls.index(mock.call("ocr", "12", "ocr-old")))
+
     def test_partial_promotion_failure_restores_changed_aliases(self) -> None:
         client = mock.MagicMock()
         backend = {

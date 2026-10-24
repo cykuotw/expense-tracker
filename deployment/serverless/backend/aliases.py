@@ -14,7 +14,8 @@ OUTPUT_KEYS = {
     "delivery": "delivery_function_name",
     "errorNotifier": "error_notifier_function_name",
 }
-PROMOTION_ORDER = ("bootstrap", "errorNotifier", "ocr", "worker", "delivery", "sender")
+# The Worker must accept private usage events before the new OCR sends them.
+PROMOTION_ORDER = ("bootstrap", "errorNotifier", "worker", "ocr", "delivery", "sender")
 
 
 def function_names(outputs: dict[str, Any]) -> dict[str, str | None]:

@@ -57,6 +57,8 @@ function CreateExpenseHarness() {
 
     return (
         <form aria-label="expense form" onSubmit={context.handleCreateExpense}>
+            <input aria-label="Keep receipt photo" type="checkbox" checked={context.keepReceipt} onChange={(event) => context.setKeepReceipt(event.target.checked)} />
+            <button type="button" onClick={context.discardReceiptToken}>Don't keep photo</button>
             <button type="button" disabled={context.receiptOCREnabled !== true} onClick={() => void context.startReceiptOCR({ blob: new Blob(["jpeg"], { type: "image/jpeg" }), width: 10, height: 20, quality: 0.8 })}>Start test scan</button>
             <button type="button" onClick={() => context.clearReceiptWorkflow()}>Discard test scan</button>
             <output data-testid="scan-usage">{context.ocrUsage ? JSON.stringify(context.ocrUsage) : "none"}</output>
@@ -229,6 +231,93 @@ describe("CreateExpenseProvider error handling", () => {
 
     afterEach(() => {
         cleanup();
+    });
+
+    function enableReceiptRetention() {
+        const original = apiFetchMock.getMockImplementation()!;
+        apiFetchMock.mockImplementation((path: string, options?: RequestInit) =>
+            path === "/account"
+                ? Promise.resolve(jsonResponse({ capabilities: { receiptOcr: true, receiptRetention: true } }))
+                : original(path, options)
+        );
+    }
+
+    it.each([
+        { available: true, optOut: false, expected: true },
+        { available: true, optOut: true, expected: false },
+        { available: false, optOut: false, expected: false },
+    ])("requests photo retention=$expected with storage=$available and opt-out=$optOut", async ({ available, optOut, expected }) => {
+        if (available) enableReceiptRetention();
+        receiptDraftMock.mockResolvedValue({
+            draft: { items: [] }, receiptToken: null, receiptExpiresAt: null,
+        });
+        render(<CreateExpenseProvider><CreateExpenseHarness /></CreateExpenseProvider>);
+        const start = screen.getByRole("button", { name: "Start test scan" });
+        await waitFor(() => expect(start).toBeEnabled());
+        expect(screen.getByLabelText("Keep receipt photo")).toHaveProperty("checked", available);
+        if (optOut) fireEvent.click(screen.getByLabelText("Keep receipt photo"));
+        fireEvent.click(start);
+        await waitFor(() => expect(receiptDraftMock).toHaveBeenCalledWith(
+            expect.any(Object), "user-1", expected, expect.any(AbortSignal),
+        ));
+    });
+
+    it("allows a manual expense without a photo when retention defaults on", async () => {
+        enableReceiptRetention();
+        render(<CreateExpenseProvider><CreateExpenseHarness /></CreateExpenseProvider>);
+        await waitFor(() => expect(screen.getByTestId("member-load-status")).toHaveTextContent("ready"));
+        expect(screen.getByLabelText("Keep receipt photo")).toBeChecked();
+        fireEvent.change(screen.getByLabelText("amount"), { target: { value: "10" } });
+        fireEvent.change(screen.getByLabelText("description"), { target: { value: "Manual expense" } });
+        fireEvent.submit(screen.getByRole("form", { name: "expense form" }));
+        await waitFor(() => expect(apiFetchMock.mock.calls.some(([path]) => path === "/create_expense")).toBe(true));
+        const request = apiFetchMock.mock.calls.find(([path]) => path === "/create_expense")![1];
+        expect(JSON.parse(request.body)).not.toHaveProperty("receipt");
+    });
+
+    it("requires a retained photo token after scanning until the user opts out", async () => {
+        enableReceiptRetention();
+        receiptDraftMock.mockResolvedValue({
+            draft: { items: [] }, receiptToken: null, receiptExpiresAt: null,
+        });
+        render(<CreateExpenseProvider><CreateExpenseHarness /></CreateExpenseProvider>);
+        await waitFor(() => expect(screen.getByTestId("member-load-status")).toHaveTextContent("ready"));
+        fireEvent.click(screen.getByRole("button", { name: "Start test scan" }));
+        await waitFor(() => expect(screen.getByTestId("scan-status")).toHaveTextContent("ready"));
+        fireEvent.click(screen.getByRole("button", { name: "Apply receipt" }));
+        fireEvent.submit(screen.getByRole("form", { name: "expense form" }));
+        expect(screen.getByTestId("submission-error")).toHaveTextContent("Scan the photo again");
+        expect(apiFetchMock.mock.calls.some(([path]) => path === "/create_expense")).toBe(false);
+        fireEvent.click(screen.getByRole("button", { name: "Don't keep photo" }));
+        fireEvent.submit(screen.getByRole("form", { name: "expense form" }));
+        await waitFor(() => expect(apiFetchMock.mock.calls.some(([path]) => path === "/create_expense")).toBe(true));
+    });
+
+    it("submits the default retained photo with reviewed items and allows discarding it", async () => {
+        enableReceiptRetention();
+        receiptDraftMock.mockResolvedValue({
+            draft: { items: [] }, receiptToken: "test-receipt-token",
+            receiptExpiresAt: new Date(Date.now() + 60_000).toISOString(),
+        });
+        render(<CreateExpenseProvider><CreateExpenseHarness /></CreateExpenseProvider>);
+        await waitFor(() => expect(screen.getByTestId("member-load-status")).toHaveTextContent("ready"));
+        fireEvent.click(screen.getByRole("button", { name: "Start test scan" }));
+        await waitFor(() => expect(screen.getByTestId("scan-status")).toHaveTextContent("ready"));
+        fireEvent.click(screen.getByRole("button", { name: "Apply receipt" }));
+        const form = screen.getByRole("form", { name: "expense form" });
+        fireEvent.submit(form);
+        await waitFor(() => expect(apiFetchMock.mock.calls.filter(([path]) => path === "/create_expense")).toHaveLength(1));
+        const first = apiFetchMock.mock.calls.find(([path]) => path === "/create_expense")![1];
+        expect(JSON.parse(first.body)).toMatchObject({
+            receipt: { keep: true, token: "test-receipt-token" },
+            items: [{ description: "Coffee" }],
+        });
+        await waitFor(() => expect(screen.getByTestId("indicator")).toHaveTextContent("idle"));
+        fireEvent.click(screen.getByRole("button", { name: "Don't keep photo" }));
+        fireEvent.submit(form);
+        await waitFor(() => expect(apiFetchMock.mock.calls.filter(([path]) => path === "/create_expense")).toHaveLength(2));
+        const retry = apiFetchMock.mock.calls.filter(([path]) => path === "/create_expense")[1][1];
+        expect(JSON.parse(retry.body)).not.toHaveProperty("receipt");
     });
 
     it("submits one purchase with canonical category amounts and reuses its retry key", async () => {

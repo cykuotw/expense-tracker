@@ -95,7 +95,9 @@ export const CreateExpenseProvider = ({
     const [items, setItems] = useState<ConfirmedExpenseItem[]>([]);
     const [receiptOCREnabled, setReceiptOCREnabled] = useState<boolean | null>(null);
     const [receiptRetentionAvailable, setReceiptRetentionAvailable] = useState(false);
-    const [keepReceipt, setKeepReceipt] = useState(false);
+    const [keepReceiptPreference, setKeepReceipt] = useState(true);
+    const keepReceipt = receiptRetentionAvailable && keepReceiptPreference;
+    const [receiptScanStarted, setReceiptScanStarted] = useState(false);
     const [receiptToken, setReceiptToken] = useState<string | null>(null);
     const evidenceTokenRef = useRef<string | null>(null);
     const [receiptExpiresAt, setReceiptExpiresAt] = useState<string | null>(null);
@@ -170,6 +172,7 @@ export const CreateExpenseProvider = ({
         setOCRUsage(null);
         setOCRError(null);
         if (!preserveRetention) {
+            setReceiptScanStarted(false);
             evidenceTokenRef.current = null;
             setReceiptToken(null);
             setReceiptExpiresAt(null);
@@ -186,6 +189,7 @@ export const CreateExpenseProvider = ({
         ocrAbortRef.current?.abort("replaced");
         const controller = new AbortController();
         ocrAbortRef.current = controller;
+        setReceiptScanStarted(true);
         evidenceTokenRef.current = null;
         setOCRStatus("scanning");
         setOCRDraft(null);
@@ -238,7 +242,7 @@ export const CreateExpenseProvider = ({
             return;
         }
 
-        if (keepReceipt && !receiptToken) {
+        if (keepReceipt && receiptScanStarted && !receiptToken) {
             setSubmissionError("Scan the photo again or choose Don't keep photo before saving.");
             return;
         }

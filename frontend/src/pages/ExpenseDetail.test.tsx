@@ -220,15 +220,18 @@ describe("ExpenseDetail", () => {
         ).toBeVisible();
         expect(screen.getByText("Jamie owes you")).toBeVisible();
         expect(screen.getByText("You owe Alex")).toBeVisible();
-        expect(screen.queryByText("25.00 CAD")).not.toBeInTheDocument();
-        expect(screen.queryByText("3.40 CAD")).not.toBeInTheDocument();
-        expect(screen.getAllByText("28.40 CAD")).toHaveLength(1);
+        expect(screen.getByText("25.00 CAD")).toBeVisible();
+        expect(screen.getByText("3.40 CAD")).toBeVisible();
+        expect(screen.getAllByText("28.40 CAD")).toHaveLength(2);
 
         const receiptSection = screen.queryByRole("region", {
             name: "Itemized breakdown",
         });
-        expect(receiptSection).not.toBeInTheDocument();
-        expect(screen.queryByText("Sparkling water")).not.toBeInTheDocument();
+        expect(receiptSection).toBeVisible();
+        expect(screen.getByText("Sparkling water")).toBeVisible();
+        const receiptItems = within(receiptSection!).getAllByRole("listitem");
+        expect(receiptItems[0]).toHaveTextContent("Burger");
+        expect(receiptItems[1]).toHaveTextContent("Sparkling water");
 
         const receiptLink = screen.getByRole("link", {
             name: "View receipt image",

@@ -38,9 +38,6 @@ import { currencyAmountDigits, formatMoney } from "../lib/money";
 import type { ExpenseDetailData } from "../types/expense";
 import type { ItemData } from "../types/item";
 
-// Enable only when the complete OCR receipt experience is ready.
-const SHOW_RECEIPT_BREAKDOWN = false;
-
 function displayMemberName(
     userId: string,
     username: string,
@@ -224,7 +221,7 @@ const ExpenseDetailContent = () => {
                                 expenseDetail={expenseDetail}
                                 amountDigits={amountDigits}
                             />
-                            {SHOW_RECEIPT_BREAKDOWN ? <ReceiptDetails
+                            {expenseDetail.items.length > 0 ? <ReceiptDetails
                                 expenseDetail={expenseDetail}
                                 amountDigits={amountDigits}
                             /> : null}

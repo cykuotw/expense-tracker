@@ -1,33 +1,36 @@
+#:schema https://raw.githubusercontent.com/SchemaStore/schemastore/e67783bd9a9c334d2ddfc64729354f3b99fb1a9c/src/schemas/json/air-verse-air.json
+
 root = "."
 tmp_dir = "tmp"
 
 [build]
-  bin = "./tmp/tracker"
-  cmd = "go mod tidy; go build -tags dev -o ./tmp/tracker cmd/tracker/main.go"
+bin = "./tmp/tracker"
+# Let go.mod select a matching toolchain instead of inheriting an old GOROOT.
+cmd = "env -u GOROOT GOTOOLCHAIN=auto go mod tidy && env -u GOROOT GOTOOLCHAIN=auto go build -tags dev -o ./tmp/tracker cmd/tracker/main.go"
 
-  delay = 20
-  exclude_dir = ["tmp"]
-  exclude_file = []
-  exclude_regex = []
-  exclude_unchanged = false
-  follow_symlink = false
-  full_bin = ""
-  include_dir = []
-  include_ext = ["go"]
-  kill_delay = "0s"
-  log = "build-errors.log"
-  send_interrupt = false
-  stop_on_error = true
+delay = 20
+exclude_dir = ["tmp"]
+exclude_file = []
+exclude_regex = []
+exclude_unchanged = false
+follow_symlink = false
+full_bin = ""
+include_dir = []
+include_ext = ["go"]
+kill_delay = 0
+log = "build-errors.log"
+send_interrupt = false
+stop_on_error = true
 
 [color]
-  app = ""
-  build = "yellow"
-  main = "magenta"
-  runner = "green"
-  watcher = "cyan"
+app = ""
+build = "yellow"
+main = "magenta"
+runner = "green"
+watcher = "cyan"
 
 [log]
-  time = false
+time = false
 
 [misc]
-  clean_on_exit = true
+clean_on_exit = true

@@ -676,6 +676,29 @@ without a saved photo require attaching one; enabling storage does not recover
 previously discarded images. Setting this flag to `false` prevents new retention;
 it does not purge saved photos or disable authorized views of finalized receipts.
 
+## Receipt bucket operator access
+
+By default, the receipt bucket explicitly denies object reads from identities
+other than the Worker role. An operator's IAM permissions alone cannot override
+that deny. To grant named operators full S3 access to this bucket, add
+`receipt_bucket_admin_arns` to the existing `aws` object in your external config:
+
+```json
+"receipt_bucket_admin_arns": ["<same-account IAM user or role ARN>"]
+```
+
+The default is an empty list. Only explicit user/role ARNs from the deployment
+account are accepted; wildcard, root and cross-account principals are rejected.
+Each configured principal receives `s3:*` on the receipt bucket and its objects,
+including read, upload, deletion and bucket-policy management. This grants no
+permissions to other buckets or AWS services. Public-access blocking and the
+HTTPS-only restriction remain enabled, and the bucket is not made public.
+
+Apply through the supported backend update workflow. If an emergency policy
+change was made directly in AWS, add the matching allowlist entry before the next
+Terraform deployment so it does not remove that grant. Removing an entry revokes
+this bucket-policy grant and restores the object-read deny for that principal.
+
 ## Gemini OCR configuration and historical evidence cleanup
 
 Set `backend.gemini_api_key` in the external deployment config before a backend

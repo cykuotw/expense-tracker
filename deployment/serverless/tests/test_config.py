@@ -81,6 +81,27 @@ class ConfigTest(unittest.TestCase):
                 with self.assertRaisesRegex(ConfigError, "receipt bucket must be configured"):
                     config.ocr_environment("replay", bucket)
 
+    def test_receipt_bucket_admins_are_explicit_same_account_principals(self) -> None:
+        admins = ["arn:aws:iam::123456789012:user/operator", "arn:aws:iam::123456789012:role/receipt-admin"]
+        self.value["aws"]["receipt_bucket_admin_arns"] = admins
+        self.write()
+        config = load(self.path, Path("/unrelated/repository"))
+        self.assertEqual(config.terraform_variables(temporary_access=False)["receipt_bucket_admin_arns"], admins)
+
+    def test_receipt_bucket_admins_default_to_no_operator_grants(self) -> None:
+        self.value["aws"].pop("receipt_bucket_admin_arns", None)
+        self.write()
+        config = load(self.path, Path("/unrelated/repository"))
+        self.assertEqual(config.terraform_variables(temporary_access=False)["receipt_bucket_admin_arns"], [])
+
+    def test_receipt_bucket_admins_reject_public_and_cross_account_principals(self) -> None:
+        for admins in ("*", ["*"], ["arn:aws:iam::999999999999:user/other"], ["arn:aws:iam::123456789012:root"], ["arn:aws:iam::123456789012:user/*"], [None]):
+            with self.subTest(admins=admins):
+                self.value["aws"]["receipt_bucket_admin_arns"] = admins
+                self.write()
+                with self.assertRaisesRegex(ConfigError, "same-account IAM user or role ARNs"):
+                    load(self.path, Path("/unrelated/repository"))
+
     def setUp(self) -> None:
         self.temporary = tempfile.TemporaryDirectory()
         self.root = Path(self.temporary.name)

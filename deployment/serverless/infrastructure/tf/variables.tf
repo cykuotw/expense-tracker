@@ -53,3 +53,13 @@ variable "delivery_artifact_path" { type = string }
 variable "api_hostname" { type = string }
 variable "frontend_hostname" { type = string }
 variable "google_client_id" { type = string }
+
+variable "receipt_bucket_admin_arns" {
+  type        = list(string)
+  default     = []
+  description = "Same-account IAM users or roles with full access to this private receipt bucket."
+  validation {
+    condition     = alltrue([for arn in var.receipt_bucket_admin_arns : can(regex("^arn:aws:iam::[0-9]{12}:(user|role)/[A-Za-z0-9_+=,.@/-]+$", arn))])
+    error_message = "Receipt bucket admins must be explicit IAM user or role ARNs."
+  }
+}

@@ -140,6 +140,7 @@ class AWS:
     key_pair_name: str
     operator_ssh_cidr: str
     hosted_zone_name: str
+    receipt_bucket_admin_arns: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -239,6 +240,7 @@ class Config:
     ) -> dict[str, Any]:
         return {
             "aws_region": self.aws.region,
+            "receipt_bucket_admin_arns": list(self.aws.receipt_bucket_admin_arns),
             "expected_account_id": self.deployment.account_id,
             "name_prefix": self.deployment.name_prefix,
             "environment": self.deployment.environment,
@@ -428,7 +430,14 @@ def load(path: Path, repo_root: Path) -> Config:
     deploy = Deployment(account_id, name_prefix, environment, tags)
 
     aws_raw = _object(raw["aws"], "aws")
-    _keys(aws_raw, "aws", {"region", "vpc_id", "subnet_id", "key_pair_name", "operator_ssh_cidr", "hosted_zone_name"})
+    _keys(aws_raw, "aws", {"region", "vpc_id", "subnet_id", "key_pair_name", "operator_ssh_cidr", "hosted_zone_name"}, {"receipt_bucket_admin_arns"})
+    receipt_admins = aws_raw.get("receipt_bucket_admin_arns", [])
+    if not isinstance(receipt_admins, list) or not all(
+        isinstance(arn, str) and re.fullmatch(
+            rf"arn:aws:iam::{account_id}:(?:user|role)/[A-Za-z0-9_+=,.@/-]+", arn
+        ) for arn in receipt_admins
+    ):
+        raise ConfigError("aws.receipt_bucket_admin_arns must contain same-account IAM user or role ARNs")
     cidr = _string(aws_raw["operator_ssh_cidr"], "aws.operator_ssh_cidr")
     try:
         network = ipaddress.ip_network(cidr, strict=False)
@@ -436,7 +445,7 @@ def load(path: Path, repo_root: Path) -> Config:
         raise ConfigError("aws.operator_ssh_cidr must be a restricted IPv4 CIDR") from exc
     if network.version != 4 or network.prefixlen == 0:
         raise ConfigError("aws.operator_ssh_cidr must be a restricted IPv4 CIDR")
-    aws = AWS(_string(aws_raw["region"], "aws.region"), _string(aws_raw["vpc_id"], "aws.vpc_id"), _string(aws_raw["subnet_id"], "aws.subnet_id"), _string(aws_raw["key_pair_name"], "aws.key_pair_name"), cidr, _hostname(aws_raw["hosted_zone_name"], "aws.hosted_zone_name"))
+    aws = AWS(_string(aws_raw["region"], "aws.region"), _string(aws_raw["vpc_id"], "aws.vpc_id"), _string(aws_raw["subnet_id"], "aws.subnet_id"), _string(aws_raw["key_pair_name"], "aws.key_pair_name"), cidr, _hostname(aws_raw["hosted_zone_name"], "aws.hosted_zone_name"), tuple(dict.fromkeys(receipt_admins)))
 
     db_raw = _object(raw["database"], "database")
     db_required = {"name", "admin_user", "admin_password", "migration_user", "migration_password", "runtime_user", "runtime_password", "instance_type"}
@@ -543,7 +552,7 @@ def load(path: Path, repo_root: Path) -> Config:
 def template() -> dict[str, Any]:
     return {
         "deployment": {"account_id": "000000000000", "name_prefix": "expense-tracker", "environment": "serverless", "tags": {}},
-        "aws": {"region": "ca-central-1", "vpc_id": "vpc-REPLACE", "subnet_id": "subnet-REPLACE", "key_pair_name": "REPLACE", "operator_ssh_cidr": "203.0.113.10/32", "hosted_zone_name": "example.com"},
+        "aws": {"receipt_bucket_admin_arns": [], "region": "ca-central-1", "vpc_id": "vpc-REPLACE", "subnet_id": "subnet-REPLACE", "key_pair_name": "REPLACE", "operator_ssh_cidr": "203.0.113.10/32", "hosted_zone_name": "example.com"},
         "database": {"name": "expense_tracker", "admin_user": "expense_admin", "admin_password": "REPLACE_WITH_RANDOM_SECRET", "migration_user": "expense_migration", "migration_password": "REPLACE_WITH_RANDOM_SECRET", "runtime_user": "expense_runtime", "runtime_password": "REPLACE_WITH_RANDOM_SECRET", "instance_type": "t4g.micro", "ami_id": None},
         "backup": {"time": "03:17:00", "timezone": "UTC"},
         "backend": {"receipt_storage_enabled": False, "gemini_api_key": "", "gemini_model": "gemini-3.8-flash", "api_hostname": "api.example.com", "google_client_id": "REPLACE.apps.googleusercontent.com", "jwt_secret": "REPLACE_WITH_32_BYTE_RANDOM_SECRET", "jwt_exp": 900, "refresh_jwt_secret": "REPLACE_WITH_32_BYTE_RANDOM_SECRET", "refresh_jwt_exp": 604800, "ocr_capability_secret": "REPLACE_WITH_DISTINCT_32_BYTE_RANDOM_SECRET", "expenses_per_page": 25, "db_conn_max_lifetime_seconds": 300, "db_conn_max_idle_time_seconds": 60, "web_push_vapid_public_key": "REPLACE_WITH_VAPID_PUBLIC_KEY", "web_push_vapid_private_key": "REPLACE_WITH_VAPID_PRIVATE_KEY", "web_push_vapid_subject": "mailto:REPLACE@example.com"},

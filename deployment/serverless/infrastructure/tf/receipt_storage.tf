@@ -61,7 +61,7 @@ resource "aws_s3_bucket_policy" "receipt" {
   bucket = aws_s3_bucket.receipt.id
   policy = jsonencode({
     Version = "2012-10-17"
-    Statement = [
+    Statement = concat([
       {
         Sid       = "DenyInsecureTransport"
         Effect    = "Deny"
@@ -82,12 +82,24 @@ resource "aws_s3_bucket_policy" "receipt" {
         Resource  = "${aws_s3_bucket.receipt.arn}/*"
         Condition = {
           ArnNotEquals = {
-            "aws:PrincipalArn" = aws_iam_role.worker.arn
+            "aws:PrincipalArn" = concat([aws_iam_role.worker.arn], var.receipt_bucket_admin_arns)
           }
         }
       }
-    ]
+      ], [for index, arn in var.receipt_bucket_admin_arns : {
+        Sid       = "AllowReceiptBucketAdmin${index}"
+        Effect    = "Allow"
+        Principal = { AWS = arn }
+        Action    = "s3:*"
+        Resource  = [aws_s3_bucket.receipt.arn, "${aws_s3_bucket.receipt.arn}/*"]
+    }])
   })
+  lifecycle {
+    precondition {
+      condition     = alltrue([for arn in var.receipt_bucket_admin_arns : startswith(arn, "arn:aws:iam::${var.expected_account_id}:")])
+      error_message = "Receipt bucket admins must belong to the deployment account."
+    }
+  }
   depends_on = [aws_s3_bucket_public_access_block.receipt]
 }
 

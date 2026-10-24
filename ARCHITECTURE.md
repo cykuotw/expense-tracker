@@ -83,6 +83,9 @@ Daily EventBridge -------------------------> Delivery Lambda (VPC)
   receipt. No URL is included in normal expense responses.
   The exact receipt bucket origin is allowed by both CSP image and connection
   directives because the service worker fetches signed images without caching.
+  Explicit same-account IAM bucket administrators may manage receipt storage
+  directly; their grants are separate from application group membership. The
+  bucket remains private with public-access blocking and HTTPS enforcement.
   Archived groups retain read access; receipt mutations require the existing
   active-group boundary. Soft-deleted expenses cannot expose their receipt. Replacement and
   deletion retain retryable object/database cleanup state.

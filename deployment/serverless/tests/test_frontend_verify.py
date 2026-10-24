@@ -82,8 +82,12 @@ class FrontendVerifyTest(unittest.TestCase):
         }
         value = {**EXPECTED, "frontendVersion": "v-deadbeef01234567"}
         self.verify_runtime(value, document_headers=headers, receipt_bucket="private-receipts")
+        receipt_origin = ' https://private-receipts.s3.ca-central-1.amazonaws.com'
         for invalid in (
-            policy.replace(' https://private-receipts.s3.ca-central-1.amazonaws.com', ''),
+            policy.replace(receipt_origin, ''),
+            # The original failure: img-src allowed S3, but worker fetch() did not.
+            policy.replace(receipt_origin, '', 1),
+            policy.replace(f"img-src 'self' data: blob:{receipt_origin}", "img-src 'self' data: blob:"),
             policy.replace('private-receipts.s3.', 'other-bucket.s3.'),
             policy.replace('private-receipts.s3.', '*.s3.'),
         ):

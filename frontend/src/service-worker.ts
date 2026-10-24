@@ -26,7 +26,10 @@ self.addEventListener("activate", (event) => {
     event.waitUntil(self.clients.claim());
 });
 
-registerRoute(({ url }) => url.pathname.startsWith("/api/") || url.searchParams.has("X-Amz-Signature"), new NetworkOnly());
+// Signed receipt URLs remain outside both Workbox and browser HTTP caches.
+// This fetch also requires the receipt origin in the worker's CSP connect-src.
+registerRoute(({ url }) => url.searchParams.has("X-Amz-Signature"), new NetworkOnly({ fetchOptions: { cache: "no-store" } }));
+registerRoute(({ url }) => url.pathname.startsWith("/api/"), new NetworkOnly());
 registerRoute(new NavigationRoute(createHandlerBoundToURL("index.html"), { denylist: [/^\/api\//, /^\/auth\//] }));
 registerRoute(({ url }) => url.pathname.endsWith("/runtime-config.js"), new NetworkFirst({ cacheName: "runtime-config", networkTimeoutSeconds: 3, plugins: [new ExpirationPlugin({ maxEntries: 1, maxAgeSeconds: 60 * 60 * 24 })] }));
 self.addEventListener("push", (event) => {

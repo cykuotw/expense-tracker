@@ -80,9 +80,11 @@ Daily EventBridge -------------------------> Delivery Lambda (VPC)
   the Worker finalizes confirmed associations using deterministic copy/delete
   operations and tracks pending cleanup. Current group members with active
   accounts can explicitly request a 45-second, no-store view of a finalized
-  receipt. No URL is included in normal expense responses. Archived groups
-  retain read access; receipt mutations require the existing active-group
-  boundary. Soft-deleted expenses cannot expose their receipt. Replacement and
+  receipt. No URL is included in normal expense responses.
+  The exact receipt bucket origin is allowed by both CSP image and connection
+  directives because the service worker fetches signed images without caching.
+  Archived groups retain read access; receipt mutations require the existing
+  active-group boundary. Soft-deleted expenses cannot expose their receipt. Replacement and
   deletion retain retryable object/database cleanup state.
 - **Historical OCR evidence:** improvement collection and its public preference
   and confirmation APIs have been removed. Gemini scanning and retained product

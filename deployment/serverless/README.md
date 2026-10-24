@@ -330,7 +330,21 @@ configured API origin, same-origin application and PWA resources, Google
 Identity Services, and the Roboto font files used by the frontend. Receipt
 previews additionally allow `blob:` only in `img-src`, so locally prepared
 images can be reviewed without permitting blob scripts, workers, or network
-connections. Production observation found that both the application UI libraries and Google Identity
+connections. Saved receipt photos allow the exact configured S3 bucket origin
+in both `img-src` and `connect-src`: Workbox forwards signed image requests via
+`fetch()`, which requires the connection directive. Signed URLs use a no-store,
+network-only route and never enter Workbox caches. Deployment verification rejects
+missing origins in either directive, other buckets, and wildcard S3 origins.
+
+Publish receipt CSP fixes through `make deploy ACTION=update SCOPE=frontend` so
+CloudFront headers and the changed service-worker bundle are updated together.
+Existing installations must activate the waiting worker through the normal app
+update flow before reopening a receipt for a fresh short-lived URL. Validate
+this browser contract locally after building the frontend with
+`uv run python frontend/e2e/receipt_view_csp_browser_check.py`; the check uses only
+synthetic local images and compares the old and corrected policies.
+
+Production observation found that both the application UI libraries and Google Identity
 Services require inline CSS, so `style-src` permits `unsafe-inline`. That
 exception applies only to styles; `script-src` remains free of `unsafe-inline`
 and `unsafe-eval`. The policy has no reporting endpoint or broad wildcard.

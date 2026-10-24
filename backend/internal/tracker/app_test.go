@@ -59,6 +59,21 @@ func TestNewHandlerRegistersHealthRoute(t *testing.T) {
 	assert.JSONEq(t, `{"status":"ok"}`, rr.Body.String())
 }
 
+func TestImprovementRoutesAreRemoved(t *testing.T) {
+	handler := NewHandler(nil)
+	for _, route := range []struct{ method, path string }{
+		{http.MethodGet, "/account/ocr-improvement"},
+		{http.MethodPatch, "/account/ocr-improvement"},
+		{http.MethodPost, "/account/ocr-improvement/purge"},
+		{http.MethodPost, "/expense/test-expense/ocr-evidence"},
+	} {
+		request := httptest.NewRequest(route.method, config.Envs.APIPath+route.path, nil)
+		response := httptest.NewRecorder()
+		handler.ServeHTTP(response, request)
+		assert.Equal(t, http.StatusNotFound, response.Code, route.path)
+	}
+}
+
 func TestNewHTTPServerAppliesTimeouts(t *testing.T) {
 	handler := http.NewServeMux()
 	server := NewHTTPServer("127.0.0.1:8000", handler)

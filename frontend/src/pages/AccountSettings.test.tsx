@@ -91,6 +91,14 @@ describe("AccountSettings", () => {
 
     afterEach(cleanup);
 
+    it("does not show or request improvement sharing settings", async () => {
+        apiFetchMock.mockResolvedValue(response({ ...localAccount, capabilities: { receiptOcr: true } }));
+        render(<AccountSettings />);
+        await screen.findByRole("textbox", { name: "Email" });
+        expect(screen.queryByText("Help improve receipt scanning")).not.toBeInTheDocument();
+        expect(apiFetchMock.mock.calls.some(([path]) => String(path).includes("ocr-improvement"))).toBe(false);
+    });
+
     it("updates editable profile fields while keeping email read-only", async () => {
         render(<AccountSettings />);
 

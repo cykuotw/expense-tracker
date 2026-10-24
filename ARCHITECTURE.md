@@ -67,7 +67,7 @@ Daily EventBridge -------------------------> Delivery Lambda (VPC)
   do not replace provider billing. Offline replay emits no usage charge event.
   Successful OCR draft responses expose a numeric per-scan usage summary for a
   collapsed review disclosure. This transient metadata is excluded from
-  confirmed expenses and serialized extraction/evidence draft fields.
+  confirmed expenses and serialized extraction draft fields.
   Gemini HTTP and provider-stage limits are 30 seconds. The browser allows
   60 seconds for capability acquisition/upload/response; API Gateway still has
   a 30-second integration ceiling for the whole OCR request. Lambda overhead
@@ -82,20 +82,11 @@ Daily EventBridge -------------------------> Delivery Lambda (VPC)
   retain read access; receipt mutations require the existing active-group
   boundary. Soft-deleted expenses cannot expose their receipt. Replacement and
   deletion retain retryable object/database cleanup state.
-- **Improvement evidence:** a separate versioned, default-off user preference
-  controls application evidence retention, independently of product receipt
-  retention and Google's service terms. The Worker binds the consent revision
-  into the capability and rechecks it at confirmation. Capture is separately
-  disabled by default. Consented images, extraction responses, normalized
-  drafts, and immutable confirmed snapshots use a separate private, unversioned
-  evidence bucket. The OCR role can only write temporary evidence; the Worker
-  can finalize it and purge objects but cannot read confirmed bundles. A
-  separate operator-assumed replay role can read confirmed bundles. Metadata
-  stores version identifiers rather than receipt content or credentials.
-  Opt-out stops new consented capabilities and tracks bounded, retryable purge;
-  deletion waits for issued capabilities to finish before verifying completion.
-  Unconfirmed objects expire through a one-day lifecycle; confirmed evidence
-  has no fixed expiry and is removed on opt-out or explicit purge.
+- **Historical OCR evidence:** improvement collection and its public preference
+  and confirmation APIs have been removed. Gemini scanning and retained product
+  receipts operate independently. Historical evidence schema and private storage
+  remain for bounded operator cleanup and offline replay; new evidence writes
+  are denied. The Worker retains deletion hooks for existing expense evidence.
 - **Bootstrap Lambda:** performs explicit migration and bootstrap work before
   Worker releases that depend on it. Migrations are never a request-time
   responsibility.

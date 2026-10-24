@@ -178,7 +178,6 @@ class Backend:
     web_push_vapid_subject: str
     gemini_api_key: str = ""
     gemini_model: str = "gemini-3.8-flash"
-    ocr_evidence_capture_enabled: bool = False
 
 
 @dataclass(frozen=True)
@@ -286,7 +285,6 @@ class Config:
             "RECEIPT_BUCKET": receipt_bucket,
             "RECEIPT_STORAGE_ENABLED": "false",
             "OCR_EVIDENCE_BUCKET": evidence_bucket,
-            "OCR_EVIDENCE_CAPTURE_ENABLED": str(self.backend.ocr_evidence_capture_enabled).lower(),
             "EXPENSES_PER_PAGE": str(self.backend.expenses_per_page),
             "GOOGLE_OAUTH_ENABLED": "true",
             "GOOGLE_CLIENT_ID": self.backend.google_client_id,
@@ -294,7 +292,7 @@ class Config:
             "WEB_PUSH_VAPID_PUBLIC_KEY": self.backend.web_push_vapid_public_key,
         }}
 
-    def ocr_environment(self, replay_table: str, receipt_bucket: str, evidence_bucket: str = "") -> dict[str, dict[str, str]]:
+    def ocr_environment(self, replay_table: str, receipt_bucket: str) -> dict[str, dict[str, str]]:
         return {"Variables": {
             "MODE": "release",
             "FRONTEND_ORIGIN": self.frontend_origin,
@@ -304,8 +302,6 @@ class Config:
             "GEMINI_MODEL": self.backend.gemini_model,
             "RECEIPT_BUCKET": receipt_bucket,
             "RECEIPT_STORAGE_ENABLED": "false",
-            "OCR_EVIDENCE_BUCKET": evidence_bucket,
-            "OCR_EVIDENCE_CAPTURE_ENABLED": str(self.backend.ocr_evidence_capture_enabled).lower(),
         }}
 
     def require_gemini_key(self) -> None:
@@ -454,6 +450,7 @@ def load(path: Path, repo_root: Path) -> Config:
 
     backend_raw = _object(raw["backend"], "backend")
     backend_required = {"api_hostname", "google_client_id", "jwt_secret", "jwt_exp", "refresh_jwt_secret", "refresh_jwt_exp", "ocr_capability_secret", "expenses_per_page", "db_conn_max_lifetime_seconds", "db_conn_max_idle_time_seconds", "web_push_vapid_public_key", "web_push_vapid_private_key", "web_push_vapid_subject"}
+    # Accept the retired capture key for old config files; it has no runtime effect.
     _keys(backend_raw, "backend", backend_required, {"gemini_api_key", "gemini_model", "ocr_evidence_capture_enabled"})
     google_client_id = _string(backend_raw["google_client_id"], "backend.google_client_id")
     if google_client_id.upper().startswith(("REPLACE", "EXAMPLE")):
@@ -495,10 +492,7 @@ def load(path: Path, repo_root: Path) -> Config:
         _vapid_subject(backend_raw["web_push_vapid_subject"], "backend.web_push_vapid_subject"),
         _string(backend_raw.get("gemini_api_key", ""), "backend.gemini_api_key", allow_empty=True),
         _string(backend_raw.get("gemini_model", "gemini-3.8-flash"), "backend.gemini_model"),
-        backend_raw.get("ocr_evidence_capture_enabled", False),
     )
-    if not isinstance(backend.ocr_evidence_capture_enabled, bool):
-        raise ConfigError("backend.ocr_evidence_capture_enabled must be a boolean")
     if not re.fullmatch(r"gemini-[a-zA-Z0-9.-]{1,80}", backend.gemini_model):
         raise ConfigError("backend.gemini_model must be a valid model identifier")
     if backend.jwt_secret == backend.refresh_jwt_secret:
@@ -542,7 +536,7 @@ def template() -> dict[str, Any]:
         "aws": {"region": "ca-central-1", "vpc_id": "vpc-REPLACE", "subnet_id": "subnet-REPLACE", "key_pair_name": "REPLACE", "operator_ssh_cidr": "203.0.113.10/32", "hosted_zone_name": "example.com"},
         "database": {"name": "expense_tracker", "admin_user": "expense_admin", "admin_password": "REPLACE_WITH_RANDOM_SECRET", "migration_user": "expense_migration", "migration_password": "REPLACE_WITH_RANDOM_SECRET", "runtime_user": "expense_runtime", "runtime_password": "REPLACE_WITH_RANDOM_SECRET", "instance_type": "t4g.micro", "ami_id": None},
         "backup": {"time": "03:17:00", "timezone": "UTC"},
-        "backend": {"ocr_evidence_capture_enabled": False, "gemini_api_key": "", "gemini_model": "gemini-3.8-flash", "api_hostname": "api.example.com", "google_client_id": "REPLACE.apps.googleusercontent.com", "jwt_secret": "REPLACE_WITH_32_BYTE_RANDOM_SECRET", "jwt_exp": 900, "refresh_jwt_secret": "REPLACE_WITH_32_BYTE_RANDOM_SECRET", "refresh_jwt_exp": 604800, "ocr_capability_secret": "REPLACE_WITH_DISTINCT_32_BYTE_RANDOM_SECRET", "expenses_per_page": 25, "db_conn_max_lifetime_seconds": 300, "db_conn_max_idle_time_seconds": 60, "web_push_vapid_public_key": "REPLACE_WITH_VAPID_PUBLIC_KEY", "web_push_vapid_private_key": "REPLACE_WITH_VAPID_PRIVATE_KEY", "web_push_vapid_subject": "mailto:REPLACE@example.com"},
+        "backend": {"gemini_api_key": "", "gemini_model": "gemini-3.8-flash", "api_hostname": "api.example.com", "google_client_id": "REPLACE.apps.googleusercontent.com", "jwt_secret": "REPLACE_WITH_32_BYTE_RANDOM_SECRET", "jwt_exp": 900, "refresh_jwt_secret": "REPLACE_WITH_32_BYTE_RANDOM_SECRET", "refresh_jwt_exp": 604800, "ocr_capability_secret": "REPLACE_WITH_DISTINCT_32_BYTE_RANDOM_SECRET", "expenses_per_page": 25, "db_conn_max_lifetime_seconds": 300, "db_conn_max_idle_time_seconds": 60, "web_push_vapid_public_key": "REPLACE_WITH_VAPID_PUBLIC_KEY", "web_push_vapid_private_key": "REPLACE_WITH_VAPID_PRIVATE_KEY", "web_push_vapid_subject": "mailto:REPLACE@example.com"},
         "observability": {"discord_webhook_url": None},
         "frontend": {"hostname": "expense.example.com"},
         "first_admin": None,

@@ -7,16 +7,14 @@ import (
 )
 
 type RuntimeConfig struct {
-	GeminiAPIKey           string
-	GeminiModel            string
-	EvidenceBucket         string
-	EvidenceCaptureEnabled bool
-	Mode                   string
-	FrontendOrigin         string
-	CapabilitySecret       []byte
-	ReplayTable            string
-	ReceiptBucket          string
-	ReceiptStorageEnabled  bool
+	GeminiAPIKey          string
+	GeminiModel           string
+	Mode                  string
+	FrontendOrigin        string
+	CapabilitySecret      []byte
+	ReplayTable           string
+	ReceiptBucket         string
+	ReceiptStorageEnabled bool
 }
 
 func LoadRuntimeConfig(lookup func(string) (string, bool)) (RuntimeConfig, error) {
@@ -73,16 +71,7 @@ func LoadRuntimeConfig(lookup func(string) (string, bool)) (RuntimeConfig, error
 	if !modelName.MatchString(model) {
 		return RuntimeConfig{}, fmt.Errorf("GEMINI_MODEL must be a valid model identifier")
 	}
-	evidenceBucket, _ := lookup("OCR_EVIDENCE_BUCKET")
-	capture, _ := lookup("OCR_EVIDENCE_CAPTURE_ENABLED")
-	if capture != "" && capture != "true" && capture != "false" {
-		return RuntimeConfig{}, fmt.Errorf("OCR_EVIDENCE_CAPTURE_ENABLED must be true or false")
-	}
-	if capture == "true" && strings.TrimSpace(evidenceBucket) == "" {
-		return RuntimeConfig{}, fmt.Errorf("OCR_EVIDENCE_BUCKET must be configured")
-	}
 	return RuntimeConfig{
-		EvidenceBucket: strings.TrimSpace(evidenceBucket), EvidenceCaptureEnabled: capture == "true",
 		GeminiAPIKey: strings.TrimSpace(key), GeminiModel: model,
 		Mode:                  mode,
 		FrontendOrigin:        origin,

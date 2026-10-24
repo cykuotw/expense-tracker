@@ -72,9 +72,6 @@ func main() {
 		handler.SetTemporaryReceiptStore(store)
 	}
 	logger.Info("ocr_serverless_started")
-	if runtimeConfig.EvidenceCaptureEnabled {
-		handler.SetEvidenceWriter(&ocr.EvidenceWriter{Client: s3.NewFromConfig(awsConfig), Bucket: runtimeConfig.EvidenceBucket, Secret: runtimeConfig.CapabilitySecret})
-	}
 
 	lambda.Start(func(ctx context.Context, request events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {
 		startedAt := time.Now()

@@ -120,14 +120,13 @@ func registerRoutes(router *gin.Engine, db *sql.DB) {
 	expenseStore := expenseStore.NewStore(db)
 	expenseController := expense.NewController()
 	receiptOptions := []func(*expenseRoute.Handler){}
-	improvement := &ocrimprovement.Service{DB: db, Secret: []byte(config.Envs.OCRCapabilitySecret), Bucket: os.Getenv("OCR_EVIDENCE_BUCKET"), CaptureEnabled: os.Getenv("OCR_EVIDENCE_CAPTURE_ENABLED") == "true"}
+	improvement := &ocrimprovement.Service{DB: db, Bucket: os.Getenv("OCR_EVIDENCE_BUCKET")}
 	if improvement.Bucket != "" {
 		awsCfg, err := awsconfig.LoadDefaultConfig(context.Background())
 		if err == nil {
 			improvement.Objects = s3.NewFromConfig(awsCfg)
 		}
 	}
-	improvement.RegisterRoutes(protected)
 	receiptOptions = append(receiptOptions, expenseRoute.WithEvidenceCleanup(improvement.PurgeExpense, improvement.CleanupExpense))
 	if config.Envs.ReceiptBucket != "" {
 		awsCfg, err := awsconfig.LoadDefaultConfig(context.Background())

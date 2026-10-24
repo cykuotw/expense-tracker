@@ -6,7 +6,6 @@ import { FRONTEND_VERSION, GOOGLE_OAUTH_ENABLED } from "../configs/config";
 import { apiFetch, getResponseErrorMessage } from "../lib/api";
 import MobilePageHeader from "../components/MobilePageHeader";
 import NotificationSettings from "../components/pwa/NotificationSettings";
-import OCRImprovementSettings from "../components/receipt/OCRImprovementSettings";
 import { AccountSettingsData } from "../types/account";
 import { usePWAUpdateBlocker } from "../hooks/usePWAUpdateBlocker";
 import { useFormFocusVisibility } from "../hooks/useFormFocusVisibility";
@@ -818,7 +817,6 @@ export default function AccountSettings() {
                         </div>
                     </section>
                     <NotificationSettings />
-                    <OCRImprovementSettings granted={account?.capabilities?.receiptOcr === true} />
                     <p className="lg:col-span-2 px-1 text-xs text-foreground/55">
                         App version <span className="whitespace-nowrap font-mono">{FRONTEND_VERSION}</span>
                     </p>

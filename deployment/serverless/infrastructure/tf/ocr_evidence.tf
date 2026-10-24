@@ -1,5 +1,5 @@
-# Improvement evidence is separate from retained product receipts. Capture stays
-# disabled in runtime projections until consent/purge verification is complete.
+# Retired evidence storage remains private for historical cleanup and offline replay.
+# Resource identities are retained to avoid deleting existing operator data.
 resource "aws_s3_bucket" "ocr_evidence" {
   # The AWS provider allows at most 37 characters before its generated suffix.
   bucket_prefix = "${substr(local.resource_prefix, 0, 23)}-ocr-evidence-"
@@ -59,15 +59,13 @@ resource "aws_iam_role_policy" "ocr_evidence_replay" {
 resource "aws_iam_role_policy" "ocr_evidence_writer" {
   role = aws_iam_role.ocr.id
   policy = jsonencode({ Version = "2012-10-17", Statement = [
-    { Effect = "Allow", Action = ["s3:PutObject"], Resource = "${aws_s3_bucket.ocr_evidence.arn}/temporary/*" }
+    { Effect = "Deny", Action = ["s3:PutObject"], Resource = "${aws_s3_bucket.ocr_evidence.arn}/*" }
   ] })
 }
 
 resource "aws_iam_role_policy" "ocr_evidence_worker" {
   role = aws_iam_role.worker.id
   policy = jsonencode({ Version = "2012-10-17", Statement = [
-    { Effect = "Allow", Action = ["s3:GetObject"], Resource = "${aws_s3_bucket.ocr_evidence.arn}/temporary/*" },
-    { Effect = "Allow", Action = ["s3:PutObject"], Resource = "${aws_s3_bucket.ocr_evidence.arn}/confirmed/*" },
     { Effect = "Allow", Action = ["s3:DeleteObject"], Resource = "${aws_s3_bucket.ocr_evidence.arn}/*" },
     { Effect = "Allow", Action = ["s3:ListBucket"], Resource = aws_s3_bucket.ocr_evidence.arn }
   ] })
@@ -76,6 +74,7 @@ resource "aws_iam_role_policy" "ocr_evidence_worker" {
 resource "aws_s3_bucket_policy" "ocr_evidence" {
   bucket = aws_s3_bucket.ocr_evidence.id
   policy = jsonencode({ Version = "2012-10-17", Statement = [
+    { Sid = "DenyRetiredEvidenceWrites", Effect = "Deny", Principal = "*", Action = ["s3:PutObject"], Resource = "${aws_s3_bucket.ocr_evidence.arn}/*" },
     { Sid = "DenyInsecureTransport", Effect = "Deny", Principal = "*", Action = "s3:*", Resource = [aws_s3_bucket.ocr_evidence.arn, "${aws_s3_bucket.ocr_evidence.arn}/*"], Condition = { Bool = { "aws:SecureTransport" = "false" } } },
     { Sid = "DenyEvidenceReadsExceptOfflineReplay", Effect = "Deny", Principal = "*", Action = ["s3:GetObject", "s3:GetObjectVersion"], Resource = "${aws_s3_bucket.ocr_evidence.arn}/confirmed/*", Condition = { ArnNotEquals = { "aws:PrincipalArn" = aws_iam_role.ocr_evidence_replay.arn } } },
     { Sid = "DenyTemporaryEvidenceReadsExceptWorker", Effect = "Deny", Principal = "*", Action = ["s3:GetObject", "s3:GetObjectVersion"], Resource = "${aws_s3_bucket.ocr_evidence.arn}/temporary/*", Condition = { ArnNotEquals = { "aws:PrincipalArn" = aws_iam_role.worker.arn } } }

@@ -40,7 +40,6 @@ type DraftHandler struct {
 	replay                ReplayStore
 	provider              Provider
 	receiptStore          *TemporaryReceiptStore
-	evidenceWriter        *EvidenceWriter
 	receiptStorageEnabled bool
 	preprocessOptions     PreprocessOptions
 	preprocessTimeout     time.Duration
@@ -52,7 +51,6 @@ type DraftHandler struct {
 
 type DraftResponse struct {
 	Usage            *ScanUsage `json:"usage,omitempty"`
-	EvidenceToken    string     `json:"evidenceToken,omitempty"`
 	RequestID        string     `json:"requestId"`
 	Draft            Result     `json:"draft"`
 	ReceiptToken     string     `json:"receiptToken,omitempty"`
@@ -86,8 +84,6 @@ func NewDraftHandler(
 func (h *DraftHandler) SetTemporaryReceiptStore(store *TemporaryReceiptStore) {
 	h.receiptStore = store
 }
-
-func (h *DraftHandler) SetEvidenceWriter(writer *EvidenceWriter) { h.evidenceWriter = writer }
 
 func (h *DraftHandler) Handle(ctx context.Context, request events.APIGatewayV2HTTPRequest) (response events.APIGatewayV2HTTPResponse, err error) {
 	observation := DraftObservation{Outcome: "rejected"}
@@ -181,11 +177,6 @@ func (h *DraftHandler) Handle(ctx context.Context, request events.APIGatewayV2HT
 	}
 
 	responsePayload := DraftResponse{RequestID: claims.ID, Draft: PrepareDraft(extraction), Usage: extraction.Usage}
-	if h.evidenceWriter != nil && claims.ConsentRevision > 0 {
-		work, cancel := context.WithTimeout(ctx, 2*time.Second)
-		responsePayload.EvidenceToken, _ = h.evidenceWriter.Store(work, claims, processed.Bytes, responsePayload.Draft, h.now())
-		cancel()
-	}
 	if claims.KeepReceipt && h.receiptStorageEnabled {
 		if h.receiptStore == nil {
 			observation.Outcome = "receipt_storage_error"

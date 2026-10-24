@@ -78,3 +78,21 @@ func TestLoadRuntimeConfigKeepsReceiptStorageDisabledWithoutExplicitEnablement(t
 		t.Fatalf("missing bucket not rejected: %v", err)
 	}
 }
+
+func TestLoadRuntimeConfigDoesNotReadRetiredEvidenceSettings(t *testing.T) {
+	values := map[string]string{
+		"MODE": "release", "FRONTEND_ORIGIN": "https://app.example.com",
+		"OCR_CAPABILITY_SECRET": strings.Repeat("s", 32),
+		"OCR_REPLAY_TABLE":      "expense-ocr-replay",
+	}
+	_, err := LoadRuntimeConfig(func(key string) (string, bool) {
+		if strings.HasPrefix(key, "OCR_EVIDENCE_") {
+			t.Fatalf("runtime read retired setting %s", key)
+		}
+		value, ok := values[key]
+		return value, ok
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+}

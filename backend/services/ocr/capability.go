@@ -21,11 +21,10 @@ const (
 var ErrInvalidCapability = errors.New("invalid OCR capability")
 
 type CapabilityClaims struct {
-	ConsentRevision int64  `json:"consent_revision,omitzero"`
-	Grant           string `json:"grant"`
-	ContentType     string `json:"content_type"`
-	MaxBytes        int64  `json:"max_bytes"`
-	KeepReceipt     bool   `json:"keep_receipt,omitempty"`
+	Grant       string `json:"grant"`
+	ContentType string `json:"content_type"`
+	MaxBytes    int64  `json:"max_bytes"`
+	KeepReceipt bool   `json:"keep_receipt,omitempty"`
 	jwt.RegisteredClaims
 }
 
@@ -48,10 +47,6 @@ func MintReceiptRetentionCapability(secret []byte, now time.Time, accountID, req
 }
 
 func mintCapability(secret []byte, now time.Time, accountID, requestID, contentType string, keepReceipt bool) (string, time.Time, error) {
-	return MintConsentedCapability(secret, now, accountID, requestID, contentType, keepReceipt, 0)
-}
-
-func MintConsentedCapability(secret []byte, now time.Time, accountID, requestID, contentType string, keepReceipt bool, revision int64) (string, time.Time, error) {
 	if len(secret) < 32 {
 		return "", time.Time{}, fmt.Errorf("OCR capability secret is too short")
 	}
@@ -70,11 +65,10 @@ func MintConsentedCapability(secret []byte, now time.Time, accountID, requestID,
 	issuedAt := now.UTC().Truncate(time.Second)
 	expiresAt := issuedAt.Add(CapabilityTTL)
 	claims := CapabilityClaims{
-		ConsentRevision: revision,
-		Grant:           CapabilityGrant,
-		ContentType:     contentType,
-		MaxBytes:        MaxDocumentBytes,
-		KeepReceipt:     keepReceipt,
+		Grant:       CapabilityGrant,
+		ContentType: contentType,
+		MaxBytes:    MaxDocumentBytes,
+		KeepReceipt: keepReceipt,
 		RegisteredClaims: jwt.RegisteredClaims{
 			Issuer:    CapabilityIssuer,
 			Subject:   accountID,
@@ -119,7 +113,6 @@ func VerifyCapability(secret []byte, tokenString string, now time.Time) (*Capabi
 
 func validCapabilityClaims(claims *CapabilityClaims) bool {
 	if claims == nil || claims.Grant != CapabilityGrant || claims.MaxBytes != MaxDocumentBytes ||
-		claims.ConsentRevision < 0 ||
 		!SupportedContentType(claims.ContentType) || claims.IssuedAt == nil || claims.ExpiresAt == nil {
 		return false
 	}

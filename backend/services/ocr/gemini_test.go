@@ -41,10 +41,11 @@ func TestGeminiStrictExtractionAndProviderTransport(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "Shoppers Drug Mart", result.Merchant.Value)
 	require.Zero(t, result.Merchant.Confidence)
-	require.NotNil(t, result.Evidence)
-	_, err = ReplayEvidence(*result.Evidence)
+	legacy := ExtractionEvidence{Provider: "gemini", AdapterVersion: GeminiAdapterVersion,
+		SchemaDigest: contentDigest(GeminiSchema), Response: json.RawMessage(envelope(sampleExtraction, "STOP"))}
+	_, err = ReplayEvidence(legacy)
 	require.NoError(t, err)
-	changed := *result.Evidence
+	changed := legacy
 	changed.SchemaDigest = "unknown-schema"
 	_, err = ReplayEvidence(changed)
 	require.ErrorIs(t, err, ErrProviderRejected)

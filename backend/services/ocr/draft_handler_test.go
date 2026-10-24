@@ -101,6 +101,7 @@ func TestDraftHandlerReturnsNormalizedEditableDraft(t *testing.T) {
 	assert.Equal(t, ProvenanceInferred, payload.Draft.Tax.Provenance)
 	assert.Equal(t, "1", payload.Draft.Items[0].Quantity.Value)
 	assert.NotContains(t, response.Body, "RawRow")
+	assert.NotContains(t, response.Body, "evidenceToken")
 }
 
 func TestDraftHandlerRejectsInvalidImageBeforeReplayAndProvider(t *testing.T) {

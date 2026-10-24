@@ -24,10 +24,22 @@ class ConfigTest(unittest.TestCase):
         self.write()
         config = load(self.path, Path("/unrelated/repository"))
         config.require_gemini_key()
-        self.assertEqual(config.ocr_environment("replay", "receipts", "evidence")["Variables"]["GEMINI_API_KEY"], "test-private-gemini-key")
+        self.assertEqual(config.ocr_environment("replay", "receipts")["Variables"]["GEMINI_API_KEY"], "test-private-gemini-key")
         self.assertNotIn("GEMINI_API_KEY", config.worker_environment("db", "receipts", "evidence")["Variables"])
         self.assertNotIn("test-private-gemini-key", json.dumps(config.terraform_variables(temporary_access=False)))
-        self.assertEqual(config.ocr_environment("replay", "receipts", "evidence")["Variables"]["OCR_EVIDENCE_CAPTURE_ENABLED"], "false")
+        self.assertNotIn("OCR_EVIDENCE_CAPTURE_ENABLED", config.ocr_environment("replay", "receipts")["Variables"])
+
+    def test_retired_capture_setting_is_ignored_and_not_generated(self) -> None:
+        self.assertNotIn("ocr_evidence_capture_enabled", template()["backend"])
+        self.value["backend"]["ocr_evidence_capture_enabled"] = True
+        self.write()
+        config = load(self.path, Path("/unrelated/repository"))
+        worker = config.worker_environment("db", "receipts", "historical-evidence")["Variables"]
+        ocr = config.ocr_environment("replay", "receipts")["Variables"]
+        self.assertNotIn("OCR_EVIDENCE_CAPTURE_ENABLED", worker)
+        self.assertNotIn("OCR_EVIDENCE_CAPTURE_ENABLED", ocr)
+        self.assertNotIn("OCR_EVIDENCE_BUCKET", ocr)
+        self.assertEqual(worker["OCR_EVIDENCE_BUCKET"], "historical-evidence")
 
     def setUp(self) -> None:
         self.temporary = tempfile.TemporaryDirectory()
@@ -94,7 +106,6 @@ class ConfigTest(unittest.TestCase):
             "OCR_CAPABILITY_SECRET": "o" * 32,
             "OCR_REPLAY_TABLE": "ocr-replay-table",
             "GEMINI_API_KEY": "", "GEMINI_MODEL": "gemini-3.8-flash",
-            "OCR_EVIDENCE_BUCKET": "", "OCR_EVIDENCE_CAPTURE_ENABLED": "false",
             "RECEIPT_BUCKET": "private-receipts",
             "RECEIPT_STORAGE_ENABLED": "false",
         })

@@ -603,19 +603,18 @@ allowances.
   stay outside application caches; metadata removal is not automatic pixel
   redaction. Receipt retention remains disabled in default runtime projections
   until the full retention/view/delete flow is operationally verified.
-- Improvement evidence uses its own private bucket and separate offline replay
-  role. Normal application roles cannot read confirmed evidence. Unconfirmed
-  samples expire after one day; confirmed samples are retained until opt-out or
-  authorized purge. Capture defaults off and must remain off until consent,
-  capture, failure recovery, and complete deletion pass end-to-end verification.
+- Improvement collection is retired. The historical evidence bucket, schema and
+  operator replay role remain for cleanup and offline investigation. New evidence
+  writes are denied; the Worker can only list/delete historical samples. Normal
+  Gemini scanning and expense receipt photos do not collect improvement samples.
 
 - Post-cutover API verification allows up to 60 seconds for API Gateway, Lambda alias, and invoke-permission propagation. It retries transient `5xx` health responses and verifies the OCR draft preflight specifically permits `POST` plus `Content-Type`, `Authorization`, `X-OCR-Account-ID`, and `X-OCR-Request-ID`; the pre-update health gate deliberately defers this new contract until the Worker has been promoted.
-- Normal updates use narrowly targeted Terraform plans for supported API, CloudFront, notification, and database-support infrastructure changes; Lambda code and runtime environments remain owned by the deployment runtime after initial creation. Deletions are limited to the two retired invitation routes, the obsolete notification HTTPS egress rule, and the eight conditional alerting resources when alerting is explicitly disabled. Replacement is allowed only for explicitly listed Lambda permissions and Worker/OCR log subscription filters whose destination changes during alias cutover; all unrelated replacements are rejected.
+- Normal updates use narrowly targeted Terraform plans for supported API, CloudFront, notification, and database-support infrastructure changes; Lambda code and runtime environments remain owned by the deployment runtime after initial creation. Deletions are limited to the two retired invitation routes, the three retired improvement mutation routes, the obsolete notification HTTPS egress rule, and the eight conditional alerting resources when alerting is explicitly disabled. Replacement is allowed only for explicitly listed Lambda permissions and Worker/OCR log subscription filters whose destination changes during alias cutover; all unrelated replacements are rejected.
 - Before an update and immediately after any targeted infrastructure apply, the deployer removes only unmanaged Worker/OCR/Bootstrap/Sender/Delivery/Error Notifier runtime environments if an AWS provider response persisted them into local state, then verifies that no configured protected value remains anywhere in Terraform artifacts.
 - Destroy deletes Lambdas first, waits for their owned ENIs, then runs `terraform destroy -refresh=false`.
 - A deployment failure keeps persistent resources for an explicit resume; it never performs automatic rollback or destroy.
 
-## Gemini OCR configuration and evidence operations
+## Gemini OCR configuration and historical evidence cleanup
 
 Set `backend.gemini_api_key` in the external deployment config before a backend
 or all-scope deployment. An empty placeholder is accepted when preparing config,
@@ -642,7 +641,7 @@ Successful draft responses also include an optional, per-request `usage`
 summary. Receipt review shows it under a collapsed **Scan usage** disclosure,
 with model, token counts, and an explicitly labeled USD estimate. This metadata
 is transient: it clears on rescan/discard and is not saved to the expense or
-included in improvement-evidence draft fields. Missing telemetry does not block
+included in persisted draft fields. Missing telemetry does not block
 the receipt draft, and unavailable estimates are never displayed as zero.
 
 For `gemini-3.8-flash`, numeric `estimated_cost_usd` uses the versioned standard
@@ -687,11 +686,14 @@ enforced. This is a compatibility fix for this receipt schema/model combination,
 not a claim that Gemini never supports `maxItems`.
 
 Review the selected API tier's [data-use terms](https://ai.google.dev/gemini-api/terms)
-before submitting receipts. The application improvement preference controls our
-retention only and makes no promise about Google's processing or retention.
-`backend.ocr_evidence_capture_enabled` defaults to `false`; enable it only after
-operational consent/purge verification. Bucket names are projected through
-`OCR_EVIDENCE_BUCKET`. Ordinary OCR and receipt views need no improvement opt-in.
+before submitting receipts. Improvement sharing settings and evidence collection
+are no longer part of the application. The obsolete
+`backend.ocr_evidence_capture_enabled` config key is accepted but ignored for
+compatibility with existing deployment files; remove it from your external config.
+Generated templates omit it, and neither runtime receives a capture flag. The OCR
+runtime receives no evidence bucket or write permission. `OCR_EVIDENCE_BUCKET`
+remains on the Worker solely for historical deletion. This does not change
+Google's processing or retention terms.
 
 Receipt-view URLs expire after 45 seconds and use `private, no-store`. A previously
 issued URL remains a bearer capability until it expires. Existing group members
@@ -699,7 +701,7 @@ may view receipts in archived groups; restore the group before changing receipts
 Soft deletion hides the photo and schedules object cleanup. Permanent expense
 purge must complete receipt and evidence cleanup before removing associations.
 
-The bounded operator tool supports these actions using the configured database
+For historical samples only, the bounded operator tool supports these actions using the configured database
 and AWS credentials. Use `request-account-purge` once, then wait two minutes for
 issued OCR requests to finish and retry `purge-account` until deletion completes.
 `cleanup` processes at most ten pending accounts and ten affected expenses per
@@ -713,7 +715,7 @@ go run ./backend/cmd/ocr-evidence -action cleanup
 ```
 
 Offline replay accepts a locally downloaded Gemini response or compressed
-consented evidence bundle. It needs no Gemini key, performs no provider call,
+historical evidence bundle. It needs no Gemini key, performs no provider call,
 and writes normalized receipt data to stdout: keep that output in approved
 private storage. Use the distinct replay role to read confirmed evidence;
 normal receipt/application endpoints never expose bundles.

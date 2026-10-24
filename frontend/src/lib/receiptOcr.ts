@@ -132,7 +132,6 @@ async function errorFromResponse(response: Response, fallback: string) {
 
 export interface ReceiptDraftResult {
 	usage?: OCRScanUsage | null;
-	 evidenceToken?: string | null;
     draft: OCRDraft;
     receiptToken: string | null;
     receiptExpiresAt: string | null;
@@ -230,8 +229,7 @@ export async function requestReceiptDraftWithRetention(
                 "receipt_storage_unavailable",
             );
         }
-        const evidenceToken = typeof value.evidenceToken === "string" ? value.evidenceToken : null;
-        return { draft, receiptToken, receiptExpiresAt, evidenceToken, usage: parseOCRScanUsage(value.usage) };
+        return { draft, receiptToken, receiptExpiresAt, usage: parseOCRScanUsage(value.usage) };
     } catch (error) {
         if (error instanceof ReceiptOCRError) throw error;
         if (controller.signal.aborted) {

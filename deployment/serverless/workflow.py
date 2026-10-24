@@ -666,6 +666,11 @@ def _infrastructure_targets(scope: str) -> tuple[str, ...]:
     return tuple(targets)
 
 
+RETIRED_OCR_IMPROVEMENT_ROUTE_ADDRESSES = frozenset(
+    f'aws_apigatewayv2_route.authenticated_mutation["{name}"]'
+    for name in ("update_ocr_improvement", "purge_ocr_improvement", "confirm_ocr_evidence")
+)
+
 RETIRED_INVITATION_ROUTE_ADDRESSES = frozenset(
     {
         "aws_apigatewayv2_route.invitation_lookup",
@@ -773,6 +778,7 @@ def _apply_infrastructure_updates(
             terraform.show_plan(plan_path),
             allowed_deletes=(
                 RETIRED_INVITATION_ROUTE_ADDRESSES
+                | RETIRED_OCR_IMPROVEMENT_ROUTE_ADDRESSES
                 | frozenset({"aws_vpc_security_group_egress_rule.sender_to_push_providers"})
                 | (
                     ERROR_ALERTING_RESOURCE_ADDRESSES

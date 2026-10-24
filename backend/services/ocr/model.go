@@ -35,16 +35,15 @@ type Item struct {
 
 // Result is provider-neutral OCR output suitable for an editable expense draft.
 type Result struct {
-	Usage    *ScanUsage          `json:"-"`
-	Evidence *ExtractionEvidence `json:"-"`
-	Merchant Field               `json:"merchant"`
-	Date     Field               `json:"date"`
-	Currency Field               `json:"currencySuggestion"`
-	Subtotal Field               `json:"subtotal"`
-	Tax      Field               `json:"tax"`
-	Tip      Field               `json:"tip"`
-	Total    Field               `json:"total"`
-	Items    []Item              `json:"items"`
+	Usage    *ScanUsage `json:"-"`
+	Merchant Field      `json:"merchant"`
+	Date     Field      `json:"date"`
+	Currency Field      `json:"currencySuggestion"`
+	Subtotal Field      `json:"subtotal"`
+	Tax      Field      `json:"tax"`
+	Tip      Field      `json:"tip"`
+	Total    Field      `json:"total"`
+	Items    []Item     `json:"items"`
 }
 
 // Provider analyzes one already-normalized document image.

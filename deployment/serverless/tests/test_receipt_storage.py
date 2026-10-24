@@ -18,7 +18,7 @@ class ReceiptStorageDeploymentTest(unittest.TestCase):
     def test_ocr_runtime_projection_disables_receipt_storage(self) -> None:
         config = SimpleNamespace(
             frontend_origin="https://app.example.com",
-            backend=SimpleNamespace(ocr_capability_secret="test-secret", gemini_api_key="", gemini_model="gemini-3.8-flash", ocr_evidence_capture_enabled=False),
+            backend=SimpleNamespace(ocr_capability_secret="test-secret", gemini_api_key="", gemini_model="gemini-3.8-flash"),
         )
         variables = Config.ocr_environment(config, "ocr-replay", "private-receipts")["Variables"]
         self.assertEqual(variables["RECEIPT_STORAGE_ENABLED"], "false")
@@ -77,6 +77,51 @@ class ReceiptStorageDeploymentTest(unittest.TestCase):
                 self.assertIn("aws_iam_role_policy.worker", terraform.plan.call_args.kwargs["targets"])
                 self.assertIn("aws_s3_bucket_policy.receipt", terraform.plan.call_args.kwargs["targets"])
                 terraform.apply.assert_called_once()
+
+    def test_retired_routes_delete_only_exact_addresses_in_both_alias_paths(self) -> None:
+        retired = workflow.RETIRED_OCR_IMPROVEMENT_ROUTE_ADDRESSES
+        self.assertEqual(len(retired), 3)
+        for aliases in (False, True):
+            for unrelated_delete in (False, True):
+                with self.subTest(use_lambda_aliases=aliases, unrelated_delete=unrelated_delete):
+                    context = mock.MagicMock()
+                    context.terraform_root = ROOT / "infrastructure/tf"
+                    context.config.error_alerting_enabled = False
+                    terraform = mock.MagicMock()
+                    changes = [
+                        {"address": address, "change": {"actions": ["delete"]}}
+                        for address in retired
+                    ]
+                    changes.extend([
+                        {"address": "aws_iam_role_policy.ocr_evidence_writer", "change": {"actions": ["update"]}},
+                        {"address": "aws_s3_bucket_policy.ocr_evidence", "change": {"actions": ["update"]}},
+                    ])
+                    if unrelated_delete:
+                        changes.append({"address": "aws_s3_bucket.receipt", "change": {"actions": ["delete"]}})
+                    terraform.show_plan.return_value = {"resource_changes": changes}
+                    with mock.patch.object(workflow, "_terraform", return_value=contextlib.nullcontext(Path("/tmp/variables"))) as variables, mock.patch.object(workflow, "Terraform", return_value=terraform), mock.patch.object(workflow.runtime, "repair_secret_boundary", return_value=0):
+                        if unrelated_delete:
+                            with self.assertRaisesRegex(workflow.CommandError, "destructive"):
+                                workflow._apply_infrastructure_updates(context, "backend", use_lambda_aliases=aliases)
+                            terraform.apply.assert_not_called()
+                        else:
+                            workflow._apply_infrastructure_updates(context, "backend", use_lambda_aliases=aliases)
+                            terraform.apply.assert_called_once()
+                            self.assertEqual(variables.call_args.kwargs["use_lambda_aliases"], aliases)
+
+    def test_historical_evidence_rejects_new_writes_but_allows_cleanup(self) -> None:
+        text = (ROOT / "infrastructure/tf/ocr_evidence.tf").read_text()
+        self.assertIn('Sid = "DenyRetiredEvidenceWrites"', text)
+        writer = text.split('resource "aws_iam_role_policy" "ocr_evidence_writer"')[1].split('resource "aws_iam_role_policy" "ocr_evidence_worker"')[0]
+        self.assertIn('Effect = "Deny"', writer)
+        worker = text.split('resource "aws_iam_role_policy" "ocr_evidence_worker"')[1].split('resource "aws_s3_bucket_policy"')[0]
+        self.assertIn('s3:DeleteObject', worker)
+        self.assertIn('s3:ListBucket', worker)
+        self.assertNotIn('s3:PutObject', worker)
+        self.assertNotIn('s3:GetObject', worker)
+        api = (ROOT / "infrastructure/tf/api.tf").read_text()
+        self.assertNotIn('/ocr-improvement', api)
+        self.assertNotIn('/ocr-evidence', api)
 
     def test_receipt_bucket_has_private_worker_finalization_permissions(self) -> None:
         tf = (ROOT / "infrastructure/tf/receipt_storage.tf").read_text()

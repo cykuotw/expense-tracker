@@ -28,6 +28,7 @@ var GeminiSchema json.RawMessage
 var modelName = regexp.MustCompile(`^gemini-[a-zA-Z0-9.-]{1,80}$`)
 var exactDecimal = regexp.MustCompile(`^-?[0-9]{1,12}(?:\.[0-9]{1,6})?$`)
 
+// ExtractionEvidence supports offline replay of historical samples only.
 type ExtractionEvidence struct {
 	Provider       string          `json:"provider"`
 	Model          string          `json:"model"`
@@ -115,12 +116,10 @@ func (p *GeminiProvider) AnalyzeExpense(ctx context.Context, document []byte) (R
 		return Result{}, ErrProviderRejected
 	}
 	observation.Usage, observation.UsageStatus = parseGeminiUsage(raw)
-	result, version, err := ReplayGeminiResponse(raw)
+	result, _, err := ReplayGeminiResponse(raw)
 	if err != nil {
 		return Result{}, err
 	}
-	result.Evidence = &ExtractionEvidence{Provider: "gemini", Model: p.model, ModelVersion: version,
-		PromptDigest: contentDigest([]byte(GeminiPrompt)), SchemaDigest: contentDigest(GeminiSchema), AdapterVersion: GeminiAdapterVersion, Response: raw}
 	observation.Outcome = "success"
 	result.Usage = observation.scanUsage(startedAt)
 	return result, nil

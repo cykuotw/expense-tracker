@@ -98,7 +98,7 @@ export default function ExpenseReceiptAttachment({ expenseId, initialReceipt }: 
                 ) : null}
                 {receipt && receipt.status !== "deleting" ? (
                     <AlertDialog><AlertDialogTrigger asChild><button type="button" className="ui-button ui-button-outline min-h-11" disabled={busy}>Remove photo</button></AlertDialogTrigger>
-                        <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Remove this receipt photo?</AlertDialogTitle><AlertDialogDescription>The saved photo will be permanently deleted, and related improvement evidence will be queued for deletion. Your expense, item details, and balances will remain.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel className="min-h-11">Keep photo</AlertDialogCancel><AlertDialogAction className="min-h-11" onClick={() => void submit({ key: crypto.randomUUID(), body: { keep: false } })}>Remove photo</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
+                        <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Remove this receipt photo?</AlertDialogTitle><AlertDialogDescription>The saved photo will be permanently deleted. Your expense, item details, and balances will remain.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel className="min-h-11">Keep photo</AlertDialogCancel><AlertDialogAction className="min-h-11" onClick={() => void submit({ key: crypto.randomUUID(), body: { keep: false } })}>Remove photo</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
                     </AlertDialog>
                 ) : null}
                 {mutationRef.current ? (

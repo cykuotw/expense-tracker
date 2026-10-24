@@ -10,7 +10,8 @@ import (
 	"regexp"
 	"slices"
 	"time"
-	"uuid"
+
+	"github.com/google/uuid"
 )
 
 const EventType = "ocr_usage.v1"

@@ -136,6 +136,18 @@ the deployer:
 - Node `22.23.2` through Node `22.x`; `frontend/.node-version` identifies the
   tested baseline and `frontend/package.json` enforces the supported range.
 - pnpm `11.25.0` through `12.x`; `frontend/package.json` pins the tested `12.4.2` version.
+- Go with toolchain selection support. Lambda artifact builds select the exact
+  version declared by `go.mod` (currently `1.27.3`) using `GOTOOLCHAIN`. Go may
+  download that toolchain if it is not cached, so the build machine needs access
+  to the configured Go toolchain download source.
+
+Artifact builds clear inherited `GOROOT` for the build subprocess so the selected
+Go driver uses its matching compiler, assembler and standard library. An old
+shell `GOROOT` or `GOTOOLCHAIN=local` cannot force Lambda builds onto a different
+installation. This does not modify the shell, system Go installation, or
+deployment configuration. Errors such as `compile: version "go1.25.14" does not
+match go tool version "go1.27.3"` indicate a mixed toolchain; use this checkout's
+artifact builder rather than overriding the selected toolchain's `GOROOT`.
 
 pnpm requires Node, and the deployer intentionally does not download or install
 either tool. The serverless preflight checks that `node` and `pnpm` are

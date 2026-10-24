@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 import os
+import re
 import tempfile
 import zipfile
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from backend.migration_policy import MANIFEST_NAME, validate_repository
-from common.command import run
+from common.command import CommandError, run
 
 
 ZIP_TIME = (1980, 1, 1, 0, 0, 0)
@@ -22,6 +23,9 @@ def _entry(name: str, data: bytes, mode: int) -> zipfile.ZipInfo:
 
 
 def _go_build(repo_root: Path, package: str, destination: Path, ldflags: str = "-s -w") -> None:
+    version = re.search(r"^go[ \t]+(\d+\.\d+(?:\.\d+)?)[ \t]*$", (repo_root / "go.mod").read_text(), re.MULTILINE)
+    if version is None:
+        raise CommandError("go.mod must declare a Go version before building Lambda artifacts")
     run(
         [
             "go",
@@ -34,7 +38,12 @@ def _go_build(repo_root: Path, package: str, destination: Path, ldflags: str = "
             package,
         ],
         cwd=repo_root,
-        env={"GOOS": "linux", "GOARCH": "arm64", "CGO_ENABLED": "0"},
+        env={
+            "GOOS": "linux", "GOARCH": "arm64", "CGO_ENABLED": "0",
+            "GOTOOLCHAIN": f"go{version.group(1)}",
+            # Use the selected toolchain's own standard library and compiler.
+            "GOROOT": "",
+        },
         capture=False,
     )
 

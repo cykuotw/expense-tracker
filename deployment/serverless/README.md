@@ -601,8 +601,8 @@ allowances.
   access. Temporary photos expire after one day. The Worker finalizes an explicit
   retention choice and authorizes each short-lived receipt view. Images and URLs
   stay outside application caches; metadata removal is not automatic pixel
-  redaction. Receipt retention remains disabled in default runtime projections
-  until the full retention/view/delete flow is operationally verified.
+  redaction. `backend.receipt_storage_enabled` controls retention in both Worker
+  and OCR runtime projections; it defaults to `false` for existing configs.
 - Improvement collection is retired. The historical evidence bucket, schema and
   operator replay role remain for cleanup and offline investigation. New evidence
   writes are denied; the Worker can only list/delete historical samples. Normal
@@ -613,6 +613,35 @@ allowances.
 - Before an update and immediately after any targeted infrastructure apply, the deployer removes only unmanaged Worker/OCR/Bootstrap/Sender/Delivery/Error Notifier runtime environments if an AWS provider response persisted them into local state, then verifies that no configured protected value remains anywhere in Terraform artifacts.
 - Destroy deletes Lambdas first, waits for their owned ENIs, then runs `terraform destroy -refresh=false`.
 - A deployment failure keeps persistent resources for an explicit resume; it never performs automatic rollback or destroy.
+
+## Receipt photo storage configuration
+
+To enable saving receipt photos, add this boolean to the existing `backend`
+object in your external deployment config:
+
+```json
+"receipt_storage_enabled": true
+```
+
+The deployer sets `RECEIPT_STORAGE_ENABLED=true` on both Worker and OCR, using
+the Terraform-managed private receipt bucket. A missing bucket blocks enabled
+runtime publication. Omitted settings default to `false`; quoted strings such as
+`"true"` are rejected.
+
+Publish the updated runtime environments and versions using:
+
+```bash
+make deploy ACTION=update SCOPE=backend
+```
+
+On an existing installation, backend updates publish both Worker and OCR; changing
+only the frontend or an unqualified Lambda environment does not update the live
+aliases. Accounts with the `receipt_ocr` grant then receive
+`capabilities.receiptRetention=true`, enabling Keep receipt and Add photo in the
+expense editor. Verify scan/save/view/delete after rollout. Existing expenses
+without a saved photo require attaching one; enabling storage does not recover
+previously discarded images. Setting this flag to `false` prevents new retention;
+it does not purge saved photos or disable authorized views of finalized receipts.
 
 ## Gemini OCR configuration and historical evidence cleanup
 

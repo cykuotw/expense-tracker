@@ -41,6 +41,46 @@ class ConfigTest(unittest.TestCase):
         self.assertNotIn("OCR_EVIDENCE_BUCKET", ocr)
         self.assertEqual(worker["OCR_EVIDENCE_BUCKET"], "historical-evidence")
 
+    def test_receipt_storage_setting_controls_worker_and_ocr_together(self) -> None:
+        for enabled in (False, True):
+            with self.subTest(enabled=enabled):
+                self.value["backend"]["receipt_storage_enabled"] = enabled
+                self.write()
+                config = load(self.path, Path("/unrelated/repository"))
+                worker = config.worker_environment("db", "private-receipts")["Variables"]
+                ocr = config.ocr_environment("replay", "private-receipts")["Variables"]
+                for variables in (worker, ocr):
+                    self.assertEqual(variables["RECEIPT_STORAGE_ENABLED"], str(enabled).lower())
+                    self.assertEqual(variables["RECEIPT_BUCKET"], "private-receipts")
+                self.assertNotIn("receipt_storage_enabled", config.terraform_variables(temporary_access=False))
+
+    def test_receipt_storage_setting_defaults_off_for_existing_configs(self) -> None:
+        self.value["backend"].pop("receipt_storage_enabled", None)
+        self.write()
+        config = load(self.path, Path("/unrelated/repository"))
+        self.assertFalse(config.backend.receipt_storage_enabled)
+        self.assertEqual(config.worker_environment("db")["Variables"]["RECEIPT_STORAGE_ENABLED"], "false")
+        self.assertEqual(config.ocr_environment("replay", "")["Variables"]["RECEIPT_STORAGE_ENABLED"], "false")
+
+    def test_receipt_storage_setting_rejects_non_boolean_values(self) -> None:
+        for value in ("true", "false", 1, 0, None, [], {}):
+            with self.subTest(value=value):
+                self.value["backend"]["receipt_storage_enabled"] = value
+                self.write()
+                with self.assertRaisesRegex(ConfigError, "receipt_storage_enabled must be a boolean"):
+                    load(self.path, Path("/unrelated/repository"))
+
+    def test_receipt_storage_enablement_requires_bucket_for_each_runtime(self) -> None:
+        self.value["backend"]["receipt_storage_enabled"] = True
+        self.write()
+        config = load(self.path, Path("/unrelated/repository"))
+        for bucket in ("", "   "):
+            with self.subTest(bucket=bucket):
+                with self.assertRaisesRegex(ConfigError, "receipt bucket must be configured"):
+                    config.worker_environment("db", bucket)
+                with self.assertRaisesRegex(ConfigError, "receipt bucket must be configured"):
+                    config.ocr_environment("replay", bucket)
+
     def setUp(self) -> None:
         self.temporary = tempfile.TemporaryDirectory()
         self.root = Path(self.temporary.name)

@@ -5,26 +5,14 @@ import sys
 import unittest
 from unittest import mock
 from pathlib import Path
-from types import SimpleNamespace
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 import workflow
-from config import Config
 
 
 class ReceiptStorageDeploymentTest(unittest.TestCase):
-    def test_ocr_runtime_projection_disables_receipt_storage(self) -> None:
-        config = SimpleNamespace(
-            frontend_origin="https://app.example.com",
-            backend=SimpleNamespace(ocr_capability_secret="test-secret", gemini_api_key="", gemini_model="gemini-3.8-flash"),
-        )
-        variables = Config.ocr_environment(config, "ocr-replay", "private-receipts")["Variables"]
-        self.assertEqual(variables["RECEIPT_STORAGE_ENABLED"], "false")
-        self.assertEqual(variables["RECEIPT_BUCKET"], "private-receipts")
-        self.assertNotIn("DB_PASSWORD", variables)
-
     def test_private_storage_is_in_backend_and_all_targeted_updates(self) -> None:
         addresses = {
             "aws_s3_bucket.ocr_evidence",

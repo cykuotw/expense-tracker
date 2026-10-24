@@ -75,6 +75,8 @@ Daily EventBridge -------------------------> Delivery Lambda (VPC)
   return a gateway timeout even when a direct provider trial succeeds.
 - **Receipt lifecycle:** keeping a photo is separate from scanning. The OCR
   writer places explicitly requested images in a private temporary S3 prefix;
+  the VPC Worker reaches S3 through the existing gateway endpoint, with HTTPS
+  egress restricted to its S3 prefix list and object permissions scoped by IAM;
   the Worker finalizes confirmed associations using deterministic copy/delete
   operations and tracks pending cleanup. Current group members with active
   accounts can explicitly request a 45-second, no-store view of a finalized

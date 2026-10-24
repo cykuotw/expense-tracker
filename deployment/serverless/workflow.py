@@ -592,6 +592,7 @@ def _infrastructure_targets(scope: str) -> tuple[str, ...]:
             "aws_iam_role_policy.ocr_evidence_writer",
             "aws_iam_role_policy.ocr_evidence_worker",
             "aws_s3_bucket.receipt",
+            "aws_vpc_security_group_egress_rule.worker_to_s3",
             "aws_s3_bucket_public_access_block.receipt",
             "aws_s3_bucket_ownership_controls.receipt",
             "aws_s3_bucket_server_side_encryption_configuration.receipt",

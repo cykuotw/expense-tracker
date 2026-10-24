@@ -1,5 +1,13 @@
-# Phase 7 is dark: the OCR runtime does not enable temporary writes until an
-# explicit Keep receipt choice and the later association flow are available.
+# Private receipt storage and the Worker's network path for its lifecycle.
+resource "aws_vpc_security_group_egress_rule" "worker_to_s3" {
+  security_group_id = aws_security_group.worker.id
+  prefix_list_id    = aws_vpc_endpoint.s3.prefix_list_id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  description       = "Worker receipt operations through the S3 gateway endpoint"
+}
+
 resource "aws_s3_bucket" "receipt" {
   bucket_prefix = "${substr(local.resource_prefix, 0, 40)}-receipt-"
   force_destroy = false

@@ -26,6 +26,7 @@ class ReceiptStorageDeploymentTest(unittest.TestCase):
             "aws_iam_role_policy.ocr_evidence_writer",
             "aws_iam_role_policy.ocr_evidence_worker",
             "aws_s3_bucket.receipt",
+            "aws_vpc_security_group_egress_rule.worker_to_s3",
             "aws_s3_bucket_public_access_block.receipt",
             "aws_s3_bucket_ownership_controls.receipt",
             "aws_s3_bucket_server_side_encryption_configuration.receipt",
@@ -52,6 +53,7 @@ class ReceiptStorageDeploymentTest(unittest.TestCase):
                     {"address": "aws_s3_bucket.ocr_evidence", "change": {"actions": ["create"]}},
                     {"address": "aws_iam_role_policy.ocr_evidence_worker", "change": {"actions": ["create"]}},
                     {"address": "aws_s3_bucket.receipt", "change": {"actions": ["create"]}},
+                    {"address": "aws_vpc_security_group_egress_rule.worker_to_s3", "change": {"actions": ["create"]}},
                     {"address": "aws_iam_role_policy.ocr", "change": {"actions": ["update"]}},
                     {"address": "aws_iam_role_policy.worker", "change": {"actions": ["update"]}},
                     {"address": "aws_s3_bucket_policy.receipt", "change": {"actions": ["update"]}},
@@ -60,6 +62,7 @@ class ReceiptStorageDeploymentTest(unittest.TestCase):
                     workflow._apply_infrastructure_updates(context, "backend", use_lambda_aliases=aliases)
                 self.assertEqual(variables.call_args.kwargs["use_lambda_aliases"], aliases)
                 self.assertIn("aws_s3_bucket.receipt", terraform.plan.call_args.kwargs["targets"])
+                self.assertIn("aws_vpc_security_group_egress_rule.worker_to_s3", terraform.plan.call_args.kwargs["targets"])
                 self.assertIn("aws_s3_bucket.ocr_evidence", terraform.plan.call_args.kwargs["targets"])
                 self.assertIn("aws_iam_role_policy.ocr_evidence_worker", terraform.plan.call_args.kwargs["targets"])
                 self.assertIn("aws_iam_role_policy.worker", terraform.plan.call_args.kwargs["targets"])
@@ -133,6 +136,17 @@ class ReceiptStorageDeploymentTest(unittest.TestCase):
         self.assertIn('Action = ["s3:DeleteObject"]', worker)
         self.assertNotIn('s3:ListBucket', worker)
         self.assertNotIn('"${aws_s3_bucket.receipt.arn}/*"', worker)
+
+    def test_worker_receipt_network_access_is_limited_to_s3_https(self) -> None:
+        text = (ROOT / "infrastructure/tf/receipt_storage.tf").read_text()
+        rule = text.split('resource "aws_vpc_security_group_egress_rule" "worker_to_s3"')[1].split('resource "aws_s3_bucket"')[0]
+        self.assertIn('security_group_id = aws_security_group.worker.id', rule)
+        self.assertIn('prefix_list_id    = aws_vpc_endpoint.s3.prefix_list_id', rule)
+        self.assertIn('ip_protocol       = "tcp"', rule)
+        self.assertIn('from_port         = 443', rule)
+        self.assertIn('to_port           = 443', rule)
+        self.assertNotIn('cidr_ipv4', rule)
+        self.assertNotIn('cidr_ipv6', rule)
 
 
 if __name__ == "__main__":

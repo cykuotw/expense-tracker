@@ -640,6 +640,13 @@ the Terraform-managed private receipt bucket. A missing bucket blocks enabled
 runtime publication. Omitted settings default to `false`; quoted strings such as
 `"true"` are rejected.
 
+The VPC Worker also needs TCP 443 egress to the S3 prefix list through the existing
+S3 gateway endpoint. Backend/all targeted updates include this narrow rule; no
+general internet egress is required. IAM permissions and a gateway route alone
+do not override a security group that allows only PostgreSQL. Without the rule,
+receipt verification can time out after four seconds and return 503 before
+expense creation. The same path is needed for finalization and photo cleanup.
+
 Publish the updated runtime environments and versions using:
 
 ```bash

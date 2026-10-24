@@ -93,7 +93,7 @@ export default function ExpenseReceiptAttachment({ expenseId, initialReceipt }: 
             <div className="mt-3 flex flex-wrap gap-2">
                 {available && !editing ? (
                     <button type="button" className="ui-button ui-button-outline min-h-11" disabled={busy} onClick={() => setEditing(true)}>
-                        {receipt ? "Replace photo" : "Add photo"}
+                        {receipt ? "Replace photo" : "Upload photo"}
                     </button>
                 ) : null}
                 {receipt && receipt.status !== "deleting" ? (
@@ -124,9 +124,9 @@ export default function ExpenseReceiptAttachment({ expenseId, initialReceipt }: 
             </div>
             {editing ? (
                 <div className="mt-4">
-                    <p className="mb-3 text-sm text-muted-foreground">Crop or cover private details first. Expense values stay as they are.</p>
+                    <p className="mb-3 text-sm text-muted-foreground">Choose an existing receipt photo or take a new one, then crop or cover private details. Expense values stay as they are.</p>
                     <Suspense fallback={<p>Loading photo editor…</p>}>
-                        <ReceiptEditor onPrepared={(photo) => void prepared(photo)} onCancel={() => setEditing(false)} onManualEntry={() => setEditing(false)} hideLibraryChoice />
+                        <ReceiptEditor onPrepared={(photo) => void prepared(photo)} onCancel={() => setEditing(false)} onManualEntry={() => setEditing(false)} />
                     </Suspense>
                 </div>
             ) : null}

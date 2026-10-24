@@ -49,6 +49,13 @@ resource "aws_s3_bucket_lifecycle_configuration" "postgres_backup" {
       days = 90
     }
   }
+  rule {
+    id     = "expire-database-alert-events"
+    status = "Enabled"
+    filter { prefix = "database-alerts/" }
+    expiration { days = 7 }
+  }
+
 }
 
 resource "aws_s3_bucket_policy" "postgres_backup" {

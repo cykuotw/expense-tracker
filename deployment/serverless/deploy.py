@@ -22,7 +22,7 @@ def parser() -> argparse.ArgumentParser:
     result = argparse.ArgumentParser(description="Expense Tracker unified serverless deployment")
     result.add_argument(
         "--action",
-        choices=["auto", "init", "plan", "deploy", "update", "status", "history", "show", "rollback", "promote", "cleanup", "backup-configure", "restore-verify", "backup-status", "backup-cleanup", "destroy"],
+        choices=["auto", "init", "plan", "deploy", "update", "status", "history", "show", "rollback", "promote", "cleanup", "backup-configure", "database-alerts-configure", "restore-verify", "backup-status", "backup-cleanup", "destroy"],
         default="auto",
     )
     result.add_argument("--scope", choices=["migrations", "backend", "frontend", "all"], default="all")

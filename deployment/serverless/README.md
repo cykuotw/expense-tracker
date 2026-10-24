@@ -848,3 +848,77 @@ go run ./backend/cmd/ocr-evidence -action replay -file <private-local-response.j
 Replay validates saved extraction through the supported adapter and current
 schema. It does not rerun image understanding or measure a changed prompt/model.
 Those comparisons require separately authorized, billable provider calls.
+
+
+## Database connection alerts
+
+Optional host monitoring checks all databases on the PostgreSQL instance once
+per minute. At least 80% of `max_connections` for two consecutive fresh samples
+emits ALARM; two readings below 80% emit recovery (OK). Both active and idle
+client connections count, excluding the collector itself and internal PostgreSQL
+workers. The threshold uses the configured total, not the smaller pool available
+after administrative reserved slots. With `max_connections=20`, alarm begins at
+16 clients; continue reserving connection budget for administration/migrations.
+
+Two failed local queries emit CHECK_FAILED (usage unknown), and two subsequent
+successful samples report the measured state. Normal checks do not create S3
+objects or CloudWatch log entries. Local systemd journals still record service
+activity/errors. This is not host-availability monitoring: stopped hosts, stopped
+timers and broken S3 delivery require separate operator observation. Brief spikes
+between samples may be missed.
+
+Configure a new Discord webhook belonging to the desired database-alert channel
+in the external deployment config:
+
+```json
+"observability": {
+  "discord_webhook_url": "<existing application-error webhook>",
+  "database_discord_webhook_url": "<database-alert channel webhook>"
+}
+```
+
+Omit the new field or set it to null to disable the feature. The feature reuses
+an existing enabled application error notifier, so its webhook must remain
+configured. Identical webhook URLs are rejected; the operator must ensure the
+new webhook belongs to a different channel. Both values are protected runtime
+secrets, never Terraform variables, host files, logs or public frontend config.
+Do not paste webhook URLs into support messages or commit them.
+
+Deploy the backend/infrastructure first through the supported update workflow
+(`ACTION=update SCOPE=all`). This publishes the compatible notifier, injects its
+separate webhook and private bucket name, scopes host PUT/notifier GET permissions
+to `database-alerts/*`, and adds an S3 notification targeting the notifier live
+alias. Existing application-error subscriptions keep their existing channel.
+Before applying, inspect the plan for expected scoped changes and no unrelated
+replacement or deletion. Do not enable the timer before this deployment succeeds.
+
+Install the timer using the same external config and supported deploy command:
+
+```bash
+make deploy ACTION=database-alerts-configure
+```
+
+This builds required local artifacts, verifies the existing database instance
+profile, temporarily opens the existing guarded operator access path, installs
+an immutable runtime script/unit, and removes temporary access in a finally
+block. It requires the existing AWS CLI and PostgreSQL tools installed by database
+setup. The host uses local peer authentication as postgres solely for the bounded
+statistics query. No runtime application credentials are installed. Installation
+must be separately authorized/performed by the operator.
+
+The local state file has root-only permissions. Pending transition uploads are
+retained across failures/reboots and retried with a stable event identifier.
+S3 acceptance does not prove Discord delivery; S3/Lambda events are at-least-once,
+can be delayed/reordered/duplicated, and exhausted retries are not a durable
+failure queue. Notifications contain observation timestamps and event IDs.
+Seven-day lifecycle expiration applies only to alert events; backup retention is
+unchanged. These objects contain counts/status only, never account/query/expense
+content. Healthy periodic checks incur no metric/alarm charge; transitions incur
+small S3/Lambda/log usage plus any applicable data transfer.
+
+To disable cleanly, set the new field to null, run
+`ACTION=database-alerts-configure` to stop the host timer, then deploy the update
+to remove only the four conditional alert resources/permissions and the separate
+webhook. Local state remains for diagnosis; pending uploads are not discarded.
+After changing the webhook channel, verify a controlled test in a non-production
+environment before relying on production notifications.

@@ -185,6 +185,7 @@ class Backend:
 @dataclass(frozen=True)
 class Observability:
     discord_webhook_url: str | None
+    database_discord_webhook_url: str | None = None
 
 
 @dataclass(frozen=True)
@@ -231,6 +232,10 @@ class Config:
     def error_alerting_enabled(self) -> bool:
         return self.observability.discord_webhook_url is not None
 
+    @property
+    def database_alerting_enabled(self) -> bool:
+        return self.observability.database_discord_webhook_url is not None
+
     def terraform_variables(
         self,
         *,
@@ -264,6 +269,7 @@ class Config:
             "frontend_hostname": self.frontend.hostname,
             "google_client_id": self.backend.google_client_id,
             "enable_error_alerting": self.error_alerting_enabled,
+            "enable_database_connection_alerting": self.database_alerting_enabled,
             "use_lambda_aliases": use_lambda_aliases,
         }
 
@@ -338,15 +344,21 @@ class Config:
             "WEB_PUSH_VAPID_SUBJECT": self.backend.web_push_vapid_subject,
         }}
 
-    def notifier_environment(self) -> dict[str, dict[str, str]]:
+    def notifier_environment(self, backup_bucket: str = "") -> dict[str, dict[str, str]]:
         if not self.error_alerting_enabled:
             raise ConfigError(
                 "observability.discord_webhook_url is required when error alerting is enabled"
             )
-        return {"Variables": {
+        variables = {
             "DISCORD_WEBHOOK_URL": self.observability.discord_webhook_url,
             "DEPLOYMENT_ENVIRONMENT": self.deployment.environment,
-        }}
+        }
+        if self.database_alerting_enabled:
+            if not backup_bucket:
+                raise ConfigError("database alerts require the private backup bucket")
+            variables.update(DATABASE_DISCORD_WEBHOOK_URL=self.observability.database_discord_webhook_url,
+                             DATABASE_ALERT_BUCKET=backup_bucket)
+        return {"Variables": variables}
 
     def bootstrap_environment(self, db_host: str) -> dict[str, dict[str, str]]:
         variables = {
@@ -522,13 +534,15 @@ def load(path: Path, repo_root: Path) -> Config:
         raise ConfigError("backend.refresh_jwt_exp must be greater than backend.jwt_exp")
 
     observability_raw = _object(raw["observability"], "observability")
-    _keys(observability_raw, "observability", {"discord_webhook_url"})
+    _keys(observability_raw, "observability", {"discord_webhook_url", "database_discord_webhook_url"})
     observability = Observability(
-        _discord_webhook_url(
-            observability_raw["discord_webhook_url"],
-            "observability.discord_webhook_url",
-        )
+        _discord_webhook_url(observability_raw["discord_webhook_url"], "observability.discord_webhook_url"),
+        _discord_webhook_url(observability_raw.get("database_discord_webhook_url"), "observability.database_discord_webhook_url"),
     )
+    if observability.database_discord_webhook_url and not observability.discord_webhook_url:
+        raise ConfigError("database alerts require the existing application error notifier")
+    if observability.database_discord_webhook_url and observability.database_discord_webhook_url == observability.discord_webhook_url:
+        raise ConfigError("database alerts require a separate Discord webhook")
 
     frontend_raw = _object(raw["frontend"], "frontend")
     _keys(frontend_raw, "frontend", {"hostname"})
@@ -556,7 +570,7 @@ def template() -> dict[str, Any]:
         "database": {"name": "expense_tracker", "admin_user": "expense_admin", "admin_password": "REPLACE_WITH_RANDOM_SECRET", "migration_user": "expense_migration", "migration_password": "REPLACE_WITH_RANDOM_SECRET", "runtime_user": "expense_runtime", "runtime_password": "REPLACE_WITH_RANDOM_SECRET", "instance_type": "t4g.micro", "ami_id": None},
         "backup": {"time": "03:17:00", "timezone": "UTC"},
         "backend": {"receipt_storage_enabled": False, "gemini_api_key": "", "gemini_model": "gemini-3.8-flash", "api_hostname": "api.example.com", "google_client_id": "REPLACE.apps.googleusercontent.com", "jwt_secret": "REPLACE_WITH_32_BYTE_RANDOM_SECRET", "jwt_exp": 900, "refresh_jwt_secret": "REPLACE_WITH_32_BYTE_RANDOM_SECRET", "refresh_jwt_exp": 604800, "ocr_capability_secret": "REPLACE_WITH_DISTINCT_32_BYTE_RANDOM_SECRET", "expenses_per_page": 25, "db_conn_max_lifetime_seconds": 300, "db_conn_max_idle_time_seconds": 60, "web_push_vapid_public_key": "REPLACE_WITH_VAPID_PUBLIC_KEY", "web_push_vapid_private_key": "REPLACE_WITH_VAPID_PRIVATE_KEY", "web_push_vapid_subject": "mailto:REPLACE@example.com"},
-        "observability": {"discord_webhook_url": None},
+        "observability": {"discord_webhook_url": None, "database_discord_webhook_url": None},
         "frontend": {"hostname": "expense.example.com"},
         "first_admin": None,
         "local_credentials": {"ssh_private_key_file": "/absolute/path/to/key.pem", "google_id_token_file": None},

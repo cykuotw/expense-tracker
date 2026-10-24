@@ -128,6 +128,14 @@ Daily EventBridge -------------------------> Delivery Lambda (VPC)
   boundary; it is not a public application API. Operator host inspection uses
   one Terraform-managed EC2 Instance Connect Endpoint with a dedicated,
   SSH-only security-group path; it does not make the database public.
+  Optional connection-pressure monitoring runs on the host every minute via a
+  systemd timer. It counts instance-wide client connections (excluding itself),
+  with two-sample 80% alarm/recovery and collection-failure transitions. Numeric
+  events travel through the existing private backup bucket's S3 gateway path;
+  the existing outside-VPC notifier posts to a separate Discord webhook. The
+  host receives no webhook or database password. No custom CloudWatch metric,
+  alarm, NAT Gateway or paid endpoint is added. This is sampled, best-effort
+  monitoring; a stopped host/timer cannot report its own failure.
 - **Deployment owner:** `deployment/serverless/` owns the unified serverless
   implementation, its deployment sequencing, and its Terraform state.
 

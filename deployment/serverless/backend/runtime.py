@@ -56,6 +56,9 @@ def _protected_values(config: Config) -> tuple[bytes, ...]:
     )
     if webhook_url:
         values.append(webhook_url)
+    database_webhook = getattr(getattr(config, "observability", None), "database_discord_webhook_url", None)
+    if database_webhook:
+        values.append(database_webhook)
     return tuple(value.encode() for value in values if value)
 
 
@@ -221,7 +224,7 @@ def configure_error_notifier(client: AWSClient, config: Config, outputs: dict[st
         raise CommandError("enabled error alerting did not expose a notifier function")
 
     before = _state_digest(terraform_root)
-    with protected_json(config.notifier_environment(), prefix="expense-notifier-env-") as path:
+    with protected_json(config.notifier_environment(str(outputs.get("postgres_backup_bucket_name", ""))), prefix="expense-notifier-env-") as path:
         client.publish_environment(function_name, path)
     client.activate_notification_function(function_name)
     assert_secret_boundary(terraform_root, config)
@@ -521,7 +524,7 @@ def publish_error_notifier_release(
         client,
         function_name,
         artifact,
-        config.notifier_environment(),
+        config.notifier_environment(str(outputs.get("postgres_backup_bucket_name", ""))),
         release_id,
         config,
         terraform_root,

@@ -25,6 +25,7 @@ from common.terraform import (
 )
 from config import Config
 from database import backup as database_backup
+from database import alerts as database_alerts
 from database.setup import setup as setup_database
 from frontend.publish import load_snapshot_descriptor
 from frontend.publish import publish as publish_frontend
@@ -591,6 +592,11 @@ def _infrastructure_targets(scope: str) -> tuple[str, ...]:
             "aws_iam_role_policy.ocr_evidence_replay",
             "aws_iam_role_policy.ocr_evidence_writer",
             "aws_iam_role_policy.ocr_evidence_worker",
+            "aws_iam_role_policy.database_alert_writer",
+            "aws_iam_role_policy.database_alert_reader",
+            "aws_lambda_permission.database_alerts",
+            "aws_s3_bucket_notification.database_alerts",
+            "aws_s3_bucket_lifecycle_configuration.postgres_backup",
             "aws_s3_bucket.receipt",
             "aws_vpc_security_group_egress_rule.worker_to_s3",
             "aws_s3_bucket_public_access_block.receipt",
@@ -679,6 +685,13 @@ RETIRED_INVITATION_ROUTE_ADDRESSES = frozenset(
     }
 )
 
+DATABASE_ALERT_RESOURCE_ADDRESSES = frozenset({
+    "aws_iam_role_policy.database_alert_writer[0]",
+    "aws_iam_role_policy.database_alert_reader[0]",
+    "aws_lambda_permission.database_alerts[0]",
+    "aws_s3_bucket_notification.database_alerts[0]",
+})
+
 ERROR_ALERTING_RESOURCE_ADDRESSES = frozenset(
     {
         "aws_iam_role.error_notifier[0]",
@@ -695,6 +708,10 @@ ERROR_ALERTING_RESOURCE_ADDRESSES = frozenset(
 
 def _backup_infrastructure_targets() -> tuple[str, ...]:
     return (
+        "aws_iam_role_policy.database_alert_writer",
+        "aws_iam_role_policy.database_alert_reader",
+        "aws_lambda_permission.database_alerts",
+        "aws_s3_bucket_notification.database_alerts",
         "aws_s3_bucket.postgres_backup",
         "aws_s3_bucket_public_access_block.postgres_backup",
         "aws_s3_bucket_ownership_controls.postgres_backup",
@@ -781,6 +798,8 @@ def _apply_infrastructure_updates(
                 RETIRED_INVITATION_ROUTE_ADDRESSES
                 | RETIRED_OCR_IMPROVEMENT_ROUTE_ADDRESSES
                 | frozenset({"aws_vpc_security_group_egress_rule.sender_to_push_providers"})
+                | (DATABASE_ALERT_RESOURCE_ADDRESSES
+                   if not context.config.database_alerting_enabled else frozenset())
                 | (
                     ERROR_ALERTING_RESOURCE_ADDRESSES
                     if not context.config.error_alerting_enabled
@@ -793,6 +812,7 @@ def _apply_infrastructure_updates(
                     "aws_lambda_permission.api_gateway_ocr",
                     "aws_lambda_permission.sender_eventbridge",
                     "aws_lambda_permission.monthly_review_publisher_eventbridge",
+                    "aws_lambda_permission.database_alerts[0]",
                     "aws_lambda_permission.worker_logs_error_notifier[0]",
                     "aws_lambda_permission.ocr_logs_error_notifier[0]",
                     "aws_cloudwatch_log_subscription_filter.worker_error_notifier[0]",
@@ -1642,7 +1662,7 @@ def _apply_backup_infrastructure(context: Context) -> dict[str, Any]:
     return outputs
 
 
-def _configure_backup_with_temporary_access(context: Context) -> None:
+def _configure_backup_with_temporary_access(context: Context, *, configure=None) -> None:
     with tempfile.TemporaryDirectory(prefix="expense-serverless-backup-access-") as temporary:
         with _terraform(context, True) as variables:
             terraform = Terraform(context.terraform_root, variables)
@@ -1655,8 +1675,13 @@ def _configure_backup_with_temporary_access(context: Context) -> None:
             terraform.apply(plan_path)
             public_outputs = terraform.output()
         try:
-            database_backup.configure(context.config, public_outputs)
+            if configure is None:
+                database_backup.configure(context.config, public_outputs)
+            else:
+                configure(context.config, public_outputs)
         except CommandError as error:
+            if configure is not None:
+                raise
             try:
                 database_backup.diagnose(context.config, public_outputs)
             except CommandError as diagnostic_error:
@@ -1670,6 +1695,17 @@ def _configure_backup_with_temporary_access(context: Context) -> None:
                 actions = require_cutover_only(terraform.show_plan(cleanup_path))
                 _print_plan(actions)
                 terraform.apply(cleanup_path)
+
+
+def configure_database_alerts(context: Context) -> None:
+    preflight(context, mutation=True)
+    runtime.repair_secret_boundary(context.terraform_root, context.config)
+    outputs = _require_complete(context)
+    artifacts.build(context.repo_root, context.serverless_root / "build")
+    _ensure_postgres_backup_profile(context, outputs)
+    step("database connection monitor configuration")
+    _configure_backup_with_temporary_access(context, configure=database_alerts.configure)
+    step("database connection monitor configuration", "pass")
 
 
 def configure_backup(context: Context) -> None:
@@ -1952,6 +1988,8 @@ def execute(
             activate_release(context, action, scope, release_id)
         elif action == "cleanup":
             cleanup_releases(context)
+        elif action == "database-alerts-configure":
+            configure_database_alerts(context)
         elif action == "backup-configure":
             configure_backup(context)
         elif action == "restore-verify":

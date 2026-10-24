@@ -37,7 +37,7 @@ def runtime_config() -> SimpleNamespace:
         worker_environment=lambda _host, _bucket, _evidence="": {"Variables": {"SAFE": "worker"}},
         delivery_environment=lambda _host: {"Variables": {"SAFE": "delivery"}},
         sender_environment=lambda function: {"Variables": {"DELIVERY": function}},
-        notifier_environment=lambda: {"Variables": {"SAFE": "notifier"}},
+        notifier_environment=lambda _bucket="": {"Variables": {"SAFE": "notifier"}},
     )
 
 
@@ -338,7 +338,7 @@ class BootstrapRuntimeTest(unittest.TestCase):
 
         config.error_alerting_enabled = True
         config.observability.discord_webhook_url = "private-webhook"
-        config.notifier_environment = lambda: {"Variables": {"DISCORD_WEBHOOK_URL": "private-webhook"}}
+        config.notifier_environment = lambda _bucket="": {"Variables": {"DISCORD_WEBHOOK_URL": "private-webhook"}}
         outputs = {"error_notifier_function_name": "notifier"}
         with tempfile.TemporaryDirectory() as temporary:
             runtime.configure_error_notifier(client, config, outputs, Path(temporary))

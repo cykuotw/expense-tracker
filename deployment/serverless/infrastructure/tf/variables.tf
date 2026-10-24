@@ -63,3 +63,8 @@ variable "receipt_bucket_admin_arns" {
     error_message = "Receipt bucket admins must be explicit IAM user or role ARNs."
   }
 }
+
+variable "enable_database_connection_alerting" {
+  type    = bool
+  default = false
+}

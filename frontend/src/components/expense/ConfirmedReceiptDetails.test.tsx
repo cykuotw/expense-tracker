@@ -10,14 +10,14 @@ const initialItems: ConfirmedExpenseItem[] = [
     { id: "two", description: "Toast", quantity: "", unit: "", unitPrice: "", lineTotal: "4.00" },
 ];
 
-function Harness() {
+function Harness({ collapseItems = false, validationMessage }: { collapseItems?: boolean; validationMessage?: string }) {
     const [items, setItems] = useState(initialItems);
     return <ConfirmedReceiptDetails
         merchant="Cafe" onMerchantChange={() => {}}
         subtotal="9.00" onSubtotalChange={() => {}}
         tax="" onTaxChange={() => {}}
         tip="" onTipChange={() => {}}
-        items={items} onItemsChange={setItems} compactItems
+        items={items} onItemsChange={setItems} compactItems collapseItems={collapseItems} validationMessage={validationMessage}
     />;
 }
 
@@ -48,4 +48,29 @@ describe("Create Expense receipt items", () => {
         expect(within(item).getByRole("button", { name: "Item 3: Add description, Add total" })).toHaveAttribute("aria-expanded", "true");
         expect(within(item).getByLabelText("Description")).toHaveValue("");
     });
+
+    it("folds edit items while retaining summary fields and unsaved item changes", () => {
+        render(<Harness collapseItems />);
+        const toggle = screen.getByRole("button", { name: "Items (2)" });
+        expect(toggle).toHaveAttribute("aria-expanded", "false");
+        expect(screen.getByLabelText("Merchant")).toHaveValue("Cafe");
+        expect(screen.getByLabelText("Subtotal (optional)")).toBeVisible();
+        expect(screen.queryByRole("button", { name: "Add item" })).not.toBeInTheDocument();
+        fireEvent.click(toggle);
+        expect(toggle).toHaveAttribute("aria-expanded", "true");
+        fireEvent.click(screen.getByRole("button", { name: "Item 1: Coffee, 5.00" }));
+        fireEvent.change(screen.getByLabelText("Description"), { target: { value: "Latte" } });
+        fireEvent.click(toggle);
+        expect(screen.queryByLabelText("Description")).not.toBeInTheDocument();
+        fireEvent.click(toggle);
+        expect(screen.getByLabelText("Description")).toHaveValue("Latte");
+        expect(screen.getByRole("button", { name: "Add item" })).toBeVisible();
+    });
+
+    it("keeps item validation visible while the list is collapsed", () => {
+        render(<Harness collapseItems validationMessage="Item totals must equal subtotal." />);
+        expect(screen.getByRole("button", { name: "Items (2)" })).toHaveAttribute("aria-expanded", "false");
+        expect(screen.getByRole("alert")).toHaveTextContent("Item totals must equal subtotal.");
+    });
+
 });

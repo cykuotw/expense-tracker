@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useId, useState } from "react";
+import { ExpenseSectionToggle } from "@/components/expense/ExpenseSectionToggle";
 import ReceiptViewer from "@/components/receipt/ReceiptViewer";
 import { Link } from "react-router-dom";
 
@@ -221,7 +222,7 @@ const ExpenseDetailContent = () => {
                                 expenseDetail={expenseDetail}
                                 amountDigits={amountDigits}
                             />
-                            {expenseDetail.items.length > 0 ? <ReceiptDetails
+                            {expenseDetail.items.length > 0 ? <ReceiptDetails key={expenseId}
                                 expenseDetail={expenseDetail}
                                 amountDigits={amountDigits}
                             /> : null}
@@ -229,14 +230,14 @@ const ExpenseDetailContent = () => {
 
                         {expenseDetail.invoiceUrl ? (
                             <aside className="min-w-0">
-                                <ReceiptImage
+                                <ReceiptImage key={expenseId}
                                     invoiceUrl={expenseDetail.invoiceUrl}
                                 />
                             </aside>
                         ) : null}
                     </div>
 
-                    {expenseDetail.receipt?.status === "finalized" ? <section className="rounded-2xl border border-border p-4" aria-label="Receipt photo"><h2 className="mb-3 font-semibold">Receipt photo</h2><ReceiptViewer expenseId={expenseId} /></section> : null}
+                    {expenseDetail.receipt?.status === "finalized" ? <ReceiptPhotoSection key={expenseId} expenseId={expenseId} /> : null}
                     {expenseDetail.groupIsActive === false ? null : <DangerZone />}
                 </div>
             </div>
@@ -487,6 +488,8 @@ function ReceiptDetails({
     expenseDetail: ExpenseDetailData;
     amountDigits: number | null;
 }) {
+    const [expanded, setExpanded] = useState(false);
+    const panelId = useId();
     const items = orderedItems(expenseDetail.items);
     const subtotal = formatExpenseMoney(
         expenseDetail.subTotal,
@@ -506,13 +509,18 @@ function ReceiptDetails({
                 <CardHeader>
                     <div className="section-label">Receipt details</div>
                     <CardTitle>
-                        <h2 id="receipt-details-title">Itemized breakdown</h2>
+                        <h2 id="receipt-details-title">
+                            <ExpenseSectionToggle expanded={expanded} controls={panelId} onToggle={() => setExpanded(open => !open)}>
+                                Itemized breakdown
+                            </ExpenseSectionToggle>
+                        </h2>
                     </CardTitle>
                     <CardDescription>
                         Saved receipt totals and item information.
                     </CardDescription>
                 </CardHeader>
-                <CardContent className="flex flex-col gap-5">
+                <div id={panelId} hidden={!expanded}>
+                {expanded ? <CardContent className="flex flex-col gap-5">
                     <dl className="flex flex-col gap-3">
                         {subtotal ? (
                             <MoneyRow label="Subtotal" value={subtotal} />
@@ -583,7 +591,8 @@ function ReceiptDetails({
                             No itemized receipt details were saved.
                         </div>
                     )}
-                </CardContent>
+                </CardContent> : null}
+                </div>
             </Card>
         </section>
     );
@@ -623,19 +632,26 @@ function MoneyRow({
 }
 
 function ReceiptImage({ invoiceUrl }: { invoiceUrl: string }) {
+    const [expanded, setExpanded] = useState(false);
+    const panelId = useId();
     return (
         <section aria-labelledby="receipt-image-title">
             <Card className="panel-card rounded-[2rem]">
                 <CardHeader>
                     <div className="section-label">Receipt</div>
                     <CardTitle>
-                        <h2 id="receipt-image-title">Receipt image</h2>
+                        <h2 id="receipt-image-title">
+                            <ExpenseSectionToggle expanded={expanded} controls={panelId} onToggle={() => setExpanded(open => !open)}>
+                                Receipt image
+                            </ExpenseSectionToggle>
+                        </h2>
                     </CardTitle>
                     <CardDescription>
                         Open the saved image in a new browser tab.
                     </CardDescription>
                 </CardHeader>
-                <CardContent>
+                <div id={panelId} hidden={!expanded}>
+                {expanded ? <CardContent>
                     <Button
                         asChild
                         variant="outline"
@@ -656,8 +672,24 @@ function ReceiptImage({ invoiceUrl }: { invoiceUrl: string }) {
                             View receipt image
                         </a>
                     </Button>
-                </CardContent>
+                </CardContent> : null}
+                </div>
             </Card>
+        </section>
+    );
+}
+
+function ReceiptPhotoSection({ expenseId }: { expenseId: string }) {
+    const [expanded, setExpanded] = useState(false);
+    const panelId = useId();
+    return (
+        <section className="rounded-2xl border border-border p-4" aria-label="Receipt photo">
+            <h2 className="font-semibold">
+                <ExpenseSectionToggle expanded={expanded} controls={panelId} onToggle={() => setExpanded(open => !open)}>
+                    Receipt photo
+                </ExpenseSectionToggle>
+            </h2>
+            <div id={panelId} hidden={!expanded} className="mt-3">{expanded ? <ReceiptViewer expenseId={expenseId} /> : null}</div>
         </section>
     );
 }

@@ -2,6 +2,7 @@ import { useId, useState } from "react";
 import Icon from "@mdi/react";
 import { mdiArrowDown, mdiArrowUp, mdiDeleteOutline, mdiPlus, mdiChevronDown } from "@mdi/js";
 
+import { ExpenseSectionToggle } from "./ExpenseSectionToggle";
 import { Button } from "@/components/ui/button";
 import { Field, FieldGroup, FieldLabel, FieldDescription } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -25,6 +26,7 @@ interface ConfirmedReceiptDetailsProps {
     itemReviewNotices?: Record<string, string>;
     showSummaryFields?: boolean;
     compactItems?: boolean;
+    collapseItems?: boolean;
 }
 
 const newItem = (): ConfirmedExpenseItem => ({
@@ -75,7 +77,11 @@ export function ConfirmedReceiptDetails({
     itemReviewNotices,
     showSummaryFields = true,
     compactItems = false,
+    collapseItems = false,
 }: ConfirmedReceiptDetailsProps) {
+    const [itemsExpanded, setItemsExpanded] = useState(false);
+    const itemsPanelId = useId();
+    const itemsVisible = !collapseItems || !showSummaryFields || itemsExpanded;
     const [openItemId, setOpenItemId] = useState<string | null>(null);
     const addItem = () => {
         const item = newItem();
@@ -119,13 +125,20 @@ export function ConfirmedReceiptDetails({
             </FieldGroup> : null}
 
             {showSummaryFields ? <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-                <h3 className="text-sm font-semibold">Items <span className="font-normal text-muted-foreground">({items.length})</span></h3>
-                <Button type="button" variant="outline" className="min-h-11" onClick={addItem}>
+                <h3 className="flex-1 text-sm font-semibold">
+                    {collapseItems ? (
+                        <ExpenseSectionToggle expanded={itemsVisible} controls={itemsPanelId} onToggle={() => setItemsExpanded(open => !open)}>
+                            Items ({items.length})
+                        </ExpenseSectionToggle>
+                    ) : <>Items <span className="font-normal text-muted-foreground">({items.length})</span></>}
+                </h3>
+                {itemsVisible ? <Button type="button" variant="outline" className="min-h-11" onClick={addItem}>
                     <Icon path={mdiPlus} size={0.8} data-icon="inline-start" aria-hidden="true" />Add item
-                </Button>
+                </Button> : null}
             </div> : null}
             {validationMessage ? <p className="mt-4 text-sm text-destructive" role="alert">{validationMessage}</p> : null}
-            <div className="mt-4 grid gap-4">
+            <div id={itemsPanelId} hidden={!itemsVisible}>
+            {itemsVisible ? <div className="mt-4 grid gap-4">
                 {items.map((item, index) => {
                     const isOpen = !compactItems || openItemId === item.id;
                     return <fieldset key={item.id} className={cn("min-w-0 rounded-xl border border-border", compactItems ? "p-2 sm:p-3" : "p-3 sm:p-4")}>
@@ -170,8 +183,9 @@ export function ConfirmedReceiptDetails({
                         </div> : null}
                     </fieldset>;
                 })}
+                {items.length === 0 ? <p className="text-sm text-muted-foreground">No items yet. Add an item to include a breakdown.</p> : null}
+            </div> : null}
             </div>
-            {items.length === 0 ? <p className="mt-3 text-sm text-muted-foreground">No items yet. Add an item to include a breakdown.</p> : null}
         </section>
     );
 }

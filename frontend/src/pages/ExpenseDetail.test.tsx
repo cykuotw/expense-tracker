@@ -220,6 +220,11 @@ describe("ExpenseDetail", () => {
         ).toBeVisible();
         expect(screen.getByText("Jamie owes you")).toBeVisible();
         expect(screen.getByText("You owe Alex")).toBeVisible();
+        const itemsToggle = screen.getByRole("button", { name: "Itemized breakdown" });
+        expect(itemsToggle).toHaveAttribute("aria-expanded", "false");
+        expect(screen.queryByText("Sparkling water")).not.toBeInTheDocument();
+        fireEvent.click(itemsToggle);
+        expect(itemsToggle).toHaveAttribute("aria-expanded", "true");
         expect(screen.getByText("25.00 CAD")).toBeVisible();
         expect(screen.getByText("3.40 CAD")).toBeVisible();
         expect(screen.getAllByText("28.40 CAD")).toHaveLength(2);
@@ -233,6 +238,10 @@ describe("ExpenseDetail", () => {
         expect(receiptItems[0]).toHaveTextContent("Burger");
         expect(receiptItems[1]).toHaveTextContent("Sparkling water");
 
+        const photoToggle = screen.getByRole("button", { name: "Receipt image" });
+        expect(photoToggle).toHaveAttribute("aria-expanded", "false");
+        expect(screen.queryByRole("link", { name: "View receipt image" })).not.toBeInTheDocument();
+        fireEvent.click(photoToggle);
         const receiptLink = screen.getByRole("link", {
             name: "View receipt image",
         });
@@ -242,6 +251,29 @@ describe("ExpenseDetail", () => {
         );
         expect(receiptLink).toHaveAttribute("target", "_blank");
         expect(receiptLink).toHaveAttribute("rel", "noreferrer");
+    });
+
+    it("collapses the retained photo section and clears an open image when folded", async () => {
+        apiFetchMock.mockImplementation((path: string) => Promise.resolve(jsonResponse(
+            path === "/currencies" ? currencyMetadata :
+            path.endsWith("/receipt/view") ? { url: "https://example.test/receipt.jpg", expiresAt: new Date(Date.now() + 45_000).toISOString() } :
+            { ...baseExpense, receipt: { status: "finalized", contentType: "image/jpeg", byteSize: 1, width: 1, height: 1 } }
+        )));
+        renderExpenseDetail();
+        const toggle = await screen.findByRole("button", { name: "Receipt photo" });
+        expect(toggle).toHaveAttribute("aria-expanded", "false");
+        expect(screen.queryByRole("button", { name: "View receipt" })).not.toBeInTheDocument();
+        fireEvent.click(toggle);
+        expect(toggle).toHaveAttribute("aria-expanded", "true");
+        expect(apiFetchMock.mock.calls.some(([path]) => path.endsWith("/receipt/view"))).toBe(false);
+        fireEvent.click(screen.getByRole("button", { name: "View receipt" }));
+        expect(await screen.findByAltText("Saved receipt")).toBeVisible();
+        fireEvent.click(toggle);
+        expect(toggle).toHaveAttribute("aria-expanded", "false");
+        expect(screen.queryByAltText("Saved receipt")).not.toBeInTheDocument();
+        fireEvent.click(toggle);
+        expect(screen.getByRole("button", { name: "View receipt" })).toBeVisible();
+        expect(screen.queryByAltText("Saved receipt")).not.toBeInTheDocument();
     });
 
     it("describes soft deletion accurately and submits the existing mutation", async () => {

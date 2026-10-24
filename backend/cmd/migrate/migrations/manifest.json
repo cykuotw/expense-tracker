@@ -179,6 +179,29 @@
         "dataLossRisk": true,
         "notes": "Previous application ignores the additive table. Schema reversal discards accounting records."
       }
+    },
+    {
+      "version": 43,
+      "name": "drop_empty_ocr_improvement_tables",
+      "categories": [
+        "drop"
+      ],
+      "deployment": "online",
+      "backfill": {
+        "mode": "none",
+        "resumable": false,
+        "notes": "No rows are rewritten or deleted. Both historical tables must be empty under exclusive locks, otherwise the atomic migration refuses."
+      },
+      "locking": {
+        "risk": "medium",
+        "notes": "Brief ACCESS EXCLUSIVE locks on expense, expense_receipt and the two empty retired tables are required for trigger/table removal. Bootstrap bounds acquisition to five seconds and execution to 240 seconds."
+      },
+      "rollback": {
+        "application": "follow_up_required",
+        "schema": "manual_only",
+        "dataLossRisk": false,
+        "notes": "Compatible dependency-free Worker must already be deployed. Verify any rollback binary has no historical evidence consumers. Empty-table guard prevents data loss; down refuses automatic recreation and requires reviewed manual recovery."
+      }
     }
   ]
 }

@@ -99,9 +99,10 @@ Daily EventBridge -------------------------> Delivery Lambda (VPC)
 - **Historical OCR evidence:** improvement collection and its public preference
   and confirmation APIs have been removed. Gemini scanning and retained product
   receipts operate independently. Application and operator database cleanup hooks
-  have been removed. Historical schema remains until a later contract release,
-  after the compatible Worker is deployed and emptiness is rechecked. Existing
-  database triggers must be removed together with those tables. Private historical
+  have been removed. A subsequent contract migration removes the historical
+  tables and cleanup triggers/function only when both tables are empty under
+  exclusive locks. A dependency-free Worker must already be deployed; nonempty
+  tables or unexpected dependencies abort the atomic operation. Private historical
   storage/replay infrastructure is retained separately; new evidence writes are
   denied. The replay command reads local files only and has no database access.
 - **Bootstrap Lambda:** performs explicit migration and bootstrap work before

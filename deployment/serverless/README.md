@@ -816,13 +816,24 @@ may view receipts in archived groups; restore the group before changing receipts
 Soft deletion hides the photo and schedules object cleanup. Permanent expense
 purge must complete product receipt cleanup before removing associations.
 
-The historical improvement tables and cleanup triggers are retained for one
-compatibility release. Remove them in a subsequent forward migration only after
-all deployed Workers no longer query them and both tables are confirmed empty.
-Do not edit applied migrations or use `DROP ... CASCADE`. If historical rows
-exist, stop and plan their retention/purge explicitly. Database cleanup actions
-have been removed from the offline replay command; historical S3 resources are
-not destroyed by this code update.
+Migration `000043` removes the historical improvement tables, two cleanup
+triggers and their function. Deploy the compatible Worker without evidence
+consumers before applying this contract release; the migration does not detect
+which application binary is running. It takes brief exclusive locks on expense,
+receipt and historical tables (subject to Bootstrap's five-second lock timeout),
+rechecks both historical tables are empty, and performs the DDL atomically.
+Nonempty tables or unexpected dependencies abort without dropping objects.
+
+Use the supported `migrations`, `backend` or `all` update scope. After deployment,
+verify `schema_migrations` reports version 43 without a dirty flag, both
+`ocr_improvement_*` tables are absent, and receipt replacement/deletion and
+`ocr_usage` insertion still work. A failed migration can leave the migration
+version dirty even though its schema DDL rolled back; follow the migration
+policy's reviewed recovery procedure rather than automatically forcing a version.
+The down migration refuses automatic schema recreation. Any rollback binary must
+be checked for retired-table consumers. Never edit applied migrations or use
+`DROP ... CASCADE`. If historical rows exist, stop and plan retention/purge.
+Historical S3 resources are unaffected, and offline replay remains file-only.
 
 Offline replay accepts a locally downloaded Gemini response or compressed
 historical evidence bundle. It needs no Gemini key, performs no provider call,

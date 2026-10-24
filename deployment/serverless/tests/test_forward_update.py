@@ -70,7 +70,7 @@ class ForwardUpdateTest(unittest.TestCase):
             ):
                 stack.enter_context(patcher)
             require_complete = stack.enter_context(mock.patch.object(workflow, "_require_complete", return_value=outputs))
-            bootstrap = stack.enter_context(mock.patch.object(workflow.runtime, "publish_bootstrap_release", return_value=(target, {"migration_version": 42, "migration_dirty": False})))
+            bootstrap = stack.enter_context(mock.patch.object(workflow.runtime, "publish_bootstrap_release", return_value=(target, {"migration_version": 43, "migration_dirty": False})))
             promote = stack.enter_context(mock.patch.object(workflow.aliases, "promote_backend"))
             verify_api = stack.enter_context(mock.patch.object(workflow, "verify_api"))
             publish_frontend = stack.enter_context(mock.patch.object(workflow, "publish_frontend", return_value={"snapshotPrefix": "new"}))
@@ -88,7 +88,7 @@ class ForwardUpdateTest(unittest.TestCase):
 
         bootstrap.assert_called_once()
         require_complete.assert_called_once_with(context, require_healthy=False)
-        self.assertEqual(bootstrap.call_args.kwargs["expected_schema_when_reused"], 42)
+        self.assertEqual(bootstrap.call_args.kwargs["expected_schema_when_reused"], 43)
         promote.assert_called_once()
         self.assertFalse(promote.call_args.kwargs["restore_on_failure"])
         restore.assert_not_called()
@@ -101,7 +101,7 @@ class ForwardUpdateTest(unittest.TestCase):
         else:
             verify_frontend.assert_called_once_with(context.config, receipt_bucket="private-receipts")
             manifest = store.put_release.call_args.args[0]
-            self.assertEqual(manifest["database"]["migrationVersion"], 42)
+            self.assertEqual(manifest["database"]["migrationVersion"], 43)
             self.assertEqual(manifest["backend"]["worker"], target)
             self.assertEqual(manifest["frontend"]["snapshotPrefix"], "new")
             store.set_current.assert_called_once()

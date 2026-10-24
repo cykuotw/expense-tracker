@@ -71,7 +71,7 @@ class MigrationPolicyTest(unittest.TestCase):
     def test_repository_manifest_matches_current_migrations(self) -> None:
         manifest = validate_repository(REPO)
         self.assertEqual(manifest.baseline_version, 35)
-        self.assertEqual(len(manifest.migrations), 7)
+        self.assertEqual(len(manifest.migrations), 8)
         migration = manifest.migrations[0]
         self.assertEqual(migration.version, 36)
         self.assertEqual(migration.name, "add_multi_currency_accounting")
@@ -88,6 +88,17 @@ class MigrationPolicyTest(unittest.TestCase):
         self.assertEqual(receipts.name, "add_expense_receipts")
         self.assertEqual(confirmed_items.deployment, "online")
 
+    def test_empty_ocr_contract_requires_compatible_app_rollback(self) -> None:
+        manifest = validate_repository(REPO)
+        contract = manifest.migrations[-1]
+        self.assertEqual(contract.version, 43)
+        self.assertEqual(contract.name, "drop_empty_ocr_improvement_tables")
+        self.assertEqual(contract.deployment, "online")
+        self.assertEqual(contract.application_rollback, "follow_up_required")
+        manifest.validate_forward_update(42, False)
+        with self.assertRaisesRegex(MigrationPolicyError, "application rollback is incompatible"):
+            manifest.validate_application_rollback(42, 43, False)
+
     def test_forward_update_allows_category_migration_without_rollback_compatibility(self) -> None:
         manifest = validate_repository(REPO)
         self.assertEqual(manifest.migrations[4].version, 40)
@@ -103,7 +114,7 @@ class MigrationPolicyTest(unittest.TestCase):
         for current_version, dirty, message in (
             (39, True, "dirty"),
             (34, False, "not described"),
-            (43, False, "newer than this deployment"),
+            (44, False, "newer than this deployment"),
         ):
             with self.subTest(current_version=current_version, dirty=dirty):
                 with self.assertRaisesRegex(MigrationPolicyError, message):

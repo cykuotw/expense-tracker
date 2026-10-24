@@ -38,7 +38,7 @@ func New(t *testing.T) Fixture {
 	require.NoError(t, err)
 	f.InsertExpense(t, f.Expense, "CAD", "Milk")
 	t.Cleanup(func() {
-		for _, statement := range []string{`DELETE FROM ocr_improvement_evidence WHERE account_id IN ($1,$2)`, `DELETE FROM ocr_improvement_consent WHERE account_id IN ($1,$2)`, `DELETE FROM expense WHERE create_by_user_id IN ($1,$2)`, `DELETE FROM groups WHERE create_by_user_id IN ($1,$2)`, `DELETE FROM user_feature_grant WHERE user_id IN ($1,$2)`, `DELETE FROM users WHERE id IN ($1,$2)`} {
+		for _, statement := range []string{`DELETE FROM expense WHERE create_by_user_id IN ($1,$2)`, `DELETE FROM groups WHERE create_by_user_id IN ($1,$2)`, `DELETE FROM user_feature_grant WHERE user_id IN ($1,$2)`, `DELETE FROM users WHERE id IN ($1,$2)`} {
 			_, err := db.Exec(statement, f.User, f.Other)
 			require.NoError(t, err)
 		}

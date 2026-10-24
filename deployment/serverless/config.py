@@ -275,7 +275,7 @@ class Config:
             "RECEIPT_STORAGE_ENABLED": str(self.backend.receipt_storage_enabled).lower(),
         }
 
-    def worker_environment(self, db_host: str, receipt_bucket: str = "", evidence_bucket: str = "") -> dict[str, dict[str, str]]:
+    def worker_environment(self, db_host: str, receipt_bucket: str = "") -> dict[str, dict[str, str]]:
         return {"Variables": {
             "MODE": "release", "API_URL": "/api/v0",
             "FRONTEND_ORIGIN": self.frontend_origin,
@@ -294,7 +294,6 @@ class Config:
             "REFRESH_JWT_EXP": str(self.backend.refresh_jwt_exp),
             "OCR_CAPABILITY_SECRET": self.backend.ocr_capability_secret,
             **self._receipt_environment(receipt_bucket),
-            "OCR_EVIDENCE_BUCKET": evidence_bucket,
             "EXPENSES_PER_PAGE": str(self.backend.expenses_per_page),
             "GOOGLE_OAUTH_ENABLED": "true",
             "GOOGLE_CLIENT_ID": self.backend.google_client_id,

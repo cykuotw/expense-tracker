@@ -69,11 +69,6 @@ func (h *Handler) handleDeleteExpense(c *gin.Context) {
 		return
 	}
 	cleanupPending := false
-	if h.evidenceCleanup != nil {
-		if err := h.evidenceCleanup(c.Request.Context(), expense.ID.String()); err != nil {
-			cleanupPending = true
-		}
-	}
 	for _, receipt := range receipts {
 		result, err := h.reconcileReceipt(c.Request.Context(), receipt.ID)
 		if err != nil || result.Status != "deleted" {

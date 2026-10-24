@@ -22,17 +22,6 @@ type Handler struct {
 	receiptSecret         []byte
 	receiptStorageEnabled bool
 	receiptView           func(context.Context, string) (string, error)
-	evidenceCleanup       func(context.Context, string) error
-	evidenceReconcile     func(context.Context, string) error
-}
-
-func WithEvidenceCleanup(cleanup func(context.Context, string) error, reconcile ...func(context.Context, string) error) func(*Handler) {
-	return func(h *Handler) {
-		h.evidenceCleanup = cleanup
-		if len(reconcile) > 0 {
-			h.evidenceReconcile = reconcile[0]
-		}
-	}
 }
 
 func NewHandler(store types.ExpenseStore, userStore types.UserStore, groupStore types.GroupStore, controller types.ExpenseController, options ...func(*Handler)) *Handler {

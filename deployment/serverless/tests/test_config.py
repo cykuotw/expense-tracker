@@ -25,7 +25,7 @@ class ConfigTest(unittest.TestCase):
         config = load(self.path, Path("/unrelated/repository"))
         config.require_gemini_key()
         self.assertEqual(config.ocr_environment("replay", "receipts")["Variables"]["GEMINI_API_KEY"], "test-private-gemini-key")
-        self.assertNotIn("GEMINI_API_KEY", config.worker_environment("db", "receipts", "evidence")["Variables"])
+        self.assertNotIn("GEMINI_API_KEY", config.worker_environment("db", "receipts")["Variables"])
         self.assertNotIn("test-private-gemini-key", json.dumps(config.terraform_variables(temporary_access=False)))
         self.assertNotIn("OCR_EVIDENCE_CAPTURE_ENABLED", config.ocr_environment("replay", "receipts")["Variables"])
 
@@ -34,12 +34,12 @@ class ConfigTest(unittest.TestCase):
         self.value["backend"]["ocr_evidence_capture_enabled"] = True
         self.write()
         config = load(self.path, Path("/unrelated/repository"))
-        worker = config.worker_environment("db", "receipts", "historical-evidence")["Variables"]
+        worker = config.worker_environment("db", "receipts")["Variables"]
         ocr = config.ocr_environment("replay", "receipts")["Variables"]
         self.assertNotIn("OCR_EVIDENCE_CAPTURE_ENABLED", worker)
         self.assertNotIn("OCR_EVIDENCE_CAPTURE_ENABLED", ocr)
         self.assertNotIn("OCR_EVIDENCE_BUCKET", ocr)
-        self.assertEqual(worker["OCR_EVIDENCE_BUCKET"], "historical-evidence")
+        self.assertNotIn("OCR_EVIDENCE_BUCKET", worker)
 
     def test_receipt_storage_setting_controls_worker_and_ocr_together(self) -> None:
         for enabled in (False, True):

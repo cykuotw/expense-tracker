@@ -19,7 +19,6 @@ import (
 	"expense-tracker/backend/services/monthlyreview"
 	"expense-tracker/backend/services/notification"
 	"expense-tracker/backend/services/ocr"
-	"expense-tracker/backend/services/ocrimprovement"
 	"expense-tracker/backend/services/user"
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
@@ -120,14 +119,6 @@ func registerRoutes(router *gin.Engine, db *sql.DB) {
 	expenseStore := expenseStore.NewStore(db)
 	expenseController := expense.NewController()
 	receiptOptions := []func(*expenseRoute.Handler){}
-	improvement := &ocrimprovement.Service{DB: db, Bucket: os.Getenv("OCR_EVIDENCE_BUCKET")}
-	if improvement.Bucket != "" {
-		awsCfg, err := awsconfig.LoadDefaultConfig(context.Background())
-		if err == nil {
-			improvement.Objects = s3.NewFromConfig(awsCfg)
-		}
-	}
-	receiptOptions = append(receiptOptions, expenseRoute.WithEvidenceCleanup(improvement.PurgeExpense, improvement.CleanupExpense))
 	if config.Envs.ReceiptBucket != "" {
 		awsCfg, err := awsconfig.LoadDefaultConfig(context.Background())
 		if err == nil {

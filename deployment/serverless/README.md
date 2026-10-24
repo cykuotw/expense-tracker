@@ -631,7 +631,8 @@ allowances.
   and OCR runtime projections; it defaults to `false` for existing configs.
 - Improvement collection is retired. The historical evidence bucket, schema and
   operator replay role remain for cleanup and offline investigation. New evidence
-  writes are denied; the Worker can only list/delete historical samples. Normal
+  writes are denied. Application cleanup hooks are retired; historical storage
+  and its IAM grants remain for a separately reviewed infrastructure retirement. Normal
   Gemini scanning and expense receipt photos do not collect improvement samples.
 
 - Post-cutover API verification allows up to 60 seconds for API Gateway, Lambda alias, and invoke-permission propagation. It retries transient `5xx` health responses and verifies the OCR draft preflight specifically permits `POST` plus `Content-Type`, `Authorization`, `X-OCR-Account-ID`, and `X-OCR-Request-ID`; the pre-update health gate deliberately defers this new contract until the Worker has been promoted.
@@ -776,28 +777,23 @@ are no longer part of the application. The obsolete
 `backend.ocr_evidence_capture_enabled` config key is accepted but ignored for
 compatibility with existing deployment files; remove it from your external config.
 Generated templates omit it, and neither runtime receives a capture flag. The OCR
-runtime receives no evidence bucket or write permission. `OCR_EVIDENCE_BUCKET`
-remains on the Worker solely for historical deletion. This does not change
-Google's processing or retention terms.
+runtime receives no evidence bucket or write permission. The Worker no longer
+receives `OCR_EVIDENCE_BUCKET` or queries the historical evidence tables. This
+does not change Google's processing or retention terms.
 
 Receipt-view URLs expire after 45 seconds and use `private, no-store`. A previously
 issued URL remains a bearer capability until it expires. Existing group members
 may view receipts in archived groups; restore the group before changing receipts.
 Soft deletion hides the photo and schedules object cleanup. Permanent expense
-purge must complete receipt and evidence cleanup before removing associations.
+purge must complete product receipt cleanup before removing associations.
 
-For historical samples only, the bounded operator tool supports these actions using the configured database
-and AWS credentials. Use `request-account-purge` once, then wait two minutes for
-issued OCR requests to finish and retry `purge-account` until deletion completes.
-`cleanup` processes at most ten pending accounts and ten affected expenses per
-invocation; rerun it for pending work. Failure preserves pending state.
-
-```bash
-go run ./backend/cmd/ocr-evidence -action request-account-purge -id <account-uuid>
-go run ./backend/cmd/ocr-evidence -action purge-account -id <account-uuid>
-go run ./backend/cmd/ocr-evidence -action purge-expense -id <expense-uuid>
-go run ./backend/cmd/ocr-evidence -action cleanup
-```
+The historical improvement tables and cleanup triggers are retained for one
+compatibility release. Remove them in a subsequent forward migration only after
+all deployed Workers no longer query them and both tables are confirmed empty.
+Do not edit applied migrations or use `DROP ... CASCADE`. If historical rows
+exist, stop and plan their retention/purge explicitly. Database cleanup actions
+have been removed from the offline replay command; historical S3 resources are
+not destroyed by this code update.
 
 Offline replay accepts a locally downloaded Gemini response or compressed
 historical evidence bundle. It needs no Gemini key, performs no provider call,

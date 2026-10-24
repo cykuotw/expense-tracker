@@ -91,9 +91,12 @@ Daily EventBridge -------------------------> Delivery Lambda (VPC)
   deletion retain retryable object/database cleanup state.
 - **Historical OCR evidence:** improvement collection and its public preference
   and confirmation APIs have been removed. Gemini scanning and retained product
-  receipts operate independently. Historical evidence schema and private storage
-  remain for bounded operator cleanup and offline replay; new evidence writes
-  are denied. The Worker retains deletion hooks for existing expense evidence.
+  receipts operate independently. Application and operator database cleanup hooks
+  have been removed. Historical schema remains until a later contract release,
+  after the compatible Worker is deployed and emptiness is rechecked. Existing
+  database triggers must be removed together with those tables. Private historical
+  storage/replay infrastructure is retained separately; new evidence writes are
+  denied. The replay command reads local files only and has no database access.
 - **Bootstrap Lambda:** performs explicit migration and bootstrap work before
   Worker releases that depend on it. Migrations are never a request-time
   responsibility.

@@ -191,6 +191,28 @@ PostgreSQL
 - `backend/types` contains shared contracts and models. Domain-only types
   should stay close to their owning domain unless sharing is genuinely needed.
 
+## Agent Runtime Boundary
+
+`agent/cmd/agent` is the shared Agent executable, currently exposing an explicit
+loopback-only synthetic HTTP/SSE fixture. It has no deployed route, database
+access, live model inference, or production authentication. The existing backend
+deployment remains the expense-data boundary.
+
+`agent/internal/runtime` discovers bundled `agent/skills/` at startup and assembles
+one ADK Chat orchestrator with Task leaf agents. The orchestrator receives leaf
+descriptions through ADK delegation tools; unfinished tasks can span user turns,
+and completed tasks return control through `finish_task`. Skills provide behavior
+and custom metadata for type, model preference, and requested tool names. Go code
+owns mode assignment, supported types, the read-only tool catalog, grant
+validation, and execution limits. Only bundled release assets are discovered;
+request data cannot create agents or grant tools. Typed FunctionTools use injected
+backend-client dependencies rather than access expense tables or calculate
+balances. Resource selectors remain subject to backend actor authorization on
+every call. The HTTP adapter projects visible output to minimal
+AG-UI events without exposing ADK state or model reasoning. Model, tool, skill,
+and session-service dependencies are replaceable. See the
+[Agent operator guide](agent/README.md) for the implemented contracts and limits.
+
 ## Frontend Browser Compatibility
 
 Browser behavior is part of the frontend quality boundary. For every frontend

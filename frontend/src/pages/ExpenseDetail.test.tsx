@@ -220,8 +220,10 @@ describe("ExpenseDetail", () => {
         ).toBeVisible();
         expect(screen.getByText("Jamie owes you")).toBeVisible();
         expect(screen.getByText("You owe Alex")).toBeVisible();
-        const itemsToggle = screen.getByRole("button", { name: "Itemized breakdown" });
+        const itemsToggle = screen.getByRole("button", { name: "Items" });
         expect(itemsToggle).toHaveAttribute("aria-expanded", "false");
+        expect(itemsToggle).toHaveAccessibleDescription("2 items · Subtotal 25.00 CAD");
+        expect(screen.getByText("2 items · Subtotal 25.00 CAD")).toBeVisible();
         expect(screen.queryByText("Sparkling water")).not.toBeInTheDocument();
         fireEvent.click(itemsToggle);
         expect(itemsToggle).toHaveAttribute("aria-expanded", "true");
@@ -230,13 +232,18 @@ describe("ExpenseDetail", () => {
         expect(screen.getAllByText("28.40 CAD")).toHaveLength(2);
 
         const receiptSection = screen.queryByRole("region", {
-            name: "Itemized breakdown",
+            name: "Items",
         });
         expect(receiptSection).toBeVisible();
         expect(screen.getByText("Sparkling water")).toBeVisible();
         const receiptItems = within(receiptSection!).getAllByRole("listitem");
         expect(receiptItems[0]).toHaveTextContent("Burger");
         expect(receiptItems[1]).toHaveTextContent("Sparkling water");
+        expect(receiptSection!.querySelector("ol")!.compareDocumentPosition(receiptSection!.querySelector("dl")!))
+            .toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+        fireEvent.click(itemsToggle);
+        expect(screen.queryByText("Sparkling water")).not.toBeInTheDocument();
+        expect(screen.getByText("2 items · Subtotal 25.00 CAD")).toBeVisible();
 
         const photoToggle = screen.getByRole("button", { name: "Receipt image" });
         expect(photoToggle).toHaveAttribute("aria-expanded", "false");
@@ -253,6 +260,23 @@ describe("ExpenseDetail", () => {
         expect(receiptLink).toHaveAttribute("rel", "noreferrer");
     });
 
+    it("summarizes a single item and retains legacy item values without a photo", async () => {
+        apiFetchMock.mockImplementation((path: string) => Promise.resolve(jsonResponse(
+            path === "/currencies" ? currencyMetadata : {
+                ...baseExpense,
+                items: [{ itemId: "one", itemName: "Coffee", itemSubTotal: "10.00" }],
+            }
+        )));
+        renderExpenseDetail();
+        const toggle = await screen.findByRole("button", { name: "Items" });
+        expect(toggle).toHaveAccessibleDescription("1 item · Subtotal 10.00 CAD");
+        expect(screen.queryByRole("button", { name: "Receipt photo" })).not.toBeInTheDocument();
+        fireEvent.click(toggle);
+        const items = screen.getByRole("region", { name: "Items" });
+        expect(within(items).getByRole("listitem")).toHaveTextContent("Coffee10.00 CAD");
+        expect(within(items).queryByText("Tax, fees & tip")).not.toBeInTheDocument();
+    });
+
     it("collapses the retained photo section and clears an open image when folded", async () => {
         apiFetchMock.mockImplementation((path: string) => Promise.resolve(jsonResponse(
             path === "/currencies" ? currencyMetadata :
@@ -262,6 +286,7 @@ describe("ExpenseDetail", () => {
         renderExpenseDetail();
         const toggle = await screen.findByRole("button", { name: "Receipt photo" });
         expect(toggle).toHaveAttribute("aria-expanded", "false");
+        expect(toggle).toHaveAccessibleDescription("Photo saved · Open to view");
         expect(screen.queryByRole("button", { name: "View receipt" })).not.toBeInTheDocument();
         fireEvent.click(toggle);
         expect(toggle).toHaveAttribute("aria-expanded", "true");

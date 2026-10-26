@@ -1,4 +1,4 @@
-import { useId, useState } from "react";
+import { useId, useState, type ReactNode } from "react";
 import { ExpenseSectionToggle } from "@/components/expense/ExpenseSectionToggle";
 import ReceiptViewer from "@/components/receipt/ReceiptViewer";
 import { Link } from "react-router-dom";
@@ -210,34 +210,23 @@ const ExpenseDetailContent = () => {
                         amountDigits={amountDigits}
                     />
 
-                    <div
-                        className={`grid gap-4 md:gap-6 ${
-                            expenseDetail.invoiceUrl
-                                ? "lg:grid-cols-[minmax(0,1.35fr)_minmax(18rem,0.65fr)] lg:items-start"
-                                : "lg:max-w-3xl"
-                        }`}
-                    >
-                        <div className="flex min-w-0 flex-col gap-4 md:gap-6">
-                            <PaymentDetails
-                                expenseDetail={expenseDetail}
-                                amountDigits={amountDigits}
-                            />
-                            {expenseDetail.items.length > 0 ? <ReceiptDetails key={expenseId}
-                                expenseDetail={expenseDetail}
-                                amountDigits={amountDigits}
-                            /> : null}
-                        </div>
-
+                    <div className="flex min-w-0 flex-col gap-4 md:gap-6 lg:max-w-3xl">
+                        <PaymentDetails
+                            expenseDetail={expenseDetail}
+                            amountDigits={amountDigits}
+                        />
+                        {expenseDetail.items.length > 0 ? <ReceiptDetails key={expenseId}
+                            expenseDetail={expenseDetail}
+                            amountDigits={amountDigits}
+                        /> : null}
                         {expenseDetail.invoiceUrl ? (
-                            <aside className="min-w-0">
-                                <ReceiptImage key={expenseId}
-                                    invoiceUrl={expenseDetail.invoiceUrl}
-                                />
-                            </aside>
+                            <ReceiptImage key={expenseId}
+                                invoiceUrl={expenseDetail.invoiceUrl}
+                            />
                         ) : null}
+                        {expenseDetail.receipt?.status === "finalized" ? <ReceiptPhotoSection key={expenseId} expenseId={expenseId} /> : null}
                     </div>
 
-                    {expenseDetail.receipt?.status === "finalized" ? <ReceiptPhotoSection key={expenseId} expenseId={expenseId} /> : null}
                     {expenseDetail.groupIsActive === false ? null : <DangerZone />}
                 </div>
             </div>
@@ -481,6 +470,45 @@ function PaymentDetails({
     );
 }
 
+function ExpenseDetailSection({ title, summary, children }: {
+    title: string;
+    summary: ReactNode;
+    children: ReactNode;
+}) {
+    const [expanded, setExpanded] = useState(false);
+    const panelId = useId();
+    const titleId = useId();
+
+    return (
+        <section aria-labelledby={titleId}>
+            <Card className="panel-card rounded-[2rem]">
+                <CardHeader>
+                    <CardTitle>
+                        <h2 id={titleId} aria-label={title}>
+                            <ExpenseSectionToggle
+                                expanded={expanded}
+                                controls={panelId}
+                                onToggle={() => setExpanded(open => !open)}
+                                summary={summary}
+                            >
+                                {title}
+                            </ExpenseSectionToggle>
+                        </h2>
+                    </CardTitle>
+                </CardHeader>
+                <div id={panelId} hidden={!expanded}>
+                    {expanded ? (
+                        <CardContent className="flex flex-col gap-5">
+                            <Separator />
+                            {children}
+                        </CardContent>
+                    ) : null}
+                </div>
+            </Card>
+        </section>
+    );
+}
+
 function ReceiptDetails({
     expenseDetail,
     amountDigits,
@@ -488,8 +516,6 @@ function ReceiptDetails({
     expenseDetail: ExpenseDetailData;
     amountDigits: number | null;
 }) {
-    const [expanded, setExpanded] = useState(false);
-    const panelId = useId();
     const items = orderedItems(expenseDetail.items);
     const subtotal = formatExpenseMoney(
         expenseDetail.subTotal,
@@ -504,97 +530,68 @@ function ReceiptDetails({
     const hasTaxFeeTip = Number(expenseDetail.taxFeeTip) !== 0;
 
     return (
-        <section aria-labelledby="receipt-details-title">
-            <Card className="panel-card rounded-[2rem]">
-                <CardHeader>
-                    <div className="section-label">Receipt details</div>
-                    <CardTitle>
-                        <h2 id="receipt-details-title">
-                            <ExpenseSectionToggle expanded={expanded} controls={panelId} onToggle={() => setExpanded(open => !open)}>
-                                Itemized breakdown
-                            </ExpenseSectionToggle>
-                        </h2>
-                    </CardTitle>
-                    <CardDescription>
-                        Saved receipt totals and item information.
-                    </CardDescription>
-                </CardHeader>
-                <div id={panelId} hidden={!expanded}>
-                {expanded ? <CardContent className="flex flex-col gap-5">
-                    <dl className="flex flex-col gap-3">
-                        {subtotal ? (
-                            <MoneyRow label="Subtotal" value={subtotal} />
-                        ) : null}
-                        {hasTaxFeeTip && taxFeeTip ? (
-                            <MoneyRow label="Tax & tip" value={taxFeeTip} />
-                        ) : null}
-                        <Separator />
-                        <MoneyRow
-                            label="Total"
-                            value={
-                                formatExpenseMoney(
-                                    expenseDetail.total,
-                                    expenseDetail.currency,
-                                    amountDigits
-                                ) ?? expenseDetail.total
-                            }
-                            emphasized
-                        />
-                    </dl>
+        <ExpenseDetailSection
+            title="Items"
+            summary={`${items.length} ${items.length === 1 ? "item" : "items"}${subtotal ? ` · Subtotal ${subtotal}` : ""}`}
+        >
+            {items.length > 0 ? (
+                <ol className="expense-detail-items flex flex-col">
+                    {items.map((item) => {
+                        const supportingDetails =
+                            itemSupportingDetails(
+                                item,
+                                expenseDetail.currency,
+                                amountDigits
+                            );
+                        const itemTotal = formatExpenseMoney(
+                            item.lineTotal || item.itemSubTotal,
+                            expenseDetail.currency,
+                            amountDigits
+                        );
 
-                    <Separator />
-
-                    {items.length > 0 ? (
-                        <ol className="flex flex-col gap-2">
-                            {items.map((item) => {
-                                const supportingDetails =
-                                    itemSupportingDetails(
-                                        item,
-                                        expenseDetail.currency,
-                                        amountDigits
-                                    );
-                                const itemTotal = formatExpenseMoney(
-                                    item.lineTotal || item.itemSubTotal,
-                                    expenseDetail.currency,
-                                    amountDigits
-                                );
-
-                                return (
-                                    <li
-                                        className="metric-card flex min-h-16 items-start justify-between gap-3 rounded-2xl p-4"
-                                        key={item.itemId}
-                                    >
-                                        <span className="min-w-0">
-                                            <span className="block font-semibold">
-                                                {item.description ||
-                                                    item.itemName}
-                                            </span>
-                                            {supportingDetails.length > 0 ? (
-                                                <span className="mt-1 block text-sm text-muted-foreground">
-                                                    {supportingDetails.join(
-                                                        " · "
-                                                    )}
-                                                </span>
-                                            ) : null}
+                        return (
+                            <li
+                                className="flex min-w-0 items-start justify-between gap-3 py-3 first:pt-0 last:pb-0"
+                                key={item.itemId}
+                            >
+                                <span className="min-w-0">
+                                    <span className="block break-words font-medium">
+                                        {item.description ||
+                                            item.itemName}
+                                    </span>
+                                    {supportingDetails.length > 0 ? (
+                                        <span className="mt-1 block text-sm text-muted-foreground">
+                                            {supportingDetails.join(
+                                                " · "
+                                            )}
                                         </span>
-                                        {itemTotal ? (
-                                            <span className="shrink-0 font-semibold tabular-nums">
-                                                {itemTotal}
-                                            </span>
-                                        ) : null}
-                                    </li>
-                                );
-                            })}
-                        </ol>
-                    ) : (
-                        <div className="metric-card rounded-2xl p-4 text-sm text-muted-foreground">
-                            No itemized receipt details were saved.
-                        </div>
-                    )}
-                </CardContent> : null}
+                                    ) : null}
+                                </span>
+                                {itemTotal ? (
+                                    <span className="shrink-0 font-semibold tabular-nums">
+                                        {itemTotal}
+                                    </span>
+                                ) : null}
+                            </li>
+                        );
+                    })}
+                </ol>
+            ) : (
+                <div className="metric-card rounded-2xl p-4 text-sm text-muted-foreground">
+                    No itemized receipt details were saved.
                 </div>
-            </Card>
-        </section>
+            )}
+            <Separator />
+            <dl className="flex flex-col gap-3">
+                {subtotal ? <MoneyRow label="Subtotal" value={subtotal} /> : null}
+                {hasTaxFeeTip && taxFeeTip ? <MoneyRow label="Tax, fees & tip" value={taxFeeTip} /> : null}
+                <MoneyRow
+                    label="Total"
+                    value={formatExpenseMoney(expenseDetail.total, expenseDetail.currency, amountDigits) ?? expenseDetail.total}
+                    emphasized
+                />
+            </dl>
+        </ExpenseDetailSection>
     );
 }
 
@@ -632,65 +629,37 @@ function MoneyRow({
 }
 
 function ReceiptImage({ invoiceUrl }: { invoiceUrl: string }) {
-    const [expanded, setExpanded] = useState(false);
-    const panelId = useId();
     return (
-        <section aria-labelledby="receipt-image-title">
-            <Card className="panel-card rounded-[2rem]">
-                <CardHeader>
-                    <div className="section-label">Receipt</div>
-                    <CardTitle>
-                        <h2 id="receipt-image-title">
-                            <ExpenseSectionToggle expanded={expanded} controls={panelId} onToggle={() => setExpanded(open => !open)}>
-                                Receipt image
-                            </ExpenseSectionToggle>
-                        </h2>
-                    </CardTitle>
-                    <CardDescription>
-                        Open the saved image in a new browser tab.
-                    </CardDescription>
-                </CardHeader>
-                <div id={panelId} hidden={!expanded}>
-                {expanded ? <CardContent>
-                    <Button
-                        asChild
-                        variant="outline"
-                        size="lg"
-                        className="min-h-11 w-full"
-                    >
-                        <a
-                            href={invoiceUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                        >
-                            <Icon
-                                path={mdiOpenInNew}
-                                size={0.8}
-                                data-icon="inline-start"
-                                aria-hidden="true"
-                            />
-                            View receipt image
-                        </a>
-                    </Button>
-                </CardContent> : null}
-                </div>
-            </Card>
-        </section>
+        <ExpenseDetailSection title="Receipt image" summary="Saved link · Opens in a new tab">
+            <Button
+                asChild
+                variant="outline"
+                size="lg"
+                className="min-h-11 w-full"
+            >
+                <a
+                    href={invoiceUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                >
+                    <Icon
+                        path={mdiOpenInNew}
+                        size={0.8}
+                        data-icon="inline-start"
+                        aria-hidden="true"
+                    />
+                    View receipt image
+                </a>
+            </Button>
+        </ExpenseDetailSection>
     );
 }
 
 function ReceiptPhotoSection({ expenseId }: { expenseId: string }) {
-    const [expanded, setExpanded] = useState(false);
-    const panelId = useId();
     return (
-        <section className="rounded-2xl border border-border p-4" aria-label="Receipt photo">
-            <h2 className="font-semibold">
-                <ExpenseSectionToggle expanded={expanded} controls={panelId} onToggle={() => setExpanded(open => !open)}>
-                    Receipt photo
-                </ExpenseSectionToggle>
-            </h2>
-            <div id={panelId} hidden={!expanded} className="mt-3">{expanded ? <ReceiptViewer expenseId={expenseId} /> : null}</div>
-        </section>
+        <ExpenseDetailSection title="Receipt photo" summary="Photo saved · Open to view">
+            <ReceiptViewer expenseId={expenseId} />
+        </ExpenseDetailSection>
     );
 }
 

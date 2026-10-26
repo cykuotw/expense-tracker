@@ -530,6 +530,14 @@ textarea {
     letter-spacing: -0.025em;
 }
 
+.expense-detail-page .expense-detail-items {
+    gap: 0;
+}
+
+.expense-detail-items > li + li {
+    border-top: 1px solid var(--border);
+}
+
 @media (max-width: 767px) {
     .expense-detail-page {
         min-height: calc(100dvh - 6rem - env(safe-area-inset-bottom));
@@ -607,21 +615,6 @@ textarea {
 
     .expense-detail-page li > span:first-child {
         overflow-wrap: anywhere;
-    }
-
-    .expense-detail-page [aria-labelledby="receipt-image-title"] [data-slot="card-header"] {
-        display: none;
-    }
-
-    .expense-detail-page aside [data-slot="card"] {
-        padding: 0;
-        background: transparent;
-        border: 0;
-        box-shadow: none;
-    }
-
-    .expense-detail-page aside [data-slot="card-content"] {
-        padding: 0;
     }
 }
 

@@ -1075,7 +1075,8 @@ textarea {
         margin-bottom: 1rem;
     }
 
-    .receipt-workspace-page .page-shell {
+    .receipt-workspace-page .page-shell,
+    .receipt-review-page {
         padding-bottom: calc(8rem + env(safe-area-inset-bottom));
     }
 

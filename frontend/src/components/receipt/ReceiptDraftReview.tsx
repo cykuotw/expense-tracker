@@ -2,7 +2,7 @@ import { useEffect, useId, useMemo, useState } from "react";
 import { useReturnNavigation } from "../../hooks/navigation";
 import { useNavigate } from "react-router-dom";
 import Icon from "@mdi/react";
-import { mdiArrowLeft, mdiCameraRetakeOutline, mdiCheck } from "@mdi/js";
+import { mdiArrowLeft, mdiCameraRetakeOutline, mdiCheck, mdiChevronDown } from "@mdi/js";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -15,7 +15,8 @@ import { useCreateExpense } from "@/hooks/CreateExpenseContextHooks";
 import { editableOCRDraft } from "@/lib/receiptOcr";
 import { validateReceiptExpense } from "@/lib/receiptDraft";
 import { isDateOnly } from "@/lib/dateOnly";
-import { moneyInputStep } from "@/lib/money";
+import { formatMoney, moneyInputStep } from "@/lib/money";
+import { Separator } from "@/components/ui/separator";
 import ReceiptScanUsage from "./ReceiptScanUsage";
 import type { EditableOCRDraft, EditableOCRField, ReviewedReceiptDraft } from "@/types/ocr";
 
@@ -185,9 +186,14 @@ export default function ReceiptDraftReview({ photoURL, onEditPhoto }: ReceiptDra
     const updateSummary = (key: keyof Pick<EditableOCRDraft, "merchant" | "date" | "currencySuggestion" | "subtotal" | "tax" | "tip" | "total">, field: EditableOCRField) => {
         setDraft((current) => current ? { ...current, [key]: field } : current);
     };
-    const itemReviewNotices = Object.fromEntries(draft.items
-        .filter((item) => item.quantity.provenance === "inferred" && item.quantity.requiresReview && !item.quantity.edited)
-        .map((item) => [item.id, "Check inferred quantity"]));
+    const itemReviewNotices = Object.fromEntries(draft.items.flatMap((item) => {
+        const checks = ([
+            ["description", item.description], ["quantity", item.quantity],
+            ["unit", item.unit], ["unit price", item.unitPrice], ["line total", item.lineTotal],
+        ] as const).filter(([, field]) => field.requiresReview && !field.edited)
+            .map(([label, field]) => `${field.provenance === "inferred" ? "inferred " : ""}${label}`);
+        return checks.length ? [[item.id, `Check ${checks.join(", ")}`]] : [];
+    }));
     const confirmedItems = draft.items.map((item) => ({
         id: item.id,
         description: item.description.value,
@@ -198,7 +204,7 @@ export default function ReceiptDraftReview({ photoURL, onEditPhoto }: ReceiptDra
     }));
 
     const dateIsInferred = draft.date.provenance === "inferred" && !draft.date.edited;
-    const breakdownNeedsReview = [draft.subtotal, draft.tax, draft.tip, ...draft.items.flatMap((item) => [item.description, item.quantity, item.unitPrice, item.lineTotal])]
+    const breakdownNeedsReview = [draft.subtotal, draft.tax, draft.tip, ...draft.items.flatMap((item) => [item.description, item.quantity, item.unit, item.unitPrice, item.lineTotal])]
         .some((field) => field.requiresReview && !field.edited);
 
     return (
@@ -215,14 +221,14 @@ export default function ReceiptDraftReview({ photoURL, onEditPhoto }: ReceiptDra
 
                 <div className="grid gap-4">
                     {photoURL ? (
-                        <div className="flex items-center gap-3 rounded-2xl border border-border bg-card p-3">
+                        <section aria-label="Scanned receipt photo" className="panel-card grid grid-cols-[4rem_minmax(0,1fr)] items-center gap-3 rounded-2xl p-4 sm:grid-cols-[4rem_minmax(0,1fr)_auto] sm:p-6">
                             <img className="h-20 w-16 shrink-0 rounded-lg border border-border object-contain" src={photoURL} alt="Prepared receipt sent for scanning" />
                             <div className="min-w-0 flex-1">
-                                <p className="text-sm font-medium">Your scanned photo</p>
-                                <p className="text-xs text-muted-foreground">Cropped and masked version</p>
+                                <h2 className="text-base font-medium">Receipt photo</h2>
+                                <p className="mt-1 text-sm text-muted-foreground">Scanned preview · Not saved yet</p>
                             </div>
-                            {onEditPhoto ? <Button type="button" variant="outline" className="min-h-11 shrink-0" onClick={onEditPhoto}>Edit photo</Button> : null}
-                        </div>
+                            {onEditPhoto ? <Button type="button" variant="outline" className="col-span-2 min-h-11 sm:col-span-1" onClick={onEditPhoto}>Edit photo</Button> : null}
+                        </section>
                     ) : null}
                     <section className="panel-card rounded-2xl p-4 sm:p-6" aria-labelledby="summary-title">
                         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -258,27 +264,16 @@ export default function ReceiptDraftReview({ photoURL, onEditPhoto }: ReceiptDra
                         ) : null}
                     </section>
 
-                    <details className="panel-card rounded-2xl p-4 sm:p-6" open={detailsOpen} onToggle={(event) => setDetailsOpen(event.currentTarget.open)}>
+                    <details className="panel-card group/breakdown min-w-0 rounded-2xl p-4 sm:p-6" open={detailsOpen} onToggle={(event) => setDetailsOpen(event.currentTarget.open)}>
                         <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
                             <span className="min-w-0">
-                                <span className="block text-lg font-semibold">Breakdown</span>
-                                <span className="block text-sm text-muted-foreground">{draft.items.length} item{draft.items.length === 1 ? "" : "s"} · subtotal, tax &amp; tip</span>
+                                <span className="block text-base font-medium">Breakdown</span>
+                                <span className="mt-1 block text-sm text-muted-foreground">{draft.items.length} item{draft.items.length === 1 ? "" : "s"}{reviewValidation?.subTotal ? ` · Subtotal ${amountDigits === null ? `${reviewValidation.subTotal} ${currency}` : formatMoney(reviewValidation.subTotal, amountDigits, currency)}` : " · Check subtotal, tax & tip"}</span>
+                                {breakdownNeedsReview || reviewValidation?.message ? <Badge variant="secondary" className="mt-2">Check details</Badge> : null}
                             </span>
-                            <span className="flex shrink-0 items-center gap-2">
-                                {breakdownNeedsReview || reviewValidation?.message ? <Badge variant="secondary">Check details</Badge> : null}
-                                <span aria-hidden="true">{detailsOpen ? "−" : "+"}</span>
-                            </span>
+                            <Icon path={mdiChevronDown} size={0.85} aria-hidden="true" className="shrink-0 group-open/breakdown:rotate-180" />
                         </summary>
                         <div className="mt-4 grid gap-4">
-                            <section aria-labelledby="amounts-title">
-                                <h3 id="amounts-title" className="text-sm font-semibold">Amounts</h3>
-                                <FieldGroup className="mt-3 grid grid-cols-2 items-start gap-4">
-                                    <ReviewField label="Subtotal (optional)" description="Leave blank to use total minus tax and tip." field={draft.subtotal} type="number" step={amountDigits === null ? undefined : moneyInputStep(amountDigits)} onChange={(field) => updateSummary("subtotal", field)} />
-                                    <ReviewField label="Tax" field={draft.tax} type="number" step={amountDigits === null ? undefined : moneyInputStep(amountDigits)} onChange={(field) => updateSummary("tax", field)} />
-                                    <ReviewField label="Tip" field={draft.tip} type="number" step={amountDigits === null ? undefined : moneyInputStep(amountDigits)} onChange={(field) => updateSummary("tip", field)} />
-                                </FieldGroup>
-                                {reviewValidation?.message && reviewValidation.section !== "items" ? <FieldError className="mt-4">{reviewValidation.message}</FieldError> : null}
-                            </section>
                             <ConfirmedReceiptDetails
                                 merchant={draft.merchant.value}
                                 onMerchantChange={(value) => updateSummary("merchant", { ...draft.merchant, value, edited: true })}
@@ -308,7 +303,18 @@ export default function ReceiptDraftReview({ photoURL, onEditPhoto }: ReceiptDra
                                 } : current)}
                                 amountStep={amountDigits === null ? undefined : moneyInputStep(amountDigits)}
                                 showSummaryFields={false}
+                                embedded currency={currency} amountDigits={amountDigits}
                             />
+                            <Separator />
+                            <section aria-labelledby="amounts-title">
+                                <h3 id="amounts-title" className="text-sm font-semibold">Amounts</h3>
+                                <FieldGroup className="mt-3 grid grid-cols-2 items-start gap-4">
+                                    <ReviewField label="Subtotal (optional)" description="Leave blank to use total minus tax and tip." field={draft.subtotal} type="number" step={amountDigits === null ? undefined : moneyInputStep(amountDigits)} onChange={(field) => updateSummary("subtotal", field)} />
+                                    <ReviewField label="Tax" field={draft.tax} type="number" step={amountDigits === null ? undefined : moneyInputStep(amountDigits)} onChange={(field) => updateSummary("tax", field)} />
+                                    <ReviewField label="Tip" field={draft.tip} type="number" step={amountDigits === null ? undefined : moneyInputStep(amountDigits)} onChange={(field) => updateSummary("tip", field)} />
+                                </FieldGroup>
+                                {reviewValidation?.message && reviewValidation.section !== "items" ? <FieldError className="mt-4">{reviewValidation.message}</FieldError> : null}
+                            </section>
                         </div>
                     </details>
                     {ocrUsage ? <ReceiptScanUsage usage={ocrUsage} /> : null}

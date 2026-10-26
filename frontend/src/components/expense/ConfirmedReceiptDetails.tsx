@@ -8,6 +8,8 @@ import { Field, FieldGroup, FieldLabel, FieldDescription } from "@/components/ui
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
+import { formatMoney } from "@/lib/money";
 import type { ConfirmedExpenseItem } from "@/types/ocr";
 
 interface ConfirmedReceiptDetailsProps {
@@ -27,6 +29,9 @@ interface ConfirmedReceiptDetailsProps {
     showSummaryFields?: boolean;
     compactItems?: boolean;
     collapseItems?: boolean;
+    embedded?: boolean;
+    currency?: string;
+    amountDigits?: number | null;
 }
 
 const newItem = (): ConfirmedExpenseItem => ({
@@ -78,10 +83,15 @@ export function ConfirmedReceiptDetails({
     showSummaryFields = true,
     compactItems = false,
     collapseItems = false,
+    embedded = false,
+    currency,
+    amountDigits,
 }: ConfirmedReceiptDetailsProps) {
     const [itemsExpanded, setItemsExpanded] = useState(false);
     const itemsPanelId = useId();
-    const itemsVisible = !collapseItems || !showSummaryFields || itemsExpanded;
+    const itemsVisible = !collapseItems || !showSummaryFields || itemsExpanded || Boolean(validationMessage);
+    const titleId = useId();
+    const itemSummary = `${items.length} ${items.length === 1 ? "item" : "items"}${subtotal.trim() ? ` · Subtotal ${currency && amountDigits != null ? formatMoney(subtotal, amountDigits, currency) : [subtotal, currency].filter(Boolean).join(" ")}` : " · Subtotal calculated from total"}`;
     const [openItemId, setOpenItemId] = useState<string | null>(null);
     const addItem = () => {
         const item = newItem();
@@ -100,9 +110,12 @@ export function ConfirmedReceiptDetails({
     };
 
     return (
-        <section className={cn("receipt-details rounded-2xl p-4 sm:p-6", showSummaryFields ? "mt-5 border border-border bg-muted/20" : "panel-card")} aria-labelledby="receipt-details-title">
+        <section className={cn("receipt-details min-w-0", !embedded && "panel-card rounded-2xl p-4 sm:p-6", showSummaryFields && "mt-5")} aria-labelledby={titleId}>
             <div className="flex flex-wrap items-center justify-between gap-3">
-                <h2 id="receipt-details-title" className="text-lg font-semibold">{showSummaryFields ? "Receipt details" : <>Items <span className="text-sm font-normal text-muted-foreground">({items.length})</span></>}</h2>
+                <div className="min-w-0">
+                    <h2 id={titleId} className="text-base font-medium">{showSummaryFields ? "Receipt details" : "Items"}</h2>
+                    {!embedded ? <p className="mt-1 text-sm text-muted-foreground">{showSummaryFields ? "Merchant and receipt amounts" : itemSummary}</p> : null}
+                </div>
                 {!showSummaryFields ? <Button type="button" variant="outline" className="min-h-11" onClick={addItem}>
                     <Icon path={mdiPlus} size={0.8} data-icon="inline-start" aria-hidden="true" />Add item
                 </Button> : null}
@@ -125,10 +138,10 @@ export function ConfirmedReceiptDetails({
             </FieldGroup> : null}
 
             {showSummaryFields ? <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-                <h3 className="flex-1 text-sm font-semibold">
+                <h3 className="min-w-0 flex-1 text-base font-medium">
                     {collapseItems ? (
-                        <ExpenseSectionToggle expanded={itemsVisible} controls={itemsPanelId} onToggle={() => setItemsExpanded(open => !open)}>
-                            Items ({items.length})
+                        <ExpenseSectionToggle expanded={itemsVisible} controls={itemsPanelId} onToggle={() => setItemsExpanded(open => !open)} summary={itemSummary}>
+                            Items
                         </ExpenseSectionToggle>
                     ) : <>Items <span className="font-normal text-muted-foreground">({items.length})</span></>}
                 </h3>
@@ -140,7 +153,7 @@ export function ConfirmedReceiptDetails({
             <div id={itemsPanelId} hidden={!itemsVisible}>
             {itemsVisible ? <div className="mt-4 grid gap-4">
                 {items.map((item, index) => {
-                    const isOpen = !compactItems || openItemId === item.id;
+                    const isOpen = !compactItems || openItemId === item.id || Boolean(validationMessage);
                     return <fieldset key={item.id} className={cn("min-w-0 rounded-xl border border-border", compactItems ? "p-2 sm:p-3" : "p-3 sm:p-4")}>
                         <legend className={cn("px-1 text-sm font-semibold", compactItems && "sr-only")}>Item {index + 1}</legend>
                         {compactItems ? <button
@@ -151,10 +164,11 @@ export function ConfirmedReceiptDetails({
                             onClick={() => setOpenItemId(isOpen ? null : item.id)}
                         >
                             <span className="w-5 shrink-0 text-xs text-muted-foreground">{index + 1}</span>
-                            <span className="min-w-0 flex-1 truncate text-sm font-medium">{item.description.trim() || "Add description"}</span>
-                            <span className="max-w-28 shrink-0 truncate text-right text-sm tabular-nums text-muted-foreground">{item.lineTotal.trim() || "Add total"}</span>
+                            <span className="min-w-0 flex-1 break-words text-sm font-medium">{item.description.trim() || "Add description"}</span>
+                            <span className="max-w-28 shrink-0 break-words text-right text-sm font-semibold tabular-nums">{item.lineTotal.trim() || "Add total"}</span>
                             <Icon path={mdiChevronDown} size={0.75} className={cn("shrink-0 transition-transform", isOpen && "rotate-180")} aria-hidden="true" />
                         </button> : null}
+                        {itemReviewNotices?.[item.id] ? <Badge variant="secondary" className="mx-2 mt-1 h-auto whitespace-normal">{itemReviewNotices[item.id]}</Badge> : null}
                         {isOpen ? <div className={cn(compactItems && "px-2 pb-1 pt-3")}>
                             <FieldGroup className="grid grid-cols-[minmax(0,1fr)_6.5rem] items-start gap-3 sm:grid-cols-[minmax(0,1fr)_10rem]">
                                 <ItemField label="Description" value={item.description} onChange={(value) => updateItem(item.id, "description", value)} maxLength={256} />
@@ -164,7 +178,6 @@ export function ConfirmedReceiptDetails({
                                 <summary className="flex min-h-11 cursor-pointer list-none flex-wrap items-center justify-between gap-2 rounded-lg text-sm text-muted-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
                                     <span className="flex flex-wrap items-center gap-2">
                                         Quantity, unit &amp; price
-                                        {itemReviewNotices?.[item.id] ? <span className="text-xs font-medium text-foreground">{itemReviewNotices[item.id]}</span> : null}
                                     </span>
                                     <span className="group-open:hidden" aria-hidden="true">+</span>
                                     <span className="hidden group-open:inline" aria-hidden="true">−</span>

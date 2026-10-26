@@ -12,9 +12,10 @@ const initialItems: ConfirmedExpenseItem[] = [
 
 function Harness({ collapseItems = false, validationMessage }: { collapseItems?: boolean; validationMessage?: string }) {
     const [items, setItems] = useState(initialItems);
+    const [subtotal, setSubtotal] = useState("9.00");
     return <ConfirmedReceiptDetails
         merchant="Cafe" onMerchantChange={() => {}}
-        subtotal="9.00" onSubtotalChange={() => {}}
+        subtotal={subtotal} onSubtotalChange={setSubtotal} currency="CAD" amountDigits={2}
         tax="" onTaxChange={() => {}}
         tip="" onTipChange={() => {}}
         items={items} onItemsChange={setItems} compactItems collapseItems={collapseItems} validationMessage={validationMessage}
@@ -51,7 +52,7 @@ describe("Create Expense receipt items", () => {
 
     it("folds edit items while retaining summary fields and unsaved item changes", () => {
         render(<Harness collapseItems />);
-        const toggle = screen.getByRole("button", { name: "Items (2)" });
+        const toggle = screen.getByRole("button", { name: "Items" });
         expect(toggle).toHaveAttribute("aria-expanded", "false");
         expect(screen.getByLabelText("Merchant")).toHaveValue("Cafe");
         expect(screen.getByLabelText("Subtotal (optional)")).toBeVisible();
@@ -67,10 +68,25 @@ describe("Create Expense receipt items", () => {
         expect(screen.getByRole("button", { name: "Add item" })).toBeVisible();
     });
 
-    it("keeps item validation visible while the list is collapsed", () => {
+    it("opens invalid item controls and keeps validation visible", () => {
         render(<Harness collapseItems validationMessage="Item totals must equal subtotal." />);
-        expect(screen.getByRole("button", { name: "Items (2)" })).toHaveAttribute("aria-expanded", "false");
+        expect(screen.getByRole("button", { name: "Items" })).toHaveAttribute("aria-expanded", "true");
+        expect(screen.getAllByLabelText("Description")).toHaveLength(2);
         expect(screen.getByRole("alert")).toHaveTextContent("Item totals must equal subtotal.");
+    });
+
+    it("updates the collapsed summary as amounts and item count change", () => {
+        render(<Harness collapseItems />);
+        const toggle = screen.getByRole("button", { name: "Items" });
+        expect(toggle).toHaveAccessibleDescription("2 items · Subtotal 9.00 CAD");
+        fireEvent.change(screen.getByLabelText("Subtotal (optional)"), { target: { value: "4.00" } });
+        expect(toggle).toHaveAccessibleDescription("2 items · Subtotal 4.00 CAD");
+        fireEvent.click(toggle);
+        fireEvent.click(screen.getByRole("button", { name: "Item 1: Coffee, 5.00" }));
+        fireEvent.click(screen.getByRole("button", { name: "Remove item 1" }));
+        const updatedToggle = screen.getByRole("button", { name: "Items" });
+        fireEvent.click(updatedToggle);
+        expect(updatedToggle).toHaveAccessibleDescription("1 item · Subtotal 4.00 CAD");
     });
 
 });

@@ -148,8 +148,11 @@ describe("ReceiptDraftReview", () => {
     it("starts with the breakdown collapsed and opens item controls on demand", () => {
         renderReview(false);
         expect(screen.getByText("Breakdown").closest("details")).not.toHaveAttribute("open");
+        expect(screen.getByText("2 items · Subtotal 10.00 CAD")).toBeVisible();
+        expect(screen.getByText("Check details")).toBeVisible();
         fireEvent.click(screen.getByText("Breakdown").closest("summary")!);
         expect(screen.getByRole("group", { name: "Item 1" })).toBeInTheDocument();
+        expect(screen.getByRole("region", { name: "Items" }).querySelector(".panel-card")).toBeNull();
     });
 
     it("collapses secondary item fields behind a native disclosure", () => {
@@ -185,6 +188,18 @@ describe("ReceiptDraftReview", () => {
         fireEvent.change(screen.getByLabelText(/^Total/), { target: { value: "11.00" } });
         expect(within(amounts).getByRole("alert")).toHaveTextContent("Subtotal, tax, and tip must add up to the total");
         expect(within(items).queryByRole("alert")).not.toBeInTheDocument();
+    });
+
+    it("keeps flagged item descriptions visible as review cues until edited", () => {
+        useCreateExpenseMock.mockReturnValue({ ...useCreateExpenseMock(), ocrDraft: {
+            ...draft,
+            items: [{ ...draft.items[0], description: provider("Coffee", true), quantity: provider("1") }, draft.items[1]],
+        } });
+        renderReview();
+        const item = screen.getByRole("group", { name: "Item 1" });
+        expect(within(item).getByText("Check description")).toBeVisible();
+        fireEvent.change(within(item).getByLabelText("Description"), { target: { value: "Latte" } });
+        expect(within(item).queryByText("Check description")).not.toBeInTheDocument();
     });
 
     it("keeps secondary edits through collapse and reorder, and blocks invalid hidden values", () => {

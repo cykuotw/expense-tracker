@@ -185,6 +185,7 @@ const EditExpenseContent = () => {
                             total={formData.total} currency={formData.currency} amountDigits={amountDigits} />
 
                         {formData.receiptDetails ? <ConfirmedReceiptDetails key={expenseId} collapseItems
+                            compactItems currency={formData.currency} amountDigits={amountDigits}
                             {...formData.receiptDetails}
                             onMerchantChange={merchant => setFormData(current => ({ ...current, receiptDetails: { ...current.receiptDetails!, merchant } }))}
                             onSubtotalChange={subtotal => setFormData(current => ({ ...current, receiptDetails: { ...current.receiptDetails!, subtotal } }))}

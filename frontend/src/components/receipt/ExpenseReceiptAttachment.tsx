@@ -83,10 +83,10 @@ export default function ExpenseReceiptAttachment({ expenseId, initialReceipt }: 
 
     if (!available && !receipt) return null;
     return (
-        <section className="mt-6 rounded-2xl border border-border bg-muted/20 p-4" aria-label="Receipt photo">
-            <h2 className="font-semibold">Receipt photo</h2>
+        <section className="panel-card mt-5 min-w-0 rounded-2xl p-4 sm:p-6" aria-label="Receipt photo">
+            <h2 className="text-base font-medium">Receipt photo</h2>
             <p className="mt-1 text-sm text-muted-foreground" role="status" aria-live="polite">
-                {busy ? "Saving receipt change…" : receipt ? `Status: ${receipt.status}.` : "No photo is kept with this expense."}
+                {busy ? "Saving receipt change…" : receipt?.status === "finalized" ? "Photo saved · View or replace below" : receipt ? `Status: ${receipt.status}.` : "No photo is kept with this expense."}
             </p>
             {error ? <p className="mt-2 text-sm text-destructive" role="alert">{error}</p> : null}
             {receipt?.status === "finalized" ? <ReceiptViewer expenseId={expenseId} /> : null}

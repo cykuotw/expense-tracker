@@ -1,3 +1,4 @@
+import { serviceFetch, ServiceUnavailableError, setServiceUnavailable } from "./serviceAvailability";
 import { API_URL } from "../configs/config";
 import { beginMutationActivity } from "./mutationActivity";
 
@@ -30,8 +31,10 @@ async function refreshAccessToken() {
             method: "POST",
             credentials: "include",
         })
-            .then((response) => response.ok)
-            .catch(() => false)
+            .then((response) => {
+                if (!response.ok && response.status !== 401 && response.status !== 403) throw new ServiceUnavailableError();
+                return response.ok;
+            })
             .finally(() => {
                 refreshPromise = null;
             });
@@ -51,7 +54,7 @@ async function ensureCSRFToken() {
     }
 
     if (!csrfPromise) {
-        csrfPromise = fetch(`${API_URL}/auth/csrf`, {
+        csrfPromise = serviceFetch(`${API_URL}/auth/csrf`, {
             method: "GET",
             credentials: "include",
         })
@@ -64,7 +67,6 @@ async function ensureCSRFToken() {
                 csrfToken = typeof data.csrfToken === "string" ? data.csrfToken : null;
                 return csrfToken;
             })
-            .catch(() => null)
             .finally(() => {
                 csrfPromise = null;
             });
@@ -83,7 +85,7 @@ async function csrfFetch(input: string, init: RequestInit = {}) {
         }
     }
 
-    return fetch(input, {
+    return serviceFetch(input, {
         ...init,
         headers,
     });
@@ -135,12 +137,14 @@ export async function apiFetch(
         }
 
         if (!retryOnAuthFailure) {
+            setServiceUnavailable(false);
             authFailureHandler?.();
             return response;
         }
 
         const refreshed = await refreshAccessToken();
         if (!refreshed) {
+            setServiceUnavailable(false);
             authFailureHandler?.();
             return response;
         }

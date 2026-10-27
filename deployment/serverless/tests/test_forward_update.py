@@ -16,7 +16,8 @@ from test_workflow import managed_manifest
 class ForwardUpdateTest(unittest.TestCase):
     def test_all_scope_can_repair_unhealthy_application_on_complete_infrastructure(self) -> None:
         context = mock.MagicMock()
-        outputs = {"worker_function_name": "worker"}
+        outputs = {"worker_function_name": "worker", "database_instance_id": "i-test"}
+        context.aws.json.return_value = {"Reservations": [{"Instances": [{"State": {"Name": "running"}}]}]}
         for require_healthy in (True, False):
             with self.subTest(require_healthy=require_healthy), \
                  mock.patch.object(workflow, "_terraform", return_value=contextlib.nullcontext(Path("/tmp/vars"))), \

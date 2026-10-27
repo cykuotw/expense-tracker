@@ -77,14 +77,15 @@ cleanup() {
 }
 trap cleanup EXIT
 
+started_seconds="$(date +%s)"
 timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
 key="daily/${BACKUP_DATABASE}-${timestamp}.dump"
 chown postgres:postgres "$archive"
 sudo -u postgres pg_dump --dbname="$BACKUP_DATABASE" --format=custom --file="$archive"
 test -s "$archive"
 aws s3 cp "$archive" "s3://${BACKUP_BUCKET}/${key}" --region "$BACKUP_REGION" --sse AES256 --only-show-errors
-printf 'status=success\ncompleted_at=%s\nbackup_key=%s\n' \
-  "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$key" > "$status_report"
+printf 'status=success\ncompleted_at=%s\nbackup_key=%s\nduration_seconds=%s\n' \
+  "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$key" "$(( $(date +%s) - started_seconds ))" > "$status_report"
 aws s3 cp "$status_report" "s3://${BACKUP_BUCKET}/status/latest.txt" --region "$BACKUP_REGION" --sse AES256 --only-show-errors
 printf 'PostgreSQL logical backup uploaded: s3://%s/%s\n' "$BACKUP_BUCKET" "$key"
 BACKUP
@@ -99,6 +100,7 @@ Requires=postgresql.service
 
 [Service]
 Type=oneshot
+TimeoutStartSec=45m
 ExecStart=/usr/local/sbin/expense-tracker-postgres-backup
 SERVICE
 

@@ -6,7 +6,8 @@ import tempfile
 import time
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
+from operating_hours import backup_freshness
 from pathlib import Path
 from typing import Any
 
@@ -24,6 +25,7 @@ from common.terraform import (
     require_temporary_access_create,
 )
 from config import Config
+from database import operations as database_operations
 from database import backup as database_backup
 from database import alerts as database_alerts
 from database.setup import setup as setup_database
@@ -538,6 +540,11 @@ def _require_complete(
         state, outputs = _state(context, Terraform(context.terraform_root, variables))
     if state != "complete":
         raise CommandError(f"updates require deployment_state=complete; found {state}")
+    database_operations.require_running(context, outputs)
+    if not context.config.operating_hours.configured and outputs.get("postgres_backup_bucket_name"):
+        bucket = str(outputs["postgres_backup_bucket_name"])
+        if context.aws.resource_exists("s3api", "head-object", "--bucket", bucket, "--key", "configuration/database-hours.json", missing=("404", "NoSuchKey", "Not Found")):
+            raise CommandError("retain operating_hours in deploy.json after first apply; use enabled=false plus ACTION=hours-apply to disable safely")
     try:
         # The installed release may predate checks introduced by the update.
         # Enforce the new contract after the backend has been replaced below.
@@ -566,6 +573,7 @@ def _require_complete(
 def _infrastructure_targets(scope: str) -> tuple[str, ...]:
     targets: list[str] = []
     if scope in {"backend", "all"}:
+        targets.append("aws_iam_role_policy.sender_operating_hours")
         targets.append("aws_apigatewayv2_integration.worker")
         targets.append("aws_apigatewayv2_integration.ocr")
         targets.append("aws_lambda_permission.api_gateway")
@@ -1076,6 +1084,9 @@ def update(context: Context, scope: str) -> None:
         context.config.require_gemini_key()
     preflight(context, mutation=True)
     outputs = _require_complete(context, require_healthy=scope != "all")
+    if scope != "all" and context.config.operating_hours.configured:
+        from database.hours import require_support
+        require_support(context, outputs)
     step("preflight", "pass")
     store = ReleaseStore(context.aws, context.config)
     current_pointer = store.get_current()
@@ -1662,6 +1673,17 @@ def _apply_backup_infrastructure(context: Context) -> dict[str, Any]:
     return outputs
 
 
+TEMPORARY_ACCESS_TARGETS = (
+    "aws_eip.temporary_postgres", "aws_eip_association.temporary_postgres",
+    "aws_vpc_security_group_ingress_rule.ssh",
+)
+RESTORE_TARGETS = (
+    "aws_security_group.restore_verification", "aws_vpc_security_group_ingress_rule.restore_verification_ssh",
+    "aws_vpc_security_group_egress_rule.restore_verification_https", "aws_vpc_security_group_egress_rule.restore_verification_dns",
+    "aws_instance.restore_verification", "aws_eip.restore_verification", "aws_eip_association.restore_verification",
+)
+
+
 def _configure_backup_with_temporary_access(context: Context, *, configure=None) -> None:
     with tempfile.TemporaryDirectory(prefix="expense-serverless-backup-access-") as temporary:
         with _terraform(context, True) as variables:
@@ -1669,7 +1691,7 @@ def _configure_backup_with_temporary_access(context: Context, *, configure=None)
             terraform.init()
             terraform.validate()
             plan_path = Path(temporary) / "backup-access.tfplan"
-            terraform.plan(plan_path)
+            terraform.plan(plan_path, targets=TEMPORARY_ACCESS_TARGETS)
             actions = require_temporary_access_create(terraform.show_plan(plan_path))
             _print_plan(actions)
             terraform.apply(plan_path)
@@ -1691,10 +1713,22 @@ def _configure_backup_with_temporary_access(context: Context, *, configure=None)
             with _terraform(context, False) as variables:
                 terraform = Terraform(context.terraform_root, variables)
                 cleanup_path = Path(temporary) / "backup-access-cleanup.tfplan"
-                terraform.plan(cleanup_path)
+                terraform.plan(cleanup_path, targets=TEMPORARY_ACCESS_TARGETS)
                 actions = require_cutover_only(terraform.show_plan(cleanup_path))
                 _print_plan(actions)
                 terraform.apply(cleanup_path)
+
+
+def apply_operating_hours(context: Context) -> None:
+    from database import hours
+    preflight(context, mutation=True)
+    with _terraform(context, False) as variables:
+        terraform = Terraform(context.terraform_root, variables)
+        if not terraform.has_state():
+            raise CommandError("hours-apply requires an existing deployment; deploy application support first")
+        outputs = terraform.output()
+    runtime.repair_secret_boundary(context.terraform_root, context.config)
+    hours.apply(context, outputs, lambda: _configure_backup_with_temporary_access(context))
 
 
 def configure_database_alerts(context: Context) -> None:
@@ -1725,7 +1759,10 @@ def configure_backup(context: Context) -> None:
 def restore_verify(context: Context) -> None:
     preflight(context, mutation=True)
     runtime.repair_secret_boundary(context.terraform_root, context.config)
-    _require_complete(context)
+    with _terraform(context, False) as variables:
+        state, _ = _state(context, Terraform(context.terraform_root, variables))
+    if state != "complete":
+        raise CommandError("restore verification requires an existing complete infrastructure; production database may be stopped")
     # Terraform evaluates Lambda artifact hashes even for targeted plans.
     artifacts.build(context.repo_root, context.serverless_root / "build")
     _apply_backup_infrastructure(context)
@@ -1738,7 +1775,7 @@ def restore_verify(context: Context) -> None:
             terraform.init()
             terraform.validate()
             plan_path = Path(temporary) / "restore-create.tfplan"
-            terraform.plan(plan_path)
+            terraform.plan(plan_path, targets=RESTORE_TARGETS)
             actions = require_restore_verification_create(terraform.show_plan(plan_path))
             _print_plan(actions)
             terraform.apply(plan_path)
@@ -1751,7 +1788,7 @@ def restore_verify(context: Context) -> None:
             with _terraform(context, False) as variables:
                 terraform = Terraform(context.terraform_root, variables)
                 cleanup_path = Path(temporary) / "restore-cleanup.tfplan"
-                terraform.plan(cleanup_path)
+                terraform.plan(cleanup_path, targets=RESTORE_TARGETS)
                 actions = require_restore_verification_cleanup(terraform.show_plan(cleanup_path))
                 _print_plan(actions)
                 terraform.apply(cleanup_path)
@@ -1782,6 +1819,8 @@ def backup_status(context: Context) -> None:
         print(f"latest_postgres_backup_size_bytes={latest.get('Size', 'unavailable')}")
     else:
         print("latest_postgres_backup=none")
+    latest_time = datetime.fromisoformat(str(latest["LastModified"]).replace("Z", "+00:00")) if latest else None
+    print("backup_freshness=" + backup_freshness(context.config.backup.time, context.config.backup.timezone, latest_time, datetime.now(UTC)))
     verification_key = "verification/latest.json"
     if context.aws.resource_exists("s3api", "head-object", "--bucket", bucket, "--key", verification_key, missing=("404", "NoSuchKey", "Not Found")):
         verification = context.aws.json("s3api", "head-object", "--bucket", bucket, "--key", verification_key)
@@ -1970,8 +2009,12 @@ def execute(
             plan(context)
         elif action in {"auto", "deploy"}:
             deploy(context)
+            if context.config.operating_hours.configured:
+                apply_operating_hours(context)
         elif action == "update":
             update(context, scope)
+            if scope == "all" and context.config.operating_hours.configured:
+                apply_operating_hours(context)
         elif action == "status":
             status(context)
         elif action == "history":
@@ -1990,6 +2033,13 @@ def execute(
             cleanup_releases(context)
         elif action == "database-alerts-configure":
             configure_database_alerts(context)
+        elif action == "hours-apply":
+            apply_operating_hours(context)
+        elif action in {"database-start", "database-stop"}:
+            preflight(context, mutation=True)
+            with _terraform(context, False) as variables:
+                outputs = Terraform(context.terraform_root, variables).output()
+            database_operations.operate(context, outputs, action.removeprefix("database-"))
         elif action == "backup-configure":
             configure_backup(context)
         elif action == "restore-verify":

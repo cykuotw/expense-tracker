@@ -320,6 +320,8 @@ class WorkflowTest(unittest.TestCase):
 
     def test_backup_status_reports_latest_backup_and_restore_marker(self) -> None:
         context = mock.MagicMock()
+        context.config.backup.time = "21:00:00"
+        context.config.backup.timezone = "America/Toronto"
         context.terraform_root = Path("/repo/deployment/serverless/infrastructure/tf")
         terraform = mock.MagicMock()
         terraform.has_state.return_value = True
@@ -495,6 +497,7 @@ class WorkflowTest(unittest.TestCase):
         context.serverless_root = Path("/repo/deployment/serverless")
         context.terraform_root = context.serverless_root / "infrastructure/tf"
         context.config = mock.MagicMock()
+        context.config.operating_hours.configured = False
         context.config.observability.discord_webhook_url = None
         context.config.error_alerting_enabled = False
         context.aws = mock.MagicMock()
@@ -544,6 +547,7 @@ class WorkflowTest(unittest.TestCase):
     @mock.patch.object(workflow, "_migration_state", new=lambda *_: (35, False))
     def test_backend_scope_does_not_publish_frontend(self) -> None:
         context = mock.MagicMock()
+        context.config.operating_hours.configured = False
         context.repo_root = Path("/repo")
         context.serverless_root = Path("/repo/deployment/serverless")
         context.terraform_root = context.serverless_root / "infrastructure/tf"
@@ -608,6 +612,7 @@ class WorkflowTest(unittest.TestCase):
 
     def test_frontend_scope_does_not_build_backend_artifacts(self) -> None:
         context = mock.MagicMock()
+        context.config.operating_hours.configured = False
         context.repo_root = Path("/repo")
         context.serverless_root = Path("/repo/deployment/serverless")
         context.terraform_root = context.serverless_root / "infrastructure/tf"
@@ -666,6 +671,7 @@ class WorkflowTest(unittest.TestCase):
 
     def test_first_release_history_cutover_requires_all_scope(self) -> None:
         context = mock.MagicMock()
+        context.config.operating_hours.configured = False
         context.repo_root = Path("/repo")
         context.serverless_root = Path("/repo/deployment/serverless")
         context.terraform_root = context.serverless_root / "infrastructure/tf"
@@ -707,6 +713,7 @@ class WorkflowTest(unittest.TestCase):
 
     def test_incomplete_adoption_still_requires_all_scope(self) -> None:
         context = mock.MagicMock()
+        context.config.operating_hours.configured = False
         context.repo_root = Path("/repo")
         context.serverless_root = Path("/repo/deployment/serverless")
         context.terraform_root = context.serverless_root / "infrastructure/tf"
@@ -778,6 +785,7 @@ class WorkflowTest(unittest.TestCase):
         context.serverless_root = Path("/repo/deployment/serverless")
         context.terraform_root = context.serverless_root / "infrastructure/tf"
         context.config = mock.MagicMock()
+        context.config.operating_hours.configured = False
         context.aws = mock.MagicMock()
         with mock.patch.object(workflow, "preflight"), \
              mock.patch.object(workflow, "_require_complete", return_value={"bootstrap_function_name": "bootstrap"}), \
@@ -797,10 +805,12 @@ class WorkflowTest(unittest.TestCase):
     @mock.patch.object(workflow, "_migration_state", new=lambda *_: (35, False))
     def test_migration_failure_does_not_pause_sender(self) -> None:
         context = mock.MagicMock()
+        context.config.operating_hours.configured = False
         context.repo_root = Path("/repo")
         context.serverless_root = Path("/repo/deployment/serverless")
         context.terraform_root = context.serverless_root / "infrastructure/tf"
         context.config = mock.MagicMock()
+        context.config.operating_hours.configured = False
         context.aws = mock.MagicMock()
         outputs = {"worker_function_name": "worker", "sender_function_name": "sender"}
         policy = mock.MagicMock(migrations=(), baseline_version=35)
@@ -824,10 +834,12 @@ class WorkflowTest(unittest.TestCase):
     @mock.patch.object(workflow, "_migration_state", new=lambda *_: (35, False))
     def test_backend_failure_restores_previous_sender_concurrency(self) -> None:
         context = mock.MagicMock()
+        context.config.operating_hours.configured = False
         context.repo_root = Path("/repo")
         context.serverless_root = Path("/repo/deployment/serverless")
         context.terraform_root = context.serverless_root / "infrastructure/tf"
         context.config = mock.MagicMock()
+        context.config.operating_hours.configured = False
         context.config.error_alerting_enabled = False
         context.aws = mock.MagicMock()
         context.aws.pause_sender.return_value = 1

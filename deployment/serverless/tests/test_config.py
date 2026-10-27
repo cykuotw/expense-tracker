@@ -15,6 +15,43 @@ from config import ConfigError, initialize, load, template
 
 
 class ConfigTest(unittest.TestCase):
+    def test_operating_hours_require_aligned_backup_and_sender_support_is_installed(self) -> None:
+        self.write()
+        config = load(self.path, Path("/unrelated/repository"))
+        self.assertIn("OPERATING_HOURS_BUCKET", config.sender_environment("delivery")["Variables"])
+        self.assertEqual(config.sender_environment("delivery")["Variables"]["OPERATING_HOURS_POLICY_VERSION"], "1")
+        self.value["operating_hours"] = {"enabled": True}
+        self.write()
+        with self.assertRaisesRegex(ConfigError, "backup.time"):
+            load(self.path, Path("/unrelated/repository"))
+        self.value["backup"] = {"time": "21:00:00"}
+        self.write()
+        config = load(self.path, Path("/unrelated/repository"))
+        self.assertTrue(config.operating_hours.enabled)
+        self.assertIn("OPERATING_HOURS_BUCKET", config.sender_environment("delivery")["Variables"])
+        self.assertEqual(config.terraform_variables(temporary_access=False)["operating_hours"]["safety_stop"], "01:00")
+
+    def test_backup_inherits_the_single_operating_timezone_even_when_disabled(self) -> None:
+        self.value["backup"] = {"time": "21:00:00"}
+        for zone in ("America/Toronto", "Asia/Taipei", "Asia/Tokyo"):
+            for enabled in (False, True):
+                with self.subTest(zone=zone, enabled=enabled):
+                    self.value["operating_hours"] = {"enabled": enabled, "timezone": zone}
+                    self.write()
+                    config = load(self.path, Path("/unrelated/repository"))
+                    self.assertEqual(config.backup.timezone, zone)
+                    self.assertEqual(config.terraform_variables(temporary_access=False)["operating_hours"]["timezone"], zone)
+
+    def test_legacy_duplicate_timezone_is_compatible_but_conflicts_are_actionable(self) -> None:
+        self.value["operating_hours"] = {"enabled": True, "timezone": "Asia/Taipei"}
+        self.value["backup"] = {"time": "21:00:00", "timezone": "Asia/Taipei"}
+        self.write()
+        self.assertEqual(load(self.path, Path("/unrelated/repository")).backup.timezone, "Asia/Taipei")
+        self.value["backup"]["timezone"] = "America/Toronto"
+        self.write()
+        with self.assertRaisesRegex(ConfigError, "remove backup.timezone"):
+            load(self.path, Path("/unrelated/repository"))
+
     def test_gemini_key_is_ocr_only_and_activation_requires_filled_key(self) -> None:
         self.write()
         config = load(self.path, Path("/unrelated/repository"))

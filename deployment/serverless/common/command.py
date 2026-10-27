@@ -25,14 +25,19 @@ def run(
     args: Sequence[str], *, cwd: Path | None = None,
     env: Mapping[str, str] | None = None, input_text: str | None = None,
     check: bool = True, capture: bool = True,
+    timeout_seconds: float | None = None,
 ) -> subprocess.CompletedProcess[str]:
     process_env = os.environ.copy()
     if env:
         process_env.update(env)
-    result = subprocess.run(
-        list(args), cwd=cwd, env=process_env, input=input_text,
-        text=True, capture_output=capture, check=False,
-    )
+    try:
+        result = subprocess.run(
+            list(args), cwd=cwd, env=process_env, input=input_text,
+            text=True, capture_output=capture, check=False,
+            **({"timeout": timeout_seconds} if timeout_seconds is not None else {}),
+        )
+    except subprocess.TimeoutExpired as error:
+        raise CommandError(f"{args[0]} timed out after {timeout_seconds} seconds") from error
     if check and result.returncode:
         detail = (result.stderr or result.stdout or "command failed").strip()
         raise CommandError(f"{args[0]} failed ({result.returncode}): {detail}")

@@ -199,6 +199,8 @@ def configure_notifications(
     *,
     activate: bool = True,
 ) -> None:
+    from database.hours import initialize_policy
+    initialize_policy(client, outputs)
     before = _state_digest(terraform_root)
     with protected_json(config.delivery_environment(str(outputs["database_host"])), prefix="expense-delivery-env-") as path:
         client.publish_environment(str(outputs["delivery_function_name"]), path)
@@ -475,6 +477,8 @@ def publish_notification_releases(
     existing_sender: dict[str, str] | None = None,
     existing_delivery: dict[str, str] | None = None,
 ) -> tuple[dict[str, str], dict[str, str]]:
+    from database.hours import initialize_policy
+    initialize_policy(client, outputs)
     delivery_name = str(outputs["delivery_function_name"])
     delivery, _delivery_reused = _publish_configured_function(
         client,

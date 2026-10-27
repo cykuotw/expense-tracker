@@ -421,9 +421,15 @@ class AWSClient:
         function_name: str,
         response_path: Path,
         operation: str = "all",
+        *, timeout_seconds: float | None = None,
     ) -> dict[str, Any]:
         payload = json.dumps({"operation": operation}, separators=(",", ":"))
-        metadata = self.json("lambda", "invoke", "--function-name", function_name, "--cli-binary-format", "raw-in-base64-out", "--payload", payload, str(response_path))
+        arguments = ("lambda", "invoke", "--function-name", function_name, "--cli-binary-format", "raw-in-base64-out", "--payload", payload, str(response_path))
+        if timeout_seconds is None:
+            metadata = self.json(*arguments)
+        else:
+            metadata = json.loads(run(["aws", *arguments, "--region", self.region, "--output", "json"],
+                                      env={"AWS_MAX_ATTEMPTS": "1"}, timeout_seconds=timeout_seconds).stdout)
         if "FunctionError" in metadata:
             raise CommandError("bootstrap Lambda returned FunctionError")
         response = json.loads(response_path.read_text())

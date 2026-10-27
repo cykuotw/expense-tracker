@@ -8,6 +8,8 @@ import NavbarLayout from "./layouts/NavbarLayout";
 import RouteGuard from "./components/auth/RouteGuard";
 import AppErrorBoundary from "./components/AppErrorBoundary";
 import NavigationProvider from "./contexts/NavigationProvider";
+import ServiceUnavailableNotice from "./components/ServiceUnavailableNotice";
+import { useServiceUnavailable, useServiceRecoveryNeeded } from "./lib/serviceAvailability";
 import OfflineScreen from "./components/pwa/OfflineScreen";
 import PWAUpdatePrompt from "./components/pwa/PWAUpdatePrompt";
 import { PWAInstallProvider } from "./contexts/PWAInstallProvider";
@@ -44,7 +46,9 @@ function RouteFallback() {
 }
 
 function AppRoutes() {
-    const { loading, isOffline } = useAuth();
+    const { loading, isOffline, isAuthenticated } = useAuth();
+    const serviceUnavailable = useServiceUnavailable();
+    const recoveryNeeded = useServiceRecoveryNeeded();
 
     if (loading) {
         return (
@@ -58,7 +62,11 @@ function AppRoutes() {
         return <OfflineScreen />;
     }
 
+    if (serviceUnavailable && !isAuthenticated) return <ServiceUnavailableNotice initial />;
+
     return (
+        <>
+        {serviceUnavailable || recoveryNeeded ? <ServiceUnavailableNotice /> : null}
         <Suspense fallback={<RouteFallback />}>
             <Routes>
                 <Route element={<RouteGuard mode="guest" />}>
@@ -99,6 +107,7 @@ function AppRoutes() {
                 </Route>
             </Routes>
         </Suspense>
+        </>
     );
 }
 

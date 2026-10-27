@@ -321,6 +321,7 @@ class BootstrapRuntimeTest(unittest.TestCase):
                 {
                     "delivery_function_name": "delivery",
                     "sender_function_name": "sender",
+                    "frontend_bucket_name": "fixture-public",
                     "database_host": "db.internal",
                 },
                 Path(temporary),
@@ -368,12 +369,14 @@ class BootstrapRuntimeTest(unittest.TestCase):
         config.delivery_environment = lambda _host: {"Variables": {"DB_PUBLIC_HOST": "private"}}
         original_sender_environment = config.sender_environment
         config.sender_environment = mock.MagicMock(wraps=original_sender_environment)
-        outputs = {"database_host": "private", "delivery_function_name": "delivery", "sender_function_name": "sender"}
+        outputs = {"database_host": "private", "delivery_function_name": "delivery", "sender_function_name": "sender", "frontend_bucket_name": "fixture-public"}
         client = mock.MagicMock()
+        client.resource_exists.return_value = True
         with tempfile.TemporaryDirectory() as temporary:
             runtime.configure_notifications(client, config, outputs, Path(temporary))
         calls = [(call[0], call.args[0]) for call in client.mock_calls]
         self.assertEqual(calls, [
+            ("resource_exists", "s3api"),
             ("publish_environment", "delivery"), ("activate_notification_function", "delivery"),
             ("publish_environment", "sender"), ("activate_notification_function", "sender"),
         ])
@@ -393,6 +396,7 @@ class BootstrapRuntimeTest(unittest.TestCase):
             "database_host": "private",
             "delivery_function_name": "delivery",
             "sender_function_name": "sender",
+                    "frontend_bucket_name": "fixture-public",
         }
 
         with tempfile.TemporaryDirectory() as temporary:

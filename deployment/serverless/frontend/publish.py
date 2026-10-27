@@ -38,6 +38,7 @@ def runtime_config(config: Config, version: str) -> str:
         "googleOAuthEnabled": True,
         "googleClientId": config.backend.google_client_id,
         "frontendVersion": version,
+        "operatingHoursPolicyVersion": 1,
     }
     return f"window.__APP_CONFIG__ = Object.freeze({json.dumps(value, indent=4)});\n"
 
@@ -206,6 +207,10 @@ def publish(
         "snapshotDigest": value_digest(descriptor),
     }
     restore(client, outputs, record, invalidate=False)
+    # Policy is configuration-owned, outside release snapshots and rollback.
+    if not config.operating_hours.configured:
+        from database.hours import publish as publish_hours
+        publish_hours(client, outputs, config.operating_hours.public())
     _invalidate(client, distribution)
     return record
 

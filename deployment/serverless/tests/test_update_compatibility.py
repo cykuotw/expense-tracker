@@ -28,7 +28,8 @@ class UpdateCompatibilityTest(unittest.TestCase):
         context = mock.MagicMock()
         context.terraform_root = Path("/repo/deployment/serverless/infrastructure/tf")
         context.config.error_alerting_enabled = True
-        outputs = {"api_id": "api"}
+        outputs = {"api_id": "api", "database_instance_id": "i-test"}
+        context.aws.json.return_value = {"Reservations": [{"Instances": [{"State": {"Name": "running"}}]}]}
 
         with mock.patch.object(
             workflow,

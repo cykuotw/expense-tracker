@@ -92,6 +92,7 @@ resource "aws_cloudwatch_event_rule" "monthly_review_publisher" {
   name                = "${local.resource_prefix}-monthly-review-publisher"
   description         = "Publish eligible closed monthly expense reviews once per day"
   schedule_expression = "cron(15 5 * * ? *)"
+  state               = var.operating_hours.configured ? "DISABLED" : "ENABLED"
   tags = merge(local.common_tags, {
     Component = "monthly-reviews"
   })

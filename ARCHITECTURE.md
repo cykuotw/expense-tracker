@@ -136,6 +136,19 @@ Daily EventBridge -------------------------> Delivery Lambda (VPC)
   host receives no webhook or database password. No custom CloudWatch metric,
   alarm, NAT Gateway or paid endpoint is added. This is sampled, best-effort
   monitoring; a stopped host/timer cannot report its own failure.
+- **Optional database operating hours:** protected operator configuration owns a
+  timezone-aware daily window. Terraform owns EventBridge Scheduler's discrete
+  normal EC2 start/stop actions and the aligned monthly-review schedule. The
+  configuration-only apply action stages schedule updates, aligns the host backup
+  timer using the shared operating timezone, and publishes only public hours to
+  `operating-hours.json` in the frontend bucket. This document is independent of
+  application release snapshots. Sender
+  reads it through a scoped S3 grant and skips expected off-hours work; browsers
+  read it independently of the database to explain service failures. Time alone
+  never blocks successful HTTP requests after a manual start. Temporary service
+  failures preserve browser authentication and never replay ambiguous mutations.
+  Scheduled failures are retained in a dedicated SQS dead-letter queue; readiness
+  and in-hours Sender failures remain visible in operator output/Lambda logs.
 - **Deployment owner:** `deployment/serverless/` owns the unified serverless
   implementation, its deployment sequencing, and its Terraform state.
 

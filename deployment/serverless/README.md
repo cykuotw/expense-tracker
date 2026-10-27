@@ -429,6 +429,156 @@ Use `SERVERLESS_AUTO_APPROVE=true` only in a controlled disposable test. `FORCE_
 
 ## PostgreSQL backup and restore verification
 
+### Optional database operating hours
+
+To stop the database overnight, configure these non-secret sections in the
+protected external `deploy.json`:
+
+```json
+"operating_hours": {
+  "enabled": true,
+  "start": "09:00",
+  "stop": "22:00",
+  "safety_stop": "01:00",
+  "timezone": "America/Toronto"
+},
+"backup": {
+  "time": "21:00:00"
+}
+```
+
+`operating_hours.timezone` is the shared source for EC2 actions, monthly reviews,
+backup timing/freshness, Sender policy, and frontend notices. Omit
+`backup.timezone`; it inherits this value even when `enabled` is `false`.
+Existing matching duplicate values remain compatible; conflicting duplicates
+are rejected with instructions to remove `backup.timezone`. Always-on deployments
+without an `operating_hours` block retain standalone `backup.timezone` support
+and the existing UTC default.
+
+Install application support first with the normal `make deploy ACTION=update
+SCOPE=all`. A successful deployment applies the configured hours afterward.
+Activation checks the deployed frontend and live Sender capability versions;
+partial application upgrades cannot activate a schedule. Runtime installation
+initializes a disabled public policy before Sender activation, including a
+backend-only update of an always-on installation. Once both components are
+installed, later enablement and time changes require no rebuild.
+Subsequent configuration changes require only:
+
+```sh
+make deploy ACTION=hours-apply
+```
+
+This action builds no application artifacts and performs no application release.
+Retain the local Terraform initialization and existing deployment artifacts used
+by the supported deployer. It validates configuration before mutation, stages
+Terraform-owned schedules disabled, waits two minutes for old schedule events to
+expire, reconfigures the backup when policy/settings changed, publishes the public
+policy, then enables schedules. Backup configuration uses the existing restricted
+temporary SSH path and runs a measured backup. The apply refuses activation when
+that run fails, its duration is unknown, or dump/upload exceeds 45 minutes. Allow
+at least an hour before shutdown for a changed configuration. A failure reports
+the incomplete stage; inspect schedule states and rerun the same action. Do not
+assume a local edit has changed AWS. Reapplying uses stable resource names and
+creates no duplicate schedules. The action does not wake a stopped database.
+
+The public hours document is outside release snapshots, so application rollback
+does not roll back operator schedules. Frontend notices reload it every minute
+while visible; Sender reads it each tick. CloudFront invalidation is awaited
+before schedules activate. Only public hours are published, never credentials or
+the deployment configuration. Set `enabled` to `false` and rerun `hours-apply`
+to remove the three EC2 schedules while retaining the backup and local-time
+monthly-review schedules. Keep the block after first application; removing it
+is rejected on application updates to prevent orphaned active schedules.
+
+Scheduler uses the configured IANA zone, including EST/EDT changes. Fixed `EST`
+and unknown zones are rejected. Daily times in a known spring-forward gap are
+rejected against the next five years of installed timezone rules on each apply;
+reapply if timezone legislation changes. On fall-back days Scheduler invokes a
+repeated wall-clock time only once, before the clock change. Thus the 01:00 safety
+stop runs once. Toronto's usual 11-hour overnight interval becomes 10 or 12 hours
+on transition nights. See [AWS Scheduler time-zone behavior](https://docs.aws.amazon.com/scheduler/latest/UserGuide/schedule-types.html).
+Validation also checks the actual UTC elapsed intervals on transition dates so
+a skipped hour cannot consume the backup margin or safety-stop clearance.
+
+These are discrete actions. A manual stop during the day stays stopped until the
+next start. A manual start after 22:00 is caught by 01:00; a start after 01:00 runs
+until that calendar day's 22:00 stop. There is no extension or draining mechanism.
+Normal OS shutdown ends in-flight connections and rolls back uncommitted work;
+committed database contents and EBS storage remain. No forced stop or termination
+is used. Each action has zero retries and a 60-second event age; no overnight retry
+can spill into the next operating period. Verify real EC2 already-running/stopped
+API responses during the controlled rollout; local tests do not prove them.
+
+Manual operations use the supported commands:
+
+```sh
+make deploy ACTION=database-start
+make deploy ACTION=database-stop
+```
+
+Start waits at most five minutes for a database-backed Bootstrap migration-state
+read and prints measured readiness seconds. Start time is not a promise of
+immediate availability. PostgreSQL starts through its enabled systemd service;
+the existing private network interface/IP is retained across stop/start. Stop
+waits for normal EC2 shutdown. Deploy/update/bootstrap/backup-configure refuse a
+stopped database before their database-dependent work; start and wait first.
+`backup-status` and isolated `restore-verify` remain usable while it is stopped.
+
+The 21:00 backup leaves 15 minutes for existing timer jitter and 45 minutes for
+dump/upload before 22:00. The service has a 45-minute timeout. Its status records
+actual duration. Freshness uses the latest due local backup plus that margin,
+not a fixed 24-hour age that falsely alarms at DST changes. `Persistent=true`
+remains: a missed 21:00 backup catches up at the next 09:00 boot and may compete
+with morning traffic. The compatibility default `03:17 UTC` is rejected when
+incompatible hours are configured. Verify actual production dump duration and
+the installed timer after configuration; do not infer historical duration from
+the new margin.
+
+Monthly reviews publish daily 30 minutes after start (09:30 by default) in the
+same zone. The old 05:15 UTC rule is disabled; Scheduler invokes Delivery using
+its IAM role. Each invocation still processes at most 25 group/month candidates;
+failure or remaining backlog catches up at the next daily run, without an
+unbounded same-day retry. Publication deduplication and seven-day review push
+expiry are unchanged. Sender quietly skips all off-hours ticks, including after
+a manual out-of-hours start; it resumes normal database-backed claiming in hours.
+In-hours failures remain Lambda errors in Sender/Delivery logs; they do not use
+the Worker/OCR Discord subscriptions. Expense pushes still expire after 15
+minutes, so pending pushes may expire overnight without losing committed
+expenses. Asynchronous OCR usage telemetry remains best effort and may exhaust
+retries during downtime; never repeat paid OCR to recover telemetry. The host
+database-alert timer is silent while stopped, as expected.
+
+During API/network failures the frontend shows possible scheduled downtime only
+outside configured hours, otherwise unexpected service unavailability, with
+administrator guidance. It preserves authentication on temporary refresh failures
+and keeps an open authenticated page mounted. Initial PWA/browser/notification
+entry shows a recovery screen at the original URL. Visible pages make at most
+three automatic session checks at 15-second intervals, then require Try again or
+foreground/online recovery. After the service recovers, Reload page refreshes
+missing data explicitly; copy unsaved entries first, or choose Keep this page.
+No mutation is automatically retried after a service
+failure; inspect the saved result before resubmitting. Expired receipt attachments
+need re-uploading. A successful manual out-of-hours start permits normal HTTP use.
+
+Before enabling the schedule for production, perform a controlled normal stop/
+start during a maintenance window. Record actual EC2 already-running/stopped API
+responses, readiness duration, PostgreSQL automatic startup, and consecutive
+authenticated reads plus a representative write after restart to check warm
+pooled-connection recovery. Manually verify the notice/retry, preserved session,
+notification entry, and foreground recovery on iOS Safari/PWA and macOS Safari.
+Automated browser checks supplement these checks.
+
+For failures, inspect Scheduler `TargetErrorCount`, `InvocationDroppedCount` and
+`InvocationThrottleCount` metrics in `AWS/Scheduler` for the database-hours group;
+inspect the group's `database-hours-failures` SQS queue (14-day retention). A
+Scheduler Lambda target's successful acceptance does not establish successful
+publication: also inspect Delivery Lambda errors. For a failed start/readiness,
+check EC2 state/status checks and the PostgreSQL systemd journal, then rerun
+`database-start`. For a failed stop, inspect state and retry `database-stop`;
+never force-stop as an automatic recovery step. No extra always-on availability
+service is introduced. Reduced compute runtime does not eliminate storage or
+other ongoing charges; no dollar savings have been measured.
+
 `make deploy ACTION=backup-configure` provisions the private logical-backup
 bucket and the database instance's least-privilege upload role, briefly enables
 the existing restricted SSH bootstrap path, installs a root-owned systemd timer,

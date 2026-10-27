@@ -10,6 +10,8 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
 
+from operating_hours import OperatingHours, parse as parse_hours, validate_backup
+
 
 class ConfigError(ValueError):
     pass
@@ -219,6 +221,7 @@ class Config:
     frontend: Frontend
     first_admin: FirstAdmin | None
     local_credentials: LocalCredentials
+    operating_hours: OperatingHours = OperatingHours()
 
     @property
     def frontend_origin(self) -> str:
@@ -271,6 +274,7 @@ class Config:
             "enable_error_alerting": self.error_alerting_enabled,
             "enable_database_connection_alerting": self.database_alerting_enabled,
             "use_lambda_aliases": use_lambda_aliases,
+            "operating_hours": {**self.operating_hours.public(), "configured": self.operating_hours.configured},
         }
 
     def _receipt_environment(self, receipt_bucket: str) -> dict[str, str]:
@@ -339,6 +343,8 @@ class Config:
     def sender_environment(self, delivery_function: str) -> dict[str, dict[str, str]]:
         return {"Variables": {
             "PUSH_DELIVERY_FUNCTION_NAME": delivery_function,
+            "OPERATING_HOURS_BUCKET": f"{self.deployment.name_prefix}-{self.deployment.environment}-frontend-{self.deployment.account_id}",
+            "OPERATING_HOURS_POLICY_VERSION": "1",
             "WEB_PUSH_VAPID_PUBLIC_KEY": self.backend.web_push_vapid_public_key,
             "WEB_PUSH_VAPID_PRIVATE_KEY": self.backend.web_push_vapid_private_key,
             "WEB_PUSH_VAPID_SUBJECT": self.backend.web_push_vapid_subject,
@@ -421,7 +427,7 @@ def load(path: Path, repo_root: Path) -> Config:
         "frontend",
         "local_credentials",
     }
-    _keys(raw, "config", required_sections, {"backup", "first_admin"})
+    _keys(raw, "config", required_sections, {"backup", "first_admin", "operating_hours"})
 
     deployment = _object(raw["deployment"], "deployment")
     _keys(deployment, "deployment", {"account_id", "name_prefix", "environment"}, {"tags"})
@@ -469,12 +475,22 @@ def load(path: Path, repo_root: Path) -> Config:
     if database.name == "postgres":
         raise ConfigError("database.name must differ from postgres")
 
+    try:
+        hours = parse_hours(raw.get("operating_hours"))
+    except ValueError as error:
+        raise ConfigError(str(error)) from error
+
     backup_raw = _object(raw.get("backup", {}), "backup")
     _keys(backup_raw, "backup", set(), {"time", "timezone"})
     backup = Backup(
         _backup_time(backup_raw.get("time", "03:17:00"), "backup.time"),
-        _time_zone(backup_raw.get("timezone", "UTC"), "backup.timezone"),
+        _time_zone(backup_raw.get("timezone", hours.timezone if hours.configured else "UTC"), "backup.timezone"),
     )
+
+    try:
+        validate_backup(hours, backup.time, backup.timezone)
+    except ValueError as error:
+        raise ConfigError(str(error)) from error
 
     backend_raw = _object(raw["backend"], "backend")
     backend_required = {"api_hostname", "google_client_id", "jwt_secret", "jwt_exp", "refresh_jwt_secret", "refresh_jwt_exp", "ocr_capability_secret", "expenses_per_page", "db_conn_max_lifetime_seconds", "db_conn_max_idle_time_seconds", "web_push_vapid_public_key", "web_push_vapid_private_key", "web_push_vapid_subject"}
@@ -560,7 +576,7 @@ def load(path: Path, repo_root: Path) -> Config:
     credentials_raw = _object(raw["local_credentials"], "local_credentials")
     _keys(credentials_raw, "local_credentials", {"ssh_private_key_file"}, {"google_id_token_file"})
     credentials = LocalCredentials(_protected_path(credentials_raw["ssh_private_key_file"], "local_credentials.ssh_private_key_file", repo_root, required=True), _protected_path(credentials_raw.get("google_id_token_file"), "local_credentials.google_id_token_file", repo_root, required=False))
-    return Config(deploy, aws, database, backup, backend, observability, frontend, admin, credentials)
+    return Config(deploy, aws, database, backup, backend, observability, frontend, admin, credentials, hours)
 
 
 def template() -> dict[str, Any]:

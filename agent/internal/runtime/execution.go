@@ -14,6 +14,8 @@ import (
 
 const maxVisibleOutputBytes = 16 << 10
 
+type ownerKey struct{}
+
 // execute projects ADK responses into visible output, retaining correlation and
 // version metadata while hiding internal events and duplicate final copies.
 func (app *App) execute(
@@ -26,8 +28,9 @@ func (app *App) execute(
 	runConfig := agent.RunConfig{
 		StreamingMode: agent.StreamingModeSSE,
 	}
+	owner, _ := ctx.Value(ownerKey{}).(string)
 	events := app.runner.Run(
-		ctx, "local-fixture", request.ConversationID, userContent, runConfig,
+		ctx, owner, request.ConversationID, userContent, runConfig,
 	)
 
 	partialByAgent := map[string]bool{}

@@ -1,4 +1,4 @@
-package httpapi
+package api
 
 import (
 	"fmt"
@@ -78,7 +78,20 @@ func (stream *chatStream) finishMessage() error {
 
 func (stream *chatStream) fail(err error) {
 	if !stream.started {
-		http.Error(stream.writer, "run rejected", http.StatusTooManyRequests)
+		status := http.StatusServiceUnavailable
+		switch tools.PublicCode(err) {
+		case tools.Unauthenticated:
+			status = http.StatusUnauthorized
+		case tools.Forbidden:
+			status = http.StatusForbidden
+		case tools.Validation:
+			status = http.StatusBadRequest
+		case tools.NotFound:
+			status = http.StatusNotFound
+		case tools.Limit:
+			status = http.StatusTooManyRequests
+		}
+		http.Error(stream.writer, "run rejected", status)
 		return
 	}
 	if stream.messageStarted {

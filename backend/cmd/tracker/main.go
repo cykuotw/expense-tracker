@@ -34,6 +34,15 @@ func main() {
 		exitWithError(logger, "configuration_load_failed", err)
 	}
 	logger = observability.NewLogger(cfg.Mode, os.Stdout)
+	localAgent := os.Getenv("AGENT_MODE") == "local"
+	if mode := os.Getenv("AGENT_MODE"); mode != "" && mode != "local" {
+		exitWithError(logger, "agent_mode_invalid", fmt.Errorf("unsupported standalone agent mode"))
+	}
+	if localAgent {
+		if err := trackerapp.ValidateLocalAgentMode(cfg); err != nil {
+			exitWithError(logger, "local_agent_mode_invalid", err)
+		}
+	}
 
 	storage, err := requestserver.OpenDatabase(cfg, config.RequestServerStandalone, dbstore.NewPostgreSQLStorage)
 	if err != nil {
@@ -43,7 +52,15 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	handler := trackerapp.NewHandler(storage, trackerapp.WithLogger(logger))
+	var handler http.Handler
+	if localAgent {
+		handler, err = trackerapp.NewLocalHandler(storage, trackerapp.WithLogger(logger))
+		if err != nil {
+			exitWithError(logger, "local_agent_mode_invalid", err)
+		}
+	} else {
+		handler = trackerapp.NewHandler(storage, trackerapp.WithLogger(logger))
+	}
 	apiServer := trackerapp.NewHTTPServer(cfg.BackendURL, handler)
 	go func() {
 		logger.Info("server_started")

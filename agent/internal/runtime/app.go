@@ -4,6 +4,8 @@ package runtime
 import (
 	"cmp"
 	"context"
+	"crypto/sha256"
+	"fmt"
 	"io/fs"
 	"log/slog"
 	"regexp"
@@ -15,6 +17,7 @@ import (
 
 	"expense-tracker/agent/internal/models"
 	"expense-tracker/agent/internal/tools"
+	"expense-tracker/internal/agentcontract"
 	"github.com/google/uuid"
 	"google.golang.org/adk/v2/runner"
 	"google.golang.org/adk/v2/session"
@@ -92,7 +95,12 @@ type conversation struct {
 	messages map[string]bool
 }
 
+type preflightClient interface {
+	Preflight(context.Context) (agentcontract.Preflight, error)
+}
+
 type App struct {
+	preflight   preflightClient
 	runner      *runner.Runner
 	diagnostics map[string]Diagnostic
 	agentSkills map[string]string
@@ -121,10 +129,26 @@ func (app *App) Run(ctx context.Context, request Request, emit func(Output) erro
 	if err := request.Validate(); err != nil {
 		return err
 	}
-	if err := app.reserveRun(request); err != nil {
+	owner := "local-fixture"
+	if app.preflight != nil {
+		actor, err := app.preflight.Preflight(ctx)
+		if err != nil {
+			return &tools.Error{Code: tools.PublicCode(err)}
+		}
+		if actor.ActorID == "" || !actor.ExpiresAt.After(time.Now()) {
+			return &tools.Error{Code: tools.Unauthenticated}
+		}
+		owner = actor.ActorID
+	}
+	ctx = context.WithValue(ctx, ownerKey{}, owner)
+	reservation := request
+	if app.preflight != nil {
+		reservation.ConversationID = fmt.Sprintf("%x", sha256.Sum256([]byte(owner+"/"+request.ConversationID)))
+	}
+	if err := app.reserveRun(reservation); err != nil {
 		return err
 	}
-	defer app.releaseRun(request.ConversationID)
+	defer app.releaseRun(reservation.ConversationID)
 
 	ctx, cancel := context.WithTimeout(tools.WithReadTracking(models.WithBudget(ctx)), runTimeout)
 	defer cancel()

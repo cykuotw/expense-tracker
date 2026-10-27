@@ -223,10 +223,33 @@ PostgreSQL
 
 ## Agent Runtime Boundary
 
-`agent/cmd/agent` is the shared Agent executable, currently exposing an explicit
-loopback-only synthetic HTTP/SSE fixture. It has no deployed route, database
-access, live model inference, or production authentication. The existing backend
-deployment remains the expense-data boundary.
+`agent/cmd/agent` is the shared Agent executable. Its default mode exposes a
+loopback-only synthetic HTTP/SSE fixture. Explicit `AGENT_MODE=local` instead
+connects to a loopback Worker using a per-request access bearer JWT and unsigned
+transport. Both modes use deterministic model routing without paid inference.
+The executable has no deployed chat route, direct database access, or browser
+cookie authentication. The existing backend remains the expense-data boundary.
+
+`agent/internal/clients/worker` implements the separate signed Worker transport.
+It forwards a request-scoped access JWT in `X-Agent-Access-Token`, outside model
+arguments and session state, with SigV4 in `Authorization`. A runtime assembled
+with this client preflights the active actor before inference on every run and
+scopes in-memory conversations by that actor. Worker handlers in
+`backend/services/agenttools` reuse existing account, membership, and balance
+stores through the versioned DTOs in `internal/agentcontract`. They require the
+configured Agent role from trusted Gateway IAM context and an exact route key,
+then independently validate the access JWT and current account/group access.
+Missing configuration/context and fallback routes fail closed. Balances retain
+exact amount strings and original currencies. Local synthetic Gateway contexts
+exercise these checks but do not establish deployed Gateway IAM enforcement.
+
+Standalone Worker startup can explicitly select `AGENT_MODE=local`. Its separate
+local adapter skips only IAM and retains JWT expiry, active-account, and group
+authorization. `internal/localonly` constrains local adapters to literal loopback
+listeners/endpoints, rejects remote peers, foreign hosts/origins and forwarded
+requests, and forbids Lambda/release execution. Release-marked Workers also
+reject local construction. The default Worker constructor used by Lambda never
+selects this adapter from an environment variable and continues to require IAM.
 
 `agent/internal/runtime` discovers bundled `agent/skills/` at startup and assembles
 one ADK Chat orchestrator with Task leaf agents. The orchestrator receives leaf
@@ -238,7 +261,7 @@ validation, and execution limits. Only bundled release assets are discovered;
 request data cannot create agents or grant tools. Typed FunctionTools use injected
 backend-client dependencies rather than access expense tables or calculate
 balances. Resource selectors remain subject to backend actor authorization on
-every call. The HTTP adapter projects visible output to minimal
+every call. `agent/internal/api` projects visible output to minimal
 AG-UI events without exposing ADK state or model reasoning. Model, tool, skill,
 and session-service dependencies are replaceable. See the
 [Agent operator guide](agent/README.md) for the implemented contracts and limits.

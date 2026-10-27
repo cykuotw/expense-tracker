@@ -6,6 +6,7 @@ import (
 	"sync/atomic"
 
 	"expense-tracker/agent/internal/models"
+	"expense-tracker/internal/agentcontract"
 	"google.golang.org/adk/v2/agent"
 	"google.golang.org/adk/v2/tool"
 	"google.golang.org/adk/v2/tool/functiontool"
@@ -15,17 +16,8 @@ type BalanceInput struct {
 	GroupID string `json:"groupId"`
 }
 
-type Balance struct {
-	From     string `json:"from"`
-	To       string `json:"to"`
-	Amount   string `json:"amount"`
-	Currency string `json:"currency"`
-}
-
-type BalanceResult struct {
-	GroupID  string    `json:"groupId"`
-	Balances []Balance `json:"balances"`
-}
+type Balance = agentcontract.Balance
+type BalanceResult = agentcontract.BalanceResult
 
 // The implementation captures trusted actor credentials out of band. Models
 // receive resource selectors only. No database or accounting logic belongs here.
@@ -50,7 +42,7 @@ func Succeeded(ctx context.Context) bool {
 }
 
 const (
-	maxBalanceRows      = 100
+	maxBalanceRows      = agentcontract.MaxBalanceRows
 	maxParticipantBytes = 128
 )
 

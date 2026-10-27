@@ -6,6 +6,7 @@ import (
 	"expense-tracker/backend/config"
 	"expense-tracker/backend/internal/observability"
 	adminService "expense-tracker/backend/services/admin"
+	"expense-tracker/backend/services/agenttools"
 	"expense-tracker/backend/services/auth"
 	authRoute "expense-tracker/backend/services/auth/routes"
 	"expense-tracker/backend/services/expense"
@@ -20,6 +21,8 @@ import (
 	"expense-tracker/backend/services/notification"
 	"expense-tracker/backend/services/ocr"
 	"expense-tracker/backend/services/user"
+	"expense-tracker/internal/localonly"
+	"fmt"
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"log/slog"
@@ -53,6 +56,33 @@ func WithLogger(logger *slog.Logger) HandlerOption {
 }
 
 func NewHandler(db *sql.DB, options ...HandlerOption) http.Handler {
+	return newHandler(db, nil, options...)
+}
+
+// NewLocalHandler is an explicit standalone adapter. The deployed/default
+// constructor never enables local tool access from an environment variable.
+func NewLocalHandler(db *sql.DB, options ...HandlerOption) (http.Handler, error) {
+	if err := ValidateLocalAgentMode(config.Envs); err != nil {
+		return nil, err
+	}
+	tools, err := agenttools.NewLocalHandler(user.NewStore(db), groupStore.NewStore(db), expenseStore.NewStore(db))
+	if err != nil {
+		return nil, err
+	}
+	return newHandler(db, tools, options...), nil
+}
+
+func ValidateLocalAgentMode(cfg config.Config) error {
+	if err := localonly.CheckRuntime(); err != nil {
+		return err
+	}
+	if config.BuildMode == "release" || cfg.Mode == "release" {
+		return fmt.Errorf("local agent tools are unavailable in release builds")
+	}
+	return localonly.CheckAddress(cfg.BackendURL)
+}
+
+func newHandler(db *sql.DB, localTools *agenttools.Handler, options ...HandlerOption) http.Handler {
 	gin.SetMode(config.Envs.Mode)
 	settings := handlerConfig{
 		logger: observability.NewLogger(config.Envs.Mode, os.Stdout),
@@ -68,12 +98,12 @@ func NewHandler(db *sql.DB, options ...HandlerOption) http.Handler {
 	}))
 	router.Use(observability.Recovery(), middleware.CORSMiddleware())
 
-	registerRoutes(router, db)
+	registerRoutes(router, db, localTools)
 
 	return router
 }
 
-func registerRoutes(router *gin.Engine, db *sql.DB) {
+func registerRoutes(router *gin.Engine, db *sql.DB, localTools *agenttools.Handler) {
 	router.GET(config.Envs.APIPath+"/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
 	})
@@ -117,6 +147,13 @@ func registerRoutes(router *gin.Engine, db *sql.DB) {
 	frontendreport.NewHandler().RegisterRoutes(protected)
 
 	expenseStore := expenseStore.NewStore(db)
+	// Registered outside browser cookie/CSRF middleware. This read-only boundary
+	// requires a dedicated JWT in both signed and explicit local transports.
+	toolHandler := agenttools.NewHandler(userStore, groupStore, expenseStore, os.Getenv("AGENT_TOOL_ROLE_ARN"))
+	if localTools != nil {
+		toolHandler = localTools
+	}
+	toolHandler.RegisterRoutes(router.Group(config.Envs.APIPath))
 	expenseController := expense.NewController()
 	receiptOptions := []func(*expenseRoute.Handler){}
 	if config.Envs.ReceiptBucket != "" {

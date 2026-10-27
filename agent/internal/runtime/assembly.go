@@ -54,6 +54,8 @@ func New(ctx context.Context, config Config) (*App, error) {
 		agentSkills:   map[string]string{},
 		logger:        config.Logger,
 	}
+	// A real backend client always preflights before a run can invoke a model.
+	app.preflight, _ = config.Balance.(preflightClient)
 	var leaves []agent.Agent
 	for _, skill := range registry.Leaves {
 		leaf, err := app.buildAgent(ctx, config, skill, nil)

@@ -1,4 +1,4 @@
-package httpapi
+package api
 
 import (
 	"bufio"
@@ -122,7 +122,8 @@ func TestIncrementalFixtureSSE(t *testing.T) {
 	firstDelta := false
 	for scanner.Scan() {
 		line := scanner.Text()
-		body.WriteString(line + "\n")
+		body.WriteString(line)
+		body.WriteByte('\n')
 		if strings.Contains(line, `"TEXT_MESSAGE_CONTENT"`) {
 			firstDelta = true
 			break
@@ -133,7 +134,8 @@ func TestIncrementalFixtureSSE(t *testing.T) {
 		t.Fatal("first delta not delivered while model was blocked", scanner.Err())
 	}
 	for scanner.Scan() {
-		body.WriteString(scanner.Text() + "\n")
+		body.WriteString(scanner.Text())
+		body.WriteByte('\n')
 	}
 	if err := scanner.Err(); err != nil {
 		t.Fatal(err)

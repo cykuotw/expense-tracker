@@ -11,10 +11,12 @@ import (
 	"syscall"
 	"time"
 
-	"expense-tracker/agent/internal/httpapi"
+	"expense-tracker/agent/internal/api"
+	"expense-tracker/agent/internal/clients/worker"
 	"expense-tracker/agent/internal/models"
 	agentruntime "expense-tracker/agent/internal/runtime"
 	"expense-tracker/agent/internal/tools"
+	"expense-tracker/internal/localonly"
 )
 
 const listenAddress = "127.0.0.1:8090"
@@ -33,10 +35,19 @@ func run() error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	agent, err := agentruntime.New(ctx, agentruntime.Config{
+	settings := agentruntime.Config{
 		Models:  models.FixtureFactory,
 		Balance: tools.FixtureBalanceClient{},
-	})
+	}
+	local := os.Getenv("AGENT_MODE") == "local"
+	if local {
+		client, err := worker.NewLocal(os.Getenv("AGENT_WORKER_URL"))
+		if err != nil {
+			return fmt.Errorf("invalid local Worker configuration")
+		}
+		settings.Balance = client
+	}
+	agent, err := agentruntime.New(ctx, settings)
 	if err != nil {
 		return err
 	}
@@ -49,9 +60,16 @@ func run() error {
 		)
 	}
 
+	handler := api.NewLocalFixture(agent)
+	if local {
+		handler, err = api.NewLocal(agent)
+		if err != nil {
+			return err
+		}
+	}
 	server := &http.Server{
 		Addr:              listenAddress,
-		Handler:           httpapi.NewLocalFixture(agent),
+		Handler:           handler,
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       10 * time.Second,
 		WriteTimeout:      70 * time.Second,
@@ -65,7 +83,7 @@ func run() error {
 		defer cancel()
 		_ = server.Shutdown(shutdown)
 	}()
-	slog.Info("synthetic agent fixture listening", "address", listenAddress)
+	slog.Info("local agent listening", "address", listenAddress, "workerEnabled", local)
 	err = server.ListenAndServe()
 	if errors.Is(err, http.ErrServerClosed) {
 		return nil
@@ -77,8 +95,18 @@ func validateStartup(args []string) error {
 	if len(args) != 0 {
 		return fmt.Errorf("agent does not accept command-line arguments")
 	}
-	if _, ok := os.LookupEnv("AWS_LAMBDA_RUNTIME_API"); ok {
-		return fmt.Errorf("local fixtures cannot run in Lambda")
+	if err := localonly.CheckRuntime(); err != nil {
+		return err
+	}
+	switch os.Getenv("AGENT_MODE") {
+	case "", "fixture":
+	case "local":
+		client, err := worker.NewLocal(os.Getenv("AGENT_WORKER_URL"))
+		if err != nil || client == nil {
+			return fmt.Errorf("local mode requires a loopback AGENT_WORKER_URL")
+		}
+	default:
+		return fmt.Errorf("unsupported AGENT_MODE")
 	}
 	return nil
 }

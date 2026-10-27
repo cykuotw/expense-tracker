@@ -5,7 +5,9 @@ import (
 	"encoding/json/v2"
 	"fmt"
 	"iter"
+	"regexp"
 	"strings"
+	"uuid"
 
 	"google.golang.org/adk/v2/model"
 	"google.golang.org/genai"
@@ -24,6 +26,8 @@ type fixtureModel struct {
 	skill string
 	name  string
 }
+
+var fixtureGroupPattern = regexp.MustCompile(`\b[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\b`)
 
 func (fixture *fixtureModel) Name() string {
 	return fixture.name
@@ -142,14 +146,25 @@ func respondWithBalance(
 		}), nil)
 		return
 	}
-	if !strings.Contains(strings.ToLower(text), "demo") {
+	groupID := ""
+	if strings.Contains(strings.ToLower(text), "demo") {
+		groupID = "demo"
+	}
+	// ADK may wrap a delegated request in structured text. Match its UUID
+	// independently of surrounding quotes; ambiguous IDs need clarification.
+	if matches := fixtureGroupPattern.FindAllString(text, -1); len(matches) == 1 {
+		if id, err := uuid.Parse(matches[0]); err == nil {
+			groupID = id.String()
+		}
+	}
+	if groupID == "" {
 		yield(&model.LLMResponse{
 			Content:      genai.NewContentFromText("Which group should I check?", "model"),
 			TurnComplete: true,
 		}, nil)
 		return
 	}
-	yield(functionCallResponse("get_balance", map[string]any{"groupId": "demo"}), nil)
+	yield(functionCallResponse("get_balance", map[string]any{"groupId": groupID}), nil)
 }
 
 func functionCallResponse(name string, arguments map[string]any) *model.LLMResponse {

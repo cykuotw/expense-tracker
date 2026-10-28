@@ -18,6 +18,16 @@ Preflight uses the AWS CLI; Terraform resolves credentials independently through
 its provider, so a successful preflight alone does not verify provider login.
 See the [AWS login guide](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-sign-in.html).
 
+After a provider upgrade, a targeted plan can retain older-schema state for
+unrelated resources. If `terraform show -json` cannot serialize that prior state,
+the deployer can inspect the actions from the successful plan's machine-readable
+events instead. This fallback is limited to the prior-state schema-version error,
+checks the saved plan's digest and event totals, and retains the same deletion
+and replacement allowlists. It does not rewrite state, refresh unrelated
+resources, or expand the deployment scope. Other inspection failures still stop
+deployment. No manual state edits or full-scope deployment are required solely
+to work around this inspection error.
+
 ## Operator configuration
 
 Create the protected external configuration once:

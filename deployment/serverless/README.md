@@ -2,6 +2,22 @@
 
 This directory is the complete serverless deployment implementation. It owns the database host, Worker, OCR, and Bootstrap Lambdas, API custom domain, and frontend infrastructure/publication through one Python entrypoint and one Terraform state.
 
+## AWS authentication
+
+The serverless configuration requires AWS provider 6.23 or later within the
+6.x series to support native `aws login` credentials. The checked-in Terraform
+lock file selects the tested provider version. After pulling a provider upgrade,
+run `terraform -chdir=deployment/serverless/infrastructure/tf init -input=false`
+to install the locked version before deploying.
+
+Authenticate with `aws login` (AWS CLI 2.32 or later), then run the deployment
+command in the same environment. For a named profile, use `aws login --profile
+<profile>` and set `AWS_PROFILE=<profile>` for deployment. Existing supported
+credential sources, including IAM Identity Center profiles, remain usable.
+Preflight uses the AWS CLI; Terraform resolves credentials independently through
+its provider, so a successful preflight alone does not verify provider login.
+See the [AWS login guide](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-sign-in.html).
+
 ## Operator configuration
 
 Create the protected external configuration once:

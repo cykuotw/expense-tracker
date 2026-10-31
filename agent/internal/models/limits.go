@@ -3,7 +3,6 @@ package models
 import (
 	"context"
 	"encoding/json/v2"
-	"errors"
 	"iter"
 	"slices"
 	"sync/atomic"
@@ -21,8 +20,6 @@ const (
 	maxTotalResponseBytes = 256 << 10
 	maxResponseEvents     = 256
 )
-
-var ErrBudget = errors.New("execution budget exceeded")
 
 type Budget struct {
 	Models atomic.Int32

@@ -1,207 +1,103 @@
-// Package runtime assembles the transport-independent, read-only agent runtime.
+// Package runtime composes the ADK engine and chat/history application services.
 package runtime
 
 import (
-	"cmp"
 	"context"
-	"crypto/sha256"
 	"fmt"
 	"io/fs"
 	"log/slog"
-	"regexp"
-	"slices"
-	"strings"
-	"sync"
-	"time"
-	"unicode/utf8"
 
+	"expense-tracker/agent/internal/llm"
 	"expense-tracker/agent/internal/models"
-	"expense-tracker/agent/internal/tools"
-	"expense-tracker/internal/agentcontract"
-	"github.com/google/uuid"
-	"google.golang.org/adk/v2/runner"
+	"expense-tracker/agent/internal/runtime/engine"
+	"expense-tracker/agent/internal/runtime/services/chat"
+	"expense-tracker/agent/internal/runtime/services/conversation"
+	sessionstore "expense-tracker/agent/internal/store/session"
+
+	"google.golang.org/adk/v2/agent"
+	"google.golang.org/adk/v2/agent/llmagent"
 	"google.golang.org/adk/v2/session"
+	"google.golang.org/adk/v2/tool"
 )
 
-const (
-	MaxTextBytes = 8192
-
-	maxConversations        = 64
-	maxConversationMessages = 64
-	maxActiveRuns           = 4
-	sessionAppName          = "expense-agent"
-	runTimeout              = 60 * time.Second
-)
-
-var identifier = regexp.MustCompile(`^[a-zA-Z0-9_-]{1,128}$`)
-
-func validID(id string) bool {
-	return identifier.MatchString(id)
+// Dependencies supplies the services and inputs used to assemble the application.
+type Dependencies struct {
+	Models               llm.Factory
+	Tools                map[string]tool.Tool
+	CompletionChecks     map[string]func(agent.Context) error
+	RouterTools          []string
+	InstructionProviders map[string]llmagent.InstructionProvider
+	AfterModelCallbacks  map[string]llmagent.AfterModelCallback
+	Authenticate         func(context.Context) (models.Identity, error)
+	Sessions             session.Service
+	Skills               fs.FS
+	ModelPolicy          models.ModelPolicy
+	Limits               models.LLMLimits
+	Logger               *slog.Logger
+	Records              sessionstore.Repository
 }
 
-type Request struct {
-	ConversationID string `json:"conversationId"`
-	MessageID      string `json:"messageId"`
-	Text           string `json:"text"`
-}
+type SkillMetadata = models.SkillMetadata
 
-func (request Request) Validate() error {
-	if !validID(request.ConversationID) || !validID(request.MessageID) {
-		return &tools.Error{Code: tools.Validation}
-	}
-
-	invalidText := !utf8.ValidString(request.Text) ||
-		strings.TrimSpace(request.Text) == "" ||
-		len(request.Text) > MaxTextBytes
-	if invalidText {
-		return &tools.Error{Code: tools.Validation}
-	}
-
-	return nil
-}
-
-// Output is an internal projection. It carries correlation and version evidence,
-// never raw ADK content, function arguments, provider errors, or thought parts.
-type Output struct {
-	Kind                 string
-	RunID                string
-	ConversationID       string
-	ClientMessageID      string
-	InvocationID         string
-	Skill                string
-	SkillVersion         string
-	Model                string
-	ProviderModelVersion string
-	Delta                string
-}
-
-type Config struct {
-	Models       models.Factory
-	Balance      tools.BalanceClient
-	Sessions     session.Service
-	Skills       fs.FS
-	DefaultModel string
-	Logger       *slog.Logger
-}
-
-type Diagnostic struct {
-	Skill        string
-	Model        models.Resolution
-	SkillVersion string
-}
-
-type conversation struct {
-	busy     bool
-	messages map[string]bool
-}
-
-type preflightClient interface {
-	Preflight(context.Context) (agentcontract.Preflight, error)
-}
-
+// App exposes chat and history through the existing transport-independent API.
 type App struct {
-	preflight   preflightClient
-	runner      *runner.Runner
-	diagnostics map[string]Diagnostic
-	agentSkills map[string]string
-	logger      *slog.Logger
-
-	mu            sync.Mutex
-	conversations map[string]*conversation
-	active        int
+	engine        *engine.Engine
+	chat          *chat.Service
+	conversations *conversation.Service
 }
 
-func (app *App) Diagnostics() []Diagnostic {
-	result := make([]Diagnostic, 0, len(app.diagnostics))
-	for _, diagnostic := range app.diagnostics {
-		result = append(result, diagnostic)
+// New assembles ADK, chat and history services after checking durable wiring.
+func New(ctx context.Context, deps Dependencies) (*App, error) {
+	// Reject incomplete durable wiring before the engine can default to memory.
+	if deps.Records != nil && deps.Sessions == nil {
+		return nil, fmt.Errorf("durable execution requires explicit persistent sessions")
 	}
-	slices.SortFunc(result, func(left, right Diagnostic) int { return cmp.Compare(left.Skill, right.Skill) })
-	return result
+	if deps.Records != nil && deps.Authenticate == nil {
+		return nil, fmt.Errorf("durable execution requires explicit authentication")
+	}
+	core, err := engine.New(ctx, engine.Dependencies{
+		Models: deps.Models, Tools: deps.Tools, CompletionChecks: deps.CompletionChecks,
+		RouterTools: deps.RouterTools, InstructionProviders: deps.InstructionProviders,
+		AfterModelCallbacks: deps.AfterModelCallbacks, Sessions: deps.Sessions,
+		Skills: deps.Skills, ModelPolicy: deps.ModelPolicy, Limits: deps.Limits, Logger: deps.Logger,
+	})
+	if err != nil {
+		return nil, err
+	}
+	chats, err := chat.New(chat.Dependencies{Engine: core, Records: deps.Records, Authenticate: deps.Authenticate, Limits: deps.Limits})
+	if err != nil {
+		return nil, err
+	}
+	history := conversation.New(engine.AppName, deps.Records, chats.AuthenticatedOwner, chats.IsRunning)
+	return &App{engine: core, chat: chats, conversations: history}, nil
 }
 
-// Run serializes one conversation and rejects duplicates. In-memory retention
-// has explicit local limits; persistence and authenticated ownership are separate.
-func (app *App) Run(ctx context.Context, request Request, emit func(Output) error) error {
-	if err := ctx.Err(); err != nil {
-		return err
-	}
-	if err := request.Validate(); err != nil {
-		return err
-	}
-	owner := "local-fixture"
-	if app.preflight != nil {
-		actor, err := app.preflight.Preflight(ctx)
-		if err != nil {
-			return &tools.Error{Code: tools.PublicCode(err)}
-		}
-		if actor.ActorID == "" || !actor.ExpiresAt.After(time.Now()) {
-			return &tools.Error{Code: tools.Unauthenticated}
-		}
-		owner = actor.ActorID
-	}
-	ctx = context.WithValue(ctx, ownerKey{}, owner)
-	reservation := request
-	if app.preflight != nil {
-		reservation.ConversationID = fmt.Sprintf("%x", sha256.Sum256([]byte(owner+"/"+request.ConversationID)))
-	}
-	if err := app.reserveRun(reservation); err != nil {
-		return err
-	}
-	defer app.releaseRun(reservation.ConversationID)
-
-	ctx, cancel := context.WithTimeout(tools.WithReadTracking(models.WithBudget(ctx)), runTimeout)
-	defer cancel()
-
-	output := Output{
-		Kind:            "started",
-		RunID:           uuid.New().String(),
-		ConversationID:  request.ConversationID,
-		ClientMessageID: request.MessageID,
-	}
-	ctx = withRunLogger(ctx, app.logger, request, output.RunID)
-	if err := emit(output); err != nil {
-		return err
-	}
-
-	if err := app.execute(ctx, request, output, emit); err != nil {
-		return err
-	}
-
-	output.Kind = "finished"
-	return emit(output)
+func (app *App) Run(ctx context.Context, request models.ChatRequest, emit func(models.Output) error) error {
+	return app.chat.Run(ctx, request, emit)
 }
 
-// reserveRun keeps admission checks and state changes under the same lock.
-func (app *App) reserveRun(request Request) error {
-	app.mu.Lock()
-	defer app.mu.Unlock()
+func (app *App) SkillMetadata() []SkillMetadata { return app.engine.SkillMetadata() }
 
-	current := app.conversations[request.ConversationID]
-	if current == nil {
-		if len(app.conversations) >= maxConversations {
-			return &tools.Error{Code: tools.Limit}
-		}
-		current = &conversation{messages: map[string]bool{}}
-		app.conversations[request.ConversationID] = current
-	}
-
-	atLimit := app.active >= maxActiveRuns ||
-		len(current.messages) >= maxConversationMessages
-	if current.busy || atLimit || current.messages[request.MessageID] {
-		return &tools.Error{Code: tools.Limit}
-	}
-
-	current.busy = true
-	current.messages[request.MessageID] = true
-	app.active++
-	return nil
+func (app *App) AuthenticatedOwner(ctx context.Context) (string, error) {
+	return app.chat.AuthenticatedOwner(ctx)
 }
 
-func (app *App) releaseRun(conversationID string) {
-	app.mu.Lock()
-	defer app.mu.Unlock()
+func (app *App) IsRunning(owner, conversation, run string) bool {
+	return app.chat.IsRunning(owner, conversation, run)
+}
 
-	app.conversations[conversationID].busy = false
-	app.active--
+func (app *App) ListConversations(ctx context.Context) ([]models.Conversation, error) {
+	return app.conversations.ListConversations(ctx)
+}
+
+func (app *App) ListRuns(ctx context.Context, conversation string) ([]models.Run, error) {
+	return app.conversations.ListRuns(ctx, conversation)
+}
+
+func (app *App) ReadRunOutput(ctx context.Context, conversation, run, after string) ([]models.Output, error) {
+	return app.conversations.ReadRunOutput(ctx, conversation, run, after)
+}
+
+func (app *App) DeleteConversation(ctx context.Context, conversation string) error {
+	return app.conversations.DeleteConversation(ctx, conversation)
 }

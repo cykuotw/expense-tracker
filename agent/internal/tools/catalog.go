@@ -1,28 +1,37 @@
 package tools
 
 import (
-	"fmt"
-	"maps"
-	"slices"
+	"expense-tracker/agent/internal/tools/functiontool/getbalance"
+	"expense-tracker/agent/internal/tools/functiontool/updatestate"
 
+	"google.golang.org/adk/v2/agent"
+	"google.golang.org/adk/v2/agent/llmagent"
 	"google.golang.org/adk/v2/tool"
 )
 
-// Adding a backend capability requires an explicit implementation in this catalog.
-var catalog = map[string]func(BalanceClient) (tool.Tool, error){
-	"get_balance": NewBalance,
-}
-
-// Names lists the tools available for validated skill bindings.
-func Names() []string {
-	return slices.Sorted(maps.Keys(catalog))
-}
-
-// Build creates a registered tool with its injected backend dependency.
-func Build(name string, client BalanceClient) (tool.Tool, error) {
-	factory, known := catalog[name]
-	if !known {
-		return nil, fmt.Errorf("unknown tool %q", name)
+// NewCatalog constructs application tools outside the runtime coordinator.
+func NewCatalog(client getbalance.Client) (map[string]tool.Tool, error) {
+	balance, err := getbalance.NewTool(client)
+	if err != nil {
+		return nil, err
 	}
-	return factory(client)
+	state, err := updatestate.NewTool()
+	if err != nil {
+		return nil, err
+	}
+	return map[string]tool.Tool{getbalance.ToolName: balance, updatestate.ToolName: state}, nil
+}
+
+func RouterTools() []string { return []string{updatestate.ToolName} }
+
+func InstructionProviders() map[string]llmagent.InstructionProvider {
+	return map[string]llmagent.InstructionProvider{updatestate.ToolName: updatestate.Instructions}
+}
+
+func AfterModelCallbacks() map[string]llmagent.AfterModelCallback {
+	return map[string]llmagent.AfterModelCallback{updatestate.ToolName: updatestate.ValidateModelResponse}
+}
+
+func CompletionChecks() map[string]func(agent.Context) error {
+	return map[string]func(agent.Context) error{getbalance.ToolName: getbalance.RequireRead}
 }

@@ -224,17 +224,37 @@ PostgreSQL
 ## Agent Runtime Boundary
 
 `agent/cmd/agent` is the shared Agent executable. Its default mode exposes a
-loopback-only synthetic HTTP/SSE fixture. Explicit `AGENT_MODE=local` instead
+loopback-only HTTP/SSE interface with synthetic balance data and memory sessions.
+Explicit `AGENT_MODE=local` instead
 connects to a loopback Worker using a per-request access bearer JWT and unsigned
-transport. Both modes use deterministic model routing without paid inference.
-The executable has no deployed chat route, direct database access, or browser
-cookie authentication. The existing backend remains the expense-data boundary.
+transport. Both modes use `internal/llm.NewGeminiFactory` for real Gemini inference;
+`agent/config` loads and validates the required `GEMINI_API_KEY`, default/router
+model profiles and model/tool/state/context/response ceilings. Settings changes
+take effect after restart without rebuilding. Deterministic
+model factories remain injected test fixtures. Client construction performs no
+inference; chat execution makes provider calls.
+Local mode additionally requires a dedicated Agent-state PostgreSQL connection.
+The executable has no deployed chat route or browser-cookie authentication.
+The existing backend remains the expense-data boundary.
 
-`agent/internal/clients/worker` implements the separate signed Worker transport.
+The Agent HTTP implementation is separated into `api/routes`, `api/handlers`,
+and `api/middleware`; `api/server.go` assembles these components and HTTP server
+defaults. Handlers depend on consumer-owned interfaces and SDK-free contracts
+in `agent/internal/models`, not on the concrete runtime or model/tool/storage
+services. `agent/internal/credentials` carries credentials and filtering
+secrets outside payloads without importing Worker clients or persistence.
+`cmd/agent` is the composition root joining the HTTP API to the Agent runtime.
+Runtime/application tests can run without HTTP; API contract tests use fake
+services, with real runtime/Worker behavior covered by explicit integration tests.
+
+`agent/internal/adapters/expenseapi` adapts domain tools to the backend Worker
+HTTP API and independently resolves trusted actor identity, including signed transport.
 It forwards a request-scoped access JWT in `X-Agent-Access-Token`, outside model
 arguments and session state, with SigV4 in `Authorization`. A runtime assembled
-with this client preflights the active actor before inference on every run and
-scopes in-memory conversations by that actor. Worker handlers in
+with its authentication function validates the active actor before inference on
+every run and scopes conversations by that actor. Runtime receives constructed
+tools and optional tool-owned completion checks from the composition root; it
+has no balance client or domain-data reads. Worker handlers in
 `backend/services/agenttools` reuse existing account, membership, and balance
 stores through the versioned DTOs in `internal/agentcontract`. They require the
 configured Agent role from trusted Gateway IAM context and an exact route key,
@@ -251,16 +271,117 @@ requests, and forbids Lambda/release execution. Release-marked Workers also
 reject local construction. The default Worker constructor used by Lambda never
 selects this adapter from an environment variable and continues to require IAM.
 
+`agent/internal/runtime/app.go` composes an ADK `engine.Engine`, a
+`services/chat.Service` and a `services/conversation.Service`, retaining the
+application's public chat/history entry points through explicit delegation.
+The engine owns ADK construction, tool/callback wiring, skill metadata and
+one-turn event processing/output projection/delegation logging. It owns no
+identity resolver, recording repository, admission mutex or conversation tracker.
+The chat service owns those application concerns, including per-turn budgets,
+deadlines, recording finalization and cancellation/retry ordering, and calls
+`engine.RunTurn` after authentication/admission. The composition root rejects
+recording without explicitly supplied sessions and authentication before building
+the engine, so ADK's memory default cannot silently replace durable wiring.
+History receives repository and authenticated-owner/run-status callbacks from
+the chat service, with no concrete dependency on either chat or engine.
+Services do not import the HTTP API; child packages do not import the parent
+runtime. Shared SDK-free skill metadata lives in `models`.
+Owner/session identity is passed explicitly to ADK; memory and recorded turns
+use the same start/execute/finish lifecycle. Tests live beside responsibilities;
+full delegation, tool and recording flows and PostgreSQL tests use the public
+App in `runtime/integration_tests`.
+Bundled skill loading
+and validation live in `runtime/skill`. FunctionTools live in
+`tools/functiontool/updatestate` and `tools/functiontool/getbalance` and own their
+instructions, response restrictions and completion checks. `tools/catalog.go`
+registers these with the composition root. Runtime receives tool grants and ADK
+callbacks through generic injected dependencies; it does not recognize concrete
+tool names or import tool implementations, backend adapters or expense contracts.
+`agent/internal/models` holds shared data contracts. `llm` groups Gemini
+construction, configured model-role selection, turn budgets, model wrapping with limits
+and recording, and response cleanup into five responsibility files. Shared
+SDK-free `ModelProfile`, `ModelPolicy` and `LLMLimits` contracts live in `models`;
+config owns their defaults and environment loading. Budget counters remain
+per-turn state, with injected immutable ceilings. Shared budget errors come
+from `models.ErrBudget`; `store/session` implements injected ADK
+session and application recording interfaces. The `expense_agent` schema uses
+three shared tables: sessions retain ownership and current state, agui_ref
+maps external identities, and events retain JSONB data
+for all skills. Explicit `event_type` filters separate canonical ADK history, execution
+diagnostics and UI output. Authors and invocation
+links remain explicit; native ADK event IDs stay in the JSON payload. Each append
+creates a new database event ID without native-event deduplication. Database creation timestamps order
+events with event IDs as tie-breakers, and replay cursors use stored event IDs.
+Event insertion uses a timestamp lookup under the session lock rather
+than updating a session counter;
+read projections never replay diagnostics as model history or UI output.
+Canonical history (`adk.event`) is reserved for its session writer; execution
+recording rejects that type. Legacy resource-binding rows are ignored by history
+and output readers; new tool calls no longer write resource fingerprints.
+Event payloads have no schema-version column. Diagnostic snapshots keep optional
+callId metadata inside their JSON envelope, including when oversized content is
+omitted. Readers decode the payload selected by event_type and ignore additional
+JSON fields; malformed required history still fails explicitly.
+Sessions have a sole UUID `session_id` primary key generated by the runtime.
+Events reference that UUID without copying app/owner metadata; repository reads
+validate session ownership before loading events. Run/session foreign keys
+prevent cross-session run links. `agui_ref` retains app/owner metadata for its
+external-ID uniqueness constraint and enforces consistency with sessions.
+`agui_ref` maps owner/app-scoped UI threads and runs to internal session and run
+UUIDs. Thread anchors are retained after deletion; run mappings are committed
+with lifecycle start events. Both fixture and persistent modes pass runtime-owned session
+UUIDs to ADK, while transport output/history continue to use external IDs.
+Its scoped login has no
+expense-table access or schema-DDL permission. Agent-owned migrations live in
+`agent/cmd/db-bootstrap/migrations`. The explicit local `agent/cmd/db-bootstrap`
+operator command passes its embedded migrations to `agent/internal/databasebootstrap`,
+which applies them before reconciling the restricted runtime role and grants,
+independently of backend bootstrap. Their version table is
+`public.expense_agent_schema_migrations`, outside runtime table
+grants. Local operator role provisioning is explicit and separate from request
+startup; migrations never run on requests.
+Only preflight-authenticated local mode uses this store; synthetic fixture mode
+continues to use memory. Startup never silently falls back from DB to memory.
+
+The MVP uses one runtime process. In-memory guards reject concurrent turns and
+repeat message/UI-run IDs within that process. No dedicated runs table,
+database execution-admission policy, lease or heartbeat is used. Execution
+summaries are lifecycle events; missing terminal evidence is reported as unknown
+when no local turn is active. Persistent sessions/history/mappings survive idle
+gaps and restarts, independently of the process-local resend guard. Restart-safe
+deduplication and multi-instance coordination are deferred; history/recovery
+reads never automatically repeat model or tool calls. Sessions have no automatic
+TTL purge. Owner deletion stores a UTC soft-delete timestamp and a process-local
+output gate coordinates emission with deletion in the active runtime.
+Authenticated owners retain their historical conversation snapshots after domain
+data or group access changes. History reads do not fetch current domain data.
+Fresh domain facts come through tools, with backend authorization on each call;
+stored context is never proof of current access or current balances.
+
+Restricted DB diagnostics include bounded credential-sanitized model requests,
+provider responses/reasoning summaries, tool inputs/results and execution metadata.
+Required thought signatures retain their exact part association in protected
+history. Available provider reasoning is not presented as a full hidden reasoning
+trace. Normal history/SSE expose only user messages, projected output and metadata;
+credentials and diagnostic content are excluded from ordinary logs. Payload limits
+explicitly mark omitted diagnostic content; required history/signatures fail
+closed when oversized rather than silently truncating execution state.
+
 `agent/internal/runtime` discovers bundled `agent/skills/` at startup and assembles
 one ADK Chat orchestrator with Task leaf agents. The orchestrator receives leaf
 descriptions through ADK delegation tools; unfinished tasks can span user turns,
 and completed tasks return control through `finish_task`. Skills provide behavior
-and custom metadata for type, model preference, and requested tool names. Go code
-owns mode assignment, supported types, the read-only tool catalog, grant
-validation, and execution limits. Only bundled release assets are discovered;
+and custom metadata for type, model role (`default` or `router`), and requested tool names. Go code
+owns mode assignment, supported types, tool construction, grant validation,
+and execution limits. The runtime validates requested names against injected
+tools; domain completion rules belong to the tool layer. Only bundled release assets are discovered;
 request data cannot create agents or grant tools. Typed FunctionTools use injected
 backend-client dependencies rather than access expense tables or calculate
-balances. Resource selectors remain subject to backend actor authorization on
+balances. The session-only `update_state` tool applies generic JSON set/unset
+changes inside `agent_context` using ADK state deltas and the injected persistence
+service. Skills choose the keys; state is bounded, credential-filtered and exposed
+as untrusted context. The orchestrator can receive session utilities while
+remaining unable to read financial data directly. Resource selectors remain subject to backend actor authorization on
 every call. `agent/internal/api` projects visible output to minimal
 AG-UI events without exposing ADK state or model reasoning. Model, tool, skill,
 and session-service dependencies are replaceable. See the

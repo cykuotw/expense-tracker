@@ -20,7 +20,7 @@
     },
     "subtotal": {
       "type": "string",
-      "description": "Printed subtotal as a decimal string without currency symbols or grouping separators. Empty if missing."
+      "description": "Tax-exclusive subtotal as a decimal string without currency symbols or grouping separators. Use the printed pre-tax subtotal, or normalize an explicitly tax-inclusive total by subtracting clearly printed included tax and any separately printed tip included in the total, as directed by the prompt. Otherwise empty if missing or uncertain."
     },
     "tax": {
       "type": "string",
@@ -51,11 +51,11 @@
           },
           "unitPrice": {
             "type": "string",
-            "description": "Merchandise unit price after clearly attached charged discounts and excluding any deposit split into Deposit. Use a printed unit price, exact net merchandise line total divided by printed quantity (at most three decimal places), or the net merchandise line total for a clearly single-unit fixed-price product. For weighted products require a clearly printed price per matching weight unit. Empty if uncertain, division is inexact, or for the combined Deposit item; do not substitute a deposit-inclusive derived price."
+            "description": "Merchandise unit price after clearly attached charged discounts and excluding any deposit split into Deposit. Use a printed unit price, exact net merchandise line total divided by printed quantity (at most three decimal places), or the net merchandise line total for a clearly single-unit fixed-price product. For weighted products require a clearly printed price per matching weight unit. When normalizing included tax, use the exact pre-tax line total divided by explicit quantity, never the printed tax-inclusive unit price. Empty if uncertain, division is inexact, or for the combined Deposit item; do not substitute a deposit-inclusive derived price."
           },
           "lineTotal": {
             "type": "string",
-            "description": "Net charged product-line amount after clearly attached charged discounts and subtracting a clearly included deposit only when that deposit is split into Deposit. For Deposit, the combined clearly identified charged deposit amount counted once. If the deposit split is uncertain, preserve the charged product amount without inventing a Deposit item. Do not deduct informational savings again or alter amounts to force reconciliation. Empty if unreadable."
+            "description": "Net charged product-line amount after clearly attached charged discounts and subtracting a clearly included deposit only when that deposit is split into Deposit. Normalize explicitly included tax to a pre-tax amount only when that tax is unambiguously attributable to this product, as directed by the prompt. Empty if a pre-tax amount cannot be established without guessing a tax allocation. For Deposit, the combined clearly identified charged deposit amount counted once. If the deposit split is uncertain, preserve the charged product amount without inventing a Deposit item. Do not deduct informational savings again or otherwise alter amounts to force reconciliation. Empty if unreadable."
           }
         }
       }

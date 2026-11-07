@@ -10,10 +10,17 @@ Rules:
 - Use an empty items array when no purchased items can be identified.
 - Use YYYY-MM-DD for the transaction date and an ISO currency code only when supported by the receipt.
 - Return quantities and money as decimal strings without currency symbols or grouping separators.
-- Preserve printed receipt summary amounts. Never invent, distribute, or adjust amounts just to make totals reconcile, and do not assume missing tax is zero.
+- Preserve printed receipt summary amounts except for the explicit tax-inclusive normalization below. Never invent, distribute, or adjust amounts just to make totals reconcile, and do not assume missing tax is zero.
 - For tax, use the printed total tax when present. Otherwise sum clearly printed, separate tax amounts exactly once. Do not add tax rates, duplicate a total with its components, or derive tax from a percentage or the difference between subtotal and total. Leave tax empty if its amounts or grouping are uncertain.
 - Extract purchased items, excluding payment, change, and loyalty information.
 - Extract the primary receipt. Do not merge background menus or unrelated receipts. Combine information from multiple slips only when clear transaction evidence establishes that they belong to the same purchase; otherwise leave unsupported fields empty.
+
+Tax-inclusive normalization:
+- Required arithmetic: subtotal + tax + tip = total; sum of item lineTotal values = subtotal. For explicit HST/GST/VAT INCLUDED, keep the printed total, extract the printed tax once, and derive the pre-tax subtotal by subtracting tax and any separately printed tip included in total. Keep missing tip empty; never infer tax from a rate.
+- Convert tax-inclusive item amounts to pre-tax only with clear per-item evidence, or for a single-product receipt with no other charges. Never guess tax allocations across products; leave unsupported pre-tax lineTotal values empty for review.
+- Preserve explicit quantity. Replace a tax-inclusive unitPrice with pre-tax lineTotal / quantity only if exact to at most three decimal places; otherwise leave unitPrice empty.
+- Example: one fuel item 44.48, quantity 28.529L at 1.559/L, HST INCLUDED 5.12, total 44.48, no other charges → subtotal "39.36", tax "5.12", tip "", total "44.48"; item quantity "28.529", unitPrice "", lineTotal "39.36".
+- Otherwise use the printed subtotal or leave it empty. Never copy total into subtotal or fabricate amounts to satisfy the arithmetic; leave uncertain fields empty.
 
 Purchased items and discounts:
 - Return one item per purchased product line, not one item per printed text line. Keep separate purchase lines separate even when their descriptions match.

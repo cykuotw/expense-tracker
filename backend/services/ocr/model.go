@@ -2,6 +2,7 @@ package ocr
 
 import (
 	"context"
+	"errors"
 	"regexp"
 	"strings"
 	"time"
@@ -30,7 +31,6 @@ type Item struct {
 	Quantity    Field `json:"quantity"`
 	UnitPrice   Field `json:"unitPrice"`
 	LineTotal   Field `json:"lineTotal"`
-	RawRow      Field `json:"-"`
 }
 
 // Result is provider-neutral OCR output suitable for an editable expense draft.
@@ -50,6 +50,12 @@ type Result struct {
 type Provider interface {
 	AnalyzeExpense(ctx context.Context, document []byte) (Result, error)
 }
+
+var (
+	ErrProviderRequestFailed = errors.New("expense analysis provider request failed")
+	ErrProviderRejected      = errors.New("expense analysis provider rejected the document")
+	ErrProviderThrottled     = errors.New("expense analysis provider throttled the request")
+)
 
 var unambiguousMoney = regexp.MustCompile(`^[+-]?[0-9]+(?:\.[0-9]+)?$`)
 var unambiguousGroupedMoney = regexp.MustCompile(`^[+-]?[0-9]{1,3}(?:,[0-9]{3})+(?:\.[0-9]+)?$`)

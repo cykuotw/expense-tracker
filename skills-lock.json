@@ -46,6 +46,13 @@
       "skillPath": ".agents/skills/impeccable/SKILL.md",
       "computedHash": "f663c52fe49d805ed1b0d19e466a14034594130a4847e9726d8bfb8587c7186a"
     },
+    "modern-web-guidance": {
+      "source": "GoogleChrome/modern-web-guidance",
+      "sourceType": "github",
+      "ref": "4dd968349e54ca45a05dd5c818fb035c9054b022",
+      "skillPath": "skills/modern-web-guidance/SKILL.md",
+      "computedHash": "8ea2818acb8fc266fd58123427700e9fe424e03f9913089ee4f3d1b041d72841"
+    },
     "security-best-practices": {
       "source": "openai/skills",
       "sourceType": "github",

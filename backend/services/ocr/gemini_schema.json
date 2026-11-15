@@ -3,9 +3,17 @@
   "additionalProperties": false,
   "required": [
     "merchant", "date", "currencySuggestion", "subtotal",
-    "tax", "tip", "total", "items"
+    "tax", "tip", "total", "items", "suggestedExpenseTypeId", "categoryReason"
   ],
   "properties": {
+    "suggestedExpenseTypeId": {
+      "type": "string",
+      "description": "One supplied expense-type ID supported by the purchased items, or empty when unclear or no choices are provided."
+    },
+    "categoryReason": {
+      "type": "string",
+      "description": "Brief explanation grounded in the visible purchased items, at most 500 bytes. Empty when no category is suggested."
+    },
     "merchant": {
       "type": "string",
       "description": "Visible storefront or brand name, preferred over the legal operating company. Empty if unreadable or unsupported by the image."

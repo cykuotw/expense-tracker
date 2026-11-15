@@ -159,7 +159,7 @@ func TestDraftStorageRequiresBothExplicitIntentAndRuntimeEnablement(t *testing.T
 			}, &replayStub{}, &providerStub{}, nil)
 			handler.now = func() time.Time { return now.Add(time.Second) }
 			handler.SetTemporaryReceiptStore(store)
-			response, err := handler.Handle(t.Context(), stubRequest(token, accountID, requestID, "image/jpeg", image))
+			response, err := handler.Handle(t.Context(), multipartDraftRequest(token, accountID, requestID, "image/jpeg", image))
 			require.NoError(t, err)
 			require.Equal(t, http.StatusOK, response.StatusCode)
 			var payload DraftResponse
@@ -189,7 +189,7 @@ func TestDraftStorageFailureReturnsRetryableErrorWithoutReceiptToken(t *testing.
 	}, &replayStub{}, &providerStub{}, func(value DraftObservation) { observation = value })
 	handler.now = func() time.Time { return now.Add(time.Second) }
 	handler.SetTemporaryReceiptStore(store)
-	response, err := handler.Handle(t.Context(), stubRequest(token, accountID, requestID, "image/jpeg", encodeTestJPEG(t, 8, 8)))
+	response, err := handler.Handle(t.Context(), multipartDraftRequest(token, accountID, requestID, "image/jpeg", encodeTestJPEG(t, 8, 8)))
 	require.NoError(t, err)
 	assert.Equal(t, http.StatusServiceUnavailable, response.StatusCode)
 	assert.Equal(t, "1", response.Headers["Retry-After"])

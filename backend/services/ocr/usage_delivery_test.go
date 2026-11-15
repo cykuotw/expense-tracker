@@ -30,7 +30,7 @@ func TestUsageRecordRetainsCapabilityIdentityAndUnavailableCounts(t *testing.T) 
 
 type identityProvider struct{ identity usageIdentity }
 
-func (p *identityProvider) AnalyzeExpense(ctx context.Context, _ []byte) (Result, error) {
+func (p *identityProvider) AnalyzeExpense(ctx context.Context, _ []byte, _ []ExpenseCategory) (Result, error) {
 	p.identity, _ = ctx.Value(usageIdentityKey{}).(usageIdentity)
 	return Result{}, ErrProviderRequestFailed
 }
@@ -40,7 +40,7 @@ func TestDraftBindsUsageToVerifiedCapabilityEvenWhenProviderFails(t *testing.T) 
 	provider := &identityProvider{}
 	h := NewDraftHandler(RuntimeConfig{FrontendOrigin: "https://app.example.com", CapabilitySecret: secret}, &replayStub{}, provider, nil)
 	h.now = func() time.Time { return now.Add(time.Second) }
-	response, err := h.Handle(t.Context(), stubRequest(token, account, request, "image/jpeg", encodeTestJPEG(t, 16, 12)))
+	response, err := h.Handle(t.Context(), multipartDraftRequest(token, account, request, "image/jpeg", encodeTestJPEG(t, 16, 12)))
 	require.NoError(t, err)
 	require.Equal(t, 503, response.StatusCode)
 	require.Equal(t, usageIdentity{account, request}, provider.identity)

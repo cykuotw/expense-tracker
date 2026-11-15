@@ -195,7 +195,7 @@ export const CreateExpenseProvider = ({
         setReceiptToken(null);
         setReceiptExpiresAt(null);
         try {
-            const result = await requestReceiptDraftWithRetention(receipt, userID, keepReceipt, controller.signal);
+            const result = await requestReceiptDraftWithRetention(receipt, userID, keepReceipt, controller.signal, expenseTypes);
             if (ocrAbortRef.current !== controller) return;
             setOCRDraft(result.draft);
             setOCRUsage(result.usage ?? null);
@@ -213,9 +213,12 @@ export const CreateExpenseProvider = ({
         } finally {
             if (ocrAbortRef.current === controller) ocrAbortRef.current = null;
         }
-    }, [receiptOCREnabled, userID, keepReceipt]);
+    }, [receiptOCREnabled, userID, keepReceipt, expenseTypes]);
 
     const applyReviewedReceipt = useCallback((draft: ReviewedReceiptDraft) => {
+        if (categoryBreakdown.length === 0 && draft.expenseTypeId && expenseTypes.some(({ id }) => id === draft.expenseTypeId)) {
+            setSelectedExpenseTypeId(draft.expenseTypeId);
+        }
         setMerchant(draft.merchant);
         setDescription((current) => current.trim() ? current : draft.merchant);
         setOccurredOn(draft.date);
@@ -225,7 +228,7 @@ export const CreateExpenseProvider = ({
         setTotalInput(draft.total);
         setItems(draft.items);
         clearReceiptWorkflow(true);
-    }, [clearReceiptWorkflow]);
+    }, [clearReceiptWorkflow, categoryBreakdown.length, expenseTypes]);
 
     const handleCreateExpense = async (event: FormEvent) => {
         event.preventDefault();

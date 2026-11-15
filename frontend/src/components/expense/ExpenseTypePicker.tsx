@@ -15,6 +15,7 @@ export function ExpenseTypePicker({
     label,
     invalid = false,
     describedBy,
+    id,
 }: {
     expenseTypes: ExpenseTypeItem[];
     value: string;
@@ -22,6 +23,7 @@ export function ExpenseTypePicker({
     label?: string;
     invalid?: boolean;
     describedBy?: string;
+    id?: string;
 }) {
     const [open, setOpen] = useState(false);
     const [query, setQuery] = useState("");
@@ -57,6 +59,7 @@ export function ExpenseTypePicker({
         <PickerSurface open={open} onClose={() => { setOpen(false); setQuery(""); }} label="Expense type options" maxHeight={384}
             trigger={
                 <button
+                    id={id}
                     type="button"
                     aria-label={label}
                     aria-invalid={invalid || undefined}

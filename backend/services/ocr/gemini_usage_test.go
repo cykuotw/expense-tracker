@@ -59,7 +59,7 @@ func TestGeminiUsageLoggingIncludesRejectedOutputAndNeverReceiptContent(t *testi
 				observations++
 				logger.LogAttrs(ctx, slog.LevelInfo, "ocr_gemini_usage", o.LogAttrs()...)
 			})
-			result, err := provider.AnalyzeExpense(t.Context(), []byte("private-image-bytes"))
+			result, err := provider.AnalyzeExpense(t.Context(), []byte("private-image-bytes"), nil)
 			if test.wantError {
 				require.Error(t, err)
 			} else {

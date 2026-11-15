@@ -21,6 +21,8 @@ export interface OCRItem {
 }
 
 export interface OCRDraft {
+    suggestedExpenseTypeId?: string;
+    categoryReason?: string;
     merchant: OCRField;
     date: OCRField;
     currencySuggestion: OCRField;
@@ -65,6 +67,7 @@ export interface ConfirmedExpenseItem {
 }
 
 export interface ReviewedReceiptDraft {
+    expenseTypeId?: string;
     merchant: string;
     date: string;
     currencySuggestion: string;

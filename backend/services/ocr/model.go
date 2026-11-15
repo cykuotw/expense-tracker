@@ -35,20 +35,22 @@ type Item struct {
 
 // Result is provider-neutral OCR output suitable for an editable expense draft.
 type Result struct {
-	Usage    *ScanUsage `json:"-"`
-	Merchant Field      `json:"merchant"`
-	Date     Field      `json:"date"`
-	Currency Field      `json:"currencySuggestion"`
-	Subtotal Field      `json:"subtotal"`
-	Tax      Field      `json:"tax"`
-	Tip      Field      `json:"tip"`
-	Total    Field      `json:"total"`
-	Items    []Item     `json:"items"`
+	SuggestedExpenseTypeID string     `json:"suggestedExpenseTypeId,omitempty"`
+	CategoryReason         string     `json:"categoryReason,omitempty"`
+	Usage                  *ScanUsage `json:"-"`
+	Merchant               Field      `json:"merchant"`
+	Date                   Field      `json:"date"`
+	Currency               Field      `json:"currencySuggestion"`
+	Subtotal               Field      `json:"subtotal"`
+	Tax                    Field      `json:"tax"`
+	Tip                    Field      `json:"tip"`
+	Total                  Field      `json:"total"`
+	Items                  []Item     `json:"items"`
 }
 
 // Provider analyzes one already-normalized document image.
 type Provider interface {
-	AnalyzeExpense(ctx context.Context, document []byte) (Result, error)
+	AnalyzeExpense(ctx context.Context, document []byte, categories []ExpenseCategory) (Result, error)
 }
 
 var (

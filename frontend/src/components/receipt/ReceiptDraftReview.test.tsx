@@ -28,6 +28,11 @@ const draft = {
         { description: provider("Cake"), quantity: provider("1"), unitPrice: provider("6.00"), lineTotal: provider("6.00") },
     ],
 };
+const expenseTypes = [
+    { id: "general", name: "General", category: "Other" },
+    { id: "groceries", name: "Groceries", category: "Food" },
+    { id: "dining", name: "Dining", category: "Food" },
+];
 
 function renderReview(openBreakdown = true) {
     const result = render(
@@ -86,10 +91,61 @@ describe("ReceiptDraftReview", () => {
             ocrError: null,
             applyReviewedReceipt,
             clearReceiptWorkflow,
+            expenseTypes,
+            categoryBreakdown: [],
         });
     });
 
     afterEach(cleanup);
+
+    it.each([undefined, "unknown"])("falls back to General for suggestion %s and applies it only on confirmation", (suggestedExpenseTypeId) => {
+        useCreateExpenseMock.mockReturnValue({ ...useCreateExpenseMock(), ocrDraft: { ...draft, suggestedExpenseTypeId, categoryReason: "Untrusted reason" } });
+        renderReview(false);
+        expect(screen.getByRole("button", { name: "Receipt expense category" })).toHaveTextContent("General");
+        expect(screen.queryByText(/Untrusted reason/)).not.toBeInTheDocument();
+        expect(applyReviewedReceipt).not.toHaveBeenCalled();
+        fireEvent.click(screen.getByRole("button", { name: /Use reviewed values/i }));
+        expect(applyReviewedReceipt).toHaveBeenCalledWith(expect.objectContaining({ expenseTypeId: "general" }));
+    });
+
+    it("preselects a valid suggestion and preserves the user's replacement across rerenders", () => {
+        const ocrDraft = { ...draft, suggestedExpenseTypeId: "groceries", categoryReason: "The receipt contains milk." };
+        useCreateExpenseMock.mockReturnValue({ ...useCreateExpenseMock(), ocrDraft });
+        renderReview(false);
+        expect(screen.getByRole("button", { name: "Receipt expense category" })).toHaveTextContent("Groceries");
+        expect(screen.getByText(/The receipt contains milk/)).toBeInTheDocument();
+        fireEvent.click(screen.getByRole("button", { name: "Receipt expense category" }));
+        fireEvent.click(screen.getByRole("option", { name: /Dining/ }));
+        fireEvent.change(screen.getByLabelText(/Merchant/), { target: { value: "Changed merchant" } });
+        expect(screen.getByRole("button", { name: "Receipt expense category" })).toHaveTextContent("Dining");
+        expect(screen.queryByText(/The receipt contains milk/)).not.toBeInTheDocument();
+        fireEvent.click(screen.getByRole("button", { name: /Use reviewed values/i }));
+        expect(applyReviewedReceipt).toHaveBeenCalledWith(expect.objectContaining({ expenseTypeId: "dining" }));
+    });
+
+    it.each([{ types: [] }, { types: expenseTypes.filter(({ name }) => name !== "General") }])("preserves the form category when no suggestion or General exists: $types", ({ types }) => {
+        useCreateExpenseMock.mockReturnValue({ ...useCreateExpenseMock(), expenseTypes: types });
+        renderReview(false);
+        expect(screen.getByRole("button", { name: "Receipt expense category" })).toHaveTextContent("Choose a category");
+        fireEvent.click(screen.getByRole("button", { name: /Use reviewed values/i }));
+        expect(applyReviewedReceipt.mock.calls[0][0]).not.toHaveProperty("expenseTypeId");
+    });
+
+    it("keeps suggestions informational when a category breakdown exists", () => {
+        useCreateExpenseMock.mockReturnValue({ ...useCreateExpenseMock(), categoryBreakdown: [{ expenseTypeId: "dining", amount: "10" }], ocrDraft: { ...draft, suggestedExpenseTypeId: "groceries", categoryReason: "Milk" } });
+        renderReview(false);
+        expect(screen.queryByRole("button", { name: "Receipt expense category" })).not.toBeInTheDocument();
+        expect(screen.getByText(/Suggested: Groceries/)).toBeInTheDocument();
+        fireEvent.click(screen.getByRole("button", { name: /Use reviewed values/i }));
+        expect(applyReviewedReceipt.mock.calls[0][0]).not.toHaveProperty("expenseTypeId");
+    });
+
+    it("does not apply a preview category when cancelling", () => {
+        renderReview(false);
+        fireEvent.click(screen.getByRole("button", { name: "Back to manual entry" }));
+        expect(applyReviewedReceipt).not.toHaveBeenCalled();
+        expect(clearReceiptWorkflow).toHaveBeenCalled();
+    });
 
     it("labels extracted and inferred values, warns on currency mismatch, and applies edited item order", () => {
         renderReview();

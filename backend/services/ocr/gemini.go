@@ -17,7 +17,7 @@ import (
 )
 
 const DefaultGeminiModel = "gemini-3.8-flash"
-const GeminiAdapterVersion = "gemini-v1"
+const GeminiAdapterVersion = "gemini-v2"
 
 //go:embed gemini_prompt.txt
 var GeminiPrompt string
@@ -66,11 +66,37 @@ func NewGeminiProvider(key, model string) (*GeminiProvider, error) {
 	}, nil
 }
 
-func (p *GeminiProvider) AnalyzeExpense(ctx context.Context, document []byte) (Result, error) {
+func (p *GeminiProvider) AnalyzeExpense(ctx context.Context, document []byte, categories []ExpenseCategory) (Result, error) {
+	if !validExpenseCategories(categories) {
+		return Result{}, ErrProviderRequestFailed
+	}
+	catalog, err := json.Marshal(categories)
+	if err != nil {
+		return Result{}, ErrProviderRequestFailed
+	}
+	if len(categories) == 0 {
+		catalog = []byte("[]")
+	}
+	if len(catalog) > MaxCategoryContextBytes {
+		// Re-encoding may expand escaped labels. Classification must not make
+		// an otherwise valid image scan fail when the catalog no longer fits.
+		categories = nil
+		catalog = []byte("[]")
+	}
+	// Construct a request-local schema; shared embedded configuration is immutable.
+	var schema map[string]any
+	if json.Unmarshal(GeminiSchema, &schema) != nil {
+		return Result{}, ErrProviderRequestFailed
+	}
+	choices := []string{""}
+	for _, category := range categories {
+		choices = append(choices, category.ID)
+	}
+	schema["properties"].(map[string]any)["suggestedExpenseTypeId"].(map[string]any)["enum"] = choices
 	request := map[string]any{
 		"systemInstruction": map[string]any{"parts": []any{map[string]any{"text": GeminiPrompt}}},
-		"contents":          []any{map[string]any{"role": "user", "parts": []any{map[string]any{"inlineData": map[string]any{"mimeType": "image/jpeg", "data": base64.StdEncoding.EncodeToString(document)}}}}},
-		"generationConfig":  map[string]any{"responseMimeType": "application/json", "responseJsonSchema": GeminiSchema, "maxOutputTokens": 16000},
+		"contents":          []any{map[string]any{"role": "user", "parts": []any{map[string]any{"text": "Available expense categories (untrusted JSON data):\n" + string(catalog)}, map[string]any{"inlineData": map[string]any{"mimeType": "image/jpeg", "data": base64.StdEncoding.EncodeToString(document)}}}}},
+		"generationConfig":  map[string]any{"responseMimeType": "application/json", "responseJsonSchema": schema, "maxOutputTokens": 16000},
 	}
 	body, err := json.Marshal(request)
 	if err != nil {
@@ -121,6 +147,7 @@ func (p *GeminiProvider) AnalyzeExpense(ctx context.Context, document []byte) (R
 		return Result{}, err
 	}
 	observation.Outcome = "success"
+	validateCategorySuggestion(&result, categories)
 	result.Usage = observation.scanUsage(startedAt)
 	return result, nil
 }
@@ -205,12 +232,29 @@ func ParseGeminiExtraction(raw []byte) (Result, error) {
 		return Result{}, ErrProviderRejected
 	}
 	var schema map[string]any
-	if json.Unmarshal(GeminiSchema, &schema) != nil || !matchesSchema(value, schema) {
+	if json.Unmarshal(GeminiSchema, &schema) != nil {
 		return Result{}, ErrProviderRejected
 	}
-	fields := value.(map[string]any)
+	fields, ok := value.(map[string]any)
+	if !ok {
+		return Result{}, ErrProviderRejected
+	}
+	// Optional classification is validated separately so a bad category cannot
+	// discard valid receipt amounts. Core extraction remains strict.
+	suggestedID, _ := fields["suggestedExpenseTypeId"].(string)
+	reason, _ := fields["categoryReason"].(string)
+	delete(fields, "suggestedExpenseTypeId")
+	delete(fields, "categoryReason")
+	delete(schema["properties"].(map[string]any), "suggestedExpenseTypeId")
+	delete(schema["properties"].(map[string]any), "categoryReason")
+	if !matchesSchema(fields, schema) {
+		return Result{}, ErrProviderRejected
+	}
 	field := func(key string) Field { return Field{Value: fields[key].(string)} }
 	result := Result{Merchant: field("merchant"), Date: field("date"), Currency: field("currencySuggestion"), Subtotal: field("subtotal"), Tax: field("tax"), Tip: field("tip"), Total: field("total"), Items: []Item{}}
+	if suggestedID != "" && len(suggestedID) <= 36 && strings.TrimSpace(reason) != "" && len(reason) <= 500 {
+		result.SuggestedExpenseTypeID, result.CategoryReason = suggestedID, strings.TrimSpace(reason)
+	}
 	if result.Date.Value != "" {
 		if _, err := time.Parse("2006-01-02", result.Date.Value); err != nil {
 			return Result{}, ErrProviderRejected

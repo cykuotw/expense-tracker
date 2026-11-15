@@ -32,6 +32,28 @@ function jsonResponse(value: unknown, status = 200) {
 }
 
 describe("receipt OCR client", () => {
+    it.each([
+        { suggestedExpenseTypeId: {}, categoryReason: "Milk" },
+        { suggestedExpenseTypeId: "groceries", categoryReason: "x".repeat(501) },
+        { suggestedExpenseTypeId: "groceries", categoryReason: null },
+    ])("keeps valid receipt values when optional suggestion is malformed", (suggestion) => {
+        const result = parseOCRDraft({ ...draft, ...suggestion });
+        expect(result.total.value).toBe("5.65");
+        expect(result.suggestedExpenseTypeId).toBeUndefined();
+        expect(result.categoryReason).toBeUndefined();
+    });
+
+    it.each([false, true])("sends the loaded catalog, or omits all classification context when oversized: %s", async (oversized) => {
+        apiFetchMock.mockResolvedValue(jsonResponse({ token: "token", requestId: "00000000-0000-4000-8000-000000000001", contentType: "image/jpeg", maxBytes: 3_670_016, expiresAt: "2026-09-27T12:00:00Z" }, 201));
+        const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ requestId: "00000000-0000-4000-8000-000000000001", draft }));
+        vi.stubGlobal("fetch", fetchMock);
+        const catalog = [{ id: "00000000-0000-4000-8000-000000000002", name: oversized ? "x".repeat(257) : "Groceries", category: "Food" }];
+        await requestReceiptDraftWithRetention(receipt, "account-1", false, undefined, catalog);
+        const body = (fetchMock.mock.calls[0][1] as RequestInit).body as FormData;
+        expect(JSON.parse(body.get("categories") as string)).toEqual(oversized ? [] : catalog);
+        expect(apiFetchMock).toHaveBeenCalledTimes(1);
+        expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
     it("parses optional usage and drops malformed telemetry independently of the draft", () => {
         const tokens = { input: 1000, output: 100, thinking: 50, cachedInput: 200, total: 1150 };
         const usage = { model: "gemini-3.8-flash", tokens, estimatedCostUsd: 0.0011775 };
@@ -45,6 +67,7 @@ describe("receipt OCR client", () => {
         }
     });
     beforeEach(() => {
+        apiFetchMock.mockClear();
         vi.spyOn(crypto, "randomUUID").mockReturnValue("00000000-0000-4000-8000-000000000001");
     });
 
@@ -54,7 +77,7 @@ describe("receipt OCR client", () => {
         vi.unstubAllGlobals();
     });
 
-    it("mints a capability then uploads bytes without browser credentials", async () => {
+    it("mints a capability then uploads multipart without browser credentials", async () => {
         apiFetchMock.mockResolvedValue(jsonResponse({
             token: "token",
             requestId: "00000000-0000-4000-8000-000000000001",
@@ -74,7 +97,7 @@ describe("receipt OCR client", () => {
             "https://api.example.test/api/v0/ocr/drafts",
             expect.objectContaining({
                 credentials: "omit",
-                body: receipt.blob,
+                body: expect.any(FormData),
                 headers: expect.objectContaining({
                     Authorization: "Bearer token",
                     "X-OCR-Account-ID": "account-1",
@@ -82,6 +105,11 @@ describe("receipt OCR client", () => {
                 }),
             }),
         );
+        const init = fetchMock.mock.calls[0][1] as RequestInit;
+        const body = init.body as FormData;
+        expect((body.get("image") as File).type).toBe("image/jpeg");
+        expect(body.get("categories")).toBe("[]");
+        expect(init.headers).not.toHaveProperty("Content-Type");
     });
 
     it("requires an explicit keep choice and a returned token before claiming retention", async () => {

@@ -97,9 +97,9 @@ func (h *DraftHandler) Handle(ctx context.Context, request events.APIGatewayV2HT
 	if !strings.EqualFold(origin, h.frontendOrigin) {
 		return h.error(http.StatusForbidden, "invalid_origin", "request origin is not allowed", ""), nil
 	}
-	contentType, _, parseErr := mime.ParseMediaType(header(request.Headers, "Content-Type"))
-	if parseErr != nil || !SupportedContentType(contentType) {
-		return h.error(http.StatusUnsupportedMediaType, "unsupported_media_type", "receipt must be JPEG or PNG", origin), nil
+	contentType, params, parseErr := mime.ParseMediaType(header(request.Headers, "Content-Type"))
+	if parseErr != nil || contentType != "multipart/form-data" || params["boundary"] == "" {
+		return h.error(http.StatusUnsupportedMediaType, "unsupported_media_type", "receipt must be a multipart image upload", origin), nil
 	}
 	tokenString, ok := bearerToken(header(request.Headers, "Authorization"))
 	if !ok {
@@ -110,12 +110,11 @@ func (h *DraftHandler) Handle(ctx context.Context, request events.APIGatewayV2HT
 		return h.error(http.StatusUnauthorized, "invalid_ocr_capability", "OCR capability is missing or invalid", origin), nil
 	}
 	if header(request.Headers, AccountIDHeader) != claims.Subject ||
-		header(request.Headers, OCRRequestHeader) != claims.ID ||
-		!strings.EqualFold(contentType, claims.ContentType) {
+		header(request.Headers, OCRRequestHeader) != claims.ID {
 		return h.error(http.StatusForbidden, "ocr_capability_mismatch", "OCR capability does not match the request", origin), nil
 	}
 
-	document, bodyErr := requestBody(request, claims.MaxBytes)
+	document, imageType, categories, bodyErr := parseReceiptUpload(request, params["boundary"])
 	if bodyErr != nil {
 		if errors.Is(bodyErr, errDocumentTooLarge) {
 			return h.error(http.StatusRequestEntityTooLarge, "receipt_too_large", "receipt exceeds the upload limit", origin), nil
@@ -124,6 +123,9 @@ func (h *DraftHandler) Handle(ctx context.Context, request events.APIGatewayV2HT
 	}
 	if len(document) == 0 {
 		return h.error(http.StatusBadRequest, "invalid_receipt_body", "receipt body is invalid", origin), nil
+	}
+	if !strings.EqualFold(imageType, claims.ContentType) {
+		return h.error(http.StatusForbidden, "ocr_capability_mismatch", "OCR capability does not match the image", origin), nil
 	}
 	observation.SourceBytes = len(document)
 
@@ -140,7 +142,7 @@ func (h *DraftHandler) Handle(ctx context.Context, request events.APIGatewayV2HT
 		observation.Outcome = "invalid_image"
 		return h.preprocessError(preprocessErr, origin), nil
 	}
-	if !strings.EqualFold(contentType, mediaTypeForFormat(processed.SourceFormat)) {
+	if !strings.EqualFold(imageType, mediaTypeForFormat(processed.SourceFormat)) {
 		observation.Outcome = "media_type_mismatch"
 		return h.error(http.StatusUnsupportedMediaType, "receipt_type_mismatch", "receipt content does not match its media type", origin), nil
 	}
@@ -160,7 +162,7 @@ func (h *DraftHandler) Handle(ctx context.Context, request events.APIGatewayV2HT
 	providerStarted := time.Now()
 	providerContext, cancelProvider := context.WithTimeout(withUsageIdentity(ctx, claims.Subject, claims.ID), h.providerTimeout)
 	observation.ProviderInvoked = true
-	extraction, providerErr := h.provider.AnalyzeExpense(providerContext, processed.Bytes)
+	extraction, providerErr := h.provider.AnalyzeExpense(providerContext, processed.Bytes, categories)
 	cancelProvider()
 	observation.ProviderLatencyMillis = time.Since(providerStarted).Milliseconds()
 	if providerErr != nil {
@@ -176,6 +178,7 @@ func (h *DraftHandler) Handle(ctx context.Context, request events.APIGatewayV2HT
 		return h.retryableError("receipt scanning is temporarily unavailable; you can retry or enter the expense manually", origin), nil
 	}
 
+	validateCategorySuggestion(&extraction, categories)
 	responsePayload := DraftResponse{RequestID: claims.ID, Draft: PrepareDraft(extraction), Usage: extraction.Usage}
 	if claims.KeepReceipt && h.receiptStorageEnabled {
 		if h.receiptStore == nil {

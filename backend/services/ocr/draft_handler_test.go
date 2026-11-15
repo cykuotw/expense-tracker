@@ -18,14 +18,16 @@ import (
 )
 
 type providerStub struct {
-	result   Result
-	err      error
-	document []byte
-	calls    int
-	wait     bool
+	result     Result
+	err        error
+	document   []byte
+	categories []ExpenseCategory
+	calls      int
+	wait       bool
 }
 
-func (stub *providerStub) AnalyzeExpense(ctx context.Context, document []byte) (Result, error) {
+func (stub *providerStub) AnalyzeExpense(ctx context.Context, document []byte, categories []ExpenseCategory) (Result, error) {
+	stub.categories = categories
 	stub.calls++
 	stub.document = append([]byte(nil), document...)
 	if stub.wait {
@@ -75,7 +77,7 @@ func TestDraftHandlerReturnsNormalizedEditableDraft(t *testing.T) {
 	}, replay, provider, func(value DraftObservation) { observation = value })
 	handler.now = func() time.Time { return now.Add(time.Second) }
 
-	request := stubRequest(token, accountID, requestID, "image/jpeg", encodeTestJPEG(t, 16, 12))
+	request := multipartDraftRequest(token, accountID, requestID, "image/jpeg", encodeTestJPEG(t, 16, 12))
 	response, err := handler.Handle(t.Context(), request)
 	require.NoError(t, err)
 	require.Equal(t, http.StatusOK, response.StatusCode)
@@ -112,7 +114,7 @@ func TestDraftHandlerRejectsInvalidImageBeforeReplayAndProvider(t *testing.T) {
 	}, replay, provider, nil)
 	handler.now = func() time.Time { return now.Add(time.Second) }
 
-	response, err := handler.Handle(t.Context(), stubRequest(token, accountID, requestID, "image/jpeg", []byte("not an image")))
+	response, err := handler.Handle(t.Context(), multipartDraftRequest(token, accountID, requestID, "image/jpeg", []byte("not an image")))
 	require.NoError(t, err)
 	assert.Equal(t, http.StatusUnprocessableEntity, response.StatusCode)
 	assert.Empty(t, replay.claimed)
@@ -129,7 +131,7 @@ func TestDraftHandlerRejectsInvalidBoundaryBeforeReplayAndProvider(t *testing.T)
 	}{
 		"wrong origin": {
 			request: func() events.APIGatewayV2HTTPRequest {
-				request := stubRequest(token, accountID, requestID, "image/jpeg", validImage)
+				request := multipartDraftRequest(token, accountID, requestID, "image/jpeg", validImage)
 				request.Headers["Origin"] = "https://attacker.example.com"
 				return request
 			},
@@ -137,25 +139,25 @@ func TestDraftHandlerRejectsInvalidBoundaryBeforeReplayAndProvider(t *testing.T)
 		},
 		"wrong account": {
 			request: func() events.APIGatewayV2HTTPRequest {
-				return stubRequest(token, uuid.NewString(), requestID, "image/jpeg", validImage)
+				return multipartDraftRequest(token, uuid.NewString(), requestID, "image/jpeg", validImage)
 			},
 			status: http.StatusForbidden,
 		},
 		"wrong request": {
 			request: func() events.APIGatewayV2HTTPRequest {
-				return stubRequest(token, accountID, uuid.NewString(), "image/jpeg", validImage)
+				return multipartDraftRequest(token, accountID, uuid.NewString(), "image/jpeg", validImage)
 			},
 			status: http.StatusForbidden,
 		},
 		"wrong claimed type": {
 			request: func() events.APIGatewayV2HTTPRequest {
-				return stubRequest(token, accountID, requestID, "image/png", validImage)
+				return multipartDraftRequest(token, accountID, requestID, "image/png", validImage)
 			},
 			status: http.StatusForbidden,
 		},
 		"oversized": {
 			request: func() events.APIGatewayV2HTTPRequest {
-				return stubRequest(token, accountID, requestID, "image/jpeg", make([]byte, MaxDocumentBytes+1))
+				return multipartDraftRequest(token, accountID, requestID, "image/jpeg", make([]byte, MaxDocumentBytes+1))
 			},
 			status: http.StatusRequestEntityTooLarge,
 		},
@@ -188,7 +190,7 @@ func TestDraftHandlerRejectsMislabeledImageBeforeReplayAndProvider(t *testing.T)
 	}, replay, provider, nil)
 	handler.now = func() time.Time { return now.Add(time.Second) }
 
-	response, err := handler.Handle(t.Context(), stubRequest(token, accountID, requestID, "image/png", encodeTestJPEG(t, 8, 8)))
+	response, err := handler.Handle(t.Context(), multipartDraftRequest(token, accountID, requestID, "image/png", encodeTestJPEG(t, 8, 8)))
 	require.NoError(t, err)
 	assert.Equal(t, http.StatusUnsupportedMediaType, response.StatusCode)
 	assert.Empty(t, replay.claimed)
@@ -203,7 +205,7 @@ func TestDraftHandlerPreventsDuplicateProviderCall(t *testing.T) {
 	}, &replayStub{err: ErrCapabilityReplay}, provider, nil)
 	handler.now = func() time.Time { return now.Add(time.Second) }
 
-	response, err := handler.Handle(t.Context(), stubRequest(token, accountID, requestID, "image/jpeg", encodeTestJPEG(t, 8, 8)))
+	response, err := handler.Handle(t.Context(), multipartDraftRequest(token, accountID, requestID, "image/jpeg", encodeTestJPEG(t, 8, 8)))
 	require.NoError(t, err)
 	assert.Equal(t, http.StatusConflict, response.StatusCode)
 	assert.Zero(t, provider.calls)
@@ -217,7 +219,7 @@ func TestDraftHandlerReturnsSafeRetryableProviderError(t *testing.T) {
 	}, &replayStub{}, provider, nil)
 	handler.now = func() time.Time { return now.Add(time.Second) }
 
-	response, err := handler.Handle(t.Context(), stubRequest(token, accountID, requestID, "image/jpeg", encodeTestJPEG(t, 8, 8)))
+	response, err := handler.Handle(t.Context(), multipartDraftRequest(token, accountID, requestID, "image/jpeg", encodeTestJPEG(t, 8, 8)))
 	require.NoError(t, err)
 	assert.Equal(t, http.StatusServiceUnavailable, response.StatusCode)
 	assert.Equal(t, "1", response.Headers["Retry-After"])
@@ -232,7 +234,7 @@ func TestDraftHandlerReturnsNonRetryableRejectedDocumentError(t *testing.T) {
 	}, &replayStub{}, provider, nil)
 	handler.now = func() time.Time { return now.Add(time.Second) }
 
-	response, err := handler.Handle(t.Context(), stubRequest(token, accountID, requestID, "image/jpeg", encodeTestJPEG(t, 8, 8)))
+	response, err := handler.Handle(t.Context(), multipartDraftRequest(token, accountID, requestID, "image/jpeg", encodeTestJPEG(t, 8, 8)))
 	require.NoError(t, err)
 	assert.Equal(t, http.StatusUnprocessableEntity, response.StatusCode)
 	assert.Empty(t, response.Headers["Retry-After"])
@@ -248,7 +250,7 @@ func TestDraftHandlerBoundsProviderTime(t *testing.T) {
 	handler.now = func() time.Time { return now.Add(time.Second) }
 	handler.providerTimeout = time.Millisecond
 
-	response, err := handler.Handle(t.Context(), stubRequest(token, accountID, requestID, "image/jpeg", encodeTestJPEG(t, 8, 8)))
+	response, err := handler.Handle(t.Context(), multipartDraftRequest(token, accountID, requestID, "image/jpeg", encodeTestJPEG(t, 8, 8)))
 	require.NoError(t, err)
 	assert.Equal(t, http.StatusServiceUnavailable, response.StatusCode)
 	assert.Contains(t, response.Body, "timed out")

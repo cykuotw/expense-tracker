@@ -52,11 +52,20 @@ Daily EventBridge -------------------------> Delivery Lambda (VPC)
   configuration is published.
 - **OCR boundary:** the authenticated Worker checks the `receipt_ocr` grant and
   mints a 60-second account/request-bound capability. API Gateway forwards one
-  JPEG/PNG image, up to 3.5 MiB, to the separate 512 MB, 60-second OCR Lambda
+  multipart upload containing one JPEG/PNG image, up to 3.5 MiB, and a bounded
+  advisory expense-category catalog to the separate 512 MB, 60-second OCR Lambda
   outside the VPC. It validates dimensions, strips metadata, claims a DynamoDB
   replay key, and sends the normalized image to Gemini over HTTPS. A versioned
-  prompt and JSON Schema produce editable draft fields; server-side parsing
-  rejects invalid output and never fabricates model confidence. Only the OCR
+  prompt and request-local JSON Schema produce editable draft fields and an
+  optional category suggestion in the same model call. Category IDs must match
+  supplied choices; invalid suggestions are dropped without discarding valid
+  receipt values. Receipt review defaults to General when no usable suggestion
+  exists and applies the visible category only on confirmation; existing category
+  breakdowns are preserved. The catalog is already loaded by expense form options
+  and does not grant authorization. Capability MIME checks apply to the image
+  part and detected format. Raw-image uploads are no longer accepted, so client
+  and OCR releases must be coordinated. Server-side parsing rejects invalid
+  receipt output and never fabricates model confidence. Only the OCR
   runtime receives the Gemini API key. It has no database access or expense
   mutation authority. Both OCR routes are throttled to 1 request/second with
   burst 1, and the OCR function has reserved concurrency one after activation.

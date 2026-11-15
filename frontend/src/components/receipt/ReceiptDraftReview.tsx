@@ -18,6 +18,7 @@ import { isDateOnly } from "@/lib/dateOnly";
 import { formatMoney, moneyInputStep } from "@/lib/money";
 import { Separator } from "@/components/ui/separator";
 import ReceiptScanUsage from "./ReceiptScanUsage";
+import { ExpenseTypePicker } from "@/components/expense/ExpenseTypePicker";
 import type { EditableOCRDraft, EditableOCRField, ReviewedReceiptDraft } from "@/types/ocr";
 
 function ReviewCue({ field, id }: { field: EditableOCRField; id?: string }) {
@@ -81,9 +82,16 @@ export default function ReceiptDraftReview({ photoURL, onEditPhoto }: ReceiptDra
         ocrError,
         applyReviewedReceipt,
         clearReceiptWorkflow,
+        expenseTypes = [],
+        categoryBreakdown = [],
     } = useCreateExpense();
     const [draft, setDraft] = useState<EditableOCRDraft | null>(null);
     const [detailsOpen, setDetailsOpen] = useState(false);
+    const [categoryChoice, setCategoryChoice] = useState<{ source: typeof ocrDraft; groupId: typeof selectedGroupId; id: string } | null>(null);
+    const suggestedType = expenseTypes.find(({ id }) => id === ocrDraft?.suggestedExpenseTypeId);
+    const initialTypeId = suggestedType?.id ?? expenseTypes.find(({ name }) => name === "General")?.id ?? "";
+    const categoryId = categoryChoice?.source === ocrDraft && categoryChoice?.groupId === selectedGroupId ? categoryChoice.id : initialTypeId;
+    const categoryCanApply = categoryBreakdown.length === 0 && expenseTypes.some(({ id }) => id === categoryId);
 
     useEffect(() => {
         setDraft(ocrDraft ? (() => {
@@ -128,6 +136,7 @@ export default function ReceiptDraftReview({ photoURL, onEditPhoto }: ReceiptDra
     const apply = () => {
         if (!draft || !reviewValidation?.valid || !dateValid) return;
         const reviewed: ReviewedReceiptDraft = {
+            ...(categoryCanApply ? { expenseTypeId: categoryId } : {}),
             merchant: draft.merchant.value.trim(),
             date: draft.date.value,
             currencySuggestion: draft.currencySuggestion.value.trim(),
@@ -236,6 +245,25 @@ export default function ReceiptDraftReview({ photoURL, onEditPhoto }: ReceiptDra
                             <Badge variant="secondary">{currency}</Badge>
                         </div>
                         <FieldGroup className="mt-5 grid items-start gap-4 sm:grid-cols-2">
+                            <Field className="min-w-0 gap-2 sm:col-span-2">
+                                <FieldLabel htmlFor={categoryBreakdown.length > 0 ? undefined : "receipt-category"}>Category</FieldLabel>
+                                {categoryBreakdown.length > 0 ? (
+                                    <FieldDescription>
+                                        {suggestedType ? `Suggested: ${suggestedType.name}. ${ocrDraft?.categoryReason ?? ""} ` : ""}
+                                        This expense has a category breakdown. Change categories in the expense form; scanning will keep your breakdown.
+                                    </FieldDescription>
+                                ) : (
+                                    <>
+                                        <ExpenseTypePicker id="receipt-category" expenseTypes={expenseTypes} value={categoryId} label="Receipt expense category" describedBy="receipt-category-help"
+                                            onChange={(id) => setCategoryChoice({ source: ocrDraft, groupId: selectedGroupId, id })} />
+                                        <FieldDescription id="receipt-category-help">
+                                            {suggestedType && categoryId === suggestedType.id && ocrDraft?.categoryReason
+                                                ? `Suggested from your receipt: ${ocrDraft.categoryReason}`
+                                                : "Confirm the category for this expense. It will be applied with your reviewed values."}
+                                        </FieldDescription>
+                                    </>
+                                )}
+                            </Field>
                             <ReviewField label="Merchant" field={draft.merchant} onChange={(field) => updateSummary("merchant", field)} />
                             <Field className="min-w-0 gap-2" data-invalid={!dateValid}>
                                 <div className="flex min-h-5 items-center gap-2">

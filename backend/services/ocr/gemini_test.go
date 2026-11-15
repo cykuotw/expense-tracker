@@ -37,7 +37,7 @@ func TestGeminiStrictExtractionAndProviderTransport(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, defaultProviderTimeout, provider.client.Timeout)
 	provider.endpoint = server.URL
-	result, err := provider.AnalyzeExpense(t.Context(), []byte("normalized JPEG"))
+	result, err := provider.AnalyzeExpense(t.Context(), []byte("normalized JPEG"), nil)
 	require.NoError(t, err)
 	require.Equal(t, "Shoppers Drug Mart", result.Merchant.Value)
 	require.Zero(t, result.Merchant.Confidence)

@@ -52,17 +52,21 @@ function jsonResponse(body: unknown, status = 200) {
     });
 }
 
-function CreateExpenseHarness() {
+function CreateExpenseHarness({ reviewCategory }: { reviewCategory?: string } = {}) {
     const context = useCreateExpense();
 
     return (
         <form aria-label="expense form" onSubmit={context.handleCreateExpense}>
+            <output data-testid="expense-type">{context.selectedExpenseTypeId}</output>
+            <output data-testid="category-breakdown">{JSON.stringify(context.categoryBreakdown)}</output>
+            <button type="button" onClick={() => context.setSelectedExpenseTypeId("manual")}>Select manual category</button>
             <input aria-label="Keep receipt photo" type="checkbox" checked={context.keepReceipt} onChange={(event) => context.setKeepReceipt(event.target.checked)} />
             <button type="button" onClick={context.discardReceiptToken}>Don't keep photo</button>
             <button type="button" disabled={context.receiptOCREnabled !== true} onClick={() => void context.startReceiptOCR({ blob: new Blob(["jpeg"], { type: "image/jpeg" }), width: 10, height: 20, quality: 0.8 })}>Start test scan</button>
             <button type="button" onClick={() => context.clearReceiptWorkflow()}>Discard test scan</button>
             <output data-testid="scan-usage">{context.ocrUsage ? JSON.stringify(context.ocrUsage) : "none"}</output>
             <output data-testid="scan-status">{context.ocrStatus}</output>
+            <output data-testid="scan-category">{context.ocrDraft?.suggestedExpenseTypeId ?? "none"}</output>
             <input
                 aria-label="amount"
                 type="number"
@@ -114,6 +118,7 @@ function CreateExpenseHarness() {
             <button
                 type="button"
                 onClick={() => context.applyReviewedReceipt({
+                    expenseTypeId: reviewCategory,
                     merchant: "Cafe",
                     date: "2026-09-27",
                     currencySuggestion: "USD",
@@ -136,10 +141,24 @@ function CreateExpenseHarness() {
 }
 
 describe("CreateExpenseProvider error handling", () => {
+    it.each([
+        { category: "type-1", breakdown: false, expected: "type-1" },
+        { category: "unknown", breakdown: false, expected: "manual" },
+        { category: "type-1", breakdown: true, expected: "manual" },
+    ])("applies only a valid confirmed category without replacing breakdowns: $category / $breakdown", async ({ category, breakdown, expected }) => {
+        render(<CreateExpenseProvider><CreateExpenseHarness reviewCategory={category} /></CreateExpenseProvider>);
+        await waitFor(() => expect(screen.getByTestId("expense-type")).toHaveTextContent("type-1"));
+        fireEvent.click(screen.getByRole("button", { name: "Select manual category" }));
+        if (breakdown) fireEvent.click(screen.getByRole("button", { name: "Categorize purchase" }));
+        fireEvent.click(screen.getByRole("button", { name: "Apply receipt" }));
+        expect(screen.getByTestId("expense-type")).toHaveTextContent(expected);
+        if (breakdown) expect(JSON.parse(screen.getByTestId("category-breakdown").textContent!)).toHaveLength(2);
+    });
+
     it("clears usage on rescan and discard and ignores a discarded scan completing late", async () => {
         const blank = { value: "" };
         const result: ReceiptDraftResult = {
-            draft: { merchant: { value: "Shop" }, date: blank, currencySuggestion: blank, subtotal: blank, tax: blank, tip: blank, total: { value: "10" }, items: [] },
+            draft: { merchant: { value: "Shop" }, date: blank, currencySuggestion: blank, subtotal: blank, tax: blank, tip: blank, total: { value: "10" }, items: [], suggestedExpenseTypeId: "type-1", categoryReason: "Mixed purchase." },
             receiptToken: null, receiptExpiresAt: null,
             usage: { model: "gemini-3.8-flash", tokens: { input: 100, output: 20, thinking: 0, cachedInput: 0, total: 120 }, estimatedCostUsd: 0.00015 },
         };
@@ -150,13 +169,16 @@ describe("CreateExpenseProvider error handling", () => {
         await waitFor(() => expect(start).toBeEnabled());
         fireEvent.click(start);
         await waitFor(() => expect(screen.getByTestId("scan-usage")).toHaveTextContent("0.00015"));
+        expect(screen.getByTestId("scan-category")).toHaveTextContent("type-1");
         fireEvent.click(start);
         expect(screen.getByTestId("scan-status")).toHaveTextContent("scanning");
         expect(screen.getByTestId("scan-usage")).toHaveTextContent("none");
+        expect(screen.getByTestId("scan-category")).toHaveTextContent("none");
         fireEvent.click(screen.getByRole("button", { name: "Discard test scan" }));
         finishLate(result);
         await waitFor(() => expect(screen.getByTestId("scan-status")).toHaveTextContent("idle"));
         expect(screen.getByTestId("scan-usage")).toHaveTextContent("none");
+        expect(screen.getByTestId("scan-category")).toHaveTextContent("none");
         receiptDraftMock.mockResolvedValueOnce({ ...result, usage: undefined });
         fireEvent.click(start);
         await waitFor(() => expect(screen.getByTestId("scan-status")).toHaveTextContent("ready"));
@@ -258,7 +280,7 @@ describe("CreateExpenseProvider error handling", () => {
         if (optOut) fireEvent.click(screen.getByLabelText("Keep receipt photo"));
         fireEvent.click(start);
         await waitFor(() => expect(receiptDraftMock).toHaveBeenCalledWith(
-            expect.any(Object), "user-1", expected, expect.any(AbortSignal),
+            expect.any(Object), "user-1", expected, expect.any(AbortSignal), [{ id: "type-1", category: "Other", name: "General" }],
         ));
     });
 

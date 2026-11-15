@@ -8,6 +8,7 @@ import type {
     OCRScanUsage,
 } from "../types/ocr";
 import type { PreparedReceipt } from "./receiptEditor";
+import type { ExpenseTypeItem } from "../types/expense";
 
 export const OCR_CLIENT_TIMEOUT_MS = 60_000;
 const MAX_DRAFT_ITEMS = 200;
@@ -62,6 +63,9 @@ export function parseOCRDraft(value: unknown): OCRDraft {
         );
     }
     return {
+        ...(typeof value.suggestedExpenseTypeId === "string" && value.suggestedExpenseTypeId.length <= 36 &&
+            typeof value.categoryReason === "string" && value.categoryReason.trim() && new TextEncoder().encode(value.categoryReason).length <= 500
+            ? { suggestedExpenseTypeId: value.suggestedExpenseTypeId, categoryReason: value.categoryReason.trim() } : {}),
         merchant: parseField(value.merchant),
         date: parseField(value.date),
         currencySuggestion: parseField(value.currencySuggestion),
@@ -163,6 +167,7 @@ export async function requestReceiptDraftWithRetention(
     accountID: string,
     keepReceipt: boolean,
     signal?: AbortSignal,
+    expenseTypes: ExpenseTypeItem[] = [],
 ): Promise<ReceiptDraftResult> {
     const controller = new AbortController();
     const timeout = window.setTimeout(() => controller.abort("timeout"), OCR_CLIENT_TIMEOUT_MS);
@@ -193,17 +198,26 @@ export async function requestReceiptDraftWithRetention(
             );
         }
 
+        const body = new FormData();
+        body.append("image", receipt.blob, "receipt");
+        const categories = expenseTypes.map(({ id, name, category }) => ({ id, name, category }));
+        const encodedCategories = JSON.stringify(categories);
+        const encoder = new TextEncoder();
+        const validCategories = categories.length <= 200 && new Set(categories.map(({ id }) => id)).size === categories.length &&
+            categories.every(({ id, name, category }) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(id) &&
+                name.trim() && category.trim() && encoder.encode(name).length <= 256 && encoder.encode(category).length <= 256) &&
+            encoder.encode(encodedCategories).length <= 32 * 1024;
+        body.append("categories", validCategories ? encodedCategories : "[]");
         const response = await fetch(`${API_URL}/ocr/drafts`, {
             method: "POST",
             credentials: "omit",
             signal: controller.signal,
             headers: {
                 Authorization: `Bearer ${capability.token}`,
-                "Content-Type": contentType,
                 "X-OCR-Account-ID": accountID,
                 "X-OCR-Request-ID": requestId,
             },
-            body: receipt.blob,
+            body,
         });
         if (!response.ok) {
             throw await errorFromResponse(

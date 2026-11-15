@@ -483,18 +483,21 @@ and the existing UTC default.
 
 Install application support first with the normal `make deploy ACTION=update
 SCOPE=all`. A successful deployment applies the configured hours afterward.
-Activation checks the deployed frontend and live Sender capability versions;
+Activation checks the deployed frontend and live Sender capability versions
+and confirms the live Worker has the desired operating-hours policy;
 partial application upgrades cannot activate a schedule. Runtime installation
 initializes a disabled public policy before Sender activation, including a
-backend-only update of an always-on installation. Once both components are
-installed, later enablement and time changes require no rebuild.
-Subsequent configuration changes require only:
+backend-only update of an always-on installation. Once these components are
+installed, enablement and time changes require a backend update to publish
+matching Worker configuration before applying schedules:
 
 ```sh
+make deploy ACTION=update SCOPE=backend
 make deploy ACTION=hours-apply
 ```
 
-This action builds no application artifacts and performs no application release.
+The `hours-apply` action itself builds no application artifacts and performs no
+application release.
 Retain the local Terraform initialization and existing deployment artifacts used
 by the supported deployer. It validates configuration before mutation, stages
 Terraform-owned schedules disabled, waits two minutes for old schedule events to
@@ -511,10 +514,24 @@ The public hours document is outside release snapshots, so application rollback
 does not roll back operator schedules. Frontend notices reload it every minute
 while visible; Sender reads it each tick. CloudFront invalidation is awaited
 before schedules activate. Only public hours are published, never credentials or
-the deployment configuration. Set `enabled` to `false` and rerun `hours-apply`
-to remove the three EC2 schedules while retaining the backup and local-time
+the deployment configuration. To disable EC2 scheduling, set `enabled` to
+`false`, update the backend with that policy, and rerun `hours-apply`. This
+removes the three EC2 schedules while retaining the backup and local-time
 monthly-review schedules. Keep the block after first application; removing it
 is rejected on application updates to prevent orphaned active schedules.
+
+The Worker uses a request-triggered database probe with a five-second total
+deadline. Failed off-hours probes and connection failures suppress database
+attempts for five minutes per Lambda execution environment, ending earlier at
+opening time. In-hours failures are retried on the next request. A manual EC2
+start becomes usable after PostgreSQL is ready and the cache expires; the
+browser's Try again action can request an earlier probe, limited to one cache
+bypass per 30 seconds per environment. Newly created environments have their
+own empty caches. Scheduled stop and safety-stop actions still apply to manual
+starts. A query timeout invalidates known availability but does not alone
+establish an outage. Database operations have deadlines; an entire multi-query
+request or cold start can take longer than five seconds. Temporary failures
+preserve sessions and do not automatically replay mutations.
 
 Scheduler uses the configured IANA zone, including EST/EDT changes. Fixed `EST`
 and unknown zones are rejected. Daily times in a known spring-forward gap are

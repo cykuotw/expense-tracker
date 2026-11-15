@@ -1,6 +1,8 @@
 package middleware
 
 import (
+	"context"
+	"errors"
 	"expense-tracker/backend/services/auth"
 	"expense-tracker/backend/types"
 	"expense-tracker/backend/utils"
@@ -18,6 +20,15 @@ type activeUserStore interface {
 	GetUserByID(id string) (*types.User, error)
 }
 
+func loadUser(c *gin.Context, store activeUserStore, id string) (*types.User, error) {
+	if contextual, ok := store.(interface {
+		GetUserByIDContext(context.Context, string) (*types.User, error)
+	}); ok {
+		return contextual.GetUserByIDContext(c.Request.Context(), id)
+	}
+	return store.GetUserByID(id)
+}
+
 func ActiveUserMiddleware(store activeUserStore) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID, err := auth.ExtractJWTClaim(c, "userID")
@@ -27,7 +38,12 @@ func ActiveUserMiddleware(store activeUserStore) gin.HandlerFunc {
 			return
 		}
 
-		user, err := store.GetUserByID(userID)
+		user, err := loadUser(c, store, userID)
+		if err != nil && !errors.Is(err, types.ErrUserNotExist) {
+			utils.WriteError(c, http.StatusInternalServerError, err)
+			c.Abort()
+			return
+		}
 		if err != nil || user == nil || !user.IsActive {
 			utils.WriteError(c, http.StatusForbidden, types.ErrAccountInactive)
 			c.Abort()
@@ -47,9 +63,9 @@ func AdminMiddleware(store adminUserStore) gin.HandlerFunc {
 			return
 		}
 
-		user, err := store.GetUserByID(userID)
+		user, err := loadUser(c, store, userID)
 		if err != nil {
-			utils.WriteError(c, http.StatusUnauthorized, err)
+			utils.WriteError(c, http.StatusInternalServerError, err)
 			c.Abort()
 			return
 		}

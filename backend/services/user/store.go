@@ -1,6 +1,7 @@
 package user
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"strings"
@@ -53,8 +54,12 @@ func (s *Store) GetUserByExternalIdentity(externalType string, externalID string
 }
 
 func (s *Store) GetUserByID(id string) (*types.User, error) {
+	return s.GetUserByIDContext(context.Background(), id)
+}
+
+func (s *Store) GetUserByIDContext(ctx context.Context, id string) (*types.User, error) {
 	query := "SELECT " + userProjection + " FROM users WHERE id = $1;"
-	user, err := scanRowIntoUser(s.db.QueryRow(query, id))
+	user, err := scanRowIntoUser(s.db.QueryRowContext(ctx, query, id))
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, types.ErrUserNotExist
 	}

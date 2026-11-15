@@ -30,7 +30,7 @@ export default function ServiceUnavailableNotice({ initial = false }: { initial?
 
     async function retry() {
         setChecking(true);
-        try { await refreshSession(); } finally { setChecking(false); }
+        try { await refreshSession({ retryService: true }); } finally { setChecking(false); }
     }
 
     if (!unavailable) {

@@ -1,6 +1,7 @@
 package config
 
 import (
+	"expense-tracker/backend/internal/dbavailability"
 	"fmt"
 	"net"
 	"net/http"
@@ -95,6 +96,7 @@ func loadFromLookup(lookup func(string) (string, bool)) (Config, error) {
 	setString("DB_PASSWORD", &cfg.DBPassword)
 	setString("DB_NAME", &cfg.DBName)
 	setString("DB_SSLMODE", &cfg.DBSSLMode)
+	setString("DB_OPERATING_HOURS", &cfg.DBOperatingHours)
 	setString("JWT_SECRET", &cfg.JWTSecret)
 	setString("OCR_CAPABILITY_SECRET", &cfg.OCRCapabilitySecret)
 	setString("RECEIPT_BUCKET", &cfg.ReceiptBucket)
@@ -327,6 +329,9 @@ func ValidateRequestServer(cfg Config, profile RequestServerProfile) error {
 }
 
 func validateCommon(cfg Config) error {
+	if _, err := dbavailability.ParsePolicy(cfg.DBOperatingHours); err != nil {
+		return err
+	}
 	if cfg.Mode != "debug" && cfg.Mode != "test" && cfg.Mode != "release" {
 		return fmt.Errorf("MODE must be debug, test, or release")
 	}

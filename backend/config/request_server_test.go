@@ -95,6 +95,23 @@ func TestValidateRequestServerAcceptsSupportedProfiles(t *testing.T) {
 	}
 }
 
+func TestOperatingHoursLoadedAndValidated(t *testing.T) {
+	raw := `{"enabled":true,"start":"09:00","stop":"22:00","timezone":"America/Toronto"}`
+	cfg, err := loadFromLookup(func(key string) (string, bool) {
+		if key == "DB_OPERATING_HOURS" {
+			return raw, true
+		}
+		return "", false
+	})
+	if err != nil || cfg.DBOperatingHours != raw {
+		t.Fatalf("policy not loaded: %v", err)
+	}
+	cfg.DBOperatingHours = `{"enabled":true,"timezone":"Invalid"}`
+	if err := ValidateRequestServer(cfg, RequestServerStandalone); err == nil {
+		t.Fatal("invalid policy accepted")
+	}
+}
+
 func TestValidateRequestServerRequiresEveryExplicitReleaseValue(t *testing.T) {
 	cfg := validReleaseConfig(RequestServerStandalone)
 	for key := range cfg.provided {

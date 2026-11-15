@@ -56,18 +56,30 @@ class OperatingHoursTest(unittest.TestCase):
     def test_support_gate_requires_both_deployed_components_before_mutation(self):
         import json
         context = mock.MagicMock()
-        outputs = {"frontend_bucket_name": "public-fixture", "sender_function_name": "sender"}
-        context.aws.json.return_value = {"bucket": "public-fixture", "version": "1"}
+        outputs = {"frontend_bucket_name": "public-fixture", "sender_function_name": "sender", "worker_function_name": "worker"}
+        context.config.operating_hours = parse({"enabled": True})
         for version in (None, 1):
+            context.aws.json.side_effect = [{"bucket": "public-fixture", "version": "1"}, json.dumps(context.config.operating_hours.public())]
             context.aws.call.return_value = "window.__APP_CONFIG__ = Object.freeze(" + json.dumps({"operatingHoursPolicyVersion": version}) + ");\n"
             if version is None:
                 with self.assertRaisesRegex(CommandError, "SCOPE=all"):
                     hours.require_support(context, outputs)
             else:
                 hours.require_support(context, outputs)
-        context.aws.json.return_value = None
+        context.aws.json.side_effect = [None]
         with self.assertRaisesRegex(CommandError, "SCOPE=all"):
             hours.require_support(context, outputs)
+
+    def test_support_gate_rejects_stale_worker_policy(self):
+        import json
+        context = mock.MagicMock()
+        context.config.operating_hours = parse({"enabled": True})
+        context.aws.call.return_value = 'window.__APP_CONFIG__ = Object.freeze({"operatingHoursPolicyVersion":1});'
+        outputs = {"frontend_bucket_name": "public", "sender_function_name": "sender", "worker_function_name": "worker"}
+        for policy in (None, "invalid", json.dumps(parse(None).public())):
+            context.aws.json.side_effect = [{"bucket": "public", "version": "1"}, policy]
+            with self.assertRaisesRegex(CommandError, "matching Worker policy"):
+                hours.require_support(context, outputs)
 
     def test_reject_invalid_policy_and_backup_margins(self):
         for value in ({"timezone": "EST"}, {"timezone": "America/Unknown"}, {"enabled": 1}, {"start": "9:00"}, {"stop": "09:00"}, {"safety_stop": "12:00"}, {"unknown": True}):

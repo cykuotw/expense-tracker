@@ -1,10 +1,14 @@
 package utils
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
+	"expense-tracker/backend/internal/dbavailability"
 	"expense-tracker/backend/internal/observability"
 	"expense-tracker/backend/types"
 	"io"
+	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
@@ -29,6 +33,10 @@ func WriteJSON(c *gin.Context, status int, obj any) {
 }
 
 func WriteError(c *gin.Context, status int, err error) {
+	if dbavailability.ConnectionFailure(err) || errors.Is(err, dbavailability.ErrUnavailable) || errors.Is(err, context.DeadlineExceeded) {
+		status = http.StatusServiceUnavailable
+		err = NewDetailedError("Service temporarily unavailable", "service_unavailable", nil)
+	}
 	if err == nil {
 		WriteJSON(c, status, nil)
 	} else {

@@ -27,8 +27,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setLoading(false);
     }, []);
 
-    const refreshSession = useCallback(async () => {
+    const refreshSession = useCallback(async (options?: { retryService?: boolean }) => {
         try {
+            if (options?.retryService) {
+                const probe = await apiFetch("/service/retry", { method: "POST" }, { authMode: "none" });
+                if (!probe.ok) throw new Error("Service recovery failed");
+            }
             const response = await apiFetch("/auth/me", { method: "GET" });
             if (!response.ok && response.status !== 401 && response.status !== 403) {
                 setServiceUnavailable(true);

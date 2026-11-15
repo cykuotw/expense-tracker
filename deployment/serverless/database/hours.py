@@ -49,6 +49,18 @@ def require_support(context, outputs: dict) -> None:
         valid = False
     if not valid:
         raise CommandError(message)
+    # Worker policy belongs to an immutable application release, not a live
+    # environment mutation. Require a backend update before changing schedules.
+    worker_policy = context.aws.json(
+        "lambda", "get-function-configuration", "--function-name", f"{outputs['worker_function_name']}:live",
+        "--query", "Environment.Variables.DB_OPERATING_HOURS",
+    )
+    try:
+        matches = isinstance(worker_policy, str) and json.loads(worker_policy) == context.config.operating_hours.public()
+    except (ValueError, TypeError):
+        matches = False
+    if not matches:
+        raise CommandError("operating hours requires matching Worker policy; run ACTION=update SCOPE=backend with the desired operating_hours before hours-apply")
 
 
 def validate_plan(plan: dict, *, enabled: bool) -> dict:

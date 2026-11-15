@@ -4,6 +4,7 @@ import (
 	"expense-tracker/backend/config"
 	"expense-tracker/backend/services/auth"
 	"expense-tracker/backend/types"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -15,10 +16,32 @@ import (
 
 type adminUserStoreMock struct {
 	user *types.User
+	err  error
 }
 
 func (m adminUserStoreMock) GetUserByID(string) (*types.User, error) {
-	return m.user, nil
+	return m.user, m.err
+}
+
+func TestDatabaseFailureDoesNotBecomeAuthRejection(t *testing.T) {
+	actor := uuid.New()
+	token, err := auth.CreateJWT([]byte(config.Envs.JWTSecret), actor)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, guard := range []gin.HandlerFunc{
+		ActiveUserMiddleware(adminUserStoreMock{err: io.EOF}),
+		AdminMiddleware(adminUserStoreMock{err: io.EOF}),
+	} {
+		router := gin.New()
+		router.GET("/protected", guard, func(c *gin.Context) { t.Error("handler reached after database failure") })
+		request := httptest.NewRequest("GET", "/protected", nil)
+		request.AddCookie(&http.Cookie{Name: "access_token", Value: token})
+		response := httptest.NewRecorder()
+		router.ServeHTTP(response, request)
+		assert.Equal(t, http.StatusServiceUnavailable, response.Code)
+		assert.Contains(t, response.Body.String(), "service_unavailable")
+	}
 }
 
 func TestAdminMiddlewareAuthorization(t *testing.T) {

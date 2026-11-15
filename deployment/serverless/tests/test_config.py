@@ -197,6 +197,7 @@ class ConfigTest(unittest.TestCase):
         self.assertFalse(variables["enable_error_alerting"])
         self.assertTrue(variables["use_lambda_aliases"])
         worker = config.worker_environment("10.0.0.2")["Variables"]
+        self.assertEqual(json.loads(worker["DB_OPERATING_HOURS"]), config.operating_hours.public())
         self.assertEqual(worker["AUTH_COOKIE_SAME_SITE"], "lax")
         self.assertEqual(worker["WEB_PUSH_VAPID_PUBLIC_KEY"], "p" * 43)
         self.assertEqual(worker["DB_MAX_OPEN_CONNS"], "2")

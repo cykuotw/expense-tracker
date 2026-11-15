@@ -297,6 +297,7 @@ class Config:
             "DB_PASSWORD": self.database.runtime_password,
             "DB_NAME": self.database.name, "DB_SSLMODE": "disable",
             "DB_MAX_OPEN_CONNS": "2", "DB_MAX_IDLE_CONNS": "1",
+            "DB_OPERATING_HOURS": json.dumps(self.operating_hours.public(), sort_keys=True),
             "DB_CONN_MAX_LIFETIME_SECONDS": str(self.backend.db_conn_max_lifetime_seconds),
             "DB_CONN_MAX_IDLE_TIME_SECONDS": str(self.backend.db_conn_max_idle_time_seconds),
             "JWT_SECRET": self.backend.jwt_secret, "JWT_EXP": str(self.backend.jwt_exp),

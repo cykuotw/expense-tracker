@@ -1,12 +1,15 @@
 package db
 
 import (
+	"context"
 	"database/sql"
 	"expense-tracker/backend/config"
+	"expense-tracker/backend/internal/dbavailability"
 	"fmt"
 	"time"
 
-	_ "github.com/jackc/pgx/v5/stdlib"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/stdlib"
 )
 
 type poolConfig struct {
@@ -68,4 +71,27 @@ func NewPostgreSQLStorage(cfg config.Config) (*sql.DB, error) {
 
 	configureConnectionPool(db, poolConfigFromConfig(cfg))
 	return db, nil
+}
+
+// NewRequestStorage keeps request-runtime deadlines and observations separate
+// from migrations, bootstrap, and background delivery database pools.
+func NewRequestStorage(cfg config.Config, monitor *dbavailability.Monitor) (*sql.DB, error) {
+	pgcfg, err := pgx.ParseConfig(BuildPostgreSQLDSN(cfg))
+	if err != nil {
+		return nil, fmt.Errorf("invalid database connection configuration")
+	}
+	return newRequestStorage(cfg, pgcfg, monitor), nil
+}
+
+func newRequestStorage(cfg config.Config, pgcfg *pgx.ConnConfig, monitor *dbavailability.Monitor) *sql.DB {
+	pgcfg.ConnectTimeout = dbavailability.ProbeTimeout
+	pgcfg.Tracer = &dbavailability.Tracer{Monitor: monitor}
+	storage := sql.OpenDB(noReplayConnector{Connector: stdlib.GetConnector(*pgcfg,
+		// stdlib's default idle-connection ping has no deadline for legacy
+		// contextless calls. Queries themselves check liveness and are bounded.
+		stdlib.OptionShouldPing(func(context.Context, stdlib.ShouldPingParams) bool { return false }),
+	), monitor: monitor})
+	configureConnectionPool(storage, poolConfigFromConfig(cfg))
+	monitor.SetProbe(func(ctx context.Context) error { return storage.PingContext(dbavailability.ProbeContext(ctx)) })
+	return storage
 }

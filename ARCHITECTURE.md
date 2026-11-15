@@ -156,6 +156,25 @@ Daily EventBridge -------------------------> Delivery Lambda (VPC)
   read it independently of the database to explain service failures. Time alone
   never blocks successful HTTP requests after a manual start. Temporary service
   failures preserve browser authentication and never replay ambiguous mutations.
+  Worker releases receive the same schedule as backend-only `DB_OPERATING_HOURS`
+  configuration; schedule application refuses a mismatched live Worker policy.
+  The Worker registers HTTP handling without a startup database ping. A request
+  without known availability probes with a total five-second deadline; failed
+  off-hours probes or observed connection failures are cached for five minutes,
+  capped at entry into operating hours. Expiry starts no work until a request
+  arrives. In-hours failures have no persistent failure cache. State and probe
+  coalescing are per execution environment, so cold environments probe separately.
+  A CSRF-protected explicit recovery action can bypass a cached failure at most
+  once every 30 seconds per environment. Successful probes permit off-hours
+  manual starts; query timeouts invalidate availability without assuming a full
+  outage. Request-pool pgx hooks bound connection, query, and prepare operations
+  to five seconds and observe failures without logging SQL or parameters.
+  The request-pool adapter prevents transparent operation replay after driver
+  connection errors, including prepared operations and writes with unknown outcomes.
+  Legacy contextless store operations receive these operation deadlines; auth
+  identity reads additionally propagate request cancellation through pool waits.
+  These deadlines do not bound the complete multi-query HTTP request or cold
+  startup. Bootstrap and Delivery pools retain their separate behavior.
   Scheduled failures are retained in a dedicated SQS dead-letter queue; readiness
   and in-hours Sender failures remain visible in operator output/Lambda logs.
 - **Deployment owner:** `deployment/serverless/` owns the unified serverless

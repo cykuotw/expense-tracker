@@ -1,6 +1,9 @@
 package tracker
 
 import (
+	"context"
+	"expense-tracker/backend/internal/dbavailability"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -10,6 +13,54 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 )
+
+func TestDatabaseAvailabilityGateAndExplicitRecovery(t *testing.T) {
+	policy, err := dbavailability.ParsePolicy("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	monitor := dbavailability.New(policy)
+	calls := 0
+	available := false
+	monitor.SetProbe(func(context.Context) error {
+		calls++
+		if available {
+			return nil
+		}
+		return io.EOF
+	})
+	router := NewHandler(nil, WithDatabaseAvailability(monitor))
+	request := func(method, path string, csrf bool) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(method, config.Envs.APIPath+path, nil)
+		if csrf {
+			req.Header.Set("Origin", config.Envs.FrontendOrigin)
+			req.Header.Set("X-CSRF-Token", "fixture")
+			req.AddCookie(&http.Cookie{Name: "csrf_token", Value: "fixture"})
+		}
+		response := httptest.NewRecorder()
+		router.ServeHTTP(response, req)
+		return response
+	}
+	if got := request("GET", "/health", false); got.Code != 200 || calls != 0 {
+		t.Fatal("health depends on database")
+	}
+	if got := request("GET", "/auth/csrf", false); got.Code != 200 || calls != 0 {
+		t.Fatal("csrf depends on database")
+	}
+	if got := request("GET", "/auth/me", false); got.Code != 503 {
+		t.Fatalf("expected 503: %d", got.Code)
+	}
+	if got := request("POST", "/service/retry", false); got.Code != 403 || calls != 1 {
+		t.Fatal("retry bypassed CSRF")
+	}
+	available = true
+	if got := request("POST", "/service/retry", true); got.Code != 204 || calls != 2 {
+		t.Fatalf("manual retry did not recover: %d %d", got.Code, calls)
+	}
+	if got := request("GET", "/auth/me", false); got.Code != 401 || calls != 2 {
+		t.Fatalf("recovery did not reach normal auth: %d", got.Code)
+	}
+}
 
 func TestNewHandlerRecoversFromPanics(t *testing.T) {
 	originalMode := config.Envs.Mode

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"expense-tracker/backend/config"
+	"expense-tracker/backend/internal/dbavailability"
 	"expense-tracker/backend/internal/observability"
 	adminService "expense-tracker/backend/services/admin"
 	"expense-tracker/backend/services/agenttools"
@@ -42,7 +43,12 @@ const (
 )
 
 type handlerConfig struct {
-	logger *slog.Logger
+	logger       *slog.Logger
+	availability *dbavailability.Monitor
+}
+
+func WithDatabaseAvailability(monitor *dbavailability.Monitor) HandlerOption {
+	return func(settings *handlerConfig) { settings.availability = monitor }
 }
 
 type HandlerOption func(*handlerConfig)
@@ -97,6 +103,29 @@ func newHandler(db *sql.DB, localTools *agenttools.Handler, options ...HandlerOp
 		SlowRequestThreshold: slowRequest,
 	}))
 	router.Use(observability.Recovery(), middleware.CORSMiddleware())
+	if settings.availability != nil {
+		router.Use(func(c *gin.Context) {
+			path := c.FullPath()
+			if path == "" || path == config.Envs.APIPath+"/health" || path == config.Envs.APIPath+"/auth/csrf" || path == config.Envs.APIPath+"/service/retry" {
+				c.Next()
+				return
+			}
+			if err := settings.availability.Check(c.Request.Context(), false); err != nil {
+				c.Header("Cache-Control", "no-store")
+				c.AbortWithStatusJSON(http.StatusServiceUnavailable, gin.H{"code": "service_unavailable", "error": "Service temporarily unavailable"})
+				return
+			}
+			c.Next()
+		})
+		router.POST(config.Envs.APIPath+"/service/retry", middleware.CSRFMiddleware(), func(c *gin.Context) {
+			c.Header("Cache-Control", "no-store")
+			if err := settings.availability.Check(c.Request.Context(), true); err != nil {
+				c.AbortWithStatusJSON(http.StatusServiceUnavailable, gin.H{"code": "service_unavailable", "error": "Service temporarily unavailable"})
+				return
+			}
+			c.Status(http.StatusNoContent)
+		})
+	}
 
 	registerRoutes(router, db, localTools)
 

@@ -2,9 +2,11 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"expense-tracker/backend/config"
 	dbstore "expense-tracker/backend/db"
+	"expense-tracker/backend/internal/dbavailability"
 	"expense-tracker/backend/internal/observability"
 	"expense-tracker/backend/internal/requestserver"
 	"expense-tracker/backend/internal/serverless"
@@ -37,13 +39,20 @@ func main() {
 	}
 	logger = observability.NewLogger(cfg.Mode, os.Stdout)
 
-	storage, err := requestserver.OpenDatabase(cfg, config.RequestServerServerless, dbstore.NewPostgreSQLStorage)
+	policy, err := dbavailability.ParsePolicy(cfg.DBOperatingHours)
+	if err != nil {
+		exitWithError(logger, "operating_hours_invalid", err)
+	}
+	availability := dbavailability.New(policy)
+	storage, err := requestserver.OpenDatabase(cfg, config.RequestServerServerless, func(cfg config.Config) (*sql.DB, error) {
+		return dbstore.NewRequestStorage(cfg, availability)
+	})
 	if err != nil {
 		exitWithError(logger, "database_open_failed", err)
 	}
 	defer closeDBPool(logger, storage)
 
-	handler := trackerapp.NewHandler(storage, trackerapp.WithLogger(logger))
+	handler := trackerapp.NewHandler(storage, trackerapp.WithLogger(logger), trackerapp.WithDatabaseAvailability(availability))
 	if cfg.GoogleExchangeModeIs(config.GoogleExchangeUpstreamVerified) {
 		handler = serverless.WrapWithGoogleAuthorizerClaims(handler)
 	}

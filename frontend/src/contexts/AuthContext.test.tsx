@@ -24,7 +24,7 @@ function AuthHarness() {
     const { isAuthenticated, isOffline, loading, refreshSession } = useAuth();
 
     return (
-        <><button onClick={() => void refreshSession()}>Check session</button><output data-testid="auth-state">
+        <><button onClick={() => void refreshSession()}>Check session</button><button onClick={() => void refreshSession({ retryService: true })}>Retry service</button><output data-testid="auth-state">
             {`${loading}:${isAuthenticated}:${isOffline}`}
         </output></>
     );
@@ -66,6 +66,28 @@ describe("AuthProvider connectivity handling", () => {
         render(<AuthProvider><AuthHarness /></AuthProvider>);
         await waitFor(() => expect(screen.getByTestId("auth-state")).toHaveTextContent("false:true:false"));
         fireEvent.click(screen.getByRole("button", { name: "Check session" }));
+        await waitFor(() => expect(apiFetchMock).toHaveBeenCalledTimes(2));
+        expect(screen.getByTestId("auth-state")).toHaveTextContent("false:true:false");
+    });
+
+    it("explicitly probes before recovering the session", async () => {
+        apiFetchMock.mockResolvedValueOnce(new Response(null, { status: 503 }))
+            .mockResolvedValueOnce(new Response(null, { status: 204 }))
+            .mockResolvedValueOnce(new Response(JSON.stringify({ userID: "fixture", role: "admin" }), { status: 200 }));
+        render(<AuthProvider><AuthHarness /></AuthProvider>);
+        await waitFor(() => expect(screen.getByTestId("auth-state")).toHaveTextContent("false:false:false"));
+        fireEvent.click(screen.getByRole("button", { name: "Retry service" }));
+        await waitFor(() => expect(screen.getByTestId("auth-state")).toHaveTextContent("false:true:false"));
+        expect(apiFetchMock).toHaveBeenNthCalledWith(2, "/service/retry", { method: "POST" }, { authMode: "none" });
+        expect(apiFetchMock).toHaveBeenNthCalledWith(3, "/auth/me", { method: "GET" });
+    });
+
+    it("keeps authentication when an explicit recovery probe fails", async () => {
+        apiFetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ userID: "fixture", role: "admin" }), { status: 200 }))
+            .mockResolvedValueOnce(new Response(null, { status: 503 }));
+        render(<AuthProvider><AuthHarness /></AuthProvider>);
+        await waitFor(() => expect(screen.getByTestId("auth-state")).toHaveTextContent("false:true:false"));
+        fireEvent.click(screen.getByRole("button", { name: "Retry service" }));
         await waitFor(() => expect(apiFetchMock).toHaveBeenCalledTimes(2));
         expect(screen.getByTestId("auth-state")).toHaveTextContent("false:true:false");
     });

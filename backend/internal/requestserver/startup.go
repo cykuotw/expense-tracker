@@ -21,9 +21,11 @@ func OpenDatabase[T Database](cfg config.Config, profile config.RequestServerPro
 	if err != nil {
 		return zero, err
 	}
-	if err := storage.Ping(); err != nil {
-		_ = storage.Close()
-		return zero, err
+	if profile == config.RequestServerStandalone {
+		if err := storage.Ping(); err != nil {
+			_ = storage.Close()
+			return zero, err
+		}
 	}
 	return storage, nil
 }

@@ -1,6 +1,7 @@
 package route
 
 import (
+	"context"
 	"expense-tracker/backend/services/auth"
 	"expense-tracker/backend/types"
 	"expense-tracker/backend/utils"
@@ -17,7 +18,14 @@ func (h *Handler) handleAuthMe(c *gin.Context) error {
 		return err
 	}
 
-	user, err := h.store.GetUserByID(userId)
+	var user *types.User
+	if store, ok := h.store.(interface {
+		GetUserByIDContext(context.Context, string) (*types.User, error)
+	}); ok {
+		user, err = store.GetUserByIDContext(c.Request.Context(), userId)
+	} else {
+		user, err = h.store.GetUserByID(userId)
+	}
 	if err != nil {
 		utils.WriteError(c, http.StatusInternalServerError, err)
 		return err

@@ -198,6 +198,8 @@ class ConfigTest(unittest.TestCase):
         self.assertTrue(variables["use_lambda_aliases"])
         worker = config.worker_environment("10.0.0.2")["Variables"]
         self.assertEqual(json.loads(worker["DB_OPERATING_HOURS"]), config.operating_hours.public())
+        self.assertEqual(worker["DB_PROBE_TIMEOUT_SECONDS"], "5")
+        self.assertEqual(worker["DB_OFF_HOURS_FAILURE_CACHE_SECONDS"], "300")
         self.assertEqual(worker["AUTH_COOKIE_SAME_SITE"], "lax")
         self.assertEqual(worker["WEB_PUSH_VAPID_PUBLIC_KEY"], "p" * 43)
         self.assertEqual(worker["DB_MAX_OPEN_CONNS"], "2")
@@ -314,6 +316,31 @@ class ConfigTest(unittest.TestCase):
         config = load(self.path, Path("/unrelated/repository"))
         self.assertEqual(config.backend.db_conn_max_lifetime_seconds, 0)
         self.assertEqual(config.backend.db_conn_max_idle_time_seconds, 0)
+
+    def test_database_availability_optional_defaults_custom_values_and_boundaries(self) -> None:
+        for key in ("db_probe_timeout_seconds", "db_off_hours_failure_cache_seconds"):
+            self.value["backend"].pop(key, None)
+        self.write()
+        config = load(self.path, Path("/unrelated/repository"))
+        self.assertEqual(config.backend.db_probe_timeout_seconds, 5)
+        self.assertEqual(config.backend.db_off_hours_failure_cache_seconds, 300)
+        for probe, cache in ((8, 90), (1, 1), (10, 3600)):
+            self.value["backend"].update(db_probe_timeout_seconds=probe, db_off_hours_failure_cache_seconds=cache)
+            self.write()
+            config = load(self.path, Path("/unrelated/repository"))
+            worker = config.worker_environment("10.0.0.2")["Variables"]
+            self.assertEqual(worker["DB_PROBE_TIMEOUT_SECONDS"], str(probe))
+            self.assertEqual(worker["DB_OFF_HOURS_FAILURE_CACHE_SECONDS"], str(cache))
+            self.assertNotIn("DB_PROBE_TIMEOUT_SECONDS", config.delivery_environment("10.0.0.2")["Variables"])
+            self.assertNotIn("DB_OFF_HOURS_FAILURE_CACHE_SECONDS", config.terraform_variables(temporary_access=False))
+        for key, maximum in (("db_probe_timeout_seconds", 10), ("db_off_hours_failure_cache_seconds", 3600)):
+            for invalid in (0, -1, maximum + 1, 1.5, "5", True, None):
+                with self.subTest(key=key, invalid=invalid):
+                    self.value["backend"].update(db_probe_timeout_seconds=5, db_off_hours_failure_cache_seconds=300)
+                    self.value["backend"][key] = invalid
+                    self.write()
+                    with self.assertRaisesRegex(ConfigError, "backend." + key):
+                        load(self.path, Path("/unrelated/repository"))
 
     def test_validation_errors_do_not_expose_secret_values(self) -> None:
         supplied = "private-value-that-is-too-short"

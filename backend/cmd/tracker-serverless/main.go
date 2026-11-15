@@ -15,6 +15,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"time"
 
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/awslabs/aws-lambda-go-api-proxy/httpadapter"
@@ -43,7 +44,10 @@ func main() {
 	if err != nil {
 		exitWithError(logger, "operating_hours_invalid", err)
 	}
-	availability := dbavailability.New(policy)
+	availability, err := dbavailability.NewWithDurations(policy, time.Duration(cfg.DBProbeTimeoutSeconds)*time.Second, time.Duration(cfg.DBOffHoursFailureCacheSeconds)*time.Second)
+	if err != nil {
+		exitWithError(logger, "database_availability_configuration_invalid", err)
+	}
 	storage, err := requestserver.OpenDatabase(cfg, config.RequestServerServerless, func(cfg config.Config) (*sql.DB, error) {
 		return dbstore.NewRequestStorage(cfg, availability)
 	})

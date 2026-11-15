@@ -163,16 +163,19 @@ Daily EventBridge -------------------------> Delivery Lambda (VPC)
   Worker releases receive the same schedule as backend-only `DB_OPERATING_HOURS`
   configuration; schedule application refuses a mismatched live Worker policy.
   The Worker registers HTTP handling without a startup database ping. A request
-  without known availability probes with a total five-second deadline; failed
-  off-hours probes or observed connection failures are cached for five minutes,
+  without known availability probes with a default total five-second deadline;
+  failed off-hours probes or observed connection failures are cached for a default five minutes,
   capped at entry into operating hours. Expiry starts no work until a request
   arrives. In-hours failures have no persistent failure cache. State and probe
   coalescing are per execution environment, so cold environments probe separately.
   A CSRF-protected explicit recovery action can bypass a cached failure at most
   once every 30 seconds per environment. Successful probes permit off-hours
   manual starts; query timeouts invalidate availability without assuming a full
-  outage. Request-pool pgx hooks bound connection, query, and prepare operations
-  to five seconds and observe failures without logging SQL or parameters.
+  outage. Optional backend deployment settings configure the probe/connection
+  timeout (1–10 seconds) and off-hours failure cache (1–3600 seconds), published
+  only through Worker environment configuration. Request-pool pgx hooks retain
+  independent five-second query/prepare bounds and observe failures without
+  logging SQL or parameters.
   The request-pool adapter prevents transparent operation replay after driver
   connection errors, including prepared operations and writes with unknown outcomes.
   Legacy contextless store operations receive these operation deadlines; auth

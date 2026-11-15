@@ -112,6 +112,40 @@ func TestOperatingHoursLoadedAndValidated(t *testing.T) {
 	}
 }
 
+func TestDatabaseAvailabilityDurations(t *testing.T) {
+	defaults, err := loadFromLookup(func(string) (string, bool) { return "", false })
+	if err != nil {
+		t.Fatal(err)
+	}
+	if defaults.DBProbeTimeoutSeconds != 5 || defaults.DBOffHoursFailureCacheSeconds != 300 {
+		t.Fatal("availability defaults changed")
+	}
+	values := map[string]string{"DB_PROBE_TIMEOUT_SECONDS": "8", "DB_OFF_HOURS_FAILURE_CACHE_SECONDS": "90"}
+	configured, err := loadFromLookup(func(key string) (string, bool) { value, ok := values[key]; return value, ok })
+	if err != nil || configured.DBProbeTimeoutSeconds != 8 || configured.DBOffHoursFailureCacheSeconds != 90 {
+		t.Fatalf("custom settings not loaded: %v", err)
+	}
+	for _, key := range []string{"DB_PROBE_TIMEOUT_SECONDS", "DB_OFF_HOURS_FAILURE_CACHE_SECONDS"} {
+		tooHigh := "11"
+		if key == "DB_OFF_HOURS_FAILURE_CACHE_SECONDS" {
+			tooHigh = "3601"
+		}
+		for _, raw := range []string{"0", "-1", tooHigh, "1.5", "true", ""} {
+			t.Run(key+"="+raw, func(t *testing.T) {
+				_, err := loadFromLookup(func(name string) (string, bool) {
+					if name == key {
+						return raw, true
+					}
+					return "", false
+				})
+				if err == nil || !strings.Contains(err.Error(), key) {
+					t.Fatalf("invalid value not rejected: %v", err)
+				}
+			})
+		}
+	}
+}
+
 func TestValidateRequestServerRequiresEveryExplicitReleaseValue(t *testing.T) {
 	cfg := validReleaseConfig(RequestServerStandalone)
 	for key := range cfg.provided {

@@ -35,6 +35,8 @@ var strictIntegerKeys = []struct {
 	{"DB_MAX_IDLE_CONNS", func(cfg *Config, value int64) { cfg.DBMaxIdleConns = int(value) }},
 	{"DB_CONN_MAX_LIFETIME_SECONDS", func(cfg *Config, value int64) { cfg.DBConnMaxLifetimeSeconds = value }},
 	{"DB_CONN_MAX_IDLE_TIME_SECONDS", func(cfg *Config, value int64) { cfg.DBConnMaxIdleTimeSeconds = value }},
+	{"DB_PROBE_TIMEOUT_SECONDS", func(cfg *Config, value int64) { cfg.DBProbeTimeoutSeconds = value }},
+	{"DB_OFF_HOURS_FAILURE_CACHE_SECONDS", func(cfg *Config, value int64) { cfg.DBOffHoursFailureCacheSeconds = value }},
 	{"JWT_EXP", func(cfg *Config, value int64) { cfg.JWTExpirationInSeconds = value }},
 	{"REFRESH_JWT_EXP", func(cfg *Config, value int64) { cfg.RefreshJWTExpirationInSeconds = value }},
 	{"EXPENSES_PER_PAGE", func(cfg *Config, value int64) { cfg.ExpensesPerPage = value }},
@@ -70,6 +72,8 @@ func loadFromLookup(lookup func(string) (string, bool)) (Config, error) {
 		DBMaxIdleConns:                10,
 		DBConnMaxLifetimeSeconds:      1_800,
 		DBConnMaxIdleTimeSeconds:      300,
+		DBProbeTimeoutSeconds:         5,
+		DBOffHoursFailureCacheSeconds: 300,
 		JWTSecret:                     "secretstring",
 		JWTExpirationInSeconds:        604_800,
 		RefreshJWTSecret:              "secretstring",
@@ -329,6 +333,18 @@ func ValidateRequestServer(cfg Config, profile RequestServerProfile) error {
 }
 
 func validateCommon(cfg Config) error {
+	// Explicit zero is invalid. Zero in a hand-built Config remains an omitted
+	// optional setting; Load always supplies the production defaults.
+	if cfg.DBProbeTimeoutSeconds != 0 || cfg.provided["DB_PROBE_TIMEOUT_SECONDS"] {
+		if err := validateRange("DB_PROBE_TIMEOUT_SECONDS", cfg.DBProbeTimeoutSeconds, 1, 10); err != nil {
+			return err
+		}
+	}
+	if cfg.DBOffHoursFailureCacheSeconds != 0 || cfg.provided["DB_OFF_HOURS_FAILURE_CACHE_SECONDS"] {
+		if err := validateRange("DB_OFF_HOURS_FAILURE_CACHE_SECONDS", cfg.DBOffHoursFailureCacheSeconds, 1, 3600); err != nil {
+			return err
+		}
+	}
 	if _, err := dbavailability.ParsePolicy(cfg.DBOperatingHours); err != nil {
 		return err
 	}

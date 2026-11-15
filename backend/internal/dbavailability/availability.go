@@ -13,9 +13,10 @@ import (
 )
 
 const (
-	ProbeTimeout  = 5 * time.Second
-	FailureTTL    = 5 * time.Minute
-	RetryCooldown = 30 * time.Second
+	DefaultProbeTimeout = 5 * time.Second
+	DefaultFailureTTL   = 5 * time.Minute
+	OperationTimeout    = 5 * time.Second
+	RetryCooldown       = 30 * time.Second
 )
 
 var ErrUnavailable = errors.New("database temporarily unavailable")
@@ -72,13 +73,13 @@ func (p Policy) offHours(now time.Time) bool {
 	return (local.Hour()*60+local.Minute()-p.start+1440)%1440 >= p.duration
 }
 
-// Check only the next five elapsed minutes, so repeated/skipped wall times use
+// Check only the cache's elapsed duration, so repeated/skipped wall times use
 // the actual timezone rules rather than constructing an ambiguous local date.
-func (p Policy) failureExpiry(now time.Time) time.Time {
+func (p Policy) failureExpiry(now time.Time, ttl time.Duration) time.Time {
 	if !p.offHours(now) {
 		return time.Time{}
 	}
-	expiry := now.Add(FailureTTL)
+	expiry := now.Add(ttl)
 	for next := now.Truncate(time.Minute).Add(time.Minute); next.Before(expiry); next = next.Add(time.Minute) {
 		if !p.offHours(next) {
 			return next
@@ -93,18 +94,37 @@ type flight struct {
 }
 
 type Monitor struct {
-	mu        sync.Mutex
-	policy    Policy
-	now       func() time.Time
-	probe     func(context.Context) error
-	ready     bool
-	until     time.Time
-	lastRetry time.Time
-	version   uint64
-	flight    *flight
+	mu           sync.Mutex
+	policy       Policy
+	probeTimeout time.Duration
+	failureTTL   time.Duration
+	now          func() time.Time
+	probe        func(context.Context) error
+	ready        bool
+	until        time.Time
+	lastRetry    time.Time
+	version      uint64
+	flight       *flight
 }
 
-func New(policy Policy) *Monitor { return &Monitor{policy: policy, now: time.Now} }
+func New(policy Policy) *Monitor {
+	return &Monitor{policy: policy, now: time.Now, probeTimeout: DefaultProbeTimeout, failureTTL: DefaultFailureTTL}
+}
+
+func NewWithDurations(policy Policy, probeTimeout, failureTTL time.Duration) (*Monitor, error) {
+	if probeTimeout < time.Second || probeTimeout > 10*time.Second {
+		return nil, errors.New("database probe timeout must be between 1 and 10 seconds")
+	}
+	if failureTTL < time.Second || failureTTL > time.Hour {
+		return nil, errors.New("database off-hours failure cache must be between 1 and 3600 seconds")
+	}
+	m := New(policy)
+	m.probeTimeout, m.failureTTL = probeTimeout, failureTTL
+	return m, nil
+}
+
+// ProbeTimeout is immutable after assembly and also bounds connection setup.
+func (m *Monitor) ProbeTimeout() time.Duration { return m.probeTimeout }
 
 // SetProbe is called once during assembly, before serving requests.
 func (m *Monitor) SetProbe(probe func(context.Context) error) { m.probe = probe }
@@ -117,7 +137,7 @@ func (m *Monitor) Invalidate(connectionFailure bool) {
 	m.version++
 	m.ready = false
 	if connectionFailure {
-		m.until = m.policy.failureExpiry(m.now())
+		m.until = m.policy.failureExpiry(m.now(), m.failureTTL)
 	}
 }
 
@@ -153,7 +173,7 @@ func (m *Monitor) Check(ctx context.Context, retry bool) error {
 	m.flight = pending
 	version := m.version
 	m.mu.Unlock()
-	probeCtx, cancel := context.WithTimeout(ctx, ProbeTimeout)
+	probeCtx, cancel := context.WithTimeout(ctx, m.probeTimeout)
 	err := m.probe(probeCtx)
 	if err == nil {
 		err = probeCtx.Err()
@@ -166,7 +186,7 @@ func (m *Monitor) Check(ctx context.Context, retry bool) error {
 	} else if err != nil {
 		m.version++
 		m.ready = false
-		m.until = m.policy.failureExpiry(m.now())
+		m.until = m.policy.failureExpiry(m.now(), m.failureTTL)
 		pending.err = ErrUnavailable
 	} else if version != m.version {
 		pending.err = ErrUnavailable

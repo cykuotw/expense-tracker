@@ -124,3 +124,28 @@ func TestRequestPoolConnectHonorsProbeCancellation(t *testing.T) {
 		t.Fatalf("dial did not honor cancellation: %v", err)
 	}
 }
+
+func TestRequestPoolUsesConfiguredConnectionDeadline(t *testing.T) {
+	monitor, err := dbavailability.NewWithDurations(dbavailability.Policy{}, 8*time.Second, 90*time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pgcfg, err := pgx.ParseConfig("postgres://fixture:fixture@127.0.0.1/fixture?sslmode=disable")
+	if err != nil {
+		t.Fatal(err)
+	}
+	dialed := false
+	pgcfg.DialFunc = func(ctx context.Context, _, _ string) (net.Conn, error) {
+		dialed = true
+		deadline, ok := ctx.Deadline()
+		if remaining := time.Until(deadline); !ok || remaining > 8*time.Second || remaining < 7*time.Second {
+			t.Fatalf("configured connect deadline not used: %v", remaining)
+		}
+		return nil, errors.New("fixture connection failure")
+	}
+	storage := newRequestStorage(config.Config{}, pgcfg, monitor)
+	t.Cleanup(func() { _ = storage.Close() })
+	if err := monitor.Check(t.Context(), false); !errors.Is(err, dbavailability.ErrUnavailable) || !dialed {
+		t.Fatalf("expected a bounded dial attempt: %v", err)
+	}
+}

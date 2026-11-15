@@ -84,7 +84,7 @@ func NewRequestStorage(cfg config.Config, monitor *dbavailability.Monitor) (*sql
 }
 
 func newRequestStorage(cfg config.Config, pgcfg *pgx.ConnConfig, monitor *dbavailability.Monitor) *sql.DB {
-	pgcfg.ConnectTimeout = dbavailability.ProbeTimeout
+	pgcfg.ConnectTimeout = monitor.ProbeTimeout()
 	pgcfg.Tracer = &dbavailability.Tracer{Monitor: monitor}
 	storage := sql.OpenDB(noReplayConnector{Connector: stdlib.GetConnector(*pgcfg,
 		// stdlib's default idle-connection ping has no deadline for legacy

@@ -99,6 +99,8 @@ Complete example—replace every `REPLACE` value before deployment:
         "expenses_per_page": 25,
         "db_conn_max_lifetime_seconds": 300,
         "db_conn_max_idle_time_seconds": 60,
+        "db_probe_timeout_seconds": 5,
+        "db_off_hours_failure_cache_seconds": 300,
         "web_push_vapid_public_key": "REPLACE_WITH_VAPID_PUBLIC_KEY",
         "web_push_vapid_private_key": "REPLACE_WITH_VAPID_PRIVATE_KEY",
         "web_push_vapid_subject": "mailto:ops@example.com"
@@ -525,9 +527,9 @@ removes the three EC2 schedules while retaining the backup and local-time
 monthly-review schedules. Keep the block after first application; removing it
 is rejected on application updates to prevent orphaned active schedules.
 
-The Worker uses a request-triggered database probe with a five-second total
-deadline. Failed off-hours probes and connection failures suppress database
-attempts for five minutes per Lambda execution environment, ending earlier at
+The Worker uses a request-triggered database probe with a default five-second
+total deadline. Failed off-hours probes and connection failures suppress database
+attempts for a default five minutes per Lambda execution environment, ending earlier at
 opening time. In-hours failures are retried on the next request. A manual EC2
 start becomes usable after PostgreSQL is ready and the cache expires; the
 browser's Try again action can request an earlier probe, limited to one cache
@@ -537,6 +539,23 @@ starts. A query timeout invalidates known availability but does not alone
 establish an outage. Database operations have deadlines; an entire multi-query
 request or cold start can take longer than five seconds. Temporary failures
 preserve sessions and do not automatically replay mutations.
+
+Two optional integer settings under `backend` control these durations:
+
+| Setting | Default | Allowed seconds |
+| --- | --- | --- |
+| `db_probe_timeout_seconds` | `5` | `1`–`10` |
+| `db_off_hours_failure_cache_seconds` | `300` | `1`–`3600` |
+
+Omitting either field retains its default; zero does not disable the feature.
+These settings are published only to the Worker as `DB_PROBE_TIMEOUT_SECONDS`
+and `DB_OFF_HOURS_FAILURE_CACHE_SECONDS`. Change them in the existing protected
+deployment configuration and run `make deploy ACTION=update SCOPE=backend`
+with that configuration selected. `hours-apply` alone does not publish Worker
+runtime changes. The probe setting also bounds connection establishment;
+ordinary SQL execution/preparation retains its independent five-second bound.
+The manual retry cooldown remains 30 seconds. Lambda, gateway, and browser
+request limits still apply independently of these settings.
 
 Scheduler uses the configured IANA zone, including EST/EDT changes. Fixed `EST`
 and unknown zones are rejected. Daily times in a known spring-forward gap are

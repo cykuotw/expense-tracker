@@ -20,13 +20,15 @@ type Config struct {
 	FrontendOrigin string
 	APIPath        string
 
-	DBPublicHost     string
-	DBPort           string
-	DBUser           string
-	DBPassword       string
-	DBName           string
-	DBSSLMode        string
-	DBOperatingHours string
+	DBPublicHost                  string
+	DBPort                        string
+	DBUser                        string
+	DBPassword                    string
+	DBName                        string
+	DBSSLMode                     string
+	DBOperatingHours              string
+	DBProbeTimeoutSeconds         int64
+	DBOffHoursFailureCacheSeconds int64
 
 	DBMaxOpenConns           int
 	DBMaxIdleConns           int

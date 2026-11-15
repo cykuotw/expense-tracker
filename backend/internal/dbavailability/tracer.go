@@ -7,6 +7,7 @@ import (
 	"io"
 	"net"
 	"strings"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -43,8 +44,8 @@ func ProbeContext(ctx context.Context) context.Context {
 
 type Tracer struct{ Monitor *Monitor }
 
-func (t *Tracer) start(ctx context.Context) context.Context {
-	bounded, cancel := context.WithTimeout(ctx, ProbeTimeout)
+func (t *Tracer) start(ctx context.Context, timeout time.Duration) context.Context {
+	bounded, cancel := context.WithTimeout(ctx, timeout)
 	return context.WithValue(bounded, operationKey{}, operation{ctx, cancel})
 }
 
@@ -70,7 +71,7 @@ func (t *Tracer) end(ctx context.Context, err error, connecting bool) {
 }
 
 func (t *Tracer) TraceQueryStart(ctx context.Context, _ *pgx.Conn, _ pgx.TraceQueryStartData) context.Context {
-	return t.start(ctx)
+	return t.start(ctx, OperationTimeout)
 }
 func (t *Tracer) TraceQueryEnd(ctx context.Context, conn *pgx.Conn, data pgx.TraceQueryEndData) {
 	if data.Err != nil && conn != nil && conn.IsClosed() {
@@ -79,13 +80,13 @@ func (t *Tracer) TraceQueryEnd(ctx context.Context, conn *pgx.Conn, data pgx.Tra
 	t.end(ctx, data.Err, false)
 }
 func (t *Tracer) TraceConnectStart(ctx context.Context, _ pgx.TraceConnectStartData) context.Context {
-	return t.start(ctx)
+	return t.start(ctx, t.Monitor.ProbeTimeout())
 }
 func (t *Tracer) TraceConnectEnd(ctx context.Context, data pgx.TraceConnectEndData) {
 	t.end(ctx, data.Err, true)
 }
 func (t *Tracer) TracePrepareStart(ctx context.Context, _ *pgx.Conn, _ pgx.TracePrepareStartData) context.Context {
-	return t.start(ctx)
+	return t.start(ctx, OperationTimeout)
 }
 func (t *Tracer) TracePrepareEnd(ctx context.Context, conn *pgx.Conn, data pgx.TracePrepareEndData) {
 	if data.Err != nil && conn != nil && conn.IsClosed() {

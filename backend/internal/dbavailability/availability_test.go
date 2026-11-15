@@ -34,7 +34,7 @@ func TestFailureCacheAndManualRecovery(t *testing.T) {
 	m.SetProbe(func(ctx context.Context) error {
 		calls++
 		deadline, ok := ctx.Deadline()
-		if !ok || time.Until(deadline) > ProbeTimeout {
+		if !ok || time.Until(deadline) > DefaultProbeTimeout {
 			t.Error("missing total probe deadline")
 		}
 		return io.EOF
@@ -48,7 +48,7 @@ func TestFailureCacheAndManualRecovery(t *testing.T) {
 	if calls != 1 {
 		t.Fatalf("cache did not suppress probes: %d", calls)
 	}
-	*now = now.Add(FailureTTL)
+	*now = now.Add(DefaultFailureTTL)
 	if calls != 1 {
 		t.Fatal("expiry triggered work")
 	}
@@ -217,8 +217,95 @@ func TestFailureExpiryAtDSTOpening(t *testing.T) {
 		}
 		now, _ := time.Parse(time.RFC3339, tc.instant)
 		expiry, _ := time.Parse(time.RFC3339, tc.expiry)
-		if !p.failureExpiry(now).Equal(expiry) {
-			t.Fatalf("incorrect DST expiry: %v", p.failureExpiry(now))
+		if !p.failureExpiry(now, DefaultFailureTTL).Equal(expiry) {
+			t.Fatalf("incorrect DST expiry: %v", p.failureExpiry(now, DefaultFailureTTL))
+		}
+	}
+}
+
+func TestConfiguredDurationsControlProbeCacheAndOpening(t *testing.T) {
+	base, now := fixture(t, "2026-11-15T04:00:00Z")
+	m, err := NewWithDurations(base.policy, 8*time.Second, 90*time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	m.now = base.now
+	calls := 0
+	m.SetProbe(func(ctx context.Context) error {
+		calls++
+		deadline, ok := ctx.Deadline()
+		remaining := time.Until(deadline)
+		if !ok || remaining > 8*time.Second || remaining < 7*time.Second {
+			t.Fatalf("configured deadline not used: %v", remaining)
+		}
+		return io.EOF
+	})
+	_ = m.Check(t.Context(), false)
+	if !m.until.Equal(now.Add(90 * time.Second)) {
+		t.Fatalf("configured cache not used: %v", m.until)
+	}
+	*now = now.Add(89 * time.Second)
+	_ = m.Check(t.Context(), false)
+	if calls != 1 {
+		t.Fatal("cache expired early")
+	}
+	*now = now.Add(time.Second)
+	_ = m.Check(t.Context(), false)
+	if calls != 2 {
+		t.Fatal("configured expiry did not permit next probe")
+	}
+	// Observed connection failures must use the same configured cache duration.
+	m.Invalidate(true)
+	if !m.until.Equal(now.Add(90 * time.Second)) {
+		t.Fatal("connection failure used a different cache duration")
+	}
+	*now = time.Date(2026, 11, 15, 13, 58, 30, 0, time.UTC)
+	longCache, err := NewWithDurations(base.policy, 8*time.Second, time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	longCache.now = base.now
+	longCache.Invalidate(true)
+	if !longCache.until.Equal(time.Date(2026, 11, 15, 14, 0, 0, 0, time.UTC)) {
+		t.Fatal("long cache crossed opening time")
+	}
+}
+
+func TestConfiguredProbeDoesNotChangeSQLDeadline(t *testing.T) {
+	m, err := NewWithDurations(Policy{}, 9*time.Second, time.Minute)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tracer := &Tracer{Monitor: m}
+	for _, tc := range []struct {
+		name     string
+		ctx      context.Context
+		expected time.Duration
+	}{
+		{"connect", tracer.TraceConnectStart(t.Context(), pgx.TraceConnectStartData{}), 9 * time.Second},
+		{"query", tracer.TraceQueryStart(t.Context(), nil, pgx.TraceQueryStartData{}), OperationTimeout},
+		{"prepare", tracer.TracePrepareStart(t.Context(), nil, pgx.TracePrepareStartData{}), OperationTimeout},
+	} {
+		deadline, ok := tc.ctx.Deadline()
+		if remaining := time.Until(deadline); !ok || remaining > tc.expected || remaining < tc.expected-time.Second {
+			t.Fatalf("%s deadline incorrect: %v", tc.name, remaining)
+		}
+		tracer.end(tc.ctx, nil, false)
+	}
+}
+
+func TestConfiguredDurationBounds(t *testing.T) {
+	for _, tc := range []struct{ probe, cache time.Duration }{
+		{0, DefaultFailureTTL}, {11 * time.Second, DefaultFailureTTL},
+		{DefaultProbeTimeout, 0}, {DefaultProbeTimeout, time.Hour + time.Second},
+	} {
+		if _, err := NewWithDurations(Policy{}, tc.probe, tc.cache); err == nil {
+			t.Fatal("invalid durations accepted")
+		}
+	}
+	for _, tc := range []struct{ probe, cache time.Duration }{{time.Second, time.Second}, {10 * time.Second, time.Hour}} {
+		if _, err := NewWithDurations(Policy{}, tc.probe, tc.cache); err != nil {
+			t.Fatal(err)
 		}
 	}
 }

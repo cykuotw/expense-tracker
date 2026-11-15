@@ -109,4 +109,32 @@ describe("ReceiptScanPage", () => {
         expect(clearReceiptWorkflow).toHaveBeenCalledTimes(2);
         await waitFor(() => expect(URL.revokeObjectURL).toHaveBeenCalled());
     });
+
+    it("scrolls to the top after opening each scan view without resetting on unrelated renders", async () => {
+        const scrollTo = vi.fn(() => {
+            expect(screen.getByText("Inline review: blob:prepared-receipt")).toBeInTheDocument();
+            expect(screen.getByRole("heading", { name: "Receipt photo", hidden: true }).closest("main")?.parentElement).toHaveAttribute("hidden");
+        });
+        vi.stubGlobal("scrollTo", scrollTo);
+        const page = <MemoryRouter initialEntries={["/create_expense/receipt?g=group-1"]}>
+            <ReceiptScanPage />
+        </MemoryRouter>;
+        const { rerender } = render(page);
+
+        expect(await screen.findByText("Editor: no photo")).toBeInTheDocument();
+        expect(scrollTo).not.toHaveBeenCalled();
+
+        fireEvent.click(screen.getByRole("button", { name: "Scan receipt" }));
+        expect(scrollTo).toHaveBeenCalledExactlyOnceWith({ top: 0, left: 0, behavior: "instant" });
+
+        rerender(<MemoryRouter initialEntries={["/create_expense/receipt?g=group-1"]}>
+            <ReceiptScanPage />
+        </MemoryRouter>);
+        expect(scrollTo).toHaveBeenCalledTimes(1);
+
+        fireEvent.click(screen.getByRole("button", { name: "Edit photo" }));
+        expect(scrollTo).toHaveBeenCalledTimes(1);
+        fireEvent.click(screen.getByRole("button", { name: "Scan receipt" }));
+        expect(scrollTo).toHaveBeenCalledTimes(2);
+    });
 });

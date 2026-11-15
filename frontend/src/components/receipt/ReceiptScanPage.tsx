@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useRef, useState, type ChangeEvent } from "react";
+import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState, type ChangeEvent } from "react";
 import { Navigate } from "react-router-dom";
 import { useReturnNavigation } from "../../hooks/navigation";
 import Icon from "@mdi/react";
@@ -35,6 +35,10 @@ export default function ReceiptScanPage() {
     useEffect(() => () => {
         if (photoURL) URL.revokeObjectURL(photoURL);
     }, [photoURL]);
+
+    useLayoutEffect(() => {
+        if (reviewOpen) window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+    }, [reviewOpen]);
 
     if (receiptOCREnabled === false && !reviewOpen) return <Navigate to={returnTo} replace />;
 

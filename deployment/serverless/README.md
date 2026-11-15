@@ -498,6 +498,11 @@ make deploy ACTION=hours-apply
 
 The `hours-apply` action itself builds no application artifacts and performs no
 application release.
+It binds the existing database instance ID from deployment outputs, keeping the
+database host and launch template outside the schedule plan's dependency graph.
+Fresh deployment defers EC2 schedules until this binding is available. The
+action continues to reject unrelated changes and all database replacements;
+it does not apply pending host changes introduced by provider upgrades.
 Retain the local Terraform initialization and existing deployment artifacts used
 by the supported deployer. It validates configuration before mutation, stages
 Terraform-owned schedules disabled, waits two minutes for old schedule events to

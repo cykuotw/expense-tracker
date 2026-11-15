@@ -132,9 +132,9 @@ class OperatingHoursTest(unittest.TestCase):
                         return original(value, **kwargs)
                     with mock.patch.object(hours, "require_support"), mock.patch.object(hours, "require_running"), mock.patch.object(hours, "Terraform", return_value=terraform), mock.patch.object(hours, "protected_json", side_effect=capture), mock.patch.object(hours, "publish") as publish, mock.patch.object(hours.time, "sleep"), mock.patch.object(hours, "datetime") as now:
                         now.now.return_value = datetime(2026, 10, 26, 15, tzinfo=UTC)
-                        hours.apply(context, {"postgres_backup_bucket_name": "backup"}, configure)
-                    self.assertEqual(stages[0], {"use_lambda_aliases": aliases, "activate_operating_hours": False})
-                    self.assertEqual(stages[1], {"use_lambda_aliases": aliases, "activate_operating_hours": True})
+                        hours.apply(context, {"postgres_backup_bucket_name": "backup", "database_instance_id": "i-00000000000000000"}, configure)
+                    self.assertEqual(stages[0], {"use_lambda_aliases": aliases, "activate_operating_hours": False, "operating_hours_database_instance_id": "i-00000000000000000"})
+                    self.assertEqual(stages[1], {"use_lambda_aliases": aliases, "activate_operating_hours": True, "operating_hours_database_instance_id": "i-00000000000000000"})
                     self.assertEqual(configure.call_count, 0 if already_applied else 1)
                     publish.assert_called_once()
                     terraform.apply.assert_not_called()
@@ -150,9 +150,46 @@ class OperatingHoursTest(unittest.TestCase):
         with mock.patch.object(hours, "require_support"), mock.patch.object(hours, "require_running"), mock.patch.object(hours, "Terraform", return_value=terraform), mock.patch.object(hours, "publish") as publish, mock.patch.object(hours.time, "sleep"), mock.patch.object(hours, "datetime") as now:
             now.now.return_value = datetime(2026, 10, 26, 15, tzinfo=UTC)
             with self.assertRaisesRegex(CommandError, "incomplete"):
-                hours.apply(context, {"postgres_backup_bucket_name": "backup"}, mock.Mock(side_effect=CommandError("backup failed")))
+                hours.apply(context, {"postgres_backup_bucket_name": "backup", "database_instance_id": "i-00000000000000000"}, mock.Mock(side_effect=CommandError("backup failed")))
             publish.assert_not_called()
             self.assertEqual(terraform.plan.call_count, 1)
+
+    def test_missing_or_invalid_database_binding_refuses_before_changes(self):
+        for instance_id in (None, "", "i-other", "*", "i-00000000000000000 trailing"):
+            context = mock.MagicMock()
+            context.config.operating_hours = parse({"enabled": True})
+            with mock.patch.object(hours, "Terraform") as terraform, mock.patch.object(hours, "require_support") as support:
+                with self.assertRaisesRegex(CommandError, "existing database_instance_id"):
+                    hours.apply(context, {"database_instance_id": instance_id}, mock.Mock())
+                support.assert_not_called()
+                terraform.assert_not_called()
+
+    def test_plan_still_rejects_database_and_launch_template_updates(self):
+        for address in ("aws_instance.postgres", "aws_launch_template.postgres"):
+            for actions in (["update"], ["delete", "create"]):
+                with self.subTest(address=address, actions=actions), self.assertRaises(CommandError):
+                    hours.validate_plan({"resource_changes": [{"address": address, "change": {"actions": actions}}]}, enabled=True)
+
+    def test_replacement_plan_never_applies_or_proceeds_to_backup(self):
+        context = mock.MagicMock()
+        context.config.operating_hours = parse({"enabled": True})
+        context.config.backup = SimpleNamespace(time="21:00:00", timezone="America/Toronto")
+        context.config.terraform_variables.return_value = {}
+        context.aws.resource_exists.return_value = False
+        terraform = mock.MagicMock()
+        terraform.show_plan.return_value = {"resource_changes": [
+            {"address": "aws_instance.postgres", "change": {"actions": ["delete", "create"]}},
+            {"address": "aws_launch_template.postgres", "change": {"actions": ["update"]}},
+        ]}
+        configure = mock.Mock()
+        with mock.patch.object(hours, "require_support"), mock.patch.object(hours, "require_running"), mock.patch.object(hours, "Terraform", return_value=terraform), mock.patch.object(hours, "publish") as publish, mock.patch.object(hours.time, "sleep") as sleep, mock.patch.object(hours, "datetime") as now:
+            now.now.return_value = datetime(2026, 10, 26, 15, tzinfo=UTC)
+            with self.assertRaisesRegex(CommandError, "hours plan contains unrelated"):
+                hours.apply(context, {"postgres_backup_bucket_name": "backup", "database_instance_id": "i-00000000000000000"}, configure)
+            terraform.apply.assert_not_called()
+            configure.assert_not_called()
+            publish.assert_not_called()
+            sleep.assert_not_called()
 
     def test_offline_deployment_refuses_and_manual_calls_are_discrete(self):
         context = mock.MagicMock()

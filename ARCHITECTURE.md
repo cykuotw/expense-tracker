@@ -148,7 +148,11 @@ Daily EventBridge -------------------------> Delivery Lambda (VPC)
 - **Optional database operating hours:** protected operator configuration owns a
   timezone-aware daily window. Terraform owns EventBridge Scheduler's discrete
   normal EC2 start/stop actions and the aligned monthly-review schedule. The
-  configuration-only apply action stages schedule updates, aligns the host backup
+  schedule-only plan binds the existing instance ID from deployment outputs,
+  without a Terraform dependency on host or launch-template reconciliation.
+  EC2 schedules are created only after that binding exists; destructive and
+  unrelated plan actions remain rejected. The configuration-only apply action
+  stages schedule updates, aligns the host backup
   timer using the shared operating timezone, and publishes only public hours to
   `operating-hours.json` in the frontend bucket. This document is independent of
   application release snapshots. Sender

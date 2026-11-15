@@ -21,8 +21,20 @@ variable "activate_operating_hours" {
   default = false
 }
 
+# Bound by hours-apply from the existing deployment's outputs. A direct
+# aws_instance reference would pull host/launch-template reconciliation into
+# schedule-only plans, including replacements after provider-schema upgrades.
+variable "operating_hours_database_instance_id" {
+  type    = string
+  default = null
+  validation {
+    condition     = var.operating_hours_database_instance_id == null ? true : can(regex("^i-([0-9a-f]{8}|[0-9a-f]{17})$", var.operating_hours_database_instance_id))
+    error_message = "operating_hours_database_instance_id must be an existing EC2 instance ID."
+  }
+}
+
 locals {
-  database_actions = var.operating_hours.enabled ? {
+  database_actions = var.operating_hours.enabled && var.operating_hours_database_instance_id != null ? {
     start       = { time = var.operating_hours.start, operation = "startInstances" }
     stop        = { time = var.operating_hours.stop, operation = "stopInstances" }
     safety-stop = { time = var.operating_hours.safety_stop, operation = "stopInstances" }
@@ -64,12 +76,19 @@ resource "aws_iam_role_policy" "database_hours" {
   name  = "database-hours"
   role  = aws_iam_role.database_hours[0].id
   policy = jsonencode({
-    Version = "2012-10-17", Statement = [
-      { Effect = "Allow", Action = ["ec2:StartInstances", "ec2:StopInstances"], Resource = aws_instance.postgres.arn },
+    Version = "2012-10-17", Statement = concat(var.operating_hours_database_instance_id == null ? [] : [
+      { Effect = "Allow", Action = ["ec2:StartInstances", "ec2:StopInstances"], Resource = "arn:aws:ec2:${var.aws_region}:${var.expected_account_id}:instance/${var.operating_hours_database_instance_id}" }
+      ], [
       { Effect = "Allow", Action = "lambda:InvokeFunction", Resource = var.use_lambda_aliases ? local.delivery_live_arn : aws_lambda_function.delivery.arn },
       { Effect = "Allow", Action = "sqs:SendMessage", Resource = aws_sqs_queue.database_hours_failures[0].arn }
-    ]
+    ])
   })
+  lifecycle {
+    precondition {
+      condition     = !var.activate_operating_hours || !var.operating_hours.enabled || var.operating_hours_database_instance_id != null
+      error_message = "Bind the existing database instance ID before activating operating hours."
+    }
+  }
 }
 
 resource "aws_scheduler_schedule" "database_hours" {
@@ -84,7 +103,7 @@ resource "aws_scheduler_schedule" "database_hours" {
     arn      = "arn:aws:scheduler:::aws-sdk:ec2:${each.value.operation}"
     role_arn = aws_iam_role.database_hours[0].arn
     # Normal EC2 stop only. Never Force, SkipOsShutdown or termination.
-    input = jsonencode({ InstanceIds = [aws_instance.postgres.id] })
+    input = jsonencode({ InstanceIds = [var.operating_hours_database_instance_id] })
     retry_policy {
       maximum_event_age_in_seconds = 60
       maximum_retry_attempts       = 0

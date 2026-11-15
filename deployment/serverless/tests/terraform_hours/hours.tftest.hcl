@@ -19,6 +19,7 @@ mock_provider "aws" {
   }
 }
 variables {
+  operating_hours_database_instance_id = "i-00000000000000000"
   operating_hours = { configured = true, enabled = true, start = "09:00", stop = "22:00", safety_stop = "01:00", timezone = "America/Toronto"
   }
   activate_operating_hours = true
@@ -32,6 +33,14 @@ run "pre_alias" {
   assert {
     condition     = length(aws_scheduler_schedule.database_hours) == 3
     error_message = "Missing discrete EC2 schedules"
+  }
+  assert {
+    condition     = jsondecode(aws_scheduler_schedule.database_hours["start"].target[0].input).InstanceIds == [var.operating_hours_database_instance_id]
+    error_message = "Schedule must target the verified existing instance binding"
+  }
+  assert {
+    condition     = jsondecode(aws_iam_role_policy.database_hours[0].policy).Statement[0].Resource == "arn:aws:ec2:ca-central-1:123456789012:instance/i-00000000000000000"
+    error_message = "EC2 permissions must remain scoped to the bound instance"
   }
   assert {
     condition     = aws_scheduler_schedule.database_hours["safety-stop"].target[0].retry_policy[0].maximum_retry_attempts == 0
@@ -65,5 +74,29 @@ run "disable" {
   assert {
     condition     = aws_instance.postgres.id == run.pre_alias.database_id
     error_message = "Database changed during disablement"
+  }
+}
+
+run "missing_binding" {
+  command = plan
+  variables {
+    operating_hours_database_instance_id = null
+  }
+  expect_failures = [aws_iam_role_policy.database_hours[0]]
+}
+
+run "initial_unbound" {
+  command = plan
+  variables {
+    operating_hours_database_instance_id = null
+    activate_operating_hours             = false
+  }
+  assert {
+    condition     = length(aws_scheduler_schedule.database_hours) == 0
+    error_message = "Fresh deployment must defer EC2 schedules until the host exists"
+  }
+  assert {
+    condition     = !strcontains(aws_iam_role_policy.database_hours[0].policy, "ec2:")
+    error_message = "An unbound policy must not grant EC2 stop access"
   }
 }

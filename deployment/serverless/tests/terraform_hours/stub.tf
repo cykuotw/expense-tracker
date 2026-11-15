@@ -10,6 +10,9 @@ provider "aws" {
 variable "expected_account_id" {
   default = "123456789012"
 }
+variable "aws_region" {
+  default = "ca-central-1"
+}
 variable "use_lambda_aliases" {
   default = false
 }

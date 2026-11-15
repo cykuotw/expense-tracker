@@ -101,6 +101,9 @@ def apply(context, outputs: dict, configure_backup) -> None:
     hours = context.config.operating_hours
     if not hours.configured:
         raise CommandError("hours-apply requires operating_hours; use enabled=false to disable and retain aligned daily jobs")
+    instance_id = outputs.get("database_instance_id")
+    if not isinstance(instance_id, str) or not re.fullmatch(r"i-(?:[0-9a-f]{8}|[0-9a-f]{17})", instance_id):
+        raise CommandError("hours-apply requires a valid existing database_instance_id output; refusing to plan")
     require_support(context, outputs)
     require_running(context, outputs)
     # Validate before mutating any resource. All inputs were validated at load.
@@ -122,6 +125,7 @@ def apply(context, outputs: dict, configure_backup) -> None:
     def infrastructure(active: bool) -> None:
         variables = context.config.terraform_variables(temporary_access=False)
         variables["activate_operating_hours"] = active
+        variables["operating_hours_database_instance_id"] = instance_id
         with protected_json(variables, prefix="expense-hours-vars-") as variable_file, tempfile.TemporaryDirectory(prefix="expense-hours-plan-") as temporary:
             terraform = Terraform(context.terraform_root, variable_file)
             terraform.init()

@@ -3,7 +3,7 @@ mock_provider "aws" {
     defaults = { id = "i-00000000000000000", arn = "arn:aws:ec2:ca-central-1:123456789012:instance/i-00000000000000000" }
   }
   mock_resource "aws_lambda_function" {
-    defaults = { arn = "arn:aws:lambda:ca-central-1:123456789012:function:delivery" }
+    defaults = { arn = "arn:aws:lambda:ca-central-1:123456789012:function:hours-test-delivery" }
   }
   mock_resource "aws_iam_role" {
     defaults = { arn = "arn:aws:iam::123456789012:role/hours-test" }
@@ -27,7 +27,7 @@ variables {
 run "pre_alias" {
   command = apply
   assert {
-    condition     = aws_scheduler_schedule.monthly_review[0].target[0].arn == "arn:aws:lambda:ca-central-1:123456789012:function:delivery"
+    condition     = aws_scheduler_schedule.monthly_review[0].target[0].arn == "arn:aws:lambda:ca-central-1:123456789012:function:hours-test-delivery"
     error_message = "Pre-alias invocation changed"
   }
   assert {
@@ -53,7 +53,7 @@ run "alias_cutover" {
     use_lambda_aliases = true
   }
   assert {
-    condition     = aws_scheduler_schedule.monthly_review[0].target[0].arn == "arn:aws:lambda:ca-central-1:123456789012:function:delivery:live"
+    condition     = aws_scheduler_schedule.monthly_review[0].target[0].arn == "arn:aws:lambda:ca-central-1:123456789012:function:hours-test-delivery:live"
     error_message = "Alias cutover did not update target"
   }
   assert {

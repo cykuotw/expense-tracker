@@ -34,6 +34,9 @@ variable "operating_hours_database_instance_id" {
 }
 
 locals {
+  # Schedule-only plans must not reconcile the publisher Lambda.
+  publisher_function_arn = "arn:aws:lambda:${var.aws_region}:${var.expected_account_id}:function:${local.resource_prefix}-delivery"
+  publisher_target_arn   = var.use_lambda_aliases ? "${local.publisher_function_arn}:live" : local.publisher_function_arn
   database_actions = var.operating_hours.enabled && var.operating_hours_database_instance_id != null ? {
     start       = { time = var.operating_hours.start, operation = "startInstances" }
     stop        = { time = var.operating_hours.stop, operation = "stopInstances" }
@@ -79,7 +82,7 @@ resource "aws_iam_role_policy" "database_hours" {
     Version = "2012-10-17", Statement = concat(var.operating_hours_database_instance_id == null ? [] : [
       { Effect = "Allow", Action = ["ec2:StartInstances", "ec2:StopInstances"], Resource = "arn:aws:ec2:${var.aws_region}:${var.expected_account_id}:instance/${var.operating_hours_database_instance_id}" }
       ], [
-      { Effect = "Allow", Action = "lambda:InvokeFunction", Resource = var.use_lambda_aliases ? local.delivery_live_arn : aws_lambda_function.delivery.arn },
+      { Effect = "Allow", Action = "lambda:InvokeFunction", Resource = local.publisher_target_arn },
       { Effect = "Allow", Action = "sqs:SendMessage", Resource = aws_sqs_queue.database_hours_failures[0].arn }
     ])
   })
@@ -123,7 +126,7 @@ resource "aws_scheduler_schedule" "monthly_review" {
   state                        = var.activate_operating_hours ? "ENABLED" : "DISABLED"
   flexible_time_window { mode = "OFF" }
   target {
-    arn      = var.use_lambda_aliases ? local.delivery_live_arn : aws_lambda_function.delivery.arn
+    arn      = local.publisher_target_arn
     role_arn = aws_iam_role.database_hours[0].arn
     input    = jsonencode({ action = "publish_monthly_reviews" })
     retry_policy {

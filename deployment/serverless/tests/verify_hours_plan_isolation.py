@@ -65,9 +65,9 @@ def main() -> None:
                 planned = client.show_plan(plan)
                 all_actions = plan_actions(planned)
                 # The fixture intentionally has no pre-existing application
-                # resources. Account explicitly for only those three creates;
+                # resources. Account explicitly for only those two creates;
                 # a real hours-apply still uses the unmodified strict guard.
-                fixture_dependencies = {"aws_iam_role.sender", "aws_lambda_function.delivery", "aws_s3_bucket.frontend"}
+                fixture_dependencies = {"aws_iam_role.sender", "aws_s3_bucket.frontend"}
                 if any(all_actions.get(key) != ["create"] for key in fixture_dependencies):
                     raise RuntimeError("fixture application prerequisites changed")
                 schedule_plan = {"resource_changes": [item for item in planned.get("resource_changes", []) if item["address"] not in fixture_dependencies]}

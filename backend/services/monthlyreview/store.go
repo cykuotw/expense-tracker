@@ -16,10 +16,7 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-const (
-	maxPendingWebPushDeliveries  = 1000
-	monthlyReviewExpensePageSize = 20
-)
+const monthlyReviewExpensePageSize = 20
 
 var ErrInvalidExpenseOptions = errors.New("invalid monthly review expense options")
 
@@ -103,56 +100,12 @@ func (s *Store) PublishEligible(ctx context.Context, now time.Time, limit int) (
 			continue
 		}
 		result.Published++
-		queued, eligible, err := queueMonthlyReviewNotifications(ctx, tx, candidate.groupID, candidate.month)
-		if err != nil {
-			return PublicationResult{}, err
-		}
-		if queued != eligible {
-			return PublicationResult{}, errors.New("monthly review notification capacity exhausted")
-		}
-		result.Deliveries += queued
 	}
 
 	if err := tx.Commit(); err != nil {
 		return PublicationResult{}, err
 	}
 	return result, nil
-}
-
-func queueMonthlyReviewNotifications(ctx context.Context, tx *sql.Tx, groupID uuid.UUID, month time.Time) (int, int, error) {
-	var queued, eligible int
-	err := tx.QueryRowContext(ctx, `
-		WITH capacity AS (
-			SELECT GREATEST($3 - COUNT(*), 0)::bigint AS remaining
-			FROM web_push_delivery
-			WHERE completed_at IS NULL AND expires_at > NOW()
-		), recipients AS (
-			SELECT subscription.id, subscription.user_id, groups.group_name
-			FROM web_push_subscription subscription
-			JOIN group_member member ON member.user_id = subscription.user_id
-			JOIN groups ON groups.id = member.group_id AND groups.is_active IS TRUE
-			LEFT JOIN group_notification_preference preference
-				ON preference.group_id = member.group_id AND preference.user_id = member.user_id
-			WHERE member.group_id = $1
-				AND COALESCE(preference.muted, FALSE) IS FALSE
-		), inserted AS (
-			INSERT INTO web_push_delivery (
-			notification_type, review_month, subscription_id, recipient_user_id,
-			group_id, group_name, expires_at
-			)
-			SELECT 'monthly_review_available', $2, id, user_id, $1, group_name,
-				NOW() + INTERVAL '7 days'
-			FROM recipients
-			WHERE (SELECT COUNT(*) FROM recipients) <= (SELECT remaining FROM capacity)
-			ON CONFLICT DO NOTHING
-			RETURNING 1
-		)
-		SELECT (SELECT COUNT(*) FROM inserted), (SELECT COUNT(*) FROM recipients)`,
-		groupID, month, maxPendingWebPushDeliveries).Scan(&queued, &eligible)
-	if err != nil {
-		return 0, 0, err
-	}
-	return queued, eligible, nil
 }
 
 func (s *Store) Get(ctx context.Context, groupID, userID uuid.UUID, month time.Time, now time.Time) (Review, error) {

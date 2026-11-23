@@ -117,18 +117,12 @@ Daily EventBridge -------------------------> Delivery Lambda (VPC)
 - **Bootstrap Lambda:** performs explicit migration and bootstrap work before
   Worker releases that depend on it. Migrations are never a request-time
   responsibility.
-- **Notifications:** a scheduled Sender outside the VPC invokes the private
-  Delivery Lambda to claim work and acknowledge results. Delivery owns database
-  access; Sender owns Web Push transport and VAPID signing. Neither a NAT Gateway
-  nor a paid VPC endpoint is required. IAM permits Sender to invoke only Delivery;
-  neither function exposes an HTTP endpoint. PostgreSQL leases prevent concurrent
-  claims, and expired leases permit recovery after interrupted sends. Delivery is
-  at-least-once: a provider may accept a push before its acknowledgement is lost.
-  See [notification component](backend/services/notification/README.md).
+- The legacy push Sender schedule is disabled and its role has no invocation
+  permission on the monthly review publisher.
 - **Monthly reviews:** one daily UTC EventBridge rule invokes a bounded
   publication action on the existing DB-connected Delivery Lambda. PostgreSQL
-  stores one publication marker per eligible Home group/month and notification
-  deduplication state. Authorized HTTP reads calculate the review live from the
+  stores one publication marker per eligible Home group/month. Authorized HTTP
+  reads calculate the review live from the
   current expense, ledger, and settlement rows. Expense-list details use a
   separate bounded cursor-paginated read; there is no rendered or aggregate
   report snapshot and no per-group schedule.

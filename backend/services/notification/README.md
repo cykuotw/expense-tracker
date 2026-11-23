@@ -21,9 +21,8 @@ account-wide for each user and group.
 
 `backend/cmd/push-sender` wires Sender directly to PostgreSQL for local execution.
 `backend/cmd/push-sender-serverless` wires the same Sender to LambdaStore.
-`backend/cmd/push-delivery-serverless` dispatches claim/acknowledge requests to
-PostgreSQL. These entrypoints configure dependencies; they contain no delivery
-policy. LambdaStore has no database credentials, buffering, or retry policy.
+The retained Delivery Lambda runs the monthly review publisher. Its artifact accepts
+only the scheduled monthly publication action. The Sender schedule is disabled.
 
 Claims use `FOR UPDATE SKIP LOCKED` and a two-minute lease with a random token.
 Acknowledgements must match an unexpired token; duplicate and stale reports

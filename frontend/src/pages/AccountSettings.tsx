@@ -5,7 +5,6 @@ import GoogleSignInButton from "../components/auth/GoogleSignInButton";
 import { FRONTEND_VERSION, GOOGLE_OAUTH_ENABLED } from "../configs/config";
 import { apiFetch, getResponseErrorMessage } from "../lib/api";
 import MobilePageHeader from "../components/MobilePageHeader";
-import NotificationSettings from "../components/pwa/NotificationSettings";
 import { AccountSettingsData } from "../types/account";
 import { usePWAUpdateBlocker } from "../hooks/usePWAUpdateBlocker";
 import { useFormFocusVisibility } from "../hooks/useFormFocusVisibility";
@@ -816,7 +815,6 @@ export default function AccountSettings() {
                             )}
                         </div>
                     </section>
-                    <NotificationSettings />
                     <p className="lg:col-span-2 px-1 text-xs text-foreground/55">
                         App version <span className="whitespace-nowrap font-mono">{FRONTEND_VERSION}</span>
                     </p>

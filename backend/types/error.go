@@ -72,7 +72,6 @@ var (
 	ErrInvalidMoney               = errors.New("invalid monetary value")
 
 	// notifications
-	ErrWebPushUnavailable         = errors.New("web push notifications are unavailable")
 	ErrInvalidWebPushSubscription = errors.New("invalid push subscription")
 	ErrWebPushSubscriptionLimit   = errors.New("too many push subscriptions")
 

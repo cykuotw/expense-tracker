@@ -16,7 +16,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestConcurrentPublicationDoesNotDuplicateMarkerOrDeliveries(t *testing.T) {
+func TestConcurrentPublicationDoesNotDuplicateMarker(t *testing.T) {
 	database := openMonthlyReviewTestDB(t)
 	fixture := createMonthlyReviewFixture(t, database)
 	now := time.Date(1900, time.September, 13, 10, 0, 0, 0, time.UTC)
@@ -35,14 +35,10 @@ func TestConcurrentPublicationDoesNotDuplicateMarkerOrDeliveries(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	var publications, deliveries int
+	var publications int
 	require.NoError(t, database.QueryRow(`SELECT COUNT(*) FROM monthly_review_publication
 		WHERE group_id = $1 AND review_month = '1900-08-01'`, fixture.homeGroup).Scan(&publications))
-	require.NoError(t, database.QueryRow(`SELECT COUNT(*) FROM web_push_delivery
-		WHERE group_id = $1 AND review_month = '1900-08-01'
-		AND notification_type = 'monthly_review_available'`, fixture.homeGroup).Scan(&deliveries))
 	require.Equal(t, 1, publications)
-	require.Equal(t, 2, deliveries)
 }
 
 func TestTrendReturnsTwelvePublishedMonthsAndLatestReport(t *testing.T) {
@@ -92,20 +88,15 @@ func TestPublicationAndLiveReviewLifecycle(t *testing.T) {
 	result, err := store.PublishEligible(t.Context(), now, 25)
 	require.NoError(t, err)
 	require.GreaterOrEqual(t, result.Published, 1)
-	require.GreaterOrEqual(t, result.Deliveries, 2)
 
 	result, err = store.PublishEligible(t.Context(), now, 25)
 	require.NoError(t, err)
 	require.Zero(t, result.Published)
-	require.Zero(t, result.Deliveries)
 
-	var publicationCount, deliveryCount int
+	var publicationCount int
 	require.NoError(t, database.QueryRow(`SELECT COUNT(*) FROM monthly_review_publication
 		WHERE group_id = $1 AND review_month = $2`, fixture.homeGroup, august).Scan(&publicationCount))
-	require.NoError(t, database.QueryRow(`SELECT COUNT(*) FROM web_push_delivery
-		WHERE group_id = $1 AND review_month = $2 AND notification_type = 'monthly_review_available'`, fixture.homeGroup, august).Scan(&deliveryCount))
 	require.Equal(t, 1, publicationCount)
-	require.Equal(t, 2, deliveryCount)
 	require.NoError(t, database.QueryRow(`SELECT COUNT(*) FROM monthly_review_publication
 		WHERE group_id = $1`, fixture.tripGroup).Scan(&publicationCount))
 	require.Zero(t, publicationCount, "non-Home groups must never publish reviews")
@@ -149,7 +140,6 @@ func TestPublicationAndLiveReviewLifecycle(t *testing.T) {
 	result, err = store.PublishEligible(t.Context(), now, 25)
 	require.NoError(t, err)
 	require.Equal(t, 1, result.Published)
-	require.Equal(t, 2, result.Deliveries)
 	july := time.Date(1900, time.July, 1, 0, 0, 0, 0, time.UTC)
 	review, err = store.Get(t.Context(), fixture.homeGroup, fixture.alice, july, now)
 	require.NoError(t, err)
@@ -165,9 +155,6 @@ func TestPublicationAndLiveReviewLifecycle(t *testing.T) {
 	review, err = store.Get(t.Context(), fixture.homeGroup, fixture.alice, july, now)
 	require.NoError(t, err)
 	require.Equal(t, StatePublished, review.State)
-	require.NoError(t, database.QueryRow(`SELECT COUNT(*) FROM web_push_delivery
-		WHERE group_id = $1 AND review_month = $2 AND notification_type = 'monthly_review_available'`, fixture.homeGroup, july).Scan(&deliveryCount))
-	require.Equal(t, 2, deliveryCount, "live changes must not enqueue another availability event")
 
 	_, err = database.Exec("UPDATE groups SET is_active = FALSE WHERE id = $1", fixture.homeGroup)
 	require.NoError(t, err)
@@ -184,7 +171,6 @@ func TestPublicationAndLiveReviewLifecycle(t *testing.T) {
 	result, err = store.PublishEligible(t.Context(), now, 25)
 	require.NoError(t, err)
 	require.Zero(t, result.Published)
-	require.Zero(t, result.Deliveries)
 }
 
 func TestMonthlyReviewExpensesUseBoundedCursorPagination(t *testing.T) {
@@ -290,12 +276,6 @@ func createMonthlyReviewFixture(t *testing.T, database *sql.DB) monthlyReviewFix
 	_, err = database.Exec(`INSERT INTO ledger (id, expense_id, lender_user_id, borrower_user_id, share)
 		VALUES ($1, $2, $3, $4, 15)`, uuid.New(), fixture.expense, fixture.alice, fixture.bob)
 	require.NoError(t, err)
-
-	for _, userID := range []uuid.UUID{fixture.alice, fixture.bob} {
-		_, err = database.Exec(`INSERT INTO web_push_subscription (id, user_id, endpoint, p256dh_key, auth_key)
-			VALUES ($1, $2, $3, 'test', 'test')`, uuid.New(), userID, "https://fcm.googleapis.com/push/"+uuid.NewString())
-		require.NoError(t, err)
-	}
 
 	t.Cleanup(func() {
 		_, err := database.Exec("DELETE FROM expense WHERE group_id = ANY($1)", []uuid.UUID{fixture.homeGroup, fixture.tripGroup})

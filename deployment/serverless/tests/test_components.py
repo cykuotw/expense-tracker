@@ -47,7 +47,7 @@ class ComponentTest(unittest.TestCase):
                 "./backend/cmd/bootstrap-serverless",
                 "./backend/cmd/ocr-serverless",
                 "./backend/cmd/push-sender-serverless",
-                "./backend/cmd/push-delivery-serverless",
+                "./backend/cmd/monthly-review-publisher-serverless",
                 "./backend/cmd/error-notifier-serverless",
             ):
                 self.assertEqual(flags[package], "-s -w")
@@ -445,28 +445,28 @@ class ComponentTest(unittest.TestCase):
     def test_terraform_does_not_manage_lambda_runtime_updates(self) -> None:
         source = (ROOT / "infrastructure/tf/backend.tf").read_text()
         source += (ROOT / "infrastructure/tf/notifications.tf").read_text()
+        source += (ROOT / "infrastructure/tf/monthly_reviews.tf").read_text()
 
         self.assertEqual(source.count("source_code_hash,"), 4)
         self.assertEqual(source.count("filename,"), 4)
 
     def test_notification_network_and_iam_boundaries(self) -> None:
         source = (ROOT / "infrastructure/tf/notifications.tf").read_text()
+        source += (ROOT / "infrastructure/tf/monthly_reviews.tf").read_text()
         sender = source.split('resource "aws_lambda_function" "sender" {')[1].split("\n}", 1)[0]
         delivery = source.split('resource "aws_lambda_function" "delivery" {')[1].split("\n}", 1)[0]
         policy = source.split('resource "aws_iam_role_policy" "sender" {')[1].split("\n}", 1)[0]
         self.assertNotIn("vpc_config", sender)
         self.assertIn("vpc_config", delivery)
-        self.assertIn(
-            'Action = ["lambda:InvokeFunction"], Resource = var.use_lambda_aliases ? local.delivery_live_arn : aws_lambda_function.delivery.arn',
-            policy,
-        )
+        self.assertNotIn("lambda:InvokeFunction", policy)
+        self.assertIn('state               = "DISABLED"', source)
         self.assertNotIn("lambda_network_actions", policy)
         self.assertNotIn("aws_nat_gateway", source)
         self.assertNotIn("aws_vpc_endpoint", source)
         self.assertNotIn("sender_to_push_providers", source)
 
     def test_monthly_review_reuses_delivery_lambda_with_one_daily_schedule(self) -> None:
-        source = (ROOT / "infrastructure/tf/notifications.tf").read_text()
+        source = (ROOT / "infrastructure/tf/monthly_reviews.tf").read_text()
         self.assertEqual(
             source.count('resource "aws_cloudwatch_event_rule" "monthly_review_publisher"'),
             1,
@@ -479,7 +479,7 @@ class ComponentTest(unittest.TestCase):
         self.assertIn('qualifier     = var.use_lambda_aliases ? "live" : null', source)
         self.assertIn('input = jsonencode({ action = "publish_monthly_reviews" })', source)
         self.assertIn('source_arn    = aws_cloudwatch_event_rule.monthly_review_publisher.arn', source)
-        self.assertEqual(source.count('resource "aws_lambda_function"'), 2)
+        self.assertEqual(source.count('resource "aws_lambda_function"'), 1)
         self.assertNotIn("aws_nat_gateway", source)
         self.assertNotIn("aws_vpc_endpoint", source)
 

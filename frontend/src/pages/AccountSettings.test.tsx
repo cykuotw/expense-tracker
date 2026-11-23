@@ -99,6 +99,13 @@ describe("AccountSettings", () => {
         expect(apiFetchMock.mock.calls.some(([path]) => String(path).includes("ocr-improvement"))).toBe(false);
     });
 
+    it("loads account settings without requesting notification preferences", async () => {
+        render(<AccountSettings />);
+        await screen.findByRole("textbox", { name: "Email" });
+        expect(screen.queryByRole("heading", { name: /notifications/i })).not.toBeInTheDocument();
+        expect(apiFetchMock.mock.calls.some(([path]) => String(path).includes("/notifications/"))).toBe(false);
+    });
+
     it("updates editable profile fields while keeping email read-only", async () => {
         render(<AccountSettings />);
 

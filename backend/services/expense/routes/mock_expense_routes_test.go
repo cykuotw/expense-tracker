@@ -41,7 +41,6 @@ type mockExpenseStore struct {
 	CreateLedgerFn                            func(ledger types.Ledger) error
 	CreateExpenseAllocationFn                 func(allocation types.ExpenseAllocation) error
 	ClaimExpenseCreateIdempotencyFn           func(record types.ExpenseCreateIdempotency) (types.ExpenseCreateIdempotency, bool, error)
-	QueueExpenseCreatedNotificationsFn        func(expense types.Expense) error
 	GetExpenseByIDFn                          func(expenseID string) (*types.Expense, error)
 	GetExpenseListFn                          func(groupID string, page int64, order types.ExpenseListOrder, status types.ExpenseListStatus) (*types.ExpenseListPage, error)
 	GetExpenseTypeFn                          func() ([]*types.ExpenseType, error)
@@ -153,12 +152,6 @@ func (s *mockExpenseStore) ClaimExpenseCreateIdempotency(record types.ExpenseCre
 		return s.ClaimExpenseCreateIdempotencyFn(record)
 	}
 	return record, true, nil
-}
-func (s *mockExpenseStore) QueueExpenseCreatedNotifications(expense types.Expense) error {
-	if s.QueueExpenseCreatedNotificationsFn != nil {
-		return s.QueueExpenseCreatedNotificationsFn(expense)
-	}
-	return nil
 }
 func (s *mockExpenseStore) GetExpenseByID(expenseID string) (*types.Expense, error) {
 	if s.GetExpenseByIDFn != nil {

@@ -66,7 +66,6 @@ type ExpenseTransactionStore interface {
 	CreateLedger(ledger Ledger) error
 	CreateExpenseAllocation(allocation ExpenseAllocation) error
 	ClaimExpenseCreateIdempotency(record ExpenseCreateIdempotency) (existing ExpenseCreateIdempotency, claimed bool, err error)
-	QueueExpenseCreatedNotifications(expense Expense) error
 	CreateExpenseReceipt(receipt ExpenseReceipt) error
 	GetExpenseReceiptForUpdate(receiptID uuid.UUID) (*ExpenseReceipt, error)
 	GetExpenseReceiptByRoleForUpdate(expenseID uuid.UUID, role string) (*ExpenseReceipt, error)

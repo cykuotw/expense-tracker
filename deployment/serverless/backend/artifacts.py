@@ -56,7 +56,7 @@ COMPONENT_PACKAGES = {
     "ocr": ("./backend/cmd/ocr-serverless", "-s -w"),
     "bootstrap": ("./backend/cmd/bootstrap-serverless", "-s -w"),
     "sender": ("./backend/cmd/push-sender-serverless", "-s -w"),
-    "delivery": ("./backend/cmd/push-delivery-serverless", "-s -w"),
+    "delivery": ("./backend/cmd/monthly-review-publisher-serverless", "-s -w"),
     "notifier": ("./backend/cmd/error-notifier-serverless", "-s -w"),
 }
 ALL_COMPONENTS = frozenset(COMPONENT_PACKAGES)

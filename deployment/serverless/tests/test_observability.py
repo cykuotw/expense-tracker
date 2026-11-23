@@ -76,6 +76,7 @@ class ObservabilityInfrastructureTest(unittest.TestCase):
             "locals {", 1
         )[0]
         notifications = (ROOT / "infrastructure/tf/notifications.tf").read_text()
+        notifications += (ROOT / "infrastructure/tf/monthly_reviews.tf").read_text()
 
         self.assertIn("default     = 3", worker)
         self.assertIn("contains([", worker)

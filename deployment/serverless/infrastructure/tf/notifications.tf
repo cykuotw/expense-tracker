@@ -30,9 +30,6 @@ resource "aws_iam_role_policy" "sender" {
     Version = "2012-10-17", Statement = [
       {
         Effect = "Allow", Action = ["logs:CreateLogStream", "logs:PutLogEvents"], Resource = "${aws_cloudwatch_log_group.sender.arn}:*"
-      },
-      {
-        Effect = "Allow", Action = ["lambda:InvokeFunction"], Resource = var.use_lambda_aliases ? local.delivery_live_arn : aws_lambda_function.delivery.arn
       }
     ]
   })
@@ -67,6 +64,7 @@ resource "aws_cloudwatch_event_rule" "sender" {
   name                = "${local.resource_prefix}-sender-tick"
   description         = "Run the web push sender every minute"
   schedule_expression = "rate(1 minute)"
+  state               = "DISABLED"
   tags = merge(local.common_tags, {
     Component = "notifications"
   })
@@ -84,133 +82,4 @@ resource "aws_lambda_permission" "sender_eventbridge" {
   qualifier     = var.use_lambda_aliases ? "live" : null
   principal     = "events.amazonaws.com"
   source_arn    = aws_cloudwatch_event_rule.sender.arn
-}
-
-# Monthly reviews reuse the existing database-connected Delivery Lambda. This
-# is one product-wide UTC schedule, not one schedule per group.
-resource "aws_cloudwatch_event_rule" "monthly_review_publisher" {
-  name                = "${local.resource_prefix}-monthly-review-publisher"
-  description         = "Publish eligible closed monthly expense reviews once per day"
-  schedule_expression = "cron(15 5 * * ? *)"
-  state               = var.operating_hours.configured ? "DISABLED" : "ENABLED"
-  tags = merge(local.common_tags, {
-    Component = "monthly-reviews"
-  })
-}
-
-resource "aws_cloudwatch_event_target" "monthly_review_publisher" {
-  rule  = aws_cloudwatch_event_rule.monthly_review_publisher.name
-  arn   = var.use_lambda_aliases ? local.delivery_live_arn : aws_lambda_function.delivery.arn
-  input = jsonencode({ action = "publish_monthly_reviews" })
-}
-
-resource "aws_lambda_permission" "monthly_review_publisher_eventbridge" {
-  statement_id  = "AllowEventBridgeMonthlyReviewPublisher"
-  action        = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.delivery.function_name
-  qualifier     = var.use_lambda_aliases ? "live" : null
-  principal     = "events.amazonaws.com"
-  source_arn    = aws_cloudwatch_event_rule.monthly_review_publisher.arn
-}
-
-resource "aws_security_group" "sender" {
-  name_prefix = "${local.resource_prefix}-sender-"
-  description = "Expense Tracker web push sender Lambda"
-  vpc_id      = var.vpc_id
-  tags = merge(local.common_tags, {
-    Name = "${local.resource_prefix}-sender", Component = "notifications"
-  })
-  lifecycle {
-    create_before_destroy = true
-  }
-}
-
-resource "aws_vpc_security_group_ingress_rule" "postgres_from_sender" {
-  security_group_id            = aws_security_group.postgres.id
-  referenced_security_group_id = aws_security_group.sender.id
-  ip_protocol                  = "tcp"
-  from_port                    = 5432
-  to_port                      = 5432
-  description                  = "Push sender to PostgreSQL"
-}
-
-resource "aws_vpc_security_group_egress_rule" "sender_to_postgres" {
-  security_group_id            = aws_security_group.sender.id
-  referenced_security_group_id = aws_security_group.postgres.id
-  ip_protocol                  = "tcp"
-  from_port                    = 5432
-  to_port                      = 5432
-  description                  = "Push sender to PostgreSQL"
-}
-
-resource "aws_vpc_security_group_egress_rule" "sender_to_vpc_dns_udp" {
-  security_group_id = aws_security_group.sender.id
-  cidr_ipv4         = data.aws_vpc.selected.cidr_block
-  ip_protocol       = "udp"
-  from_port         = 53
-  to_port           = 53
-  description       = "VPC DNS resolution"
-}
-
-resource "aws_vpc_security_group_egress_rule" "sender_to_vpc_dns_tcp" {
-  security_group_id = aws_security_group.sender.id
-  cidr_ipv4         = data.aws_vpc.selected.cidr_block
-  ip_protocol       = "tcp"
-  from_port         = 53
-  to_port           = 53
-  description       = "VPC DNS resolution fallback"
-}
-
-resource "aws_iam_role" "delivery" {
-  name = "${local.resource_prefix}-delivery-role"
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17", Statement = [{
-      Effect = "Allow", Principal = { Service = "lambda.amazonaws.com" }, Action = "sts:AssumeRole"
-    }]
-  })
-  tags = merge(local.common_tags, { Component = "notifications" })
-}
-
-resource "aws_cloudwatch_log_group" "delivery" {
-  name              = "/aws/lambda/${local.resource_prefix}-delivery"
-  retention_in_days = 7
-  tags              = merge(local.common_tags, { Component = "notifications" })
-}
-
-resource "aws_iam_role_policy" "delivery" {
-  name = "${local.resource_prefix}-delivery-runtime"
-  role = aws_iam_role.delivery.id
-  policy = jsonencode({
-    Version = "2012-10-17", Statement = [
-      {
-        Effect = "Allow", Action = ["logs:CreateLogStream", "logs:PutLogEvents"], Resource = "${aws_cloudwatch_log_group.delivery.arn}:*"
-      },
-      {
-        Effect = "Allow", Action = local.lambda_network_actions, Resource = "*"
-      }
-    ]
-  })
-}
-
-resource "aws_lambda_function" "delivery" {
-  function_name                  = "${local.resource_prefix}-delivery"
-  role                           = aws_iam_role.delivery.arn
-  runtime                        = "provided.al2023"
-  handler                        = "bootstrap"
-  architectures                  = ["arm64"]
-  filename                       = var.delivery_artifact_path
-  source_code_hash               = filebase64sha256(var.delivery_artifact_path)
-  memory_size                    = 128
-  timeout                        = 10
-  reserved_concurrent_executions = 0
-  vpc_config {
-    subnet_ids = [var.subnet_id]
-    # Retain the existing notification database-client security group identity.
-    security_group_ids = [aws_security_group.sender.id]
-  }
-  depends_on = [aws_cloudwatch_log_group.delivery, aws_iam_role_policy.delivery]
-  lifecycle {
-    ignore_changes = [environment, filename, source_code_hash, reserved_concurrent_executions]
-  }
-  tags = merge(local.common_tags, { Component = "notifications" })
 }

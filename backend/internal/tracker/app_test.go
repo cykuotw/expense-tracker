@@ -125,6 +125,23 @@ func TestImprovementRoutesAreRemoved(t *testing.T) {
 	}
 }
 
+func TestNotificationRoutesAreRemoved(t *testing.T) {
+	handler := NewHandler(nil)
+	for _, route := range []struct{ method, path string }{
+		{http.MethodGet, "/notifications/settings"},
+		{http.MethodPost, "/notifications/subscriptions"},
+		{http.MethodPost, "/notifications/subscriptions/status"},
+		{http.MethodDelete, "/notifications/subscriptions"},
+		{http.MethodPatch, "/notifications/subscriptions/details"},
+		{http.MethodPut, "/notifications/groups/test-group/mute"},
+	} {
+		request := httptest.NewRequest(route.method, config.Envs.APIPath+route.path, nil)
+		response := httptest.NewRecorder()
+		handler.ServeHTTP(response, request)
+		assert.Equal(t, http.StatusNotFound, response.Code, route.path)
+	}
+}
+
 func TestNewHTTPServerAppliesTimeouts(t *testing.T) {
 	handler := http.NewServeMux()
 	server := NewHTTPServer("127.0.0.1:8000", handler)

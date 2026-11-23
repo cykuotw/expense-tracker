@@ -58,8 +58,7 @@ type ExpensePage struct {
 }
 
 type PublicationResult struct {
-	Published  int `json:"published"`
-	Deliveries int `json:"deliveries"`
+	Published int `json:"published"`
 }
 
 type Trend struct {

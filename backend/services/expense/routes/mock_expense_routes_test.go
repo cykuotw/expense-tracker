@@ -55,7 +55,6 @@ type mockExpenseStore struct {
 	DeleteItemsNotInFn                        func(expenseID uuid.UUID, itemIDs []uuid.UUID) error
 	UpdateLedgerFn                            func(ledger types.Ledger) error
 	ReconcileExpenseAllocationStateFn         func(expenseID, payerID uuid.UUID, allocations []types.ExpenseAllocation, ledgers []types.Ledger) error
-	CheckExpenseExistByIDFn                   func(id string) (bool, error)
 	GetExpenseTypeByIdFn                      func(id uuid.UUID) (string, error)
 	DeleteExpenseFn                           func(expense types.Expense) error
 	CreateBalancesFn                          func(groupId string, balances []*types.Balance) error
@@ -65,7 +64,6 @@ type mockExpenseStore struct {
 	GetCurrentBalancesByGroupIDFn             func(groupID string) ([]types.Balance, error)
 	GetUnsettledExpenseReconciliationCountsFn func(groupID string) (int, int, error)
 	CountCurrentBalanceLedgerLinksFn          func(groupID string) (int, error)
-	CheckBalanceExistByIDFn                   func(id string) (bool, error)
 	SettleBalanceByBalanceIDFn                func(groupID string, balanceID string, actorID uuid.UUID) error
 	CheckGroupBalanceAllSettledFn             func(groupID string) (bool, error)
 }
@@ -237,12 +235,6 @@ func (s *mockExpenseStore) ReconcileExpenseAllocationState(expenseID, payerID uu
 	}
 	return nil
 }
-func (s *mockExpenseStore) CheckExpenseExistByID(id string) (bool, error) {
-	if s.CheckExpenseExistByIDFn != nil {
-		return s.CheckExpenseExistByIDFn(id)
-	}
-	return false, nil
-}
 func (s *mockExpenseStore) GetExpenseTypeById(id uuid.UUID) (string, error) {
 	if s.GetExpenseTypeByIdFn != nil {
 		return s.GetExpenseTypeByIdFn(id)
@@ -296,12 +288,6 @@ func (s *mockExpenseStore) CountCurrentBalanceLedgerLinks(groupID string) (int, 
 		return s.CountCurrentBalanceLedgerLinksFn(groupID)
 	}
 	return 0, nil
-}
-func (s *mockExpenseStore) CheckBalanceExistByID(id string) (bool, error) {
-	if s.CheckBalanceExistByIDFn != nil {
-		return s.CheckBalanceExistByIDFn(id)
-	}
-	return false, nil
 }
 func (s *mockExpenseStore) SettleBalanceByBalanceID(groupID string, balanceID string, actorID uuid.UUID) error {
 	if s.SettleBalanceByBalanceIDFn != nil {
@@ -573,9 +559,6 @@ func updateExpenseDetailStoreMock() *mockExpenseStore {
 		}
 		return &types.Expense{ID: mockExpenseID, GroupID: mockGroupID, Currency: "CAD"}, nil
 	}
-	store.CheckExpenseExistByIDFn = func(id string) (bool, error) {
-		return id == mockExpenseID.String(), nil
-	}
 	return store
 }
 
@@ -703,6 +686,9 @@ func getUnsettledBalanceControllerMock() *mockController {
 func getExpenseDetailStoreMock() *mockExpenseStore {
 	store := expenseStoreMock()
 	store.GetExpenseByIDFn = func(expenseID string) (*types.Expense, error) {
+		if expenseID != mockExpenseID.String() {
+			return nil, types.ErrExpenseNotExist
+		}
 		return &types.Expense{
 			ID: mockExpenseID, GroupID: mockGroupID, OccurredOn: "2026-08-31",
 			AllocationMode: types.ExpenseAllocationEqual,
@@ -717,9 +703,6 @@ func getExpenseDetailStoreMock() *mockExpenseStore {
 			Name:     "Groceries",
 			Category: "Food and Drink",
 		}}, nil
-	}
-	store.CheckExpenseExistByIDFn = func(id string) (bool, error) {
-		return id == mockExpenseID.String(), nil
 	}
 	return store
 }

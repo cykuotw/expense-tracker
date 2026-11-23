@@ -79,7 +79,3 @@ var (
 	ErrBalanceNotExist       = errors.New("balacne not exist")
 	ErrBalanceLedgerConflict = errors.New("balance-ledger association already exists")
 )
-
-type ServerErr struct {
-	Error string `json:"error"`
-}

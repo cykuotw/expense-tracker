@@ -79,15 +79,6 @@ type LoginUserPayload struct {
 	Password string `json:"password" validate:"required,min=8"`
 }
 
-type ThirdPartyUserPayload struct {
-	Nickname     string `json:"nickname"`
-	Firstname    string `json:"firstname"`
-	Lastname     string `json:"lastname"`
-	Email        string `json:"email"`
-	ExternalId   string `json:"externalId"`
-	ExternalType string `json:"externalType"`
-}
-
 type VerifiedGoogleClaims struct {
 	Subject       string `json:"sub"`
 	Email         string `json:"email,omitempty"`
@@ -95,10 +86,6 @@ type VerifiedGoogleClaims struct {
 	GivenName     string `json:"given_name,omitempty"`
 	FamilyName    string `json:"family_name,omitempty"`
 	Name          string `json:"name,omitempty"`
-}
-
-type LoginResponse struct {
-	Token string `json:"token"`
 }
 
 type AccountResponse struct {

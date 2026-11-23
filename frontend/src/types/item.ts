@@ -17,7 +17,3 @@ export interface ItemCreateData {
     unitPrice: string | null;
     lineTotal: string;
 }
-
-export interface ItemUpdateData extends ItemCreateData {
-    itemId: string;
-}

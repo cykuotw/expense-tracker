@@ -793,7 +793,7 @@ class WorkflowTest(unittest.TestCase):
              mock.patch.object(workflow, "_migration_preflight", side_effect=ValueError("unsafe migration")), \
              mock.patch.object(workflow.runtime, "repair_secret_boundary") as repair, \
              mock.patch.object(workflow.artifacts, "build") as build, \
-             mock.patch.object(workflow.runtime, "update_bootstrap") as bootstrap:
+             mock.patch.object(workflow.runtime, "publish_bootstrap_release") as bootstrap:
             with self.assertRaisesRegex(ValueError, "unsafe migration"):
                 workflow.update(context, "all")
 

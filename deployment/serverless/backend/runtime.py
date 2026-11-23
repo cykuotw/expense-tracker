@@ -145,52 +145,6 @@ def repair_secret_boundary(terraform_root: Path, config: Config) -> int:
     return repaired
 
 
-def configure_bootstrap(client: AWSClient, config: Config, outputs: dict[str, Any], terraform_root: Path) -> dict[str, Any]:
-    before = _state_digest(terraform_root)
-    with protected_json(config.bootstrap_environment(str(outputs["database_host"])), prefix="expense-bootstrap-env-") as path:
-        client.publish_environment(str(outputs["bootstrap_function_name"]), path)
-    assert_secret_boundary(terraform_root, config)
-    if _state_digest(terraform_root) != before:
-        raise CommandError("Terraform state changed while publishing bootstrap runtime")
-    with tempfile.NamedTemporaryFile(prefix="expense-bootstrap-response-", suffix=".json", delete=False) as stream:
-        response_path = Path(stream.name)
-    try:
-        first = client.invoke_bootstrap(str(outputs["bootstrap_function_name"]), response_path)
-        second = client.invoke_bootstrap(str(outputs["bootstrap_function_name"]), response_path)
-        if first.get("first_admin_status") not in {
-            "created", "reconciled", "already_exists", "not_requested",
-        }:
-            raise CommandError("first bootstrap invocation returned an invalid first-admin status")
-        if second.get("first_admin_status") not in {"not_requested", "already_exists"}:
-            raise CommandError("second bootstrap invocation was not idempotent")
-        return first
-    finally:
-        response_path.unlink(missing_ok=True)
-
-
-def configure_worker(client: AWSClient, config: Config, outputs: dict[str, Any], terraform_root: Path) -> None:
-    before = _state_digest(terraform_root)
-    with protected_json(config.worker_environment(str(outputs["database_host"]), str(outputs["receipt_bucket_name"])), prefix="expense-worker-env-") as path:
-        client.publish_environment(str(outputs["worker_function_name"]), path)
-    client.activate_worker(str(outputs["worker_function_name"]))
-    assert_secret_boundary(terraform_root, config)
-    if _state_digest(terraform_root) != before:
-        raise CommandError("Terraform state changed while publishing worker runtime")
-
-
-def configure_ocr(client: AWSClient, config: Config, outputs: dict[str, Any], terraform_root: Path) -> None:
-    before = _state_digest(terraform_root)
-    with protected_json(
-        config.ocr_environment(str(outputs["ocr_replay_table_name"]), str(outputs["receipt_bucket_name"]), f"{outputs['worker_function_name']}:live"),
-        prefix="expense-ocr-env-",
-    ) as path:
-        client.publish_environment(str(outputs["ocr_function_name"]), path)
-    client.activate_ocr(str(outputs["ocr_function_name"]))
-    assert_secret_boundary(terraform_root, config)
-    if _state_digest(terraform_root) != before:
-        raise CommandError("Terraform state changed while publishing OCR runtime")
-
-
 def configure_notifications(
     client: AWSClient,
     config: Config,
@@ -216,54 +170,10 @@ def configure_notifications(
         raise CommandError("Terraform state changed while publishing notification runtimes")
 
 
-def configure_error_notifier(client: AWSClient, config: Config, outputs: dict[str, Any], terraform_root: Path) -> None:
-    function_name = str(outputs.get("error_notifier_function_name", ""))
-    if not config.error_alerting_enabled:
-        if function_name:
-            raise CommandError("disabled error alerting unexpectedly exposed a notifier function")
-        return
-    if not function_name:
-        raise CommandError("enabled error alerting did not expose a notifier function")
-
-    before = _state_digest(terraform_root)
-    with protected_json(config.notifier_environment(str(outputs.get("postgres_backup_bucket_name", ""))), prefix="expense-notifier-env-") as path:
-        client.publish_environment(function_name, path)
-    client.activate_notification_function(function_name)
-    assert_secret_boundary(terraform_root, config)
-    if _state_digest(terraform_root) != before:
-        raise CommandError("Terraform state changed while publishing error notifier runtime")
-
-
-def update_bootstrap(client: AWSClient, artifact: Path, config: Config, outputs: dict[str, Any], terraform_root: Path) -> dict[str, Any]:
-    client.publish_code(str(outputs["bootstrap_function_name"]), artifact)
-    return configure_bootstrap(client, config, outputs, terraform_root)
-
-
-def update_worker(client: AWSClient, artifact: Path, config: Config, outputs: dict[str, Any], terraform_root: Path) -> None:
-    client.publish_code(str(outputs["worker_function_name"]), artifact)
-    configure_worker(client, config, outputs, terraform_root)
-
-
-def update_ocr(client: AWSClient, artifact: Path, config: Config, outputs: dict[str, Any], terraform_root: Path) -> None:
-    client.publish_code(str(outputs["ocr_function_name"]), artifact)
-    configure_ocr(client, config, outputs, terraform_root)
-
-
 def update_notifications(client: AWSClient, artifact: Path, delivery_artifact: Path, config: Config, outputs: dict[str, Any], terraform_root: Path) -> None:
     client.publish_code(str(outputs["delivery_function_name"]), delivery_artifact)
     client.publish_code(str(outputs["sender_function_name"]), artifact)
     configure_notifications(client, config, outputs, terraform_root)
-
-
-def update_error_notifier(client: AWSClient, artifact: Path, config: Config, outputs: dict[str, Any], terraform_root: Path) -> None:
-    if not config.error_alerting_enabled:
-        configure_error_notifier(client, config, outputs, terraform_root)
-        return
-    function_name = str(outputs.get("error_notifier_function_name", ""))
-    if not function_name:
-        raise CommandError("enabled error alerting did not expose a notifier function")
-    client.publish_code(function_name, artifact)
-    configure_error_notifier(client, config, outputs, terraform_root)
 
 
 def _publish_configured_function(

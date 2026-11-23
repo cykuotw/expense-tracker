@@ -21,11 +21,6 @@ type LedgerPayload struct {
 	Share          decimal.Decimal `json:"share"`
 }
 
-type LedgerUpdatePayload struct {
-	ID string `json:"ledgerId"`
-	LedgerPayload
-}
-
 type LedgerResponse struct {
 	ID               string          `json:"id"`
 	LenderUserId     string          `json:"lenderUserId"`

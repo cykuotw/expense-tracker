@@ -516,7 +516,7 @@ class ComponentTest(unittest.TestCase):
         ocr = (ROOT / "infrastructure/tf/ocr.tf").read_text()
         self.assertIn('Action = ["lambda:InvokeFunction"], Resource = var.use_lambda_aliases ? local.worker_live_arn : aws_lambda_function.worker.arn', ocr)
         runtime = (ROOT / "backend/runtime.py").read_text()
-        self.assertEqual(runtime.count('f"{outputs[\'worker_function_name\']}:live"'), 2)
+        self.assertEqual(runtime.count('f"{outputs[\'worker_function_name\']}:live"'), 1)
         self.assertNotIn('aws_apigatewayv2_route.ocr_usage', (ROOT / "infrastructure/tf/api.tf").read_text())
 
     def test_ocr_runtime_is_isolated_throttled_and_least_privilege(self) -> None:

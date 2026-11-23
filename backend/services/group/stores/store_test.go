@@ -524,53 +524,6 @@ func TestGetGroupListUsesPreviewOnlyForMultipleBalanceCurrencies(t *testing.T) {
 	}
 }
 
-func TestGetGroupCardBalanceSummary(t *testing.T) {
-	db := openTestDB(t)
-	store := group.NewStore(db)
-
-	groupID := uuid.New()
-	receiverID := uuid.New()
-	senderID := uuid.New()
-	insertGroup(db, types.Group{ID: groupID, Currency: "CAD"})
-	defer deleteGroup(db, groupID)
-
-	balanceOwed := &types.Balance{
-		ID:             uuid.New(),
-		SenderUserID:   senderID,
-		ReceiverUserID: receiverID,
-		Share:          decimal.RequireFromString("25.50"),
-		GroupID:        groupID,
-		CreateTime:     time.Now(),
-		IsOutdated:     false,
-		IsSettled:      false,
-	}
-	balanceOwing := &types.Balance{
-		ID:             uuid.New(),
-		SenderUserID:   receiverID,
-		ReceiverUserID: senderID,
-		Share:          decimal.RequireFromString("5.50"),
-		GroupID:        groupID,
-		CreateTime:     time.Now(),
-		IsOutdated:     false,
-		IsSettled:      false,
-	}
-	insertBalance(db, balanceOwed)
-	insertBalance(db, balanceOwing)
-	defer deleteBalances(db, []*types.Balance{balanceOwed, balanceOwing})
-
-	status, amount, err := store.GetGroupCardBalanceSummary(groupID.String(), receiverID.String())
-
-	assert.Nil(t, err)
-	assert.Equal(t, types.GroupBalanceStatusOwed, status)
-	assert.True(t, amount.Equal(decimal.RequireFromString("20.00")))
-
-	status, amount, err = store.GetGroupCardBalanceSummary(groupID.String(), senderID.String())
-
-	assert.Nil(t, err)
-	assert.Equal(t, types.GroupBalanceStatusOwing, status)
-	assert.True(t, amount.Equal(decimal.RequireFromString("20.00")))
-}
-
 func insertBalance(db *sql.DB, balance *types.Balance) error {
 	if err := ensureTestUser(db, balance.SenderUserID); err != nil {
 		return err

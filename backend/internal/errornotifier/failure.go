@@ -33,7 +33,3 @@ func permanent(operation string) error {
 func retryable(operation string) error {
 	return &Failure{Kind: RetryableFailure, Operation: operation}
 }
-
-func NewRetryableFailure(operation string) error {
-	return retryable(operation)
-}

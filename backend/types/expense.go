@@ -95,8 +95,6 @@ type ExpenseStore interface {
 	RunInTransaction(func(ExpenseTransactionStore) error) error
 	GetExpenseCreateIdempotency(userID, key uuid.UUID) (*ExpenseCreateIdempotency, error)
 
-	CheckExpenseExistByID(id string) (bool, error)
-
 	GetExpenseByID(expenseID string) (*Expense, error)
 	GetExpenseReceiptByRole(expenseID uuid.UUID, role string) (*ExpenseReceipt, error)
 	GetExpenseReceiptByRequest(expenseID, requestKey uuid.UUID) (*ExpenseReceipt, error)
@@ -111,7 +109,6 @@ type ExpenseStore interface {
 	GetLedgerUnsettledFromGroup(groupID string) ([]*Ledger, error)
 
 	GetBalanceByGroupId(groupId string) ([]Balance, error)
-	CheckBalanceExistByID(id string) (bool, error)
 }
 
 type ExpenseCreateIdempotency struct {

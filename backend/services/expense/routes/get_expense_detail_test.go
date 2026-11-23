@@ -68,7 +68,7 @@ func TestRouteGetExpenseDetail(t *testing.T) {
 			expenseID:        uuid.NewString(),
 			groupID:          mockGroupID.String(),
 			expectFail:       true,
-			expectStatusCode: http.StatusBadRequest,
+			expectStatusCode: http.StatusNotFound,
 			expectResponse:   types.ExpenseResponse{},
 		},
 	}
@@ -94,7 +94,6 @@ func TestRouteGetExpenseDetail(t *testing.T) {
 			router.GET(
 				"/expense/:expenseId",
 				extractors.ExtractUserIdFromJWT(),
-				validation.ValidateExpenseExist(store),
 				extractors.ExtractExpenseFromStore(store),
 				validation.ValidateGroupUserPairExist(groupStore),
 				handler.handleGetExpenseDetail,

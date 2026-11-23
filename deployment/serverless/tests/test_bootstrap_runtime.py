@@ -333,36 +333,12 @@ class BootstrapRuntimeTest(unittest.TestCase):
     def test_error_notifier_configuration_is_optional_and_fail_closed(self) -> None:
         client = mock.MagicMock()
         config = runtime_config()
-        with tempfile.TemporaryDirectory() as temporary:
-            runtime.configure_error_notifier(client, config, {}, Path(temporary))
-        client.assert_not_called()
-
+        args = (client, Path("notifier.zip"), config, {}, Path("/tmp"), "release")
+        self.assertIsNone(runtime.publish_error_notifier_release(*args))
         config.error_alerting_enabled = True
-        config.observability.discord_webhook_url = "private-webhook"
-        config.notifier_environment = lambda _bucket="": {"Variables": {"DISCORD_WEBHOOK_URL": "private-webhook"}}
-        outputs = {"error_notifier_function_name": "notifier"}
-        with tempfile.TemporaryDirectory() as temporary:
-            runtime.configure_error_notifier(client, config, outputs, Path(temporary))
-        self.assertEqual(
-            [(call[0], call.args[0]) for call in client.mock_calls],
-            [("publish_environment", "notifier"), ("activate_notification_function", "notifier")],
-        )
-
-    def test_error_notifier_update_publishes_before_configuration(self) -> None:
-        client = mock.MagicMock()
-        config = runtime_config()
-        config.error_alerting_enabled = True
-        outputs = {"error_notifier_function_name": "notifier"}
-        with mock.patch.object(runtime, "configure_error_notifier") as configure:
-            runtime.update_error_notifier(
-                client,
-                Path("notifier.zip"),
-                config,
-                outputs,
-                Path("/tmp"),
-            )
-        client.publish_code.assert_called_once_with("notifier", Path("notifier.zip"))
-        configure.assert_called_once()
+        with self.assertRaisesRegex(CommandError, "did not expose"):
+            runtime.publish_error_notifier_release(*args)
+        self.assertEqual(client.mock_calls, [])
 
     def test_delivery_is_configured_before_sender_and_failure_stops_activation(self) -> None:
         config = runtime_config()
@@ -425,15 +401,17 @@ class BootstrapRuntimeTest(unittest.TestCase):
     def test_reconciled_first_invocation_is_idempotent(self) -> None:
         client = mock.MagicMock()
         client.invoke_bootstrap.side_effect = [
-            {"first_admin_status": "reconciled"},
+            {"first_admin_status": "reconciled", "migration_version": 35, "migration_dirty": False},
             {"first_admin_status": "already_exists"},
         ]
-        with tempfile.TemporaryDirectory() as temporary:
-            result = runtime.configure_bootstrap(
+        with tempfile.TemporaryDirectory() as temporary, mock.patch.object(runtime, "_publish_configured_function", return_value=({"qualifiedArn": "bootstrap:1"}, False)):
+            _, result = runtime.publish_bootstrap_release(
                 client,
+                Path("bootstrap.zip"),
                 runtime_config(),
                 {"database_host": "db.internal", "bootstrap_function_name": "bootstrap"},
                 Path(temporary),
+                "release",
             )
 
         self.assertEqual(result["first_admin_status"], "reconciled")
@@ -445,13 +423,15 @@ class BootstrapRuntimeTest(unittest.TestCase):
             {"first_admin_status": "unexpected"},
             {"first_admin_status": "already_exists"},
         ]
-        with tempfile.TemporaryDirectory() as temporary:
+        with tempfile.TemporaryDirectory() as temporary, mock.patch.object(runtime, "_publish_configured_function", return_value=({"qualifiedArn": "bootstrap:1"}, False)):
             with self.assertRaisesRegex(CommandError, "invalid first-admin status"):
-                runtime.configure_bootstrap(
+                runtime.publish_bootstrap_release(
                     client,
+                    Path("bootstrap.zip"),
                     runtime_config(),
                     {"database_host": "db.internal", "bootstrap_function_name": "bootstrap"},
                     Path(temporary),
+                    "release",
                 )
 
     def test_non_idempotent_second_status_fails_closed(self) -> None:
@@ -460,13 +440,15 @@ class BootstrapRuntimeTest(unittest.TestCase):
             {"first_admin_status": "created"},
             {"first_admin_status": "reconciled"},
         ]
-        with tempfile.TemporaryDirectory() as temporary:
+        with tempfile.TemporaryDirectory() as temporary, mock.patch.object(runtime, "_publish_configured_function", return_value=({"qualifiedArn": "bootstrap:1"}, False)):
             with self.assertRaisesRegex(CommandError, "not idempotent"):
-                runtime.configure_bootstrap(
+                runtime.publish_bootstrap_release(
                     client,
+                    Path("bootstrap.zip"),
                     runtime_config(),
                     {"database_host": "db.internal", "bootstrap_function_name": "bootstrap"},
                     Path(temporary),
+                    "release",
                 )
 
 

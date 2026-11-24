@@ -25,13 +25,14 @@ export function calculateExpenseAllocation(
     total: string,
     amountDigits: number | null,
     allocation: ExpenseAllocation,
-    currency: string
+    currency: string,
+    allowZero = false
 ): AllocationCalculation {
     if (amountDigits === null) {
         return invalidCalculation("Currency metadata is unavailable.");
     }
     const totalUnits = decimalToUnits(total, amountDigits);
-    if (totalUnits === null || totalUnits <= 0n) {
+    if (totalUnits === null || totalUnits < 0n || (totalUnits === 0n && !allowZero)) {
         return invalidCalculation("Enter a valid expense amount first.");
     }
     if (

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"expense-tracker/backend/services/middleware/extractors"
+	"expense-tracker/backend/services/ocr"
 	"expense-tracker/backend/types"
 	"expense-tracker/backend/utils"
 	"net/http"
@@ -12,6 +13,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
+
+var errInvalidConfirmedScan = errors.New("invalid confirmed receipt scan")
 
 func (h *Handler) handleCreateExpense(c *gin.Context) {
 	userID := c.GetString("userID")
@@ -67,6 +70,7 @@ func (h *Handler) handleCreateExpense(c *gin.Context) {
 		ExpenseTypeID:     expTypeID,
 		ProviderName:      payload.ProviderName,
 		IsSettled:         false,
+		LoyaltyRedemption: payload.LoyaltyRedemption,
 		SubTotal:          payload.SubTotal,
 		TaxFeeTip:         payload.TaxFeeTip,
 		Total:             payload.Total,
@@ -74,6 +78,10 @@ func (h *Handler) handleCreateExpense(c *gin.Context) {
 		InvoicePicUrl:     payload.InvoicePicUrl,
 		AllocationMode:    payload.Allocation.Mode,
 		OccurredOn:        occurredOn,
+	}
+	if scan := payload.ReceiptScan; scan != nil {
+		expense.OCRRequestID = &scan.RequestID
+		expense.ReceiptScanNote = scan.Note
 	}
 	allocations, err := parseExpenseAllocationPayload(expenseID, payload.Allocation)
 	if err != nil {
@@ -149,6 +157,9 @@ func (h *Handler) handleCreateExpense(c *gin.Context) {
 			resultExpenseID = existing.ExpenseID
 			return nil
 		}
+		if scan := payload.ReceiptScan; scan != nil && !ocr.VerifyScanProof(h.receiptSecret, userID, scan.RequestID, scan.Note, scan.Proof) {
+			return errInvalidConfirmedScan
+		}
 		if err := store.CreateExpense(expense); err != nil {
 			return err
 		}
@@ -188,7 +199,7 @@ func (h *Handler) handleCreateExpense(c *gin.Context) {
 			utils.WriteError(c, http.StatusConflict, err)
 			return
 		}
-		if errors.Is(err, types.ErrInvalidCategoryBreakdown) || errors.Is(err, types.ErrCurrencyMismatch) {
+		if errors.Is(err, errInvalidConfirmedScan) || errors.Is(err, types.ErrInvalidCategoryBreakdown) || errors.Is(err, types.ErrCurrencyMismatch) {
 			utils.WriteError(c, http.StatusBadRequest, err)
 			return
 		}

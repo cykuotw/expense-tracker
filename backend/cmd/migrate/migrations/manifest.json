@@ -202,6 +202,53 @@
         "dataLossRisk": false,
         "notes": "Compatible dependency-free Worker must already be deployed. Verify any rollback binary has no historical evidence consumers. Empty-table guard prevents data loss; down refuses automatic recreation and requires reviewed manual recovery."
       }
+    },
+    {
+      "version": 44,
+      "name": "add_loyalty_redemption",
+      "categories": [
+        "additive",
+        "constraint_tightening"
+      ],
+      "deployment": "online",
+      "backfill": {
+        "mode": "none",
+        "resumable": false,
+        "notes": "Existing expenses retain NULL redemption."
+      },
+      "locking": {
+        "risk": "low",
+        "notes": "Adding a nullable column takes a brief exclusive lock without rewriting existing rows."
+      },
+      "rollback": {
+        "application": "follow_up_required",
+        "schema": "manual_only",
+        "dataLossRisk": true,
+        "notes": "Older writers do not understand redemption arithmetic. Dropping the column loses redemption amounts."
+      }
+    },
+    {
+      "version": 45,
+      "name": "add_confirmed_receipt_scan",
+      "categories": [
+        "additive"
+      ],
+      "deployment": "online",
+      "backfill": {
+        "mode": "none",
+        "resumable": false,
+        "notes": "Historical expenses have no confirmed scan association."
+      },
+      "locking": {
+        "risk": "low",
+        "notes": "Nullable columns without defaults require a brief exclusive lock and no table rewrite."
+      },
+      "rollback": {
+        "application": "compatible",
+        "schema": "manual_only",
+        "dataLossRisk": true,
+        "notes": "Older writers ignore the new columns. Reversal discards saved scan associations and notes."
+      }
     }
   ]
 }

@@ -8,7 +8,10 @@ import (
 )
 
 func (s *Store) GetExpenseByID(expenseID string) (*types.Expense, error) {
-	query := "SELECT " + expenseSelectColumns + " FROM expense WHERE id = $1;"
+	query := "SELECT " + expenseSelectColumns + `, ocr_request_id, COALESCE(receipt_scan_note, ''),
+        (SELECT estimated_cost_usd FROM ocr_usage WHERE request_id = expense.ocr_request_id
+           AND account_id = expense.create_by_user_id)
+        FROM expense WHERE id = $1`
 	rows, err := s.db.Query(query, expenseID)
 	if err != nil {
 		return nil, err
@@ -17,7 +20,7 @@ func (s *Store) GetExpenseByID(expenseID string) (*types.Expense, error) {
 
 	expense := new(types.Expense)
 	for rows.Next() {
-		expense, err = scanRowIntoExpense(rows)
+		err = scanExpense(rows, expense, &expense.OCRRequestID, &expense.ReceiptScanNote, &expense.EstimatedScanCostUSD)
 		if err != nil {
 			return nil, err
 		}
@@ -79,7 +82,7 @@ func (s *Store) getExpenseList(query string, args ...any) (*types.ExpenseListPag
 	expenseList := make([]*types.Expense, 0, limit+1)
 	for rows.Next() {
 		expense := new(types.Expense)
-		expense, err = scanRowIntoExpense(rows)
+		err = scanExpense(rows, expense)
 		if err != nil {
 			return nil, err
 		}

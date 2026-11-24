@@ -21,6 +21,8 @@ export interface OCRItem {
 }
 
 export interface OCRDraft {
+    redemptionNoteConflict?: boolean;
+    loyaltyRedemption?: OCRField;
     suggestedExpenseTypeId?: string;
     categoryReason?: string;
     merchant: OCRField;
@@ -47,6 +49,7 @@ export interface EditableOCRItem {
 }
 
 export interface EditableOCRDraft {
+    loyaltyRedemption?: string;
     merchant: EditableOCRField;
     date: EditableOCRField;
     currencySuggestion: EditableOCRField;
@@ -67,6 +70,7 @@ export interface ConfirmedExpenseItem {
 }
 
 export interface ReviewedReceiptDraft {
+    loyaltyRedemption?: string;
     expenseTypeId?: string;
     merchant: string;
     date: string;

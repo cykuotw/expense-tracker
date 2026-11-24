@@ -17,7 +17,7 @@ import DesktopBackLink from "../components/DesktopBackLink";
 import { CurrencyPicker } from "../components/group/CurrencyPicker";
 import { usePWAUpdateBlocker } from "../hooks/usePWAUpdateBlocker";
 import { ConfirmedReceiptDetails } from "../components/expense/ConfirmedReceiptDetails";
-import { validateReceiptExpense } from "../lib/receiptDraft";
+import { printedReceiptTotal } from "../lib/receiptDraft";
 import ExpenseReceiptAttachment from "../components/receipt/ExpenseReceiptAttachment";
 
 const EditExpenseContent = () => {
@@ -37,6 +37,7 @@ const EditExpenseContent = () => {
         reloadGroupMembers,
         indicatorShow,
         submissionError,
+        receiptValidationMessage,
         dataOk,
         hasChanges,
         allocationCalculation,
@@ -154,8 +155,9 @@ const EditExpenseContent = () => {
                             </div>
                             <div data-form-field className="col-span-2 sm:col-span-1">
                                 <label htmlFor="expense-total" className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground/60">
-                                    Amount
+                                    {formData.loyaltyRedemption === undefined ? "Amount" : "Out of pocket"}
                                 </label>
+                                {formData.loyaltyRedemption !== undefined && <p>Printed total {printedReceiptTotal(formData.total, formData.loyaltyRedemption, amountDigits)} · Loyalty redemption {formData.loyaltyRedemption}</p>}
                                 <div className="mt-2 flex items-center gap-2">
                                     <label className="expense-form-input-shell flex w-full items-center rounded-2xl border border-border bg-background px-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] transition hover:border-primary/60 focus-within:border-primary focus-within:outline-none focus-within:ring-2 focus-within:ring-primary">
                                         <input
@@ -193,7 +195,7 @@ const EditExpenseContent = () => {
                             onTipChange={tip => setFormData(current => ({ ...current, receiptDetails: { ...current.receiptDetails!, tip } }))}
                             onItemsChange={items => setFormData(current => ({ ...current, receiptDetails: { ...current.receiptDetails!, items } }))}
                             amountStep={amountDigits === null ? undefined : moneyInputStep(amountDigits)}
-                            validationMessage={validateReceiptExpense({ ...formData.receiptDetails, total: formData.total }, amountDigits).message}
+                            validationMessage={receiptValidationMessage}
                         /> : null}
 
                         <div className="mt-4 md:mt-6">
@@ -294,6 +296,7 @@ const EditExpenseSplit = () => {
                 setFormData((current) => ({ ...current, allocation }))
             }
             returnTo={returnTo}
+            allowZero={formData.loyaltyRedemption !== undefined}
             total={formData.total}
         />
     );

@@ -71,7 +71,7 @@ class MigrationPolicyTest(unittest.TestCase):
     def test_repository_manifest_matches_current_migrations(self) -> None:
         manifest = validate_repository(REPO)
         self.assertEqual(manifest.baseline_version, 35)
-        self.assertEqual(len(manifest.migrations), 8)
+        self.assertEqual(len(manifest.migrations), 10)
         migration = manifest.migrations[0]
         self.assertEqual(migration.version, 36)
         self.assertEqual(migration.name, "add_multi_currency_accounting")
@@ -90,7 +90,7 @@ class MigrationPolicyTest(unittest.TestCase):
 
     def test_empty_ocr_contract_requires_compatible_app_rollback(self) -> None:
         manifest = validate_repository(REPO)
-        contract = manifest.migrations[-1]
+        contract = next(migration for migration in manifest.migrations if migration.version == 43)
         self.assertEqual(contract.version, 43)
         self.assertEqual(contract.name, "drop_empty_ocr_improvement_tables")
         self.assertEqual(contract.deployment, "online")
@@ -114,7 +114,7 @@ class MigrationPolicyTest(unittest.TestCase):
         for current_version, dirty, message in (
             (39, True, "dirty"),
             (34, False, "not described"),
-            (44, False, "newer than this deployment"),
+            (manifest.migrations[-1].version + 1, False, "newer than this deployment"),
         ):
             with self.subTest(current_version=current_version, dirty=dirty):
                 with self.assertRaisesRegex(MigrationPolicyError, message):

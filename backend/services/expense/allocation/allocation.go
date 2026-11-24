@@ -68,7 +68,18 @@ func ParsePayload(expenseID uuid.UUID, payload types.ExpenseAllocationPayload) (
 
 // ValidateMoney verifies expense totals and item precision for a currency.
 func ValidateMoney(expense types.Expense, items []types.Item, amountDigits int32) error {
-	if expense.Total.LessThanOrEqual(decimal.Zero) || !validMoney(expense.Total, amountDigits) ||
+	if redemption := expense.LoyaltyRedemption; redemption != nil {
+		printed := expense.SubTotal.Add(expense.TaxFeeTip)
+		if expense.SubTotal.IsNegative() || expense.TaxFeeTip.IsNegative() ||
+			!printed.IsPositive() || !validMoney(printed, amountDigits) ||
+			redemption.IsNegative() || !validMoney(*redemption, amountDigits) ||
+			!printed.Sub(*redemption).Equal(expense.Total) {
+			return types.ErrInvalidMoney
+		}
+	} else if expense.Total.IsZero() {
+		return types.ErrInvalidMoney
+	}
+	if expense.Total.IsNegative() || !validMoney(expense.Total, amountDigits) ||
 		!validMoney(expense.SubTotal, amountDigits) || !validMoney(expense.TaxFeeTip, amountDigits) {
 		return types.ErrInvalidMoney
 	}

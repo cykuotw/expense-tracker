@@ -13,10 +13,11 @@ import { ConfirmedReceiptDetails } from "@/components/expense/ConfirmedReceiptDe
 import { ExpenseDateInput } from "@/components/expense/ExpenseDateInput";
 import { useCreateExpense } from "@/hooks/CreateExpenseContextHooks";
 import { editableOCRDraft } from "@/lib/receiptOcr";
-import { validateReceiptExpense } from "@/lib/receiptDraft";
+import { outOfPocket, validateReceiptExpense } from "@/lib/receiptDraft";
 import { isDateOnly } from "@/lib/dateOnly";
 import { formatMoney, moneyInputStep } from "@/lib/money";
 import { Separator } from "@/components/ui/separator";
+import ReceiptRedemptionReview from "./ReceiptRedemptionReview";
 import ReceiptScanUsage from "./ReceiptScanUsage";
 import { ExpenseTypePicker } from "@/components/expense/ExpenseTypePicker";
 import type { EditableOCRDraft, EditableOCRField, ReviewedReceiptDraft } from "@/types/ocr";
@@ -78,6 +79,7 @@ export default function ReceiptDraftReview({ photoURL, onEditPhoto }: ReceiptDra
         occurredOn,
         ocrStatus,
         ocrDraft,
+        verifiedScanNote,
         ocrUsage,
         ocrError,
         applyReviewedReceipt,
@@ -86,6 +88,7 @@ export default function ReceiptDraftReview({ photoURL, onEditPhoto }: ReceiptDra
         categoryBreakdown = [],
     } = useCreateExpense();
     const [draft, setDraft] = useState<EditableOCRDraft | null>(null);
+
     const [detailsOpen, setDetailsOpen] = useState(false);
     const [categoryChoice, setCategoryChoice] = useState<{ source: typeof ocrDraft; groupId: typeof selectedGroupId; id: string } | null>(null);
     const suggestedType = expenseTypes.find(({ id }) => id === ocrDraft?.suggestedExpenseTypeId);
@@ -108,6 +111,7 @@ export default function ReceiptDraftReview({ photoURL, onEditPhoto }: ReceiptDra
     const navigate = useNavigate();
     const { finish } = useReturnNavigation(returnTo);
     const reviewValidation = useMemo(() => draft ? validateReceiptExpense({
+        loyaltyRedemption: draft.loyaltyRedemption,
         merchant: draft.merchant.value,
         subtotal: draft.subtotal.value,
         tax: draft.tax.value,
@@ -122,6 +126,9 @@ export default function ReceiptDraftReview({ photoURL, onEditPhoto }: ReceiptDra
             lineTotal: item.lineTotal.value,
         })),
     }, amountDigits) : null, [amountDigits, draft]);
+    const redemption = draft?.loyaltyRedemption;
+    const setRedemption = (value: string | undefined) => setDraft(current => current && ({ ...current, loyaltyRedemption: value }));
+    const net = redemption === undefined ? draft?.total.value : outOfPocket(draft?.total.value ?? "", redemption, amountDigits);
     const dateValid = Boolean(draft && isDateOnly(draft.date.value));
 
     useEffect(() => {
@@ -134,7 +141,7 @@ export default function ReceiptDraftReview({ photoURL, onEditPhoto }: ReceiptDra
     };
 
     const apply = () => {
-        if (!draft || !reviewValidation?.valid || !dateValid) return;
+        if (!draft || !reviewValidation?.valid || net == null || !dateValid) return;
         const reviewed: ReviewedReceiptDraft = {
             ...(categoryCanApply ? { expenseTypeId: categoryId } : {}),
             merchant: draft.merchant.value.trim(),
@@ -143,7 +150,8 @@ export default function ReceiptDraftReview({ photoURL, onEditPhoto }: ReceiptDra
             subtotal: reviewValidation.subTotal ?? draft.subtotal.value,
             tax: draft.tax.value,
             tip: draft.tip.value,
-            total: draft.total.value,
+            total: net,
+            ...(redemption === undefined ? {} : { loyaltyRedemption: redemption }),
             items: draft.items.map((item) => ({
                 id: item.id,
                 description: item.description.value,
@@ -284,9 +292,19 @@ export default function ReceiptDraftReview({ photoURL, onEditPhoto }: ReceiptDra
                                 {!dateValid ? <FieldError id="receipt-date-error">Choose a valid date.</FieldError> : null}
                             </Field>
                             <div className="sm:col-span-2">
-                                <ReviewField label="Total" field={draft.total} type="number" step={amountDigits === null ? undefined : moneyInputStep(amountDigits)} onChange={(field) => updateSummary("total", field)} />
+                                <ReviewField label={redemption === undefined ? "Total" : "Printed total"} field={draft.total} type="number" step={amountDigits === null ? undefined : moneyInputStep(amountDigits)} onChange={(field) => updateSummary("total", field)} />
                             </div>
                         </FieldGroup>
+                        <ReceiptRedemptionReview
+                            note={verifiedScanNote}
+                            conflict={ocrDraft?.redemptionNoteConflict}
+                            printedRedemption={ocrDraft?.loyaltyRedemption?.value}
+                            printedTotal={draft.total.value}
+                            redemption={redemption}
+                            net={net}
+                            currency={currency}
+                            onChange={setRedemption}
+                        />
                         {draft.currencySuggestion.value && draft.currencySuggestion.value.toUpperCase() !== currency.toUpperCase() ? (
                             <p className="mt-3 text-sm text-destructive">Receipt says {draft.currencySuggestion.value.toUpperCase()}, but this expense uses {currency}. Check the amounts.</p>
                         ) : null}
@@ -348,7 +366,7 @@ export default function ReceiptDraftReview({ photoURL, onEditPhoto }: ReceiptDra
                     {ocrUsage ? <ReceiptScanUsage usage={ocrUsage} /> : null}
                     <div className="receipt-workspace-actions flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                         <p className="hidden text-sm text-muted-foreground sm:block">You’ll choose who paid and how to split next.</p>
-                        <Button type="button" className="min-h-12 w-full sm:w-auto" disabled={!reviewValidation?.valid || !dateValid} onClick={apply}><Icon path={mdiCheck} size={0.85} data-icon="inline-start" aria-hidden="true" />Use reviewed values</Button>
+                        <Button type="button" className="min-h-12 w-full sm:w-auto" disabled={!reviewValidation?.valid || net == null || !dateValid} onClick={apply}><Icon path={mdiCheck} size={0.85} data-icon="inline-start" aria-hidden="true" />Use reviewed values</Button>
                     </div>
                 </div>
             </div>

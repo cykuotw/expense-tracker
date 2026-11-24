@@ -123,29 +123,44 @@ type ExpenseController interface {
 }
 
 // DB structure
+type ConfirmedReceiptScan struct {
+	RequestID string `json:"requestId"`
+	Note      string `json:"note,omitempty"`
+	Proof     string `json:"proof"`
+}
+
+type ReceiptScanSummary struct {
+	Note             string           `json:"note,omitempty"`
+	EstimatedCostUSD *decimal.Decimal `json:"estimatedCostUsd,omitempty"`
+}
+
 type Expense struct {
-	CategoryBreakdown []ExpenseCategoryAmount
-	ID                uuid.UUID
-	Description       string
-	GroupID           uuid.UUID
-	CreateByUserID    uuid.UUID
-	PayByUserId       uuid.UUID
-	ExpenseTypeID     uuid.UUID
-	CreateTime        time.Time
-	UpdateTime        time.Time
-	ExpenseTime       time.Time
-	OccurredOn        string
-	ProviderName      string
-	IsSettled         bool
-	SettleTime        time.Time
-	SubTotal          decimal.Decimal
-	TaxFeeTip         decimal.Decimal
-	Total             decimal.Decimal
-	Currency          string
-	InvoicePicUrl     string
-	AllocationMode    ExpenseAllocationMode
-	IsDeleted         bool
-	DeleteTime        time.Time
+	OCRRequestID         *string
+	ReceiptScanNote      string
+	EstimatedScanCostUSD *decimal.Decimal
+	CategoryBreakdown    []ExpenseCategoryAmount
+	ID                   uuid.UUID
+	Description          string
+	GroupID              uuid.UUID
+	CreateByUserID       uuid.UUID
+	PayByUserId          uuid.UUID
+	ExpenseTypeID        uuid.UUID
+	CreateTime           time.Time
+	UpdateTime           time.Time
+	ExpenseTime          time.Time
+	OccurredOn           string
+	ProviderName         string
+	IsSettled            bool
+	SettleTime           time.Time
+	LoyaltyRedemption    *decimal.Decimal
+	SubTotal             decimal.Decimal
+	TaxFeeTip            decimal.Decimal
+	Total                decimal.Decimal
+	Currency             string
+	InvoicePicUrl        string
+	AllocationMode       ExpenseAllocationMode
+	IsDeleted            bool
+	DeleteTime           time.Time
 }
 
 type ExpenseType struct {
@@ -156,6 +171,7 @@ type ExpenseType struct {
 
 // Payloads
 type ExpensePayload struct {
+	ReceiptScan       *ConfirmedReceiptScan    `json:"receiptScan,omitempty"`
 	CategoryBreakdown []ExpenseCategoryAmount  `json:"categoryBreakdown"`
 	Description       string                   `json:"description"`
 	GroupID           string                   `json:"groupId"`
@@ -163,6 +179,7 @@ type ExpensePayload struct {
 	PayByUserId       string                   `json:"payByUserId"`
 	ProviderName      string                   `json:"providerName"`
 	ExpenseTypeID     string                   `json:"expTypeId"`
+	LoyaltyRedemption *decimal.Decimal         `json:"loyaltyRedemption,omitempty"`
 	SubTotal          decimal.Decimal          `json:"subTotal"`
 	TaxFeeTip         decimal.Decimal          `json:"taxFeeTip"`
 	Total             decimal.Decimal          `json:"total"`
@@ -181,6 +198,7 @@ type ExpenseUpdatePayload struct {
 	PayByUserId       string                   `json:"payByUserId"`
 	ExpenseTypeID     uuid.UUID                `json:"expTypeId"`
 	ProviderName      string                   `json:"providerName"`
+	LoyaltyRedemption *decimal.Decimal         `json:"loyaltyRedemption,omitempty"`
 	SubTotal          decimal.Decimal          `json:"subTotal"`
 	TaxFeeTip         decimal.Decimal          `json:"taxFeeTip"`
 	Total             decimal.Decimal          `json:"total"`
@@ -222,6 +240,7 @@ type GroupOverviewResponse struct {
 }
 
 type ExpenseResponse struct {
+	ReceiptScan       *ReceiptScanSummary      `json:"receiptScan,omitempty"`
 	ProviderName      string                   `json:"providerName"`
 	CategoryBreakdown []ExpenseCategoryAmount  `json:"categoryBreakdown"`
 	GroupIsActive     bool                     `json:"groupIsActive"`
@@ -232,6 +251,7 @@ type ExpenseResponse struct {
 	ExpenseTypeId     uuid.UUID                `json:"expenseTypeId"`
 	ExpenseType       string                   `json:"expenseType"`
 	ExpenseCategory   string                   `json:"expenseCategory"`
+	LoyaltyRedemption *decimal.Decimal         `json:"loyaltyRedemption,omitempty"`
 	SubTotal          decimal.Decimal          `json:"subTotal"`
 	TaxFeeTip         decimal.Decimal          `json:"taxFeeTip"`
 	Total             decimal.Decimal          `json:"total"`

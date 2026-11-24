@@ -30,6 +30,8 @@ export interface ExpenseData {
 }
 
 export interface ExpenseDetailData {
+    receiptScan?: { note?: string; estimatedCostUsd?: string };
+    loyaltyRedemption?: string;
     providerName?: string;
     categoryBreakdown?: ExpenseCategoryAmount[];
 	groupIsActive?: boolean;
@@ -61,7 +63,15 @@ export interface ExpenseTypeItem {
     name: string;
 }
 
+export interface ConfirmedReceiptScan {
+    requestId: string;
+    note: string;
+    proof: string;
+}
+
 export interface ExpenseCreateData {
+    receiptScan?: ConfirmedReceiptScan;
+    loyaltyRedemption?: string;
     categoryBreakdown?: ExpenseCategoryAmount[];
     description: string;
     groupId: string;
@@ -82,7 +92,7 @@ export interface ExpenseCreateData {
     receipt?: { keep: boolean; token: string };
 }
 
-export type ExpenseUpdateData = Omit<ExpenseCreateData, "createByUserId" | "receipt">;
+export type ExpenseUpdateData = Omit<ExpenseCreateData, "createByUserId" | "receipt" | "receiptScan">;
 
 export interface CreateExpenseOptionsData {
     groups: GroupListItem[];

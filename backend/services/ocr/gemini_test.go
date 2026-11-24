@@ -37,7 +37,7 @@ func TestGeminiStrictExtractionAndProviderTransport(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, defaultProviderTimeout, provider.client.Timeout)
 	provider.endpoint = server.URL
-	result, err := provider.AnalyzeExpense(t.Context(), []byte("normalized JPEG"), nil)
+	result, err := provider.AnalyzeExpense(t.Context(), []byte("normalized JPEG"), nil, "")
 	require.NoError(t, err)
 	require.Equal(t, "Shoppers Drug Mart", result.Merchant.Value)
 	require.Zero(t, result.Merchant.Confidence)
@@ -88,4 +88,16 @@ func TestGeminiRejectsInvalidOrUnboundedOutput(t *testing.T) {
 	raw, _ = json.Marshal(data)
 	_, err = ParseGeminiExtraction(raw)
 	require.ErrorIs(t, err, ErrProviderRejected)
+}
+
+func TestPrintedRedemptionIsIndependentOfTheNote(t *testing.T) {
+	for _, redeemed := range []string{"10.00", "27.66", ""} {
+		raw := `{"merchant":"Canadian Tire","date":"","currencySuggestion":"CAD","subtotal":"24.48","tax":"3.18","tip":"","total":"27.66","items":[],"loyaltyRedemption":"` + redeemed + `","redemptionNoteConflict":true}`
+		result, err := ParseGeminiExtraction([]byte(raw))
+		require.NoError(t, err)
+		draft := PrepareDraft(result)
+		require.True(t, draft.RedemptionNoteConflict)
+		require.Equal(t, redeemed, draft.LoyaltyRedemption.Value)
+		require.Equal(t, "27.66", draft.Total.Value)
+	}
 }

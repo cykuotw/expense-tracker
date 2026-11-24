@@ -157,6 +157,9 @@ function EditExpenseHarness() {
             >
                 Restore description
             </button>
+            <button type="button" onClick={() => context.setFormData(current => ({
+                ...current, receiptDetails: { merchant: "", subtotal: "", tax: "", tip: "", items: [] },
+            }))}>Clear receipt details</button>
             <button type="submit">Update</button>
         </form>
     );
@@ -216,6 +219,30 @@ describe("EditExpenseProvider error handling", () => {
         const body = JSON.parse(apiFetchMock.mock.calls.find(([path, init]) => path === "/expense/expense-1" && init.method === "PUT")![1].body);
         expect(body).toMatchObject({ total: "300.00", subTotal: "280.00", taxFeeTip: "20.00", providerName: "Costco", categoryBreakdown: [{ expenseTypeId: "type-1", amount: "200.00", note: "Groceries" }, { expenseTypeId: "type-2", amount: "100.00", note: "Trolley" }], items: [{ itemId: "item-1", description: "Purchases", lineTotal: "280.00" }] });
         expect(body.categoryBreakdown[0]).not.toHaveProperty("clientId");
+    });
+
+    it.each([["27.66", "0.00"], ["10.00", "17.66"]])("preserves redemption %s when reopening and saving", async (redeemed, net) => {
+        const expense = { ...expenseDetail, subTotal: "24.48", taxFeeTip: "3.18", total: net, loyaltyRedemption: redeemed };
+        apiFetchMock.mockImplementation((path: string) => Promise.resolve(jsonResponse(path.endsWith("edit-options") ? { ...editOptions(), expense } : {}, 200)));
+        render(<EditExpenseProvider><EditExpenseHarness /></EditExpenseProvider>);
+        await waitFor(() => expect(screen.getByTestId("member-load-status")).toHaveTextContent("ready"));
+        fireEvent.click(screen.getByRole("button", { name: "Change description" }));
+        fireEvent.submit(screen.getByRole("form", { name: "edit form" }));
+        await waitFor(() => expect(apiFetchMock.mock.calls.some(([, init]) => init?.method === "PUT")).toBe(true));
+        const request = apiFetchMock.mock.calls.find(([, init]) => init?.method === "PUT")![1];
+        expect(JSON.parse(request.body)).toMatchObject({ subTotal: "24.48", taxFeeTip: "3.18", total: net, loyaltyRedemption: redeemed });
+    });
+
+    it.each([["27.66", "0.00"], ["10.00", "17.66"]])("derives the printed subtotal when clearing receipt details for redemption %s", async (redeemed, net) => {
+        const expense = { ...expenseDetail, subTotal: "24.48", taxFeeTip: "3.18", total: net, loyaltyRedemption: redeemed };
+        apiFetchMock.mockImplementation((path: string) => Promise.resolve(jsonResponse(path.endsWith("edit-options") ? { ...editOptions(), expense } : {}, 200)));
+        render(<EditExpenseProvider><EditExpenseHarness /></EditExpenseProvider>);
+        await waitFor(() => expect(screen.getByTestId("member-load-status")).toHaveTextContent("ready"));
+        fireEvent.click(screen.getByRole("button", { name: "Clear receipt details" }));
+        fireEvent.submit(screen.getByRole("form", { name: "edit form" }));
+        await waitFor(() => expect(apiFetchMock.mock.calls.some(([, init]) => init?.method === "PUT")).toBe(true));
+        const request = apiFetchMock.mock.calls.find(([, init]) => init?.method === "PUT")![1];
+        expect(JSON.parse(request.body)).toMatchObject({ subTotal: "27.66", taxFeeTip: "0.00", total: net, loyaltyRedemption: redeemed });
     });
 
     it("loads all initial editor data with one page request", async () => {

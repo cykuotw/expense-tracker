@@ -42,6 +42,14 @@
       "type": "string",
       "description": "Final receipt total as a decimal string. Exclude cash tendered, change and loyalty balances."
     },
+    "redemptionNoteConflict": {
+      "type": "boolean",
+      "description": "True only when the scan note contradicts the printed loyalty payment, including a claim of full payment when the printed redemption is partial."
+    },
+    "loyaltyRedemption": {
+      "type": "string",
+      "description": "Omit when no loyalty redemption is printed. Empty when a redemption is evident but its amount is unreadable. Otherwise its positive decimal amount."
+    },
     "items": {
       "type": "array",
       "items": {

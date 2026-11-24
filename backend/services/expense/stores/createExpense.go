@@ -14,8 +14,8 @@ func (s *Store) CreateExpense(expense types.Expense) error {
 		"sub_total, tax_fee_tip, total, " +
 		"currency, invoice_pic_url, " +
 		"create_time_utc, update_time_utc, expense_time_utc, " +
-		"allocation_mode, occurred_on " +
-		") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, NULLIF($18, '')::date)"
+		"allocation_mode, occurred_on, loyalty_redemption, ocr_request_id, receipt_scan_note " +
+		") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, NULLIF($18, '')::date, $19, $20, NULLIF($21, ''))"
 
 	_, err := s.db.Exec(query,
 		expense.ID, expense.Description, expense.GroupID,
@@ -23,7 +23,7 @@ func (s *Store) CreateExpense(expense types.Expense) error {
 		expense.ExpenseTypeID, false,
 		expense.SubTotal.String(), expense.TaxFeeTip.String(), expense.Total.String(),
 		expense.Currency, expense.InvoicePicUrl, createTime, createTime, createTime,
-		expense.AllocationMode, expense.OccurredOn)
+		expense.AllocationMode, expense.OccurredOn, expense.LoyaltyRedemption, expense.OCRRequestID, expense.ReceiptScanNote)
 	if err != nil {
 		return err
 	}

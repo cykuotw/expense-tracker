@@ -68,6 +68,9 @@ func (h *Handler) handleUpdateExpense(c *gin.Context) {
 	updatedExpense.PayByUserId = payerID
 	updatedExpense.ExpenseTypeID = payload.ExpenseTypeID
 	updatedExpense.ProviderName = payload.ProviderName
+	if payload.LoyaltyRedemption != nil {
+		updatedExpense.LoyaltyRedemption = payload.LoyaltyRedemption
+	}
 	updatedExpense.SubTotal = payload.SubTotal
 	updatedExpense.TaxFeeTip = payload.TaxFeeTip
 	updatedExpense.Total = payload.Total

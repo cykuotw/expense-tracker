@@ -35,6 +35,8 @@ type Item struct {
 
 // Result is provider-neutral OCR output suitable for an editable expense draft.
 type Result struct {
+	RedemptionNoteConflict bool       `json:"redemptionNoteConflict,omitzero"`
+	LoyaltyRedemption      *Field     `json:"loyaltyRedemption,omitempty"`
 	SuggestedExpenseTypeID string     `json:"suggestedExpenseTypeId,omitempty"`
 	CategoryReason         string     `json:"categoryReason,omitempty"`
 	Usage                  *ScanUsage `json:"-"`
@@ -50,7 +52,7 @@ type Result struct {
 
 // Provider analyzes one already-normalized document image.
 type Provider interface {
-	AnalyzeExpense(ctx context.Context, document []byte, categories []ExpenseCategory) (Result, error)
+	AnalyzeExpense(ctx context.Context, document []byte, categories []ExpenseCategory, note string) (Result, error)
 }
 
 var (

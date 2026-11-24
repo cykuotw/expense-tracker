@@ -43,8 +43,14 @@ func TestGeminiReceivesCategoriesAndConstrainsSuggestion(t *testing.T) {
 				require.NoError(t, json.Unmarshal(body, &request))
 				parts := request["contents"].([]any)[0].(map[string]any)["parts"].([]any)
 				require.Contains(t, parts[0].(map[string]any)["text"], "Groceries")
+				require.Contains(t, parts[0].(map[string]any)["text"], "Fully covered by CT Money")
 				require.Len(t, parts, 2)
 				schema := request["generationConfig"].(map[string]any)["responseJsonSchema"].(map[string]any)
+				properties := schema["properties"].(map[string]any)
+				require.Contains(t, properties, "loyaltyRedemption")
+				require.Contains(t, properties, "redemptionNoteConflict")
+				require.Len(t, properties["items"], 2)
+				require.Contains(t, properties["items"], "items")
 				require.Equal(t, []any{"", groceryID}, schema["properties"].(map[string]any)["suggestedExpenseTypeId"].(map[string]any)["enum"])
 				output := strings.TrimSuffix(sampleExtraction, "}") + `,"suggestedExpenseTypeId":"` + returnedID + `","categoryReason":"The purchased item is milk."}`
 				text, _ := json.Marshal(output)
@@ -54,7 +60,7 @@ func TestGeminiReceivesCategoriesAndConstrainsSuggestion(t *testing.T) {
 			provider, err := NewGeminiProvider("test-secret", DefaultGeminiModel)
 			require.NoError(t, err)
 			provider.endpoint = server.URL
-			result, err := provider.AnalyzeExpense(t.Context(), []byte("image"), categories)
+			result, err := provider.AnalyzeExpense(t.Context(), []byte("image"), categories, "Fully covered by CT Money")
 			require.NoError(t, err)
 			if returnedID == groceryID {
 				require.Equal(t, groceryID, result.SuggestedExpenseTypeID)
@@ -79,6 +85,10 @@ func TestDraftPassesCatalogAndValidatesProviderSuggestion(t *testing.T) {
 		require.Equal(t, groceryID, provider.categories[0].ID)
 		var payload DraftResponse
 		require.NoError(t, json.Unmarshal([]byte(response.Body), &payload))
+		require.True(t, VerifyScanProof(secret, account, request, payload.Scan.Note, payload.Scan.Proof))
+		require.False(t, VerifyScanProof(secret, groceryID, request, payload.Scan.Note, payload.Scan.Proof))
+		require.False(t, VerifyScanProof(secret, account, groceryID, payload.Scan.Note, payload.Scan.Proof))
+		require.False(t, VerifyScanProof(secret, account, request, "changed", payload.Scan.Proof))
 		if id == groceryID {
 			require.Equal(t, id, payload.Draft.SuggestedExpenseTypeID)
 		} else {

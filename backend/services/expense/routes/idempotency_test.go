@@ -99,3 +99,19 @@ func TestExpenseCreateFingerprintBindsReceiptRetentionChoice(t *testing.T) {
 	assert.NotEqual(t, without, chosen)
 	assert.NotEqual(t, chosen, changed)
 }
+
+func TestExpenseCreateFingerprintBindsConfirmedScan(t *testing.T) {
+	expense := types.Expense{OCRRequestID: new(uuid.NewString()), ReceiptScanNote: "Partial redemption"}
+	fingerprint := func() []byte {
+		t.Helper()
+		result, err := expenseCreateFingerprint(expense, nil, nil, nil)
+		require.NoError(t, err)
+		return result
+	}
+	first := fingerprint()
+	expense.OCRRequestID = new(uuid.NewString())
+	second := fingerprint()
+	require.NotEqual(t, first, second)
+	expense.ReceiptScanNote = "Full redemption"
+	require.NotEqual(t, second, fingerprint())
+}

@@ -1,15 +1,17 @@
-import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { useEffect } from "react";
 
+let finishPreparation: (() => void) | undefined;
 const { useCreateExpenseMock } = vi.hoisted(() => ({ useCreateExpenseMock: vi.fn() }));
 vi.mock("@/hooks/CreateExpenseContextHooks", () => ({
     useCreateExpense: () => useCreateExpenseMock(),
 }));
 vi.mock("./ReceiptEditor", () => ({
-    default: function MockEditor({ initialFile, onPhotoLoaded, onPrepared }: {
+    default: function MockEditor({ initialFile, onPhotoLoaded, onPhotoCleared, onPrepared }: {
         initialFile?: File | null;
+        onPhotoCleared?: () => void;
         onPhotoLoaded?: () => void;
         onPrepared?: (receipt: { blob: Blob; width: number; height: number; quality: number }) => void;
     }) {
@@ -17,7 +19,10 @@ vi.mock("./ReceiptEditor", () => ({
             if (initialFile) onPhotoLoaded?.();
         }, [initialFile, onPhotoLoaded]);
         return <div>
+            <button onClick={onPhotoCleared}>Choose another photo</button>
+            <button onClick={onPhotoLoaded}>Take photo</button>
             <p>Editor: {initialFile?.name ?? "no photo"}</p>
+            <button onClick={() => { finishPreparation = () => onPrepared?.({ blob: new Blob(["test"]), width: 10, height: 10, quality: 1 }); }}>Start delayed scan</button>
             <button onClick={() => onPrepared?.({ blob: new Blob(["prepared"], { type: "image/jpeg" }), width: 800, height: 1200, quality: 0.8 })}>Scan receipt</button>
         </div>;
     },
@@ -56,6 +61,20 @@ describe("ReceiptScanPage", () => {
         vi.unstubAllGlobals();
     });
 
+    it("submits the original note when preparation overlaps an edit and then rescans", async () => {
+        render(<MemoryRouter><ReceiptScanPage /></MemoryRouter>);
+        fireEvent.click(await screen.findByRole("button", { name: "Take photo" }));
+        const note = screen.getByLabelText("Scan note (optional)");
+        fireEvent.change(note, { target: { value: "First" } });
+        fireEvent.click(screen.getByRole("button", { name: "Start delayed scan" }));
+        fireEvent.change(note, { target: { value: "Second" } });
+        await act(async () => finishPreparation?.());
+        expect(startReceiptOCR).toHaveBeenLastCalledWith(expect.any(Object), "First");
+        fireEvent.click(screen.getByRole("button", { name: "Edit photo" }));
+        fireEvent.click(screen.getByRole("button", { name: "Scan receipt" }));
+        expect(startReceiptOCR).toHaveBeenLastCalledWith(expect.any(Object), "Second");
+    });
+
     it("uses the existing photo input from the desktop header and keeps back navigation", async () => {
         render(<MemoryRouter initialEntries={["/create_expense/receipt?g=group-1"]}>
             <Routes>
@@ -92,14 +111,21 @@ describe("ReceiptScanPage", () => {
         expect(await screen.findByText("Editor: first.jpg")).toBeInTheDocument();
         expect(screen.getAllByRole("button", { name: "Change photo" })[0]).toBeInTheDocument();
 
+        fireEvent.change(screen.getByLabelText("Scan note (optional)"), { target: { value: "Fully covered by CT Money" } });
         fireEvent.click(screen.getByRole("button", { name: "Scan receipt" }));
         expect(startReceiptOCR).toHaveBeenCalledOnce();
+        expect(startReceiptOCR).toHaveBeenCalledWith(expect.any(Object), "Fully covered by CT Money");
         expect(screen.getByText("Inline review: blob:prepared-receipt")).toBeInTheDocument();
         expect(screen.getByTestId("location")).toHaveTextContent("/create_expense/receipt");
 
         fireEvent.click(screen.getByRole("button", { name: "Edit photo" }));
         expect(clearReceiptWorkflow).toHaveBeenCalledOnce();
         expect(screen.getByText("Editor: first.jpg")).toBeInTheDocument();
+
+        expect(screen.getByLabelText("Scan note (optional)")).toHaveValue("Fully covered by CT Money");
+        fireEvent.click(screen.getByRole("button", { name: "Choose another photo" }));
+        fireEvent.click(screen.getByRole("button", { name: "Take photo" }));
+        expect(screen.getByLabelText("Scan note (optional)")).toHaveValue("");
 
         fireEvent.click(screen.getByRole("button", { name: "Scan receipt" }));
         fireEvent.change(screen.getByLabelText("Receipt photo file"), {

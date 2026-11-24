@@ -8,7 +8,7 @@ import type {
     OCRScanUsage,
 } from "../types/ocr";
 import type { PreparedReceipt } from "./receiptEditor";
-import type { ExpenseTypeItem } from "../types/expense";
+import type { ConfirmedReceiptScan, ExpenseTypeItem } from "../types/expense";
 
 export const OCR_CLIENT_TIMEOUT_MS = 60_000;
 const MAX_DRAFT_ITEMS = 200;
@@ -66,6 +66,8 @@ export function parseOCRDraft(value: unknown): OCRDraft {
         ...(typeof value.suggestedExpenseTypeId === "string" && value.suggestedExpenseTypeId.length <= 36 &&
             typeof value.categoryReason === "string" && value.categoryReason.trim() && new TextEncoder().encode(value.categoryReason).length <= 500
             ? { suggestedExpenseTypeId: value.suggestedExpenseTypeId, categoryReason: value.categoryReason.trim() } : {}),
+        ...(value.redemptionNoteConflict === true ? { redemptionNoteConflict: true } : {}),
+        ...(value.loyaltyRedemption === undefined ? {} : { loyaltyRedemption: parseField(value.loyaltyRedemption) }),
         merchant: parseField(value.merchant),
         date: parseField(value.date),
         currencySuggestion: parseField(value.currencySuggestion),
@@ -135,6 +137,7 @@ async function errorFromResponse(response: Response, fallback: string) {
 }
 
 export interface ReceiptDraftResult {
+    scan: ConfirmedReceiptScan;
 	usage?: OCRScanUsage | null;
     draft: OCRDraft;
     receiptToken: string | null;
@@ -162,12 +165,18 @@ export function parseOCRScanUsage(value: unknown): OCRScanUsage | null {
     };
 }
 
+// Multipart normalizes line endings. Go's TrimSpace also trims U+0085.
+export function normalizeScanNote(note: string): string {
+    return note.replace(/\r\n?/g, "\n").replace(/^[\s\u0085]+|[\s\u0085]+$/gu, "");
+}
+
 export async function requestReceiptDraftWithRetention(
     receipt: PreparedReceipt,
     accountID: string,
     keepReceipt: boolean,
     signal?: AbortSignal,
     expenseTypes: ExpenseTypeItem[] = [],
+    note = "",
 ): Promise<ReceiptDraftResult> {
     const controller = new AbortController();
     const timeout = window.setTimeout(() => controller.abort("timeout"), OCR_CLIENT_TIMEOUT_MS);
@@ -208,6 +217,8 @@ export async function requestReceiptDraftWithRetention(
                 name.trim() && category.trim() && encoder.encode(name).length <= 256 && encoder.encode(category).length <= 256) &&
             encoder.encode(encodedCategories).length <= 32 * 1024;
         body.append("categories", validCategories ? encodedCategories : "[]");
+        const submittedNote = normalizeScanNote(note);
+        if (submittedNote) body.append("note", submittedNote);
         const response = await fetch(`${API_URL}/ocr/drafts`, {
             method: "POST",
             credentials: "omit",
@@ -243,7 +254,16 @@ export async function requestReceiptDraftWithRetention(
                 "receipt_storage_unavailable",
             );
         }
-        return { draft, receiptToken, receiptExpiresAt, usage: parseOCRScanUsage(value.usage) };
+        const scan = value.scan;
+        if (!isRecord(scan) || scan.requestId !== requestId ||
+            typeof scan.proof !== "string" || !scan.proof.trim() ||
+            (scan.note === undefined ? "" : scan.note) !== submittedNote) {
+            throw new ReceiptOCRError("The scan could not be verified. Scan again or continue with manual entry.", "invalid_draft");
+        }
+        return {
+            draft, receiptToken, receiptExpiresAt, usage: parseOCRScanUsage(value.usage),
+            scan: { requestId, note: submittedNote, proof: scan.proof },
+        };
     } catch (error) {
         if (error instanceof ReceiptOCRError) throw error;
         if (controller.signal.aborted) {
@@ -269,6 +289,7 @@ const editableField = (field: OCRField): EditableOCRField => ({ ...field, edited
 
 export function editableOCRDraft(draft: OCRDraft): EditableOCRDraft {
     return {
+        loyaltyRedemption: draft.loyaltyRedemption?.value,
         merchant: editableField(draft.merchant),
         date: editableField(draft.date),
         currencySuggestion: editableField(draft.currencySuggestion),

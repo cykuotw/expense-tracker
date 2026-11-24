@@ -31,6 +31,7 @@ import {
 import { ExpenseAllocation } from "../types/allocation";
 import {
     CreateExpenseOptionsData,
+    ConfirmedReceiptScan,
     ExpenseCreateData,
     ExpenseCategoryAmount,
     ExpenseTypeItem,
@@ -43,7 +44,7 @@ import {
 import { legacyCurrencySettings } from "../lib/currencySettings";
 import ArchivedGroupMessage from "../components/group/ArchivedGroupMessage";
 import { requestReceiptDraftWithRetention, ReceiptOCRError } from "../lib/receiptOcr";
-import { validateReceiptExpense } from "../lib/receiptDraft";
+import { printedReceiptTotal, validateReceiptExpense } from "../lib/receiptDraft";
 import type { PreparedReceipt } from "../lib/receiptEditor";
 import type { AccountSettingsData } from "../types/account";
 import type { ConfirmedExpenseItem, OCRDraft, OCRScanUsage, ReviewedReceiptDraft } from "../types/ocr";
@@ -54,6 +55,13 @@ const EMPTY_ALLOCATION: ExpenseAllocation = {
     mode: "equal",
     participants: [],
 };
+
+interface ReceiptScanSource {
+    scan: ConfirmedReceiptScan;
+    keepPhoto: boolean;
+    receiptToken: string | null;
+    receiptExpiresAt: string | null;
+}
 
 export const CreateExpenseProvider = ({
     children,
@@ -79,6 +87,7 @@ export const CreateExpenseProvider = ({
     const [selectedExpenseTypeId, setSelectedExpenseTypeId] = useState("");
     const [groupArchived, setGroupArchived] = useState(false);
     const [categoryBreakdown, setCategoryBreakdown] = useState<ExpenseCategoryAmount[]>([]);
+    const [loyaltyRedemption, setLoyaltyRedemption] = useState<string>();
     const [totalInput, setTotalInput] = useState("");
     const [description, setDescription] = useState("");
     const [occurredOn, setOccurredOn] = useState(todayDateOnly);
@@ -97,12 +106,12 @@ export const CreateExpenseProvider = ({
     const [receiptRetentionAvailable, setReceiptRetentionAvailable] = useState(false);
     const [keepReceiptPreference, setKeepReceipt] = useState(true);
     const keepReceipt = receiptRetentionAvailable && keepReceiptPreference;
-    const [receiptScanStarted, setReceiptScanStarted] = useState(false);
-    const [receiptToken, setReceiptToken] = useState<string | null>(null);
-    const [receiptExpiresAt, setReceiptExpiresAt] = useState<string | null>(null);
+    const [draftScan, setDraftScan] = useState<ReceiptScanSource>();
+    const [confirmedScan, setConfirmedScan] = useState<ReceiptScanSource>();
+    const receiptToken = confirmedScan?.keepPhoto ? confirmedScan.receiptToken : null;
+    const receiptExpiresAt = confirmedScan?.receiptExpiresAt;
     const discardReceiptToken = useCallback(() => {
-        setReceiptToken(null);
-        setReceiptExpiresAt(null);
+        setConfirmedScan(current => current && { ...current, keepPhoto: false, receiptToken: null, receiptExpiresAt: null });
         setKeepReceipt(false);
     }, []);
     const [ocrStatus, setOCRStatus] = useState<"idle" | "scanning" | "ready" | "error">("idle");
@@ -128,26 +137,26 @@ export const CreateExpenseProvider = ({
                 totalInput,
                 amountDigits,
                 allocation,
-                currency
+                currency, loyaltyRedemption !== undefined
             ),
-        [allocation, amountDigits, currency, totalInput]
+        [allocation, amountDigits, currency, totalInput, loyaltyRedemption]
     );
     const totalUnits =
         amountDigits === null
             ? null
             : decimalToUnits(totalInput, amountDigits);
     const receiptDetailsActive = Boolean(
-        merchant.trim() || subtotalInput.trim() || taxInput.trim() ||
+        loyaltyRedemption !== undefined || merchant.trim() || subtotalInput.trim() || taxInput.trim() ||
         tipInput.trim() || items.length > 0
     );
     const receiptValidation = validateReceiptExpense({
         merchant, subtotal: subtotalInput, tax: taxInput, tip: tipInput,
-        total: totalInput, items,
+        loyaltyRedemption, total: printedReceiptTotal(totalInput, loyaltyRedemption, amountDigits), items,
     }, amountDigits);
     const dataOk =
         !groupArchived &&
         totalUnits !== null &&
-        totalUnits > 0n &&
+        (totalUnits > 0n || (totalUnits === 0n && loyaltyRedemption !== undefined)) &&
         description.length > 0 &&
         isDateOnly(occurredOn) &&
         allocationCalculation.valid &&
@@ -163,21 +172,17 @@ export const CreateExpenseProvider = ({
         setMainFormVisited(true);
     }, []);
 
-    const clearReceiptWorkflow = useCallback((preserveRetention = false) => {
+    const clearReceiptWorkflow = useCallback(() => {
         ocrAbortRef.current?.abort("cancelled");
         ocrAbortRef.current = null;
+        setDraftScan(undefined);
         setOCRStatus("idle");
         setOCRDraft(null);
         setOCRUsage(null);
         setOCRError(null);
-        if (!preserveRetention) {
-            setReceiptScanStarted(false);
-            setReceiptToken(null);
-            setReceiptExpiresAt(null);
-        }
     }, []);
 
-    const startReceiptOCR = useCallback(async (receipt: PreparedReceipt) => {
+    const startReceiptOCR = useCallback(async (receipt: PreparedReceipt, note?: string) => {
         if (!userID || receiptOCREnabled !== true) {
             setOCRUsage(null);
             setOCRStatus("error");
@@ -187,20 +192,22 @@ export const CreateExpenseProvider = ({
         ocrAbortRef.current?.abort("replaced");
         const controller = new AbortController();
         ocrAbortRef.current = controller;
-        setReceiptScanStarted(true);
+        setDraftScan(undefined);
         setOCRStatus("scanning");
         setOCRDraft(null);
         setOCRUsage(null);
         setOCRError(null);
-        setReceiptToken(null);
-        setReceiptExpiresAt(null);
         try {
-            const result = await requestReceiptDraftWithRetention(receipt, userID, keepReceipt, controller.signal, expenseTypes);
+            const result = await requestReceiptDraftWithRetention(receipt, userID, keepReceipt, controller.signal, expenseTypes, note);
             if (ocrAbortRef.current !== controller) return;
+            setDraftScan({
+                scan: result.scan,
+                keepPhoto: keepReceipt,
+                receiptToken: result.receiptToken,
+                receiptExpiresAt: result.receiptExpiresAt,
+            });
             setOCRDraft(result.draft);
             setOCRUsage(result.usage ?? null);
-            setReceiptToken(result.receiptToken);
-            setReceiptExpiresAt(result.receiptExpiresAt);
             setOCRStatus("ready");
         } catch (error) {
             if (ocrAbortRef.current !== controller) return;
@@ -219,16 +226,18 @@ export const CreateExpenseProvider = ({
         if (categoryBreakdown.length === 0 && draft.expenseTypeId && expenseTypes.some(({ id }) => id === draft.expenseTypeId)) {
             setSelectedExpenseTypeId(draft.expenseTypeId);
         }
+        setConfirmedScan(draftScan);
         setMerchant(draft.merchant);
         setDescription((current) => current.trim() ? current : draft.merchant);
         setOccurredOn(draft.date);
+        setLoyaltyRedemption(draft.loyaltyRedemption);
         setSubtotalInput(draft.subtotal);
         setTaxInput(draft.tax);
         setTipInput(draft.tip);
         setTotalInput(draft.total);
         setItems(draft.items);
-        clearReceiptWorkflow(true);
-    }, [clearReceiptWorkflow, categoryBreakdown.length, expenseTypes]);
+        clearReceiptWorkflow();
+    }, [clearReceiptWorkflow, categoryBreakdown.length, expenseTypes, draftScan]);
 
     const handleCreateExpense = async (event: FormEvent) => {
         event.preventDefault();
@@ -241,7 +250,7 @@ export const CreateExpenseProvider = ({
             return;
         }
 
-        if (keepReceipt && receiptScanStarted && !receiptToken) {
+        if (confirmedScan?.keepPhoto && !receiptToken) {
             setSubmissionError("Scan the photo again or choose Don't keep photo before saving.");
             return;
         }
@@ -256,12 +265,14 @@ export const CreateExpenseProvider = ({
                 payByUserId: payer,
                 expTypeId: categoryBreakdown[0]?.expenseTypeId ?? selectedExpenseTypeId,
                 categoryBreakdown: categoryBreakdownPayload(categoryBreakdown, amountDigits),
+                receiptScan: confirmedScan?.scan,
                 total: normalizedTotal,
+                loyaltyRedemption,
                 currency,
                 allocation,
                 occurredOn,
                 providerName: merchant.trim(),
-                ...(keepReceipt && receiptToken ? { receipt: { keep: true, token: receiptToken } } : {}),
+                ...(receiptToken ? { receipt: { keep: true, token: receiptToken } } : {}),
                 ...(receiptDetailsActive ? {
                     subTotal: receiptValidation.subTotal,
                     taxFeeTip: receiptValidation.taxFeeTip,
@@ -271,7 +282,7 @@ export const CreateExpenseProvider = ({
 
             const fingerprint = JSON.stringify(payload);
             const isReplay = submissionIntentRef.current?.fingerprint === fingerprint;
-            if (keepReceipt && !isReplay && receiptExpiresAt && Date.parse(receiptExpiresAt) <= Date.now()) {
+            if (receiptToken && !isReplay && receiptExpiresAt && Date.parse(receiptExpiresAt) <= Date.now()) {
                 setSubmissionError("The receipt save window expired. Scan the photo again or choose Don't keep photo.");
                 return;
             }
@@ -343,6 +354,8 @@ export const CreateExpenseProvider = ({
         previousGroupRef.current = selectedGroupId;
         clearReceiptWorkflow();
         setMerchant("");
+        setConfirmedScan(undefined);
+        setLoyaltyRedemption(undefined);
         setSubtotalInput("");
         setTaxInput("");
         setTipInput("");
@@ -475,6 +488,7 @@ export const CreateExpenseProvider = ({
                 setSelectedExpenseTypeId,
                 categoryBreakdown,
                 setCategoryBreakdown,
+                loyaltyRedemption,
                 total: totalInput,
                 totalInput,
                 setTotalInput,
@@ -512,6 +526,7 @@ export const CreateExpenseProvider = ({
                 discardReceiptToken,
                 ocrStatus,
                 ocrDraft,
+                verifiedScanNote: draftScan?.scan.note,
                 ocrUsage,
                 ocrError,
                 startReceiptOCR,
@@ -519,6 +534,7 @@ export const CreateExpenseProvider = ({
                 clearReceiptWorkflow,
                 indicatorShow,
                 submissionError,
+                receiptValidationMessage: receiptValidation.message,
                 dataOk,
                 groupList,
                 expenseTypes,

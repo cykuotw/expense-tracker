@@ -38,6 +38,10 @@ func NewHandler(store types.ExpenseStore, userStore types.UserStore, groupStore 
 	return h
 }
 
+func WithScanVerification(secret []byte) func(*Handler) {
+	return func(h *Handler) { h.receiptSecret = append([]byte(nil), secret...) }
+}
+
 func WithReceiptStorage(client *s3.Client, bucket string, secret []byte, enabled bool) func(*Handler) {
 	return func(h *Handler) {
 		if client != nil && bucket != "" && len(secret) >= 32 {

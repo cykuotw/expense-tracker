@@ -1,3 +1,4 @@
+import { printedReceiptTotal } from "@/lib/receiptDraft";
 import { useId, useState, type ReactNode } from "react";
 import { ExpenseSectionToggle } from "@/components/expense/ExpenseSectionToggle";
 import ReceiptViewer from "@/components/receipt/ReceiptViewer";
@@ -219,6 +220,20 @@ const ExpenseDetailContent = () => {
                             expenseDetail={expenseDetail}
                             amountDigits={amountDigits}
                         /> : null}
+                        {expenseDetail.receiptScan && (
+                            <ExpenseDetailSection title="Receipt scan" summary={expenseDetail.receiptScan.note ? "Scan note and estimated cost" : "Estimated cost"}>
+                                <dl className="grid gap-3">
+                                    {expenseDetail.receiptScan.note && <div>
+                                        <dt>Scan note</dt>
+                                        <dd className="whitespace-pre-wrap break-words">{expenseDetail.receiptScan.note}</dd>
+                                    </div>}
+                                    <div>
+                                        <dt>Estimated scan cost (USD)</dt>
+                                        <dd>{expenseDetail.receiptScan.estimatedCostUsd ?? "Estimate unavailable"}</dd>
+                                    </div>
+                                </dl>
+                            </ExpenseDetailSection>
+                        )}
                         {expenseDetail.invoiceUrl ? (
                             <ReceiptImage key={expenseId}
                                 invoiceUrl={expenseDetail.invoiceUrl}
@@ -312,7 +327,8 @@ function ExpenseSummary({
                 <CardHeader className="gap-2 px-5 sm:px-6 md:px-8">
                     <div className="section-label">Expense summary</div>
                     <CardTitle>
-                        <h2 id="expense-summary-title">Total</h2>
+                        <h2 id="expense-summary-title">{expenseDetail.loyaltyRedemption === undefined ? "Total" : "Out of pocket"}</h2>
+                        {expenseDetail.loyaltyRedemption !== undefined && <p>Printed total {printedReceiptTotal(expenseDetail.total, expenseDetail.loyaltyRedemption, amountDigits) || "unavailable"} · Loyalty redemption {expenseDetail.loyaltyRedemption} {expenseDetail.currency}</p>}
                     </CardTitle>
                     <CardDescription>
                         The recorded amount for this expense.

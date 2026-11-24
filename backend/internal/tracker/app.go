@@ -180,7 +180,7 @@ func registerRoutes(router *gin.Engine, db *sql.DB, localTools *agenttools.Handl
 	}
 	toolHandler.RegisterRoutes(router.Group(config.Envs.APIPath))
 	expenseController := expense.NewController()
-	receiptOptions := []func(*expenseRoute.Handler){}
+	receiptOptions := []func(*expenseRoute.Handler){expenseRoute.WithScanVerification([]byte(config.Envs.OCRCapabilitySecret))}
 	if config.Envs.ReceiptBucket != "" {
 		awsCfg, err := awsconfig.LoadDefaultConfig(context.Background())
 		if err == nil {

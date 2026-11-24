@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"expense-tracker/backend/types"
 	"mime"
 	"net/http"
 	"strings"
@@ -50,11 +51,12 @@ type DraftHandler struct {
 }
 
 type DraftResponse struct {
-	Usage            *ScanUsage `json:"usage,omitempty"`
-	RequestID        string     `json:"requestId"`
-	Draft            Result     `json:"draft"`
-	ReceiptToken     string     `json:"receiptToken,omitempty"`
-	ReceiptExpiresAt *time.Time `json:"receiptExpiresAt,omitempty"`
+	Scan             types.ConfirmedReceiptScan `json:"scan"`
+	Usage            *ScanUsage                 `json:"usage,omitempty"`
+	RequestID        string                     `json:"requestId"`
+	Draft            Result                     `json:"draft"`
+	ReceiptToken     string                     `json:"receiptToken,omitempty"`
+	ReceiptExpiresAt *time.Time                 `json:"receiptExpiresAt,omitempty"`
 }
 
 func NewDraftHandler(
@@ -114,26 +116,29 @@ func (h *DraftHandler) Handle(ctx context.Context, request events.APIGatewayV2HT
 		return h.error(http.StatusForbidden, "ocr_capability_mismatch", "OCR capability does not match the request", origin), nil
 	}
 
-	document, imageType, categories, bodyErr := parseReceiptUpload(request, params["boundary"])
+	upload, bodyErr := parseReceiptUpload(request, params["boundary"])
 	if bodyErr != nil {
+		if errors.Is(bodyErr, errScanNoteTooLong) {
+			return h.error(http.StatusRequestEntityTooLarge, "scan_note_too_long", "Shorten the scan note before scanning.", origin), nil
+		}
 		if errors.Is(bodyErr, errDocumentTooLarge) {
 			return h.error(http.StatusRequestEntityTooLarge, "receipt_too_large", "receipt exceeds the upload limit", origin), nil
 		}
 		return h.error(http.StatusBadRequest, "invalid_receipt_body", "receipt body is invalid", origin), nil
 	}
-	if len(document) == 0 {
+	if len(upload.Document) == 0 {
 		return h.error(http.StatusBadRequest, "invalid_receipt_body", "receipt body is invalid", origin), nil
 	}
-	if !strings.EqualFold(imageType, claims.ContentType) {
+	if !strings.EqualFold(upload.ImageType, claims.ContentType) {
 		return h.error(http.StatusForbidden, "ocr_capability_mismatch", "OCR capability does not match the image", origin), nil
 	}
-	observation.SourceBytes = len(document)
+	observation.SourceBytes = len(upload.Document)
 
 	preprocessStarted := time.Now()
 	preprocessContext, cancelPreprocess := context.WithTimeout(ctx, h.preprocessTimeout)
 	processed, preprocessErr := PreprocessRasterContext(
 		preprocessContext,
-		bytes.NewReader(document),
+		bytes.NewReader(upload.Document),
 		h.preprocessOptions,
 	)
 	cancelPreprocess()
@@ -142,7 +147,7 @@ func (h *DraftHandler) Handle(ctx context.Context, request events.APIGatewayV2HT
 		observation.Outcome = "invalid_image"
 		return h.preprocessError(preprocessErr, origin), nil
 	}
-	if !strings.EqualFold(imageType, mediaTypeForFormat(processed.SourceFormat)) {
+	if !strings.EqualFold(upload.ImageType, mediaTypeForFormat(processed.SourceFormat)) {
 		observation.Outcome = "media_type_mismatch"
 		return h.error(http.StatusUnsupportedMediaType, "receipt_type_mismatch", "receipt content does not match its media type", origin), nil
 	}
@@ -162,7 +167,7 @@ func (h *DraftHandler) Handle(ctx context.Context, request events.APIGatewayV2HT
 	providerStarted := time.Now()
 	providerContext, cancelProvider := context.WithTimeout(withUsageIdentity(ctx, claims.Subject, claims.ID), h.providerTimeout)
 	observation.ProviderInvoked = true
-	extraction, providerErr := h.provider.AnalyzeExpense(providerContext, processed.Bytes, categories)
+	extraction, providerErr := h.provider.AnalyzeExpense(providerContext, processed.Bytes, upload.Categories, upload.Note)
 	cancelProvider()
 	observation.ProviderLatencyMillis = time.Since(providerStarted).Milliseconds()
 	if providerErr != nil {
@@ -178,8 +183,11 @@ func (h *DraftHandler) Handle(ctx context.Context, request events.APIGatewayV2HT
 		return h.retryableError("receipt scanning is temporarily unavailable; you can retry or enter the expense manually", origin), nil
 	}
 
-	validateCategorySuggestion(&extraction, categories)
-	responsePayload := DraftResponse{RequestID: claims.ID, Draft: PrepareDraft(extraction), Usage: extraction.Usage}
+	validateCategorySuggestion(&extraction, upload.Categories)
+	responsePayload := DraftResponse{
+		Scan:      types.ConfirmedReceiptScan{RequestID: claims.ID, Note: upload.Note, Proof: scanProof(h.secret, claims.Subject, claims.ID, upload.Note)},
+		RequestID: claims.ID, Draft: PrepareDraft(extraction), Usage: extraction.Usage,
+	}
 	if claims.KeepReceipt && h.receiptStorageEnabled {
 		if h.receiptStore == nil {
 			observation.Outcome = "receipt_storage_error"

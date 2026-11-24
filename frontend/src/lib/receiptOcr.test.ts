@@ -25,6 +25,7 @@ const draft = {
         lineTotal: field("5.00"),
     }],
 };
+const scan = { requestId: "00000000-0000-4000-8000-000000000001", proof: "signed" };
 const receipt = { blob: new Blob(["jpeg"], { type: "image/jpeg" }), width: 10, height: 20, quality: 0.8 };
 
 function jsonResponse(value: unknown, status = 200) {
@@ -45,7 +46,7 @@ describe("receipt OCR client", () => {
 
     it.each([false, true])("sends the loaded catalog, or omits all classification context when oversized: %s", async (oversized) => {
         apiFetchMock.mockResolvedValue(jsonResponse({ token: "token", requestId: "00000000-0000-4000-8000-000000000001", contentType: "image/jpeg", maxBytes: 3_670_016, expiresAt: "2026-09-27T12:00:00Z" }, 201));
-        const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ requestId: "00000000-0000-4000-8000-000000000001", draft }));
+        const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ requestId: "00000000-0000-4000-8000-000000000001", draft, scan }));
         vi.stubGlobal("fetch", fetchMock);
         const catalog = [{ id: "00000000-0000-4000-8000-000000000002", name: oversized ? "x".repeat(257) : "Groceries", category: "Food" }];
         await requestReceiptDraftWithRetention(receipt, "account-1", false, undefined, catalog);
@@ -54,6 +55,13 @@ describe("receipt OCR client", () => {
         expect(apiFetchMock).toHaveBeenCalledTimes(1);
         expect(fetchMock).toHaveBeenCalledTimes(1);
     });
+    it.each([undefined, { ...scan, requestId: "other" }, { ...scan, proof: "" }, { ...scan, proof: " " }])(
+        "rejects a successful draft without a usable association (%j)", async invalidScan => {
+            apiFetchMock.mockResolvedValue(jsonResponse({ token: "token", requestId: scan.requestId, contentType: "image/jpeg", maxBytes: 3670016, expiresAt: "2099-01-01" }, 201));
+            vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse({ requestId: scan.requestId, draft, scan: invalidScan })));
+            await expect(requestReceiptDraftWithRetention(receipt, "account-1", false)).rejects.toMatchObject({ code: "invalid_draft" });
+        },
+    );
     it("parses optional usage and drops malformed telemetry independently of the draft", () => {
         const tokens = { input: 1000, output: 100, thinking: 50, cachedInput: 200, total: 1150 };
         const usage = { model: "gemini-3.8-flash", tokens, estimatedCostUsd: 0.0011775 };
@@ -87,7 +95,7 @@ describe("receipt OCR client", () => {
         }, 201));
         const fetchMock = vi.fn().mockResolvedValue(jsonResponse({
             requestId: "00000000-0000-4000-8000-000000000001",
-            draft,
+            draft, scan,
         }));
         vi.stubGlobal("fetch", fetchMock);
 
@@ -127,11 +135,24 @@ describe("receipt OCR client", () => {
         expect(body.keepReceipt).toBe(true);
     });
 
+    it.each([
+        ["submitted", undefined],
+        ["", "unexpected"],
+        ["submitted", "changed"],
+        ["", null],
+    ] as const)("rejects a mismatched note before review", async (submitted, returned) => {
+        apiFetchMock.mockResolvedValue(jsonResponse({ token: "token", requestId: scan.requestId, contentType: "image/jpeg", maxBytes: 3670016, expiresAt: "2099-01-01" }, 201));
+        vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse({ requestId: scan.requestId, draft, scan: { ...scan, note: returned } })));
+        await expect(requestReceiptDraftWithRetention(receipt, "account-1", false, undefined, [], submitted))
+            .rejects.toMatchObject({ code: "invalid_draft" });
+    });
+
     it("returns per-request usage alongside the draft without requiring retention", async () => {
         apiFetchMock.mockResolvedValue(jsonResponse({ token: "capability", requestId: "00000000-0000-4000-8000-000000000001", contentType: "image/jpeg", maxBytes: 3_670_016, expiresAt: "2026-09-27T12:00:00Z" }, 201));
         const usage = { model: "gemini-3.8-flash", tokens: { input: 100, output: 20, thinking: 0, cachedInput: 0, total: 120 }, estimatedCostUsd: 0.00015 };
-        vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse({ requestId: "00000000-0000-4000-8000-000000000001", draft, usage })));
-        const result = await requestReceiptDraftWithRetention(receipt, "account-1", false);
+        vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse({ requestId: "00000000-0000-4000-8000-000000000001", draft, usage, scan: { requestId: "00000000-0000-4000-8000-000000000001", note: "CT\nMoney", proof: "proof" } })));
+        const result = await requestReceiptDraftWithRetention(receipt, "account-1", false, undefined, [], " \u0085CT\r\nMoney ");
+        expect(result.scan).toEqual({ requestId: "00000000-0000-4000-8000-000000000001", note: "CT\nMoney", proof: "proof" });
         expect(result.usage).toEqual(usage);
         expect(result.draft.merchant.value).toBe("Cafe");
         expect(result.receiptToken).toBeNull();

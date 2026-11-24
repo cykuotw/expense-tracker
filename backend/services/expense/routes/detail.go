@@ -137,7 +137,12 @@ func (h *Handler) expenseDetailResponse(c *gin.Context, expenseTypes []*types.Ex
 	if err != nil {
 		return types.ExpenseResponse{}, err
 	}
+	var scan *types.ReceiptScanSummary
+	if expense.OCRRequestID != nil {
+		scan = &types.ReceiptScanSummary{Note: expense.ReceiptScanNote, EstimatedCostUSD: expense.EstimatedScanCostUSD}
+	}
 	return types.ExpenseResponse{
+		ReceiptScan:       scan,
 		CategoryBreakdown: effectiveCategoryBreakdown(expense, breakdowns[expenseID], &types.ExpenseType{Name: expenseType, Category: expenseCategory}),
 		GroupIsActive:     groupActive,
 		ID:                expense.ID,
@@ -148,6 +153,7 @@ func (h *Handler) expenseDetailResponse(c *gin.Context, expenseTypes []*types.Ex
 		ExpenseTypeId:     expense.ExpenseTypeID,
 		ExpenseType:       expenseType,
 		ExpenseCategory:   expenseCategory,
+		LoyaltyRedemption: expense.LoyaltyRedemption,
 		SubTotal:          expense.SubTotal,
 		TaxFeeTip:         expense.TaxFeeTip,
 		Total:             expense.Total,

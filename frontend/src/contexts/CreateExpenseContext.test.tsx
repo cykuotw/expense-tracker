@@ -52,7 +52,7 @@ function jsonResponse(body: unknown, status = 200) {
     });
 }
 
-function CreateExpenseHarness({ reviewCategory }: { reviewCategory?: string } = {}) {
+function CreateExpenseHarness({ reviewCategory, fullyRedeemed }: { reviewCategory?: string; fullyRedeemed?: boolean } = {}) {
     const context = useCreateExpense();
 
     return (
@@ -125,7 +125,8 @@ function CreateExpenseHarness({ reviewCategory }: { reviewCategory?: string } = 
                     subtotal: "5.00",
                     tax: "0.65",
                     tip: "1.00",
-                    total: "6.65",
+                    total: fullyRedeemed ? "0.00" : "6.65",
+                    ...(fullyRedeemed ? { loyaltyRedemption: "6.65" } : {}),
                     items: [{
                         id: "item-1", description: "Coffee", quantity: "2",
                         unit: "cup", unitPrice: "2.50", lineTotal: "5.00",
@@ -135,6 +136,10 @@ function CreateExpenseHarness({ reviewCategory }: { reviewCategory?: string } = 
                 Apply receipt
             </button>
             <button type="button" onClick={() => context.setCategoryBreakdown([{ expenseTypeId: "type-2", amount: "200", note: "Groceries" }, { expenseTypeId: "type-3", amount: "100", note: "Trolley" }])}>Categorize purchase</button>
+            <button type="button" onClick={() => {
+                context.setMerchant(""); context.setSubtotalInput(""); context.setTaxInput("");
+                context.setTipInput(""); context.setItems([]);
+            }}>Clear receipt details</button>
             <button type="submit">Create</button>
         </form>
     );
@@ -158,6 +163,7 @@ describe("CreateExpenseProvider error handling", () => {
     it("clears usage on rescan and discard and ignores a discarded scan completing late", async () => {
         const blank = { value: "" };
         const result: ReceiptDraftResult = {
+            scan: { requestId: "scan", note: "", proof: "signed" },
             draft: { merchant: { value: "Shop" }, date: blank, currencySuggestion: blank, subtotal: blank, tax: blank, tip: blank, total: { value: "10" }, items: [], suggestedExpenseTypeId: "type-1", categoryReason: "Mixed purchase." },
             receiptToken: null, receiptExpiresAt: null,
             usage: { model: "gemini-3.8-flash", tokens: { input: 100, output: 20, thinking: 0, cachedInput: 0, total: 120 }, estimatedCostUsd: 0.00015 },
@@ -271,7 +277,7 @@ describe("CreateExpenseProvider error handling", () => {
     ])("requests photo retention=$expected with storage=$available and opt-out=$optOut", async ({ available, optOut, expected }) => {
         if (available) enableReceiptRetention();
         receiptDraftMock.mockResolvedValue({
-            draft: { items: [] }, receiptToken: null, receiptExpiresAt: null,
+            draft: { items: [] }, scan: { requestId: "scan", note: "", proof: "signed" }, receiptToken: null, receiptExpiresAt: null,
         });
         render(<CreateExpenseProvider><CreateExpenseHarness /></CreateExpenseProvider>);
         const start = screen.getByRole("button", { name: "Start test scan" });
@@ -280,7 +286,7 @@ describe("CreateExpenseProvider error handling", () => {
         if (optOut) fireEvent.click(screen.getByLabelText("Keep receipt photo"));
         fireEvent.click(start);
         await waitFor(() => expect(receiptDraftMock).toHaveBeenCalledWith(
-            expect.any(Object), "user-1", expected, expect.any(AbortSignal), [{ id: "type-1", category: "Other", name: "General" }],
+            expect.any(Object), "user-1", expected, expect.any(AbortSignal), [{ id: "type-1", category: "Other", name: "General" }], undefined,
         ));
     });
 
@@ -300,7 +306,7 @@ describe("CreateExpenseProvider error handling", () => {
     it("requires a retained photo token after scanning until the user opts out", async () => {
         enableReceiptRetention();
         receiptDraftMock.mockResolvedValue({
-            draft: { items: [] }, receiptToken: null, receiptExpiresAt: null,
+            draft: { items: [] }, scan: { requestId: "scan", note: "", proof: "signed" }, receiptToken: null, receiptExpiresAt: null,
         });
         render(<CreateExpenseProvider><CreateExpenseHarness /></CreateExpenseProvider>);
         await waitFor(() => expect(screen.getByTestId("member-load-status")).toHaveTextContent("ready"));
@@ -315,10 +321,37 @@ describe("CreateExpenseProvider error handling", () => {
         await waitFor(() => expect(apiFetchMock.mock.calls.some(([path]) => path === "/create_expense")).toBe(true));
     });
 
+    it.each([true, false])("keeps the applied scan when leaving a rescan, explicitly discarded=%s", async discard => {
+        enableReceiptRetention();
+        for (const name of ["first", "second"]) {
+            receiptDraftMock.mockResolvedValueOnce({
+                draft: { items: [] }, scan: { requestId: name, note: name, proof: name },
+                receiptToken: name, receiptExpiresAt: new Date(Date.now() + 60_000).toISOString(),
+            });
+        }
+        render(<CreateExpenseProvider><CreateExpenseHarness /></CreateExpenseProvider>);
+        await waitFor(() => expect(screen.getByTestId("member-load-status")).toHaveTextContent("ready"));
+        const scan = screen.getByRole("button", { name: "Start test scan" });
+        fireEvent.click(scan);
+        await waitFor(() => expect(screen.getByTestId("scan-status")).toHaveTextContent("ready"));
+        fireEvent.click(screen.getByRole("button", { name: "Apply receipt" }));
+        fireEvent.click(scan);
+        await waitFor(() => expect(screen.getByTestId("scan-status")).toHaveTextContent("ready"));
+        if (discard) fireEvent.click(screen.getByRole("button", { name: "Discard test scan" }));
+        fireEvent.submit(screen.getByRole("form", { name: "expense form" }));
+        await waitFor(() => expect(apiFetchMock.mock.calls.some(([path]) => path === "/create_expense")).toBe(true));
+        const request = apiFetchMock.mock.calls.find(([path]) => path === "/create_expense")![1];
+        expect(JSON.parse(request.body)).toMatchObject({
+            receiptScan: { requestId: "first", note: "first", proof: "first" },
+            receipt: { keep: true, token: "first" },
+        });
+    });
+
     it("submits the default retained photo with reviewed items and allows discarding it", async () => {
         enableReceiptRetention();
         receiptDraftMock.mockResolvedValue({
             draft: { items: [] }, receiptToken: "test-receipt-token",
+            scan: { requestId: "scan-2", note: "Confirmed note", proof: "proof" },
             receiptExpiresAt: new Date(Date.now() + 60_000).toISOString(),
         });
         render(<CreateExpenseProvider><CreateExpenseHarness /></CreateExpenseProvider>);
@@ -332,6 +365,7 @@ describe("CreateExpenseProvider error handling", () => {
         const first = apiFetchMock.mock.calls.find(([path]) => path === "/create_expense")![1];
         expect(JSON.parse(first.body)).toMatchObject({
             receipt: { keep: true, token: "test-receipt-token" },
+            receiptScan: { requestId: "scan-2", note: "Confirmed note", proof: "proof" },
             items: [{ description: "Coffee" }],
         });
         await waitFor(() => expect(screen.getByTestId("indicator")).toHaveTextContent("idle"));
@@ -340,6 +374,28 @@ describe("CreateExpenseProvider error handling", () => {
         await waitFor(() => expect(apiFetchMock.mock.calls.filter(([path]) => path === "/create_expense")).toHaveLength(2));
         const retry = apiFetchMock.mock.calls.filter(([path]) => path === "/create_expense")[1][1];
         expect(JSON.parse(retry.body)).not.toHaveProperty("receipt");
+        expect(JSON.parse(retry.body).receiptScan).toEqual(JSON.parse(first.body).receiptScan);
+    });
+
+    it("submits a confirmed full redemption with zero spending", async () => {
+        render(<CreateExpenseProvider><CreateExpenseHarness fullyRedeemed /></CreateExpenseProvider>);
+        await waitFor(() => expect(screen.getByTestId("member-load-status")).toHaveTextContent("ready"));
+        fireEvent.click(screen.getByRole("button", { name: "Apply receipt" }));
+        fireEvent.submit(screen.getByRole("form", { name: "expense form" }));
+        await waitFor(() => expect(apiFetchMock.mock.calls.some(([path]) => path === "/create_expense")).toBe(true));
+        const request = apiFetchMock.mock.calls.find(([path]) => path === "/create_expense")![1];
+        expect(JSON.parse(request.body)).toMatchObject({ subTotal: "5.00", taxFeeTip: "1.65", total: "0.00", loyaltyRedemption: "6.65" });
+    });
+
+    it("saves a full redemption after clearing every receipt detail", async () => {
+        render(<CreateExpenseProvider><CreateExpenseHarness fullyRedeemed /></CreateExpenseProvider>);
+        await waitFor(() => expect(screen.getByTestId("member-load-status")).toHaveTextContent("ready"));
+        fireEvent.click(screen.getByRole("button", { name: "Apply receipt" }));
+        fireEvent.click(screen.getByRole("button", { name: "Clear receipt details" }));
+        fireEvent.submit(screen.getByRole("form", { name: "expense form" }));
+        await waitFor(() => expect(apiFetchMock.mock.calls.some(([path]) => path === "/create_expense")).toBe(true));
+        const request = apiFetchMock.mock.calls.find(([path]) => path === "/create_expense")![1];
+        expect(JSON.parse(request.body)).toMatchObject({ subTotal: "6.65", taxFeeTip: "0.00", total: "0.00", loyaltyRedemption: "6.65" });
     });
 
     it("submits one purchase with canonical category amounts and reuses its retry key", async () => {

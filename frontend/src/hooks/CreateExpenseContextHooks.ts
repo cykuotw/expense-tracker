@@ -20,6 +20,7 @@ import type { ConfirmedExpenseItem, OCRDraft, OCRScanUsage, ReviewedReceiptDraft
 export type OCRWorkflowStatus = "idle" | "scanning" | "ready" | "error";
 
 export interface CreateExpenseContextType {
+    loyaltyRedemption?: string;
     groupId: string | null;
     selectedGroupId: string | null;
     setSelectedGroupId: Dispatch<SetStateAction<string | null>>;
@@ -65,14 +66,16 @@ export interface CreateExpenseContextType {
     discardReceiptToken: () => void;
     ocrStatus: OCRWorkflowStatus;
     ocrDraft: OCRDraft | null;
+    verifiedScanNote?: string;
     ocrUsage: OCRScanUsage | null;
     ocrError: string | null;
-    startReceiptOCR: (receipt: PreparedReceipt) => Promise<void>;
+    startReceiptOCR: (receipt: PreparedReceipt, note?: string) => Promise<void>;
     applyReviewedReceipt: (draft: ReviewedReceiptDraft) => void;
-    clearReceiptWorkflow: (preserveRetention?: boolean) => void;
+    clearReceiptWorkflow: () => void;
 
     indicatorShow: boolean;
     submissionError: string | null;
+    receiptValidationMessage: string | null;
     dataOk: boolean;
 
     groupList: GroupListItem[];

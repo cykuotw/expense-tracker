@@ -8,6 +8,7 @@ import (
 	"mime"
 	"mime/multipart"
 	"strings"
+	"unicode/utf8"
 	"uuid"
 
 	"github.com/aws/aws-lambda-go/events"
@@ -15,6 +16,7 @@ import (
 
 const (
 	MaxCategoryContextBytes = 32 * 1024
+	MaxScanNoteBytes        = 1024
 	MaxExpenseCategories    = 200
 	MaxCategoryLabelBytes   = 256
 	// The maximum decoded envelope is under 3.6 MiB; base64 plus event
@@ -22,6 +24,7 @@ const (
 	MaxUploadBytes = MaxDocumentBytes + MaxCategoryContextBytes + 16*1024
 )
 
+var errScanNoteTooLong = errors.New("scan note exceeds the limit")
 var errInvalidUpload = errors.New("invalid receipt upload")
 
 // ExpenseCategory is advisory classification context, never authorization.
@@ -31,15 +34,23 @@ type ExpenseCategory struct {
 	Category string `json:"category"`
 }
 
-func parseReceiptUpload(request events.APIGatewayV2HTTPRequest, boundary string) ([]byte, string, []ExpenseCategory, error) {
+type receiptUpload struct {
+	Document   []byte
+	ImageType  string
+	Categories []ExpenseCategory
+	Note       string
+}
+
+func parseReceiptUpload(request events.APIGatewayV2HTTPRequest, boundary string) (receiptUpload, error) {
 	body, err := requestBody(request, MaxUploadBytes)
 	if err != nil {
-		return nil, "", nil, err
+		return receiptUpload{}, err
 	}
 	reader := multipart.NewReader(bytes.NewReader(body), boundary)
 	var document []byte
 	var imageType string
 	var categories []ExpenseCategory
+	var note string
 	seen := map[string]bool{}
 	for {
 		part, err := reader.NextRawPart()
@@ -47,43 +58,57 @@ func parseReceiptUpload(request events.APIGatewayV2HTTPRequest, boundary string)
 			break
 		}
 		if err != nil {
-			return nil, "", nil, errInvalidUpload
+			return receiptUpload{}, errInvalidUpload
 		}
 		name := part.FormName()
-		if seen[name] || len(seen) >= 2 || (name != "image" && name != "categories") || part.Header.Get("Content-Transfer-Encoding") != "" {
-			return nil, "", nil, errInvalidUpload
+		if seen[name] || (name != "image" && name != "categories" && name != "note") || part.Header.Get("Content-Transfer-Encoding") != "" {
+			return receiptUpload{}, errInvalidUpload
 		}
 		seen[name] = true
 		limit := int64(MaxCategoryContextBytes)
 		if name == "image" {
 			limit = MaxDocumentBytes
+		} else if name == "note" {
+			// Multipart text fields can encode each newline as two bytes.
+			limit = 2 * MaxScanNoteBytes
 		}
 		data, err := io.ReadAll(io.LimitReader(part, limit+1))
 		if err != nil {
-			return nil, "", nil, errInvalidUpload
+			return receiptUpload{}, errInvalidUpload
 		}
 		if int64(len(data)) > limit {
-			return nil, "", nil, errDocumentTooLarge
+			if name == "note" {
+				return receiptUpload{}, errScanNoteTooLong
+			}
+			return receiptUpload{}, errDocumentTooLarge
 		}
 		if name == "image" {
 			imageType, _, err = mime.ParseMediaType(part.Header.Get("Content-Type"))
 			if err != nil || !SupportedContentType(imageType) || len(data) == 0 {
-				return nil, "", nil, errInvalidUpload
+				return receiptUpload{}, errInvalidUpload
 			}
 			document = data
+		} else if name == "note" {
+			if part.FileName() != "" || !utf8.Valid(data) || bytes.IndexByte(data, 0) >= 0 {
+				return receiptUpload{}, errInvalidUpload
+			}
+			note = strings.TrimSpace(strings.ReplaceAll(string(data), "\r\n", "\n"))
+			if len(note) > MaxScanNoteBytes {
+				return receiptUpload{}, errScanNoteTooLong
+			}
 		} else {
 			if err := json.Unmarshal(data, &categories, json.RejectUnknownMembers(true)); err != nil {
-				return nil, "", nil, errInvalidUpload
+				return receiptUpload{}, errInvalidUpload
 			}
 			if !validExpenseCategories(categories) {
-				return nil, "", nil, errInvalidUpload
+				return receiptUpload{}, errInvalidUpload
 			}
 		}
 	}
 	if !seen["image"] || !seen["categories"] {
-		return nil, "", nil, errInvalidUpload
+		return receiptUpload{}, errInvalidUpload
 	}
-	return document, imageType, categories, nil
+	return receiptUpload{Document: document, ImageType: imageType, Categories: categories, Note: note}, nil
 }
 
 func validExpenseCategories(categories []ExpenseCategory) bool {

@@ -3,6 +3,7 @@ import type { ConfirmedExpenseItem } from "../types/ocr";
 import type { ItemCreateData } from "../types/item";
 
 export interface ReceiptExpenseValues {
+    loyaltyRedemption?: string;
     merchant: string;
     subtotal: string;
     tax: string;
@@ -29,6 +30,22 @@ const validQuantity = (value: string) =>
 const validUnitPrice = (value: string) =>
     /^(?:0|[1-9]\d{0,6})(?:\.\d{1,3})?$/.test(value);
 
+export function printedReceiptTotal(net: string, redemption: string | undefined, digits: number | null) {
+    if (redemption === undefined) return net;
+    if (digits === null) return "";
+    const spent = decimalToUnits(net, digits);
+    const redeemed = decimalToUnits(redemption, digits);
+    return spent === null || redeemed === null ? "" : unitsToDecimal(spent + redeemed, digits);
+}
+
+export function outOfPocket(printed: string, redemption: string, digits: number | null) {
+    if (digits === null) return null;
+    const total = decimalToUnits(printed, digits);
+    const redeemed = decimalToUnits(redemption, digits);
+    if (total === null || total <= 0n || redeemed === null || redeemed < 0n || redeemed > total) return null;
+    return unitsToDecimal(total - redeemed, digits);
+}
+
 export function validateReceiptExpense(
     values: ReceiptExpenseValues,
     amountDigits: number | null,
@@ -40,7 +57,7 @@ export function validateReceiptExpense(
     const hasBreakdown = [values.subtotal, values.tax, values.tip].some(
         (value) => value.trim() !== "",
     ) || values.items.length > 0;
-    if (!hasBreakdown) return { valid: true, message: null, items: [] };
+    if (!hasBreakdown && values.loyaltyRedemption === undefined) return { valid: true, message: null, items: [] };
 
     const totalUnits = decimalToUnits(values.total, amountDigits);
     let subtotalUnits = decimalToUnits(values.subtotal, amountDigits);

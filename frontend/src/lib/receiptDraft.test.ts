@@ -12,6 +12,14 @@ const item = (overrides = {}) => ({
 });
 
 describe("validateReceiptExpense", () => {
+    it.each(["10.00", "27.66"])("derives empty receipt amounts for a %s redemption", loyaltyRedemption => {
+        const receipt = { merchant: "", subtotal: "", tax: "", tip: "", total: "27.66", items: [] };
+        expect(validateReceiptExpense({ ...receipt, loyaltyRedemption }, 2)).toMatchObject({
+            valid: true, subTotal: "27.66", taxFeeTip: "0.00",
+        });
+        expect(validateReceiptExpense(receipt, 2)).not.toHaveProperty("subTotal");
+    });
+
     it("maps reviewed values to the confirmed Worker contract", () => {
         expect(validateReceiptExpense({
             merchant: "Cafe",

@@ -26,6 +26,7 @@ interface UseExpenseSplitDraftOptions {
     amountDigits: number | null;
     currency: string;
     members: GroupMember[];
+    allowZero?: boolean;
     total: string;
 }
 
@@ -35,6 +36,7 @@ function initialModeDrafts({
     currency,
     members,
     total,
+    allowZero,
 }: UseExpenseSplitDraftOptions): ModeDrafts {
     const selected = new Set(
         allocation.participants.map(({ userId }) => userId),
@@ -51,6 +53,7 @@ function initialModeDrafts({
         amountDigits,
         allocation,
         currency,
+        allowZero,
     );
     const orderedIDs = [...defaultIDs].sort((left, right) =>
         left.localeCompare(right),
@@ -157,12 +160,14 @@ export function useExpenseSplitDraft(options: UseExpenseSplitDraftOptions) {
                 options.amountDigits,
                 draftAllocation,
                 options.currency,
+                options.allowZero,
             ),
         [
             draftAllocation,
             options.amountDigits,
             options.currency,
             options.total,
+            options.allowZero,
         ],
     );
 

@@ -117,3 +117,23 @@ func decimalPointer(value string) *decimal.Decimal {
 func int32Pointer(value int32) *int32 {
 	return &value
 }
+
+func TestLoyaltyRedemptionValidatesNetSpendingAndSplitShares(t *testing.T) {
+	for _, tc := range []struct {
+		redeemed, net string
+		valid         bool
+	}{
+		{"27.66", "0", true}, {"10", "17.66", true}, {"30", "0", false}, {"10", "27.66", false}, {"10.001", "17.659", false},
+	} {
+		expense := types.Expense{SubTotal: decimal.RequireFromString("24.48"), TaxFeeTip: decimal.RequireFromString("3.18"), Total: decimal.RequireFromString(tc.net), LoyaltyRedemption: decimalPointer(tc.redeemed), AllocationMode: types.ExpenseAllocationEqual}
+		err := allocation.ValidateMoney(expense, nil, 2)
+		if !tc.valid {
+			require.Error(t, err)
+			continue
+		}
+		require.NoError(t, err)
+		shares, err := allocation.DeriveLedgers(expense, []types.ExpenseAllocation{{UserID: uuid.New()}, {UserID: uuid.New()}}, 2)
+		require.NoError(t, err)
+		require.True(t, shares[0].Share.Add(shares[1].Share).Equal(expense.Total))
+	}
+}

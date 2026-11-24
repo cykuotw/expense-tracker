@@ -51,6 +51,7 @@ type EditorPhase = "empty" | "loading" | "editing" | "exporting" | "error";
 
 interface ReceiptEditorProps {
     onPrepared?: (receipt: PreparedReceipt) => void;
+    scanDisabled?: boolean;
     onCancel?: () => void;
     onManualEntry?: () => void;
     initialFile?: File | null;
@@ -133,7 +134,7 @@ function RectFields({
     );
 }
 
-export default function ReceiptEditor({ onPrepared, onCancel, onManualEntry, initialFile, onPhotoLoaded, onPhotoCleared, hideLibraryChoice = false }: ReceiptEditorProps) {
+export default function ReceiptEditor({ onPrepared, onCancel, onManualEntry, initialFile, onPhotoLoaded, onPhotoCleared, hideLibraryChoice = false, scanDisabled = false }: ReceiptEditorProps) {
     const [phase, setPhase] = useState<EditorPhase>("empty");
     const [decoded, setDecoded] = useState<DecodedReceipt | null>(null);
     const [history, setHistory] = useState(createReceiptHistory);
@@ -677,7 +678,7 @@ export default function ReceiptEditor({ onPrepared, onCancel, onManualEntry, ini
             </div>
             <div className="receipt-workspace-actions mt-4 flex gap-2 sm:justify-end">
                 {phase === "exporting" ? <Button type="button" variant="outline" className="min-h-12" onClick={cancelExport}>Cancel preparation</Button> : null}
-                <Button type="button" className="min-h-12 w-full text-base sm:w-auto" disabled={phase === "exporting"} onClick={() => void exportReceipt()}>
+                <Button type="button" className="min-h-12 w-full text-base sm:w-auto" disabled={scanDisabled || phase === "exporting"} onClick={() => void exportReceipt()}>
                     {phase === "exporting" ? <><Spinner aria-hidden="true" /> Preparing…</> : "Scan receipt"}
                 </Button>
             </div>

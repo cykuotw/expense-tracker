@@ -100,6 +100,15 @@ describe("ExpenseDetail", () => {
         );
     });
 
+    it.each(["0.000001234", undefined])("shows the confirmed scan without a photo, cost %s", async estimatedCostUsd => {
+        const expense = { ...baseExpense, receiptScan: { note: "Paid with CT Money", estimatedCostUsd } };
+        apiFetchMock.mockImplementation((path: string) => Promise.resolve(jsonResponse(path === "/currencies" ? currencyMetadata : expense)));
+        renderExpenseDetail();
+        fireEvent.click(await screen.findByRole("button", { name: /Receipt scan/i }));
+        expect(screen.getByText("Paid with CT Money")).toBeVisible();
+        expect(screen.getByText(estimatedCostUsd ?? "Estimate unavailable")).toBeVisible();
+    });
+
     it("retains archived expense history without edit or delete controls", async () => {
         apiFetchMock.mockImplementation((path: string) => Promise.resolve(jsonResponse(path === "/currencies" ? currencyMetadata : { ...baseExpense, groupIsActive: false })));
         renderExpenseDetail();

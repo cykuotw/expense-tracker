@@ -30,7 +30,7 @@ func TestUsageRecordRetainsCapabilityIdentityAndUnavailableCounts(t *testing.T) 
 
 type identityProvider struct{ identity usageIdentity }
 
-func (p *identityProvider) AnalyzeExpense(ctx context.Context, _ []byte, _ []ExpenseCategory) (Result, error) {
+func (p *identityProvider) AnalyzeExpense(ctx context.Context, _ []byte, _ []ExpenseCategory, _ string) (Result, error) {
 	p.identity, _ = ctx.Value(usageIdentityKey{}).(usageIdentity)
 	return Result{}, ErrProviderRequestFailed
 }

@@ -14,7 +14,7 @@ const expenseSelectColumns = `
 	provider_name, exp_type_id, is_settled, sub_total, tax_fee_tip,
 	total, currency, invoice_pic_url, create_time_utc, update_time_utc,
 	expense_time_utc, allocation_mode, is_deleted, delete_time_utc,
-	settle_time_utc, occurred_on`
+	settle_time_utc, occurred_on, loyalty_redemption`
 
 const balanceSelectColumns = `
 	id, sender_user_id, receiver_user_id, share, group_id,
@@ -35,14 +35,13 @@ const ledgerSelectColumns = `id, expense_id, lender_user_id, borrower_user_id, s
 const qualifiedLedgerSelectColumns = `
 	l.id, l.expense_id, l.lender_user_id, l.borrower_user_id, l.share, l.currency`
 
-func scanRowIntoExpense(rows *sql.Rows) (*types.Expense, error) {
-	expense := new(types.Expense)
+func scanExpense(rows *sql.Rows, expense *types.Expense, detailFields ...any) error {
 	updateTime := sql.NullTime{}
 	settleTime := sql.NullTime{}
 	deleteTime := sql.NullTime{}
 	occurredOn := sql.NullTime{}
 
-	err := rows.Scan(
+	fields := []any{
 		&expense.ID,
 		&expense.Description,
 		&expense.GroupID,
@@ -63,10 +62,10 @@ func scanRowIntoExpense(rows *sql.Rows) (*types.Expense, error) {
 		&expense.IsDeleted,
 		&deleteTime,
 		&settleTime,
-		&occurredOn,
-	)
-	if err != nil {
-		return nil, err
+		&occurredOn, &expense.LoyaltyRedemption,
+	}
+	if err := rows.Scan(append(fields, detailFields...)...); err != nil {
+		return err
 	}
 
 	expense.CreateTime = expense.CreateTime.UTC()
@@ -85,7 +84,7 @@ func scanRowIntoExpense(rows *sql.Rows) (*types.Expense, error) {
 	if deleteTime.Valid {
 		expense.DeleteTime = deleteTime.Time.UTC()
 	}
-	return expense, nil
+	return nil
 }
 
 func scanRowIntoItem(rows *sql.Rows) (*types.Item, error) {

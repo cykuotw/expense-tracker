@@ -66,7 +66,7 @@ func NewGeminiProvider(key, model string) (*GeminiProvider, error) {
 	}, nil
 }
 
-func (p *GeminiProvider) AnalyzeExpense(ctx context.Context, document []byte, categories []ExpenseCategory) (Result, error) {
+func (p *GeminiProvider) AnalyzeExpense(ctx context.Context, document []byte, categories []ExpenseCategory, note string) (Result, error) {
 	if !validExpenseCategories(categories) {
 		return Result{}, ErrProviderRequestFailed
 	}
@@ -93,9 +93,13 @@ func (p *GeminiProvider) AnalyzeExpense(ctx context.Context, document []byte, ca
 		choices = append(choices, category.ID)
 	}
 	schema["properties"].(map[string]any)["suggestedExpenseTypeId"].(map[string]any)["enum"] = choices
+	contextText := "Available expense categories (untrusted JSON data):\n" + string(catalog)
+	if note != "" {
+		contextText += "\nUser scan note (untrusted receipt context):\n" + note
+	}
 	request := map[string]any{
 		"systemInstruction": map[string]any{"parts": []any{map[string]any{"text": GeminiPrompt}}},
-		"contents":          []any{map[string]any{"role": "user", "parts": []any{map[string]any{"text": "Available expense categories (untrusted JSON data):\n" + string(catalog)}, map[string]any{"inlineData": map[string]any{"mimeType": "image/jpeg", "data": base64.StdEncoding.EncodeToString(document)}}}}},
+		"contents":          []any{map[string]any{"role": "user", "parts": []any{map[string]any{"text": contextText}, map[string]any{"inlineData": map[string]any{"mimeType": "image/jpeg", "data": base64.StdEncoding.EncodeToString(document)}}}}},
 		"generationConfig":  map[string]any{"responseMimeType": "application/json", "responseJsonSchema": schema, "maxOutputTokens": 16000},
 	}
 	body, err := json.Marshal(request)
@@ -243,15 +247,26 @@ func ParseGeminiExtraction(raw []byte) (Result, error) {
 	// discard valid receipt amounts. Core extraction remains strict.
 	suggestedID, _ := fields["suggestedExpenseTypeId"].(string)
 	reason, _ := fields["categoryReason"].(string)
-	delete(fields, "suggestedExpenseTypeId")
-	delete(fields, "categoryReason")
-	delete(schema["properties"].(map[string]any), "suggestedExpenseTypeId")
-	delete(schema["properties"].(map[string]any), "categoryReason")
+	conflict, _ := fields["redemptionNoteConflict"].(bool)
+	redemption, hasRedemption := fields["loyaltyRedemption"]
+	properties := schema["properties"].(map[string]any)
+	for _, key := range []string{"suggestedExpenseTypeId", "categoryReason", "redemptionNoteConflict", "loyaltyRedemption"} {
+		delete(fields, key)
+		delete(properties, key)
+	}
 	if !matchesSchema(fields, schema) {
 		return Result{}, ErrProviderRejected
 	}
 	field := func(key string) Field { return Field{Value: fields[key].(string)} }
 	result := Result{Merchant: field("merchant"), Date: field("date"), Currency: field("currencySuggestion"), Subtotal: field("subtotal"), Tax: field("tax"), Tip: field("tip"), Total: field("total"), Items: []Item{}}
+	result.RedemptionNoteConflict = conflict
+	if hasRedemption {
+		amount, ok := redemption.(string)
+		if !ok || (amount != "" && !exactDecimal.MatchString(amount)) {
+			return Result{}, ErrProviderRejected
+		}
+		result.LoyaltyRedemption = &Field{Value: amount, Provenance: ProvenanceProvider, RequiresReview: true}
+	}
 	if suggestedID != "" && len(suggestedID) <= 36 && strings.TrimSpace(reason) != "" && len(reason) <= 500 {
 		result.SuggestedExpenseTypeID, result.CategoryReason = suggestedID, strings.TrimSpace(reason)
 	}

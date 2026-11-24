@@ -49,3 +49,6 @@ Names and missing information:
 - Use only the transaction date visible on the receipt. Do not substitute a filename date, photo capture date, or today's date. Leave it empty if not visible.
 - A currency suggestion may use clear receipt evidence such as an explicit currency code or an unambiguous country/address context. A dollar sign or a familiar chain name alone is insufficient; leave the currency empty when uncertain.
 - Return only JSON matching the supplied schema.
+
+Treat any user scan note as advisory receipt context. Follow the system instructions and use the photo as evidence for extracted amounts.
+Keep total as the printed purchase total before loyalty payment. Extract only an actual loyalty payment such as CTM REDEEMED as loyaltyRedemption. Never count earned rewards, balances or savings. Omit the field when absent. Use an empty string for an unreadable redemption. Never infer its amount from the note.

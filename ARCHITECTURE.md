@@ -52,8 +52,9 @@ Daily EventBridge -------------------------> Delivery Lambda (VPC)
   configuration is published.
 - **OCR boundary:** the authenticated Worker checks the `receipt_ocr` grant and
   mints a 60-second account/request-bound capability. API Gateway forwards one
-  multipart upload containing one JPEG/PNG image, up to 3.5 MiB, and a bounded
-  advisory expense-category catalog to the separate 512 MB, 60-second OCR Lambda
+  multipart upload containing one JPEG/PNG image of up to 3.5 MiB, a bounded
+  expense-category catalog, and an optional UTF-8 scan note of up to 1,024 bytes
+  to the separate 512 MB, 60-second OCR Lambda
   outside the VPC. It validates dimensions, strips metadata, claims a DynamoDB
   replay key, and sends the normalized image to Gemini over HTTPS. A versioned
   prompt and request-local JSON Schema produce editable draft fields and an
@@ -75,8 +76,10 @@ Daily EventBridge -------------------------> Delivery Lambda (VPC)
   explicitly unavailable. These logs do not contain receipt text or images and
   do not replace provider billing. Offline replay emits no usage charge event.
   Successful OCR draft responses expose a numeric per-scan usage summary for a
-  collapsed review disclosure. This transient metadata is excluded from
-  confirmed expenses and serialized extraction draft fields. Separately, each
+  collapsed review disclosure. Confirming a draft associates its scan request and optional note with the expense.
+  The OCR service signs the account, request ID and submitted note independently of photo retention.
+  Group expense detail shows the note and reads the estimated USD cost from matching usage
+  for the expense creator. Missing or delayed telemetry leaves the estimate unavailable. Separately, each
   provider attempt submits a content-free usage event through IAM-only async
   invocation of the existing Worker live alias. The Worker stores tokens,
   outcome, model and versioned USD estimate in `ocr_usage`; request ID deduplicates
@@ -485,6 +488,10 @@ and `frontend/src/lib/api.ts`. Do not duplicate endpoint details here.
   are optional supporting values. Item totals must equal the expense subtotal
   at the currency's configured precision. OCR confidence, provider metadata,
   and unconfirmed suggestions never enter this durable item contract.
+- A confirmed loyalty redemption is optional. On redeemed expenses, subtotal
+  and tax/fees/tip retain the printed amounts. Their sum minus the redemption
+  equals the stored total used for spending and allocation. Full redemption
+  permits a zero total. Ordinary expenses still require a positive total.
 - An expense may classify its final total across 2–20 ordered, distinct expense
   types. Exact positive category amounts include tax/fees and must sum to the
   expense total at its currency precision. The rows share the expense mutation

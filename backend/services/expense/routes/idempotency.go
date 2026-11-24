@@ -12,6 +12,9 @@ import (
 )
 
 type canonicalExpenseCreate struct {
+	OCRRequestID      *string                       `json:"ocrRequestId,omitempty"`
+	ReceiptScanNote   string                        `json:"receiptScanNote,omitempty"`
+	LoyaltyRedemption *string                       `json:"loyaltyRedemption,omitempty"`
 	CategoryBreakdown []types.ExpenseCategoryAmount `json:"categoryBreakdown,omitempty"`
 	Description       string                        `json:"description"`
 	GroupID           string                        `json:"groupId"`
@@ -58,6 +61,8 @@ func expenseCreateFingerprint(
 		occurredOn = expense.OccurredOn
 	}
 	canonical := canonicalExpenseCreate{
+		OCRRequestID: expense.OCRRequestID, ReceiptScanNote: expense.ReceiptScanNote,
+		LoyaltyRedemption: decimalString(expense.LoyaltyRedemption),
 		CategoryBreakdown: expense.CategoryBreakdown,
 		Description:       expense.Description, GroupID: expense.GroupID.String(), PayerID: expense.PayByUserId.String(),
 		ExpenseTypeID: expense.ExpenseTypeID.String(), ProviderName: expense.ProviderName,

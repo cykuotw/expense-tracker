@@ -31,6 +31,7 @@ interface SplitExpensePageProps {
     mainFormVisited: boolean;
     onSave: (allocation: ExpenseAllocation) => void;
     returnTo: string;
+    allowZero?: boolean;
     total: string;
 }
 
@@ -43,6 +44,7 @@ export default function SplitExpensePage({
     onSave,
     returnTo,
     total,
+    allowZero,
 }: SplitExpensePageProps) {
     const { finish } = useReturnNavigation(returnTo);
     const errorSummaryRef = useRef<HTMLDivElement>(null);
@@ -62,6 +64,7 @@ export default function SplitExpensePage({
         amountDigits,
         currency,
         members: groupMembers,
+        allowZero,
         total,
     });
 

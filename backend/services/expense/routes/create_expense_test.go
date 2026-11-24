@@ -463,3 +463,47 @@ func runCreateExpenseHandler(t *testing.T, store *mockExpenseStore, payload type
 	handler.handleCreateExpense(context)
 	return response
 }
+
+func TestCreateRedeemedReceipt(t *testing.T) {
+	for _, tc := range []struct {
+		redemption, net string
+		status          int
+	}{
+		{"10.00", "17.66", http.StatusCreated},
+		{"27.66", "0", http.StatusCreated},
+		{"30.00", "0", http.StatusBadRequest},
+	} {
+		t.Run(tc.redemption, func(t *testing.T) {
+			payload := validCreateExpensePayload()
+			payload.Items = nil
+			payload.SubTotal = decimal.RequireFromString("24.48")
+			payload.TaxFeeTip = decimal.RequireFromString("3.18")
+			payload.LoyaltyRedemption = itemDecimalPointer(tc.redemption)
+			payload.Total = decimal.RequireFromString(tc.net)
+			payload.Allocation = exactAllocation(mockCreatorID, tc.net)
+			response := runCreateExpenseHandler(t, createExpenseStoreMock(), payload)
+			assert.Equal(t, tc.status, response.Code, response.Body.String())
+		})
+	}
+}
+
+func TestCreateExpenseRejectsUnverifiedScan(t *testing.T) {
+	payload := validCreateExpensePayload()
+	payload.ReceiptScan = &types.ConfirmedReceiptScan{RequestID: uuid.NewString(), Note: "Redeemed points", Proof: "unverified"}
+	response := runCreateExpenseHandler(t, createExpenseStoreMock(), payload)
+	assert.Equal(t, http.StatusBadRequest, response.Code)
+}
+
+func TestCreateExpenseReplaysConfirmedScanWithoutOldVerificationKey(t *testing.T) {
+	payload := validCreateExpensePayload()
+	payload.ReceiptScan = &types.ConfirmedReceiptScan{RequestID: uuid.NewString(), Note: "Points", Proof: "previous-key-proof"}
+	store := createExpenseStoreMock()
+	committedID := uuid.New()
+	store.ClaimExpenseCreateIdempotencyFn = func(record types.ExpenseCreateIdempotency) (types.ExpenseCreateIdempotency, bool, error) {
+		return types.ExpenseCreateIdempotency{ExpenseID: committedID, RequestFingerprint: record.RequestFingerprint}, false, nil
+	}
+
+	response := runCreateExpenseHandler(t, store, payload)
+	assert.Equal(t, http.StatusCreated, response.Code)
+	assert.Contains(t, response.Body.String(), committedID.String())
+}

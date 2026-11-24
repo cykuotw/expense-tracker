@@ -46,7 +46,7 @@ import {
 import { legacyCurrencySettings } from "../lib/currencySettings";
 import ArchivedGroupMessage from "../components/group/ArchivedGroupMessage";
 
-import { validateReceiptExpense } from "../lib/receiptDraft";
+import { printedReceiptTotal, validateReceiptExpense } from "../lib/receiptDraft";
 import { calculateCategoryBreakdown, categoryBreakdownPayload } from "../lib/categoryBreakdown";
 
 const EMPTY_FORM_DATA: expenseFormData = {
@@ -113,25 +113,25 @@ export const EditExpenseProvider = ({ children }: { children: ReactNode }) => {
                 formData.total,
                 amountDigits,
                 formData.allocation,
-                formData.currency
+                formData.currency, formData.loyaltyRedemption !== undefined
             ),
         [
             amountDigits,
             formData.allocation,
             formData.currency,
-            formData.total,
+            formData.total, formData.loyaltyRedemption,
         ]
     );
     const totalUnits =
         amountDigits === null
             ? null
             : decimalToUnits(formData.total, amountDigits);
-    const receiptValidation = formData.receiptDetails ? validateReceiptExpense({ ...formData.receiptDetails, total: formData.total }, amountDigits) : null;
+    const receiptValidation = formData.receiptDetails ? validateReceiptExpense({ ...formData.receiptDetails, loyaltyRedemption: formData.loyaltyRedemption, total: printedReceiptTotal(formData.total, formData.loyaltyRedemption, amountDigits) }, amountDigits) : null;
     const dataOk =
         !groupArchived &&
         (receiptValidation?.valid ?? true) &&
         totalUnits !== null &&
-        totalUnits > 0n &&
+        (totalUnits > 0n || (totalUnits === 0n && formData.loyaltyRedemption !== undefined)) &&
         formData.description.length > 0 &&
         isDateOnly(formData.occurredOn) &&
         allocationCalculation.valid &&
@@ -172,6 +172,7 @@ export const EditExpenseProvider = ({ children }: { children: ReactNode }) => {
                 payByUserId: formData.payerUserId,
                 expTypeId: formData.categoryBreakdown?.[0]?.expenseTypeId ?? formData.expenseType,
                 categoryBreakdown: categoryBreakdownPayload(formData.categoryBreakdown ?? [], amountDigits),
+                loyaltyRedemption: formData.loyaltyRedemption,
                 total: unitsToDecimal(totalUnits, amountDigits),
                 currency: formData.currency,
                 allocation: formData.allocation,
@@ -285,7 +286,7 @@ export const EditExpenseProvider = ({ children }: { children: ReactNode }) => {
                     groupId: data.groupId,
                     providerName: data.providerName,
                     invoiceUrl: data.invoiceUrl,
-                    ...(data.items.length > 0 || (decimalToUnits(data.taxFeeTip || "0", currencyAmountDigits(currencyOptions, data.currency)!) ?? 0n) > 0n ? {
+                    ...(data.loyaltyRedemption !== undefined || data.items.length > 0 || (decimalToUnits(data.taxFeeTip || "0", currencyAmountDigits(currencyOptions, data.currency)!) ?? 0n) > 0n ? {
                         receiptDetails: {
                             merchant: data.providerName ?? "", subtotal: data.subTotal, tax: data.taxFeeTip, tip: "",
                             items: data.items.map(item => ({ id: item.itemId, description: item.description ?? item.itemName,
@@ -297,6 +298,7 @@ export const EditExpenseProvider = ({ children }: { children: ReactNode }) => {
                     description: data.description,
                     occurredOn: data.occurredOn,
                     total: data.total,
+                    loyaltyRedemption: data.loyaltyRedemption,
                     currency: data.currency,
                     allocation: {
                         ...data.allocation,
@@ -370,6 +372,7 @@ export const EditExpenseProvider = ({ children }: { children: ReactNode }) => {
                 reloadGroupMembers,
                 indicatorShow,
                 submissionError,
+                receiptValidationMessage: receiptValidation?.message ?? null,
                 dataOk,
                 hasChanges,
                 allocationCalculation,

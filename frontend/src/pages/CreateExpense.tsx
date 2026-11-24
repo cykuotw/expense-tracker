@@ -22,7 +22,7 @@ import DesktopBackLink from "../components/DesktopBackLink";
 import { CurrencyPicker } from "../components/group/CurrencyPicker";
 import { usePWAUpdateBlocker } from "../hooks/usePWAUpdateBlocker";
 import { ConfirmedReceiptDetails } from "../components/expense/ConfirmedReceiptDetails";
-import { validateReceiptExpense } from "../lib/receiptDraft";
+import { printedReceiptTotal } from "../lib/receiptDraft";
 
 const ReceiptScanPage = lazy(() => import("../components/receipt/ReceiptScanPage"));
 const ReceiptDraftReview = lazy(() => import("../components/receipt/ReceiptDraftReview"));
@@ -40,6 +40,7 @@ const CreateExpenseContent = () => {
         setSelectedExpenseTypeId,
         totalInput,
         setTotalInput,
+        loyaltyRedemption,
         description,
         setDescription,
         occurredOn,
@@ -55,6 +56,7 @@ const CreateExpenseContent = () => {
         allocationCalculation,
         indicatorShow,
         submissionError,
+        receiptValidationMessage,
         dataOk,
         groupList,
         expenseTypes,
@@ -83,11 +85,6 @@ const CreateExpenseContent = () => {
     useEffect(() => {
         markMainFormVisited();
     }, [markMainFormVisited]);
-
-    const receiptValidation = validateReceiptExpense({
-        merchant, subtotal: subtotalInput, tax: taxInput, tip: tipInput,
-        total: totalInput, items,
-    }, amountDigits);
 
     const selectGroup = (value: string) => {
         setSelectedGroupId(value);
@@ -239,8 +236,9 @@ const CreateExpenseContent = () => {
 
                             <div data-form-field className="col-span-2 sm:col-span-1">
                                 <label htmlFor="expense-total" className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground/60">
-                                    Amount
+                                    {loyaltyRedemption === undefined ? "Amount" : "Out of pocket"}
                                 </label>
+                                {loyaltyRedemption !== undefined && <p>Printed total {printedReceiptTotal(totalInput, loyaltyRedemption, amountDigits)} · Loyalty redemption {loyaltyRedemption}</p>}
                                 <div className="mt-2 flex items-center gap-2">
                                     <label className="expense-form-input-shell flex w-full items-center rounded-2xl border border-border bg-background px-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] transition hover:border-primary/60 focus-within:border-primary focus-within:outline-none focus-within:ring-2 focus-within:ring-primary">
                                         <input
@@ -281,7 +279,7 @@ const CreateExpenseContent = () => {
                                 items={items}
                                 onItemsChange={setItems}
                                 amountStep={amountDigits === null ? undefined : moneyInputStep(amountDigits)}
-                                validationMessage={receiptValidation.message}
+                                validationMessage={receiptValidationMessage}
                                 compactItems
                             />
                         ) : null}
@@ -369,6 +367,7 @@ const CreateExpenseSplit = () => {
         mainFormVisited,
         selectedGroupId,
         setAllocation,
+        loyaltyRedemption,
         totalInput,
     } = useCreateExpense();
     const returnTo = `/create_expense${selectedGroupId ? `?g=${encodeURIComponent(selectedGroupId)}` : ""}`;
@@ -382,6 +381,7 @@ const CreateExpenseSplit = () => {
             mainFormVisited={mainFormVisited}
             onSave={setAllocation}
             returnTo={returnTo}
+            allowZero={loyaltyRedemption !== undefined}
             total={totalInput}
         />
     );

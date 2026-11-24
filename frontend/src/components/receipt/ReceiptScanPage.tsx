@@ -7,6 +7,7 @@ import { mdiArrowLeft, mdiImagePlusOutline } from "@mdi/js";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { useCreateExpense } from "@/hooks/CreateExpenseContextHooks";
+import { normalizeScanNote } from "@/lib/receiptOcr";
 import type { PreparedReceipt } from "@/lib/receiptEditor";
 import ReceiptDraftReview from "./ReceiptDraftReview";
 
@@ -24,6 +25,9 @@ export default function ReceiptScanPage() {
     } = useCreateExpense();
     const [reviewOpen, setReviewOpen] = useState(false);
     const [photoLoaded, setPhotoLoaded] = useState(false);
+    const [scanNote, setScanNote] = useState("");
+    const normalizedNote = normalizeScanNote(scanNote);
+    const noteTooLong = new TextEncoder().encode(normalizedNote).length > 1024;
     const [replacement, setReplacement] = useState<{ id: string; file: File } | null>(null);
     const [photoURL, setPhotoURL] = useState<string | null>(null);
     const replacePhotoInputRef = useRef<HTMLInputElement>(null);
@@ -51,6 +55,10 @@ export default function ReceiptScanPage() {
         setPhotoURL(null);
         setReviewOpen(false);
     };
+    const clearPhotoState = () => {
+        setScanNote("");
+        setPhotoLoaded(false);
+    };
     const replacePhoto = (event: ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         event.target.value = "";
@@ -58,13 +66,14 @@ export default function ReceiptScanPage() {
         if (photoLoaded || reviewOpen) clearReceiptWorkflow();
         setPhotoURL(null);
         setReviewOpen(false);
-        setPhotoLoaded(false);
+        clearPhotoState();
         setReplacement({ id: crypto.randomUUID(), file });
     };
     const prepared = (receipt: PreparedReceipt) => {
+        if (noteTooLong) return;
         setPhotoURL(URL.createObjectURL(receipt.blob));
         setReviewOpen(true);
-        void startReceiptOCR(receipt);
+        void startReceiptOCR(receipt, normalizedNote);
     };
 
     return (
@@ -122,14 +131,26 @@ export default function ReceiptScanPage() {
                         ) : (
                             <p className="mb-4 text-sm text-muted-foreground">The photo is used to read values and is not kept with the expense.</p>
                         )}
+                        {photoLoaded ? (
+                            <div className="mb-4 grid gap-2">
+                                <label htmlFor="receipt-scan-note" className="text-sm font-semibold">Scan note (optional)</label>
+                                <textarea id="receipt-scan-note" rows={2} value={scanNote} onChange={(event) => setScanNote(event.target.value)}
+                                    aria-describedby="receipt-scan-note-hint" aria-invalid={noteTooLong}
+                                    className="w-full rounded-md border bg-background p-3 text-base" />
+                                <p id="receipt-scan-note-hint" className="text-sm text-muted-foreground">
+                                    {noteTooLong ? "Shorten the note before scanning." : "When you save the expense, group members who can view it can also read this note."}
+                                </p>
+                            </div>
+                        ) : null}
                         <Suspense fallback={<div className="panel-card grid min-h-72 place-items-center rounded-[2rem]" role="status"><Spinner className="size-8" aria-hidden="true" /><span className="sr-only">Loading receipt editor</span></div>}>
                             <ReceiptEditor
                                 key={replacement?.id ?? "initial"}
                                 initialFile={replacement?.file}
                                 onPhotoLoaded={markPhotoLoaded}
-                                onPhotoCleared={() => setPhotoLoaded(false)}
+                                onPhotoCleared={clearPhotoState}
                                 hideLibraryChoice
                                 onPrepared={prepared}
+                                scanDisabled={noteTooLong}
                                 onCancel={leave}
                                 onManualEntry={leave}
                             />

@@ -98,6 +98,28 @@ describe("ReceiptDraftReview", () => {
 
     afterEach(cleanup);
 
+    it("reviews a partial redemption against the printed Canadian Tire total", () => {
+        useCreateExpenseMock.mockReturnValue({ ...useCreateExpenseMock(), verifiedScanNote: "Fully redeemed", ocrDraft: {
+            ...draft, items: [], subtotal: provider("24.48"), tax: provider("3.18"),
+            total: provider("27.66"), loyaltyRedemption: provider("10.00"), redemptionNoteConflict: true,
+        } });
+        renderReview(false);
+        expect(screen.getByText("Scan note: Fully redeemed")).toBeVisible();
+        expect(screen.getByRole("alert")).toHaveTextContent("conflicts with the printed redemption");
+        const amount = screen.getByLabelText("Confirmed redemption amount");
+        expect(screen.getByText("Out of pocket: 17.66 CAD")).toBeInTheDocument();
+        fireEvent.change(amount, { target: { value: "30.00" } });
+        expect(screen.getByRole("button", { name: "Use reviewed values" })).toBeDisabled();
+        fireEvent.click(screen.getByRole("button", { name: "Remove redemption" }));
+        expect(screen.getByLabelText(/^Total/)).toHaveValue(27.66);
+        fireEvent.click(screen.getByRole("button", { name: "Add loyalty redemption" }));
+        fireEvent.click(screen.getByRole("button", { name: "Redeem full total" }));
+        fireEvent.click(screen.getByRole("button", { name: "Use reviewed values" }));
+        expect(applyReviewedReceipt).toHaveBeenCalledWith(expect.objectContaining({
+            subtotal: "24.48", tax: "3.18", loyaltyRedemption: "27.66", total: "0.00",
+        }));
+    });
+
     it.each([undefined, "unknown"])("falls back to General for suggestion %s and applies it only on confirmation", (suggestedExpenseTypeId) => {
         useCreateExpenseMock.mockReturnValue({ ...useCreateExpenseMock(), ocrDraft: { ...draft, suggestedExpenseTypeId, categoryReason: "Untrusted reason" } });
         renderReview(false);

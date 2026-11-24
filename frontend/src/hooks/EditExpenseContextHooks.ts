@@ -18,6 +18,7 @@ import type { ReceiptExpenseValues } from "../lib/receiptDraft";
 import { CurrencyMetadata } from "../lib/money";
 
 export interface expenseFormData {
+    loyaltyRedemption?: string;
     receiptDetails?: Omit<ReceiptExpenseValues, "total">;
     providerName?: string;
     invoiceUrl?: string;
@@ -47,6 +48,7 @@ export interface EditExpenseContextType {
     reloadGroupMembers: () => void;
     indicatorShow: boolean;
     submissionError: string | null;
+    receiptValidationMessage: string | null;
     dataOk: boolean;
     hasChanges: boolean;
     allocationCalculation: AllocationCalculation;

@@ -26,7 +26,7 @@ type providerStub struct {
 	wait       bool
 }
 
-func (stub *providerStub) AnalyzeExpense(ctx context.Context, document []byte, categories []ExpenseCategory) (Result, error) {
+func (stub *providerStub) AnalyzeExpense(ctx context.Context, document []byte, categories []ExpenseCategory, note string) (Result, error) {
 	stub.categories = categories
 	stub.calls++
 	stub.document = append([]byte(nil), document...)

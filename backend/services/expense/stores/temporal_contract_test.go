@@ -208,7 +208,7 @@ func TestUpdateExpensePreservesLegacyOccurrenceAndWritesFreshUTCInstant(t *testi
 	require.Len(t, executor.execCalls, 1)
 	call := executor.execCalls[0]
 	assert.NotContains(t, call.statement, "expense_time_utc")
-	require.Len(t, call.args, 15)
+	require.Len(t, call.args, 16)
 	assertUTCInstantBetween(t, call.args[3], startedAt, finishedAt)
 	assert.Equal(t, expense.OccurredOn, call.args[13])
 }
